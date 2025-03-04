@@ -22,6 +22,5 @@ module.exports = {
 	},
 	mode: 'production',
 	externals: {
-		'socket.io-client': 'io',
 	}
 };
