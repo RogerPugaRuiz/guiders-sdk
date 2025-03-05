@@ -1,10 +1,10 @@
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
-import { ClientJS } from 'clientjs';
+import { ClientJS } from "clientjs";
 
 type GuidersClientOptions = {
 	url: string;
-	apiKey: string;
+	apiKey: string; // se utiliza como clave pública (pk_xxx)
 	env: "development" | "production";
 };
 
@@ -14,25 +14,46 @@ const defaultOptions: GuidersClientOptions = {
 	env: "development",
 };
 
+function getCookie(name:string) {
+	const value = `; ${document.cookie}`;
+	const parts = value.split(`; ${name}=`);
+	if (parts.length === 2) return parts.pop()!.split(';').shift();
+	return null;
+}
+
+
 export class GuidersClient {
 	private static socket: Socket | null = null;
 	private static options: GuidersClientOptions = defaultOptions;
+	private static clientId: string | null = null;
 	private static accessToken: string | null = null;
 	private static refreshToken: string | null = null;
 
-	/** Inicializa la conexión WebSocket */
+	/** Inicializa la conexión WebSocket y el proceso de autenticación */
 	static async init(options: GuidersClientOptions): Promise<typeof GuidersClient> {
 		this.options = options;
 		console.log("GuidersClient inicializado");
 
-		// Intentar recuperar los tokens almacenados en localStorage
+		// Intentar recuperar datos almacenados en localStorage
 		const storedAccessToken = localStorage.getItem("guiders_access_token");
 		const storedRefreshToken = localStorage.getItem("guiders_refresh_token");
+		const storedClientId = localStorage.getItem("guiders_client_id");
 
-		if (storedAccessToken && storedRefreshToken) {
+		// buscar el fingerprint del navegador en localStorage o en las cookies
+		// si no existe, solicitar uno nuevo al servidor
+
+		if (storedAccessToken && storedRefreshToken && storedClientId) {
 			this.accessToken = storedAccessToken;
 			this.refreshToken = storedRefreshToken;
+			this.clientId = storedClientId;
 		} else {
+			// 1. Autenticación: usa la clave pública para obtener el clientId
+			const loginData = await this.authenticate();
+			if (!loginData) return this;
+			this.clientId = loginData.clientId;
+			localStorage.setItem("guiders_client_id", this.clientId);
+
+			// 2. Solicitar tokens: usando el clientId y fingerprint
 			const tokens = await this.fetchTokens();
 			if (!tokens) return this;
 			this.accessToken = tokens.access_token;
@@ -49,17 +70,40 @@ export class GuidersClient {
 		localStorage.setItem("guiders_refresh_token", refreshToken);
 	}
 
-	/** Obtiene un JWT y un Refresh Token del backend */
+	/** Realiza la autenticación usando la clave pública (pk_xxx) para obtener el clientId */
+	private static async authenticate(): Promise<{ clientId: string } | null> {
+		try {
+			const response = await fetch(`${this.options.url}/apikey/auth/login`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ publicKey: this.options.apiKey }),
+			});
+			const data = await response.json();
+			if (!data.clientId) throw new Error("No se recibió clientId");
+			return data;
+		} catch (error) {
+			console.error("Error al autenticar con la clave pública:", error);
+			return null;
+		}
+	}
+
+	/** Solicita tokens usando el clientId obtenido y el fingerprint del navegador */
 	private static async fetchTokens(): Promise<{ access_token: string; refresh_token: string } | null> {
 		try {
 			const client = new ClientJS();
-			const fingerprint = client.getFingerprint();
-			const apiKey = this.options.apiKey;
-			const response = await fetch(`${this.options.url}/apikey/auth/token`, {
+
+			// buscar el fingerprint del navegador en localStorage o en las cookies
+			// si no existe, solicitar uno nuevo al servidor
+			const fingerprint = localStorage.getItem("guiders_fingerprint") || getCookie("guiders_fingerprint") || client.getFingerprint().toString();
+			const maxAge = 20 * 365 * 24 * 60 * 60; // 20 años
+			document.cookie = `guiders_fingerprint=${fingerprint}; max-age=${maxAge}`;
+			localStorage.setItem("guiders_fingerprint", fingerprint);
+			if (!this.clientId) throw new Error("clientId no definido");
+			const response = await fetch(`${this.options.url}/apikey/auth/tokens`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					apiKey,
+					clientId: this.clientId,
 					fingerprint,
 				}),
 			});
@@ -72,13 +116,19 @@ export class GuidersClient {
 		}
 	}
 
-	/** Renueva el access_token usando el refresh_token */
+	/** Renueva el access token usando el refresh token */
 	private static async refreshAccessToken(): Promise<boolean> {
 		try {
+			if (!this.clientId || !this.refreshToken) {
+				throw new Error("clientId o refreshToken no definido");
+			}
 			const response = await fetch(`${this.options.url}/apikey/auth/refresh`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ apiKey: this.options.apiKey, refresh_token: this.refreshToken }),
+				body: JSON.stringify({
+					clientId: this.clientId,
+					refreshToken: this.refreshToken,
+				}),
 			});
 			const data = await response.json();
 			if (!data.access_token) throw new Error("No se recibió un nuevo access_token");
@@ -87,11 +137,18 @@ export class GuidersClient {
 			return true;
 		} catch (error) {
 			console.error("Error al renovar el access_token:", error);
+			// Limpiar tokens y clientId para forzar reautenticación
+			localStorage.removeItem("guiders_access_token");
+			localStorage.removeItem("guiders_refresh_token");
+			localStorage.removeItem("guiders_client_id");
+			this.accessToken = null;
+			this.refreshToken = null;
+			this.clientId = null;
 			return false;
 		}
 	}
 
-	/** Conecta al WebSocket con el token */
+	/** Conecta al WebSocket usando el access token obtenido */
 	private static async connectWebSocket(): Promise<void> {
 		if (!this.accessToken) return;
 
@@ -106,25 +163,16 @@ export class GuidersClient {
 
 		this.socket.on("disconnect", async (reason) => {
 			console.warn("Desconectado:", reason);
-			switch (reason) {
-				case "io server disconnect":
-					const refreshed = await this.refreshAccessToken();
-					if (refreshed) {
-						await this.connectWebSocket();
-					} else {
-						console.error("No se pudo renovar el token. Se requiere autenticación nuevamente.");
-					}
-					break;
-				case "io client disconnect":
-				case "ping timeout":
-				case "transport close":
-				case "transport error":
-				case "parse error":
-					console.warn(`Desconexión por: ${reason}`);
-					break;
-				default:
-					console.warn(`Razón desconocida para la desconexión: ${reason}`);
-					break;
+			if (reason === "io server disconnect") {
+				const refreshed = await this.refreshAccessToken();
+				if (refreshed) {
+					await this.connectWebSocket();
+				} else {
+					console.error("No se pudo renovar el access token. Desconectando...");
+					this.init(this.options);
+				}
+			} else {
+				console.warn(`Razón de desconexión: ${reason}`);
 			}
 		});
 	}
@@ -133,7 +181,12 @@ export class GuidersClient {
 	static async registerBrowser(): Promise<void> {
 		if (!this.socket) return;
 		const userAgent = navigator.userAgent;
-		this.socket.emit("registerBrowser", { userAgent });
+		const fingerprint = localStorage.getItem("guiders_fingerprint") || getCookie("guiders_fingerprint");
+		if (!fingerprint) {
+			console.error("No se encontró el fingerprint del navegador");
+			return;
+		}
+		this.socket.emit("registerBrowser", { userAgent, fingerprint });
 		console.log("Registrando navegador:", userAgent);
 	}
 
