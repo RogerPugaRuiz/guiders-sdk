@@ -1,7 +1,7 @@
 {
-  "name": "guiders-sdk",
+  "name": "guiders-pixel",
   "version": "1.0.5",
-  "main": "dist/my-sdk.js",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist"

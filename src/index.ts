@@ -1,216 +1,202 @@
-import { io } from "socket.io-client";
-import type { Socket } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 import { ClientJS } from "clientjs";
 
-type GuidersClientOptions = {
-	url: string;
-	apiKey: string; // se utiliza como clave pública (pk_xxx)
-	env: "development" | "production";
-};
+class TokenManager {
+	private accessToken: string | null = null;
+	private refreshToken: string | null = null;
+	private endpoint: string;
 
-const defaultOptions: GuidersClientOptions = {
-	url: "http://localhost:3000",
-	apiKey: "pk_test_1234567890",
-	env: "development",
-};
+	constructor(endpoint: string) {
+		this.endpoint = endpoint;
+	}
 
-function getCookie(name:string) {
-	const value = `; ${document.cookie}`;
-	const parts = value.split(`; ${name}=`);
-	if (parts.length === 2) return parts.pop()!.split(';').shift();
-	return null;
+	public async getValidAccessToken(): Promise<string | null> {
+		this.loadTokensFromStorage();
+		if (!this.accessToken || this.isTokenExpired()) {
+			await this.requestTokens();
+		}
+		return this.accessToken;
+	}
+
+	private async requestTokens(): Promise<void> {
+		try {
+			const client = FingerprintManager.getClientFingerprint();
+			const response = await fetch(`${this.endpoint}/token`, {
+				method: "POST",
+				headers: this.getHeaders(),
+				body: JSON.stringify({ client }),
+			});
+			if (!response.ok) throw new Error("Error obteniendo tokens");
+			const { access_token, refresh_token } = await response.json();
+			this.storeTokens(access_token, refresh_token);
+		} catch (error) {
+			console.error("Error solicitando tokens:", error);
+		}
+	}
+
+	private storeTokens(accessToken: string, refreshToken: string): void {
+		this.accessToken = accessToken;
+		this.refreshToken = refreshToken;
+		localStorage.setItem("access_token", accessToken);
+		localStorage.setItem("refresh_token", refreshToken);
+	}
+
+	private loadTokensFromStorage(): void {
+		this.accessToken = localStorage.getItem("access_token");
+		this.refreshToken = localStorage.getItem("refresh_token");
+	}
+
+	private isTokenExpired(): boolean {
+		if (!this.accessToken) return true;
+		const payload = JSON.parse(atob(this.accessToken.split('.')[1]));
+		return (payload.exp * 1000) - Date.now() < 60000;
+	}
+
+	private getHeaders(): Record<string, string> {
+		return { "Content-Type": "application/json" };
+	}
 }
 
+class FingerprintManager {
+	static getClientFingerprint(): string {
+		return localStorage.getItem("client") || new ClientJS().getFingerprint().toString();
+	}
+}
 
-export class GuidersClient {
-	private static socket: Socket | null = null;
-	private static options: GuidersClientOptions = defaultOptions;
-	private static clientId: string | null = null;
-	private static accessToken: string | null = null;
-	private static refreshToken: string | null = null;
+class WebSocketManager {
+	private socket: Socket | null = null;
+	private wsEndpoint: string;
+	private tokenManager: TokenManager;
 
-	/** Inicializa la conexión WebSocket y el proceso de autenticación */
-	static async init(options: GuidersClientOptions): Promise<typeof GuidersClient> {
-		this.options = options;
-		console.log("GuidersClient inicializado");
-
-		// Intentar recuperar datos almacenados en localStorage
-		const storedAccessToken = localStorage.getItem("guiders_access_token");
-		const storedRefreshToken = localStorage.getItem("guiders_refresh_token");
-		const storedClientId = localStorage.getItem("guiders_client_id");
-
-		// buscar el fingerprint del navegador en localStorage o en las cookies
-		// si no existe, solicitar uno nuevo al servidor
-
-		if (storedAccessToken && storedRefreshToken && storedClientId) {
-			this.accessToken = storedAccessToken;
-			this.refreshToken = storedRefreshToken;
-			this.clientId = storedClientId;
-		} else {
-			// 1. Autenticación: usa la clave pública para obtener el clientId
-			const loginData = await this.authenticate();
-			if (!loginData) return this;
-			this.clientId = loginData.clientId;
-			localStorage.setItem("guiders_client_id", this.clientId);
-
-			// 2. Solicitar tokens: usando el clientId y fingerprint
-			const tokens = await this.fetchTokens();
-			if (!tokens) return this;
-			this.accessToken = tokens.access_token;
-			this.refreshToken = tokens.refresh_token;
-			this.storeTokens(this.accessToken, this.refreshToken);
-		}
-		await this.connectWebSocket();
-		return this;
+	constructor(wsEndpoint: string, tokenManager: TokenManager, private autoReconnect: boolean = true) {
+		this.wsEndpoint = wsEndpoint;
+		this.tokenManager = tokenManager;
 	}
 
-	/** Almacena los tokens en localStorage */
-	private static storeTokens(accessToken: string, refreshToken: string): void {
-		localStorage.setItem("guiders_access_token", accessToken);
-		localStorage.setItem("guiders_refresh_token", refreshToken);
-	}
+	public async connectSocket(): Promise<void> {
+		const accessToken = await this.tokenManager.getValidAccessToken();
+		if (!accessToken) return;
 
-	/** Realiza la autenticación usando la clave pública (pk_xxx) para obtener el clientId */
-	private static async authenticate(): Promise<{ clientId: string } | null> {
-		try {
-			const response = await fetch(`${this.options.url}/apikey/auth/login`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ publicKey: this.options.apiKey }),
-			});
-			const data = await response.json();
-			if (!data.clientId) throw new Error("No se recibió clientId");
-			return data;
-		} catch (error) {
-			console.error("Error al autenticar con la clave pública:", error);
-			return null;
-		}
-	}
+		this.socket = io(this.wsEndpoint, { auth: { token: accessToken }, reconnection: false });
 
-	/** Solicita tokens usando el clientId obtenido y el fingerprint del navegador */
-	private static async fetchTokens(): Promise<{ access_token: string; refresh_token: string } | null> {
-		try {
-			const client = new ClientJS();
-
-			// buscar el fingerprint del navegador en localStorage o en las cookies
-			// si no existe, solicitar uno nuevo al servidor
-			const fingerprint = localStorage.getItem("guiders_fingerprint") || getCookie("guiders_fingerprint") || client.getFingerprint().toString();
-			const maxAge = 20 * 365 * 24 * 60 * 60; // 20 años
-			document.cookie = `guiders_fingerprint=${fingerprint}; max-age=${maxAge}`;
-			localStorage.setItem("guiders_fingerprint", fingerprint);
-			if (!this.clientId) throw new Error("clientId no definido");
-			const response = await fetch(`${this.options.url}/apikey/auth/tokens`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					clientId: this.clientId,
-					fingerprint,
-				}),
-			});
-			const data = await response.json();
-			if (!data.access_token || !data.refresh_token) throw new Error("No se recibieron tokens");
-			return data;
-		} catch (error) {
-			console.error("Error al obtener los tokens:", error);
-			return null;
-		}
-	}
-
-	/** Renueva el access token usando el refresh token */
-	private static async refreshAccessToken(): Promise<boolean> {
-		try {
-			if (!this.clientId || !this.refreshToken) {
-				throw new Error("clientId o refreshToken no definido");
-			}
-			const response = await fetch(`${this.options.url}/apikey/auth/refresh`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					clientId: this.clientId,
-					refreshToken: this.refreshToken,
-				}),
-			});
-			const data = await response.json();
-			if (!data.access_token) throw new Error("No se recibió un nuevo access_token");
-			this.accessToken = data.access_token as string;
-			localStorage.setItem("guiders_access_token", this.accessToken);
-			return true;
-		} catch (error) {
-			console.error("Error al renovar el access_token:", error);
-			// Limpiar tokens y clientId para forzar reautenticación
-			localStorage.removeItem("guiders_access_token");
-			localStorage.removeItem("guiders_refresh_token");
-			localStorage.removeItem("guiders_client_id");
-			this.accessToken = null;
-			this.refreshToken = null;
-			this.clientId = null;
-			return false;
-		}
-	}
-
-	/** Conecta al WebSocket usando el access token obtenido */
-	private static async connectWebSocket(): Promise<void> {
-		if (!this.accessToken) return;
-
-		this.socket = io(`${this.options.url}/guiders-client`, {
-			auth: { token: this.accessToken },
-		});
-
-		this.socket.on("connect", () => {
-			console.log("Conectado al servidor WebSocket");
-			this.registerBrowser();
-		});
-
-		this.socket.on("disconnect", async (reason) => {
-			console.warn("Desconectado:", reason);
-			if (reason === "io server disconnect") {
-				const refreshed = await this.refreshAccessToken();
-				if (refreshed) {
-					await this.connectWebSocket();
-				} else {
-					console.error("No se pudo renovar el access token. Desconectando...");
-					this.init(this.options);
-				}
+		this.socket.on("connect", () => console.log("Conectado al servidor de notificaciones"));
+		this.socket.on("disconnect", () => this.scheduleReconnect());
+		this.socket.on("connect_error", async (error) => {
+			console.error("Error de conexión:", error);
+			if (error.message === "invalid token") {
+				await this.tokenManager.getValidAccessToken();
+				this.connectSocket();
 			} else {
-				console.warn(`Razón de desconexión: ${reason}`);
+				this.scheduleReconnect();
 			}
 		});
 	}
 
-	/** Registra el navegador al WebSocket */
-	static async registerBrowser(): Promise<void> {
-		if (!this.socket) return;
-		const userAgent = navigator.userAgent;
-		const fingerprint = localStorage.getItem("guiders_fingerprint") || getCookie("guiders_fingerprint");
-		if (!fingerprint) {
-			console.error("No se encontró el fingerprint del navegador");
-			return;
-		}
-		this.socket.emit("registerBrowser", { userAgent, fingerprint });
-		console.log("Registrando navegador:", userAgent);
-	}
-
-	/** Envía un mensaje al servidor WebSocket */
-	static sendMessage(data: any): typeof GuidersClient {
-		if (!this.socket) {
-			console.error("El socket no está inicializado. Llama a GuidersClient.init primero.");
-			return this;
-		}
-		this.socket.emit("message", data);
-		console.log("Mensaje enviado:", data);
-		return this;
-	}
-
-	/** Cierra la conexión WebSocket */
-	static disconnect(): typeof GuidersClient {
+	public on(event: string, callback: (...args: any[]) => void): void {
 		if (this.socket) {
-			this.socket.disconnect();
-			console.log("Desconectado del WebSocket");
+			this.socket.on(event, callback);
 		}
-		return this;
+	}
+
+	private scheduleReconnect(): void {
+		if (!this.autoReconnect) return;
+		setTimeout(() => this.connectSocket(), 60000);
 	}
 }
 
-if (typeof window !== "undefined") {
-	(window as any).GuidersClient = GuidersClient;
+class PixelTracker {
+	private endpoint: string;
+	private tokenManager: TokenManager;
+	private lastActivity: number = Date.now();
+	private isFocused: boolean = true;
+
+	constructor(endpoint: string, tokenManager: TokenManager) {
+		this.endpoint = endpoint;
+		this.tokenManager = tokenManager;
+		this.setupActivityListeners();
+	}
+
+	/**
+	 * Registra eventos de actividad y foco del usuario
+	 */
+	private setupActivityListeners(): void {
+		document.addEventListener("visibilitychange", () => this.updateFocusStatus());
+		window.addEventListener("focus", () => this.updateFocusStatus());
+		window.addEventListener("blur", () => this.updateFocusStatus());
+		window.addEventListener("mousemove", () => this.registerActivity());
+		window.addEventListener("keydown", () => this.registerActivity());
+
+		setInterval(() => this.sendAvailabilityStatus(), 15000); // Enviar estado cada 15s
+	}
+
+	/**
+	 * Actualiza si la ventana está en foco
+	 */
+	private updateFocusStatus(): void {
+		this.isFocused = !document.hidden;
+		this.registerActivity();
+	}
+
+	/**
+	 * Registra actividad del usuario y actualiza el tiempo de última acción
+	 */
+	private registerActivity(): void {
+		this.lastActivity = Date.now();
+	}
+
+	/**
+	 * Enviar estado de disponibilidad al servidor
+	 */
+	private async sendAvailabilityStatus(): Promise<void> {
+		const isActive = this.isFocused && (Date.now() - this.lastActivity < 30000); // Activo si interactuó en los últimos 30s
+		await this.track("user_status", { available: isActive });
+	}
+
+	/**
+	 * Enviar eventos de tracking al servidor
+	 */
+	public async track(eventName: string, eventData: Record<string, any> = {}): Promise<void> {
+		const accessToken = await this.tokenManager.getValidAccessToken();
+		if (!accessToken) return;
+
+		try {
+			await fetch(`${this.endpoint}/events`, {
+				method: "POST",
+				headers: this.getHeaders(accessToken),
+				body: JSON.stringify({ event: eventName, data: eventData, timestamp: new Date().toISOString() }),
+			});
+		} catch (err) {
+			console.error("Error enviando evento:", err);
+		}
+	}
+
+	private getHeaders(accessToken: string): Record<string, string> {
+		return { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` };
+	}
 }
+class GuidersPixel {
+	private apiKey: string | null = null;
+	private domain: string;
+	private tokenManager: TokenManager;
+	private socketManager: WebSocketManager;
+	private pixelTracker: PixelTracker;
+
+	constructor() {
+		this.domain = window.location.hostname;
+		this.tokenManager = new TokenManager('http://localhost:3000/pixel');
+		this.socketManager = new WebSocketManager('ws://localhost:3000/chat', this.tokenManager);
+		this.pixelTracker = new PixelTracker('http://localhost:3000/pixel', this.tokenManager);
+	}
+
+	public async init(apiKey: string): Promise<void> {
+		this.apiKey = apiKey;
+		await this.tokenManager.getValidAccessToken();
+		await this.socketManager.connectSocket();
+	}
+
+	public async track(eventName: string, eventData: Record<string, any> = {}): Promise<void> {
+		await this.pixelTracker.track(eventName, eventData);
+	}
+}
+
+(window as any).guidersPixel = new GuidersPixel();
