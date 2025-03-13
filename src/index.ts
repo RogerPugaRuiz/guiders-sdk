@@ -5,6 +5,7 @@ class TokenManager {
 	private accessToken: string | null = null;
 	private refreshToken: string | null = null;
 	private endpoint: string;
+	private tokenRequestInProgress: boolean = false; // 🔒 Evita llamadas duplicadas
 
 	constructor(endpoint: string) {
 		this.endpoint = endpoint;
@@ -12,9 +13,19 @@ class TokenManager {
 
 	public async getValidAccessToken(): Promise<string | null> {
 		this.loadTokensFromStorage();
+
 		if (!this.accessToken || this.isTokenExpired()) {
-			await this.requestTokens();
+			if (this.tokenRequestInProgress) {
+				while (this.tokenRequestInProgress) {
+					await new Promise(resolve => setTimeout(resolve, 100)); // Espera 100ms
+				}
+			} else {
+				this.tokenRequestInProgress = true;
+				await this.requestTokens();
+				this.tokenRequestInProgress = false;
+			}
 		}
+
 		return this.accessToken;
 	}
 
@@ -26,7 +37,9 @@ class TokenManager {
 				headers: this.getHeaders(),
 				body: JSON.stringify({ client }),
 			});
+
 			if (!response.ok) throw new Error("Error obteniendo tokens");
+
 			const { access_token, refresh_token } = await response.json();
 			this.storeTokens(access_token, refresh_token);
 		} catch (error) {
@@ -48,8 +61,19 @@ class TokenManager {
 
 	private isTokenExpired(): boolean {
 		if (!this.accessToken) return true;
-		const payload = JSON.parse(atob(this.accessToken.split('.')[1]));
-		return (payload.exp * 1000) - Date.now() < 60000;
+		try {
+			const payload = JSON.parse(atob(this.accessToken.split('.')[1]));
+			const expirationTime = payload.exp * 1000;
+			const currentTime = Date.now();
+
+			console.log("⏳ Expiración del token:", new Date(expirationTime));
+			console.log("🕒 Hora actual:", new Date(currentTime));
+
+			return expirationTime - currentTime < 30000; // Reducimos margen a 30s
+		} catch (error) {
+			console.error("Error al verificar expiración del token:", error);
+			return true;
+		}
 	}
 
 	private getHeaders(): Record<string, string> {
@@ -59,7 +83,9 @@ class TokenManager {
 
 class FingerprintManager {
 	static getClientFingerprint(): string {
-		return localStorage.getItem("client") || new ClientJS().getFingerprint().toString();
+		const currentFingerPrint = localStorage.getItem("client") || new ClientJS().getFingerprint().toString();
+		localStorage.setItem("client", currentFingerPrint);
+		return currentFingerPrint;
 	}
 }
 
@@ -67,135 +93,147 @@ class WebSocketManager {
 	private socket: Socket | null = null;
 	private wsEndpoint: string;
 	private tokenManager: TokenManager;
+	private autoReconnect: boolean;
 
-	constructor(wsEndpoint: string, tokenManager: TokenManager, private autoReconnect: boolean = true) {
+	constructor(wsEndpoint: string, tokenManager: TokenManager, autoReconnect = true) {
 		this.wsEndpoint = wsEndpoint;
 		this.tokenManager = tokenManager;
+		this.autoReconnect = autoReconnect;
 	}
 
 	public async connectSocket(): Promise<void> {
 		const accessToken = await this.tokenManager.getValidAccessToken();
 		if (!accessToken) return;
 
-		this.socket = io(this.wsEndpoint, { auth: { token: accessToken }, reconnection: false });
+		this.socket = io(this.wsEndpoint, {
+			auth: { token: accessToken },
+			reconnection: true,
+			reconnectionAttempts: 10,
+			reconnectionDelay: 500,
+			reconnectionDelayMax: 3000,
+			timeout: 10000,
+			autoConnect: false,
+		});
 
-		this.socket.on("connect", () => console.log("Conectado al servidor de notificaciones"));
-		this.socket.on("disconnect", () => this.scheduleReconnect());
-		this.socket.on("connect_error", async (error) => {
-			console.error("Error de conexión:", error);
+		this.socket.on("connect", () => console.log("✅ Conectado al servidor"));
+
+		this.socket.on("disconnect", (reason) => console.warn("❌ Desconectado:", reason));
+
+		this.socket.on("auth_error", async (error) => {
+			console.error("🔴 Error de autenticación:", error);
+
 			if (error.message === "invalid token") {
+				if (this.tokenManager.tokenRequestInProgress) return;
+				await new Promise(resolve => setTimeout(resolve, 2000));
 				await this.tokenManager.getValidAccessToken();
-				this.connectSocket();
-			} else {
-				this.scheduleReconnect();
+			}
+
+			if (this.autoReconnect) {
+				this.socket?.disconnect();
+				setTimeout(() => this.connectSocket(), 5000);
 			}
 		});
 	}
 
-	public on(event: string, callback: (...args: any[]) => void): void {
-		if (this.socket) {
-			this.socket.on(event, callback);
-		}
+	public get connected(): boolean {
+		return this.socket ? this.socket.connected : false;
 	}
 
-	private scheduleReconnect(): void {
-		if (!this.autoReconnect) return;
-		setTimeout(() => this.connectSocket(), 60000);
+	public on(event: string, callback: (...args: any[]) => void): void {
+		this.socket?.on(event, callback);
+	}
+
+	public emit(event: string, data: any): void {
+		this.socket?.emit(event, data);
 	}
 }
 
 class PixelTracker {
-	private endpoint: string;
 	private tokenManager: TokenManager;
+	private socketManager: WebSocketManager;
+	private eventQueue: any[] = [];
 	private lastActivity: number = Date.now();
 	private isFocused: boolean = true;
+	private lastSentStatus: boolean | null = null;
+	private inactivityTimeout: number | null = null;
+	private inactivityThreshold: number;
 
-	constructor(endpoint: string, tokenManager: TokenManager) {
-		this.endpoint = endpoint;
+	constructor(tokenManager: TokenManager, socketManager: WebSocketManager, inactivityThreshold: number = 5 * 60 * 1000) {
 		this.tokenManager = tokenManager;
+		this.socketManager = socketManager;
+		this.inactivityThreshold = inactivityThreshold;
 		this.setupActivityListeners();
 	}
 
-	/**
-	 * Registra eventos de actividad y foco del usuario
-	 */
 	private setupActivityListeners(): void {
-		document.addEventListener("visibilitychange", () => this.updateFocusStatus());
-		window.addEventListener("focus", () => this.updateFocusStatus());
-		window.addEventListener("blur", () => this.updateFocusStatus());
-		window.addEventListener("mousemove", () => this.registerActivity());
-		window.addEventListener("keydown", () => this.registerActivity());
-
-		setInterval(() => this.sendAvailabilityStatus(), 15000); // Enviar estado cada 15s
+		const events = ["visibilitychange", "focus", "blur", "mousemove", "keydown"];
+		events.forEach(event => {
+			document.addEventListener(event, () => this.handleEvent());
+			if (event !== "visibilitychange") {
+				window.addEventListener(event, () => this.handleEvent());
+			}
+		});
 	}
 
-	/**
-	 * Actualiza si la ventana está en foco
-	 */
+	private handleEvent(): void {
+		this.updateFocusStatus();
+		this.registerActivity();
+		this.checkAvailability();
+		if (this.inactivityTimeout) clearTimeout(this.inactivityTimeout);
+		this.inactivityTimeout = window.setTimeout(() => this.checkAvailability(), this.inactivityThreshold);
+	}
+
 	private updateFocusStatus(): void {
 		this.isFocused = !document.hidden;
-		this.registerActivity();
 	}
 
-	/**
-	 * Registra actividad del usuario y actualiza el tiempo de última acción
-	 */
 	private registerActivity(): void {
 		this.lastActivity = Date.now();
 	}
 
-	/**
-	 * Enviar estado de disponibilidad al servidor
-	 */
-	private async sendAvailabilityStatus(): Promise<void> {
-		const isActive = this.isFocused && (Date.now() - this.lastActivity < 30000); // Activo si interactuó en los últimos 30s
-		await this.track("user_status", { available: isActive });
-	}
-
-	/**
-	 * Enviar eventos de tracking al servidor
-	 */
-	public async track(eventName: string, eventData: Record<string, any> = {}): Promise<void> {
-		const accessToken = await this.tokenManager.getValidAccessToken();
-		if (!accessToken) return;
-
-		try {
-			await fetch(`${this.endpoint}/events`, {
-				method: "POST",
-				headers: this.getHeaders(accessToken),
-				body: JSON.stringify({ event: eventName, data: eventData, timestamp: new Date().toISOString() }),
-			});
-		} catch (err) {
-			console.error("Error enviando evento:", err);
+	private async checkAvailability(): Promise<void> {
+		const isActive = this.isFocused && (Date.now() - this.lastActivity < this.inactivityThreshold);
+		if (this.lastSentStatus !== isActive) {
+			this.lastSentStatus = isActive;
+			await this.track("user_status", { available: isActive });
 		}
 	}
 
-	private getHeaders(accessToken: string): Record<string, string> {
-		return { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` };
+	public async track(eventName: string, eventData: Record<string, any> = {}): Promise<void> {
+		const accessToken = await this.tokenManager.getValidAccessToken();
+		if (!accessToken) return;
+		const payload = { event: eventName, data: eventData, timestamp: Date.now() };
+
+		if (this.socketManager.connected) {
+			this.socketManager.emit("tracking", payload);
+			this.flushQueue();
+		} else {
+			this.eventQueue.push(payload);
+		}
+	}
+
+	private flushQueue(): void {
+		while (this.eventQueue.length && this.socketManager.connected) {
+			const payload = this.eventQueue.shift();
+			this.socketManager.emit("tracking", payload);
+		}
 	}
 }
+
 class GuidersPixel {
-	private apiKey: string | null = null;
-	private domain: string;
 	private tokenManager: TokenManager;
 	private socketManager: WebSocketManager;
-	private pixelTracker: PixelTracker;
+	private pixelTracker: PixelTracker | null = null;
 
 	constructor() {
-		this.domain = window.location.hostname;
 		this.tokenManager = new TokenManager('http://localhost:3000/pixel');
-		this.socketManager = new WebSocketManager('ws://localhost:3000/chat', this.tokenManager);
-		this.pixelTracker = new PixelTracker('http://localhost:3000/pixel', this.tokenManager);
+		this.socketManager = new WebSocketManager('ws://localhost:3000/tracking', this.tokenManager, true);
 	}
 
-	public async init(apiKey: string): Promise<void> {
-		this.apiKey = apiKey;
+	public async init(apiKey: string, options: Record<string, any> = {}): Promise<void> {
 		await this.tokenManager.getValidAccessToken();
 		await this.socketManager.connectSocket();
-	}
-
-	public async track(eventName: string, eventData: Record<string, any> = {}): Promise<void> {
-		await this.pixelTracker.track(eventName, eventData);
+		this.pixelTracker = new PixelTracker(this.tokenManager, this.socketManager);
 	}
 }
 
