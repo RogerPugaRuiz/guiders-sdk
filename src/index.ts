@@ -11,6 +11,10 @@ class TokenManager {
 		this.endpoint = endpoint;
 	}
 
+	public isTokenRequestInProgress(): boolean {
+		return this.tokenRequestInProgress;
+	}
+
 	public async getValidAccessToken(): Promise<string | null> {
 		this.loadTokensFromStorage();
 
@@ -123,7 +127,7 @@ class WebSocketManager {
 			console.error("🔴 Error de autenticación:", error);
 
 			if (error.message === "invalid token") {
-				if (this.tokenManager.tokenRequestInProgress) return;
+				if (this.tokenManager.isTokenRequestInProgress()) return;
 				await new Promise(resolve => setTimeout(resolve, 2000));
 				await this.tokenManager.getValidAccessToken();
 			}
