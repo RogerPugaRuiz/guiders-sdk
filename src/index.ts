@@ -33,7 +33,7 @@ class TokenManager {
 		return this.accessToken;
 	}
 
-	private async requestTokens(): Promise<void> {
+	private async requestTokens(retryCount = 0): Promise<void> {
 		try {
 			const client = FingerprintManager.getClientFingerprint();
 			const response = await fetch(`${this.endpoint}/token`, {
@@ -47,10 +47,15 @@ class TokenManager {
 			const { access_token, refresh_token } = await response.json();
 			this.storeTokens(access_token, refresh_token);
 		} catch (error) {
-			console.error("Error solicitando tokens:", error);
-			// reintentar en 5 segundos
+			console.error(`Error solicitando tokens (Intento ${retryCount}):`, error);
+
+			if (retryCount >= 5) {  // ❌ Después de 5 intentos, se detiene el reintento
+				console.error("🚨 No se pudo obtener el token después de múltiples intentos.");
+				return;
+			}
+
 			await new Promise(resolve => setTimeout(resolve, 5000));
-			await this.requestTokens();
+			await this.requestTokens(retryCount + 1);
 		}
 	}
 
@@ -117,6 +122,8 @@ class WebSocketManager {
 			timeout: 10000,
 			autoConnect: false,
 		});
+
+		this.socket.connect();
 
 		this.socket.on("connect", () => console.log("✅ Conectado al servidor"));
 
