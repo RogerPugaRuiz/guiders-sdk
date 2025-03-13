@@ -5,7 +5,7 @@ class TokenManager {
 	private accessToken: string | null = null;
 	private refreshToken: string | null = null;
 	private endpoint: string;
-	private tokenRequestInProgress: boolean = false; // 🔒 Evita llamadas duplicadas
+	private tokenRequestInProgress: boolean = false;
 
 	constructor(endpoint: string) {
 		this.endpoint = endpoint;
@@ -69,11 +69,7 @@ class TokenManager {
 			const payload = JSON.parse(atob(this.accessToken.split('.')[1]));
 			const expirationTime = payload.exp * 1000;
 			const currentTime = Date.now();
-
-			console.log("⏳ Expiración del token:", new Date(expirationTime));
-			console.log("🕒 Hora actual:", new Date(currentTime));
-
-			return expirationTime - currentTime < 30000; // Reducimos margen a 30s
+			return expirationTime - currentTime < 30000;
 		} catch (error) {
 			console.error("Error al verificar expiración del token:", error);
 			return true;
@@ -152,92 +148,49 @@ class WebSocketManager {
 	}
 }
 
-class PixelTracker {
-	private tokenManager: TokenManager;
-	private socketManager: WebSocketManager;
-	private eventQueue: any[] = [];
-	private lastActivity: number = Date.now();
-	private isFocused: boolean = true;
-	private lastSentStatus: boolean | null = null;
-	private inactivityTimeout: number | null = null;
-	private inactivityThreshold: number;
-
-	constructor(tokenManager: TokenManager, socketManager: WebSocketManager, inactivityThreshold: number = 5 * 60 * 1000) {
-		this.tokenManager = tokenManager;
-		this.socketManager = socketManager;
-		this.inactivityThreshold = inactivityThreshold;
-		this.setupActivityListeners();
-	}
-
-	private setupActivityListeners(): void {
-		const events = ["visibilitychange", "focus", "blur", "mousemove", "keydown"];
-		events.forEach(event => {
-			document.addEventListener(event, () => this.handleEvent());
-			if (event !== "visibilitychange") {
-				window.addEventListener(event, () => this.handleEvent());
-			}
-		});
-	}
-
-	private handleEvent(): void {
-		this.updateFocusStatus();
-		this.registerActivity();
-		this.checkAvailability();
-		if (this.inactivityTimeout) clearTimeout(this.inactivityTimeout);
-		this.inactivityTimeout = window.setTimeout(() => this.checkAvailability(), this.inactivityThreshold);
-	}
-
-	private updateFocusStatus(): void {
-		this.isFocused = !document.hidden;
-	}
-
-	private registerActivity(): void {
-		this.lastActivity = Date.now();
-	}
-
-	private async checkAvailability(): Promise<void> {
-		const isActive = this.isFocused && (Date.now() - this.lastActivity < this.inactivityThreshold);
-		if (this.lastSentStatus !== isActive) {
-			this.lastSentStatus = isActive;
-			await this.track("user_status", { available: isActive });
-		}
-	}
-
-	public async track(eventName: string, eventData: Record<string, any> = {}): Promise<void> {
-		const accessToken = await this.tokenManager.getValidAccessToken();
-		if (!accessToken) return;
-		const payload = { event: eventName, data: eventData, timestamp: Date.now() };
-
-		if (this.socketManager.connected) {
-			this.socketManager.emit("tracking", payload);
-			this.flushQueue();
-		} else {
-			this.eventQueue.push(payload);
-		}
-	}
-
-	private flushQueue(): void {
-		while (this.eventQueue.length && this.socketManager.connected) {
-			const payload = this.eventQueue.shift();
-			this.socketManager.emit("tracking", payload);
-		}
-	}
-}
-
 class GuidersPixel {
+	private apiKey: string | null = null;
+	private domain: string;
 	private tokenManager: TokenManager;
 	private socketManager: WebSocketManager;
-	private pixelTracker: PixelTracker | null = null;
 
 	constructor() {
+		this.domain = window.location.hostname;
 		this.tokenManager = new TokenManager('http://localhost:3000/pixel');
 		this.socketManager = new WebSocketManager('ws://localhost:3000/tracking', this.tokenManager, true);
 	}
 
 	public async init(apiKey: string, options: Record<string, any> = {}): Promise<void> {
+		this.apiKey = apiKey;
+
+		// Primero, registrar el visitante antes de obtener el token
+		await this.registerVisitor();
+
+		// Luego, obtener el token y conectar el socket
 		await this.tokenManager.getValidAccessToken();
 		await this.socketManager.connectSocket();
-		this.pixelTracker = new PixelTracker(this.tokenManager, this.socketManager);
+	}
+
+	private async registerVisitor(): Promise<void> {
+		const clientFingerprint = FingerprintManager.getClientFingerprint();
+		const userAgent = navigator.userAgent;
+
+		try {
+			const response = await fetch('http://localhost:3000/pixel/register', {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					apiKey: this.apiKey,
+					client: clientFingerprint,
+					userAgent: userAgent
+				})
+			});
+
+			if (!response.ok) throw new Error('Error al registrar visitante');
+			console.log('✅ Visitante registrado exitosamente');
+		} catch (error) {
+			console.error("❌ Error en el registro del visitante:", error);
+		}
 	}
 }
 
