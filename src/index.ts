@@ -48,6 +48,9 @@ class TokenManager {
 			this.storeTokens(access_token, refresh_token);
 		} catch (error) {
 			console.error("Error solicitando tokens:", error);
+			// reintentar en 5 segundos
+			await new Promise(resolve => setTimeout(resolve, 5000));
+			await this.requestTokens();
 		}
 	}
 
@@ -128,9 +131,9 @@ class WebSocketManager {
 				await this.tokenManager.getValidAccessToken();
 			}
 
-			if (this.autoReconnect) {
+			if (!this.autoReconnect) {
 				this.socket?.disconnect();
-				setTimeout(() => this.connectSocket(), 5000);
+				setTimeout(() => this.connectSocket(), 5000); // Intentar reconectar en 5 segundos
 			}
 		});
 	}
@@ -175,6 +178,7 @@ class GuidersPixel {
 		const clientFingerprint = FingerprintManager.getClientFingerprint();
 		const userAgent = navigator.userAgent;
 
+		console.log("Registrando visitante...");
 		try {
 			const response = await fetch('http://localhost:3000/pixel/register', {
 				method: "POST",
