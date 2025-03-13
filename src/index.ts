@@ -102,11 +102,22 @@ class WebSocketManager {
 	private wsEndpoint: string;
 	private tokenManager: TokenManager;
 	private autoReconnect: boolean;
+	private inactivityThreshold: number;
+	private lastActivity: number = Date.now();
+	private isFocused: boolean = true;
+	private inactivityTimeout: number | null = null;
 
-	constructor(wsEndpoint: string, tokenManager: TokenManager, autoReconnect = true) {
+	constructor(wsEndpoint: string, options: {
+		tokenManager: TokenManager,
+		autoReconnect: boolean,
+		inactivityThreshold: number
+	}) {
 		this.wsEndpoint = wsEndpoint;
+		const { tokenManager, autoReconnect, inactivityThreshold } = options;
 		this.tokenManager = tokenManager;
 		this.autoReconnect = autoReconnect;
+		this.inactivityThreshold = inactivityThreshold;
+		this.setupActivityListeners();
 	}
 
 	public async connectSocket(): Promise<void> {
@@ -124,8 +135,28 @@ class WebSocketManager {
 		});
 
 		this.socket.connect();
+		this.setEventListeners();
+	}
 
-		this.socket.on("connect", () => console.log("✅ Conectado al servidor"));
+	public get connected(): boolean {
+		return this.socket ? this.socket.connected : false;
+	}
+
+	public on(event: string, callback: (...args: any[]) => void): void {
+		this.socket?.on(event, callback);
+	}
+
+	public emit(event: string, data: any): void {
+		this.socket?.emit(event, data);
+	}
+
+	private setEventListeners(): void {
+		if (!this.socket) return;
+
+		this.socket.on("connect", () => {
+			console.log("✅ Conectado al servidor");
+			this.emitUserStatus(); // Emitir estado al conectar
+		});
 
 		this.socket.on("disconnect", (reason) => console.warn("❌ Desconectado:", reason));
 
@@ -140,34 +171,69 @@ class WebSocketManager {
 
 			if (!this.autoReconnect) {
 				this.socket?.disconnect();
-				setTimeout(() => this.connectSocket(), 5000); // Intentar reconectar en 5 segundos
+				setTimeout(() => this.connectSocket(), 5000);
 			}
+		});
+
+		this.socket.onAny((event, ...args) => {
+			console.log(`📡 Evento recibido: ${event}`, args);
 		});
 	}
 
-	public get connected(): boolean {
-		return this.socket ? this.socket.connected : false;
+	/** 📌 Configurar detección de actividad del usuario */
+	private setupActivityListeners(): void {
+		const events = ["mousemove", "keydown", "scroll", "touchstart"];
+		events.forEach(event => {
+			document.addEventListener(event, () => this.registerActivity());
+		});
+
+		// Detectar cambio de pestaña o minimizar ventana
+		document.addEventListener("visibilitychange", () => {
+			this.isFocused = !document.hidden;
+			this.emitUserStatus();
+		});
 	}
 
-	public on(event: string, callback: (...args: any[]) => void): void {
-		this.socket?.on(event, callback);
+	/** 📌 Registrar actividad del usuario */
+	private registerActivity(): void {
+		this.lastActivity = Date.now();
+		this.emitUserStatus();
+
+		// Reiniciar el temporizador de inactividad
+		if (this.inactivityTimeout) clearTimeout(this.inactivityTimeout);
+		this.inactivityTimeout = window.setTimeout(() => this.checkInactivity(), this.inactivityThreshold);
 	}
 
-	public emit(event: string, data: any): void {
-		this.socket?.emit(event, data);
+	/** 📌 Verificar si el usuario está inactivo */
+	private checkInactivity(): void {
+		const now = Date.now();
+		const isInactive = now - this.lastActivity >= this.inactivityThreshold;
+
+		if (isInactive) {
+			console.warn("⚠️ Usuario inactivo.");
+			this.emit("user_inactive", { status: "inactive" });
+		}
+	}
+
+	/** 📌 Emitir estado del usuario */
+	private emitUserStatus(): void {
+		const status = this.isFocused ? "active" : "inactive";
+		this.emit("user_status", { status });
 	}
 }
 
 class GuidersPixel {
 	private apiKey: string | null = null;
-	private domain: string;
 	private tokenManager: TokenManager;
 	private socketManager: WebSocketManager;
 
 	constructor() {
-		this.domain = window.location.hostname;
 		this.tokenManager = new TokenManager('http://localhost:3000/pixel');
-		this.socketManager = new WebSocketManager('ws://localhost:3000/tracking', this.tokenManager, true);
+		this.socketManager = new WebSocketManager('ws://localhost:3000/tracking', {
+			tokenManager: this.tokenManager,
+			autoReconnect: true,
+			inactivityThreshold: 1000 // 10 segundos
+		});
 	}
 
 	public async init(apiKey: string, options: Record<string, any> = {}): Promise<void> {
