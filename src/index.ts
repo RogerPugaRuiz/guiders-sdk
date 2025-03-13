@@ -106,6 +106,7 @@ class WebSocketManager {
 	private lastActivity: number = Date.now();
 	private isFocused: boolean = true;
 	private inactivityTimeout: number | null = null;
+	private wasInactive: boolean = false;
 
 	constructor(wsEndpoint: string, options: {
 		tokenManager: TokenManager,
@@ -197,6 +198,14 @@ class WebSocketManager {
 	/** 📌 Registrar actividad del usuario */
 	private registerActivity(): void {
 		this.lastActivity = Date.now();
+
+		// Si estaba inactivo y vuelve a interactuar, emite "user_active"
+		if (this.wasInactive) {
+			this.wasInactive = false;
+			console.log("🟢 Usuario volvió a estar activo.");
+			this.emit("user_active", { status: "active" });
+		}
+
 		this.emitUserStatus();
 
 		// Reiniciar el temporizador de inactividad
@@ -209,7 +218,8 @@ class WebSocketManager {
 		const now = Date.now();
 		const isInactive = now - this.lastActivity >= this.inactivityThreshold;
 
-		if (isInactive) {
+		if (isInactive && !this.wasInactive) {
+			this.wasInactive = true;
 			console.warn("⚠️ Usuario inactivo.");
 			this.emit("user_inactive", { status: "inactive" });
 		}
