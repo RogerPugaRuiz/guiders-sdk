@@ -14,12 +14,12 @@ export class WebSocketAdapter implements WebSocketPort {
 	private wasInactive: boolean = false;
 
 	constructor(wsEndpoint: string, options: {
-		tokenService: TokenPort,
 		autoReconnect: boolean,
 		inactivityThreshold: number
-	}) {
+	}, providers: { tokenService: TokenPort }) {
 		this.wsEndpoint = wsEndpoint;
-		const { tokenService, autoReconnect, inactivityThreshold } = options;
+		const { autoReconnect, inactivityThreshold } = options;
+		const { tokenService } = providers;
 		this.tokenService = tokenService;
 		this.autoReconnect = autoReconnect;
 		this.inactivityThreshold = inactivityThreshold;
