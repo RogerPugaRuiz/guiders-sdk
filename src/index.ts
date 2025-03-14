@@ -164,15 +164,16 @@ class WebSocketManager {
 		this.socket.on("auth_error", async (error) => {
 			console.error("🔴 Error de autenticación:", error);
 
-			if (error.message === "invalid token") {
-				if (this.tokenManager.isTokenRequestInProgress()) return;
-				await new Promise(resolve => setTimeout(resolve, 2000));
-				await this.tokenManager.getValidAccessToken();
-			}
+			// if (error.message === "invalid token") {
+			if (this.tokenManager.isTokenRequestInProgress()) return;
+			await new Promise(resolve => setTimeout(resolve, 2000));
+			await this.tokenManager.getValidAccessToken();
+			// }
 
-			if (!this.autoReconnect) {
+			if (this.autoReconnect) {
 				this.socket?.disconnect();
-				setTimeout(() => this.connectSocket(), 5000);
+				this.connectSocket();
+				// setTimeout(() => this.connectSocket(), 5000);
 			}
 		});
 
@@ -181,6 +182,8 @@ class WebSocketManager {
 		});
 	}
 
+
+
 	/** 📌 Configurar detección de actividad del usuario */
 	private setupActivityListeners(): void {
 		const events = ["mousemove", "keydown", "scroll", "touchstart"];
@@ -188,11 +191,21 @@ class WebSocketManager {
 			document.addEventListener(event, () => this.registerActivity());
 		});
 
-		// Detectar cambio de pestaña o minimizar ventana
 		document.addEventListener("visibilitychange", () => {
 			this.isFocused = !document.hidden;
 			this.emitUserStatus();
 		});
+	}
+
+	private lastEmitTime: number = 0;
+	private throttleInterval: number = 1000; // 1 segundo
+
+	private emitThrottled(event: string, data: any): void {
+		const now = Date.now();
+		if (now - this.lastEmitTime >= this.throttleInterval) {
+			this.socket?.emit(event, data);
+			this.lastEmitTime = now;
+		}
 	}
 
 	/** 📌 Registrar actividad del usuario */
@@ -202,9 +215,10 @@ class WebSocketManager {
 		// Si estaba inactivo y vuelve a interactuar, emite "user_active"
 		if (this.wasInactive) {
 			this.wasInactive = false;
-			console.log("🟢 Usuario volvió a estar activo.");
+			console.log("🟢 Emitiendo estado del usuario: active");
 			this.emit("user_active", { status: "active" });
 		}
+
 
 		this.emitUserStatus();
 
@@ -220,7 +234,8 @@ class WebSocketManager {
 
 		if (isInactive && !this.wasInactive) {
 			this.wasInactive = true;
-			console.warn("⚠️ Usuario inactivo.");
+
+			console.log("🔴 Emitiendo estado del usuario: inactive");
 			this.emit("user_inactive", { status: "inactive" });
 		}
 	}
@@ -228,7 +243,9 @@ class WebSocketManager {
 	/** 📌 Emitir estado del usuario */
 	private emitUserStatus(): void {
 		const status = this.isFocused ? "active" : "inactive";
-		this.emit("user_status", { status });
+		console.log(`🟡 Emitiendo estado del usuario: ${status}`);
+		this.emitThrottled("user_status", { status });
+		// this.emit("user_status", { status });
 	}
 }
 
@@ -242,7 +259,7 @@ class GuidersPixel {
 		this.socketManager = new WebSocketManager('ws://localhost:3000/tracking', {
 			tokenManager: this.tokenManager,
 			autoReconnect: true,
-			inactivityThreshold: 1000 // 10 segundos
+			inactivityThreshold: 60 * 1000 // 1 minuto
 		});
 	}
 
