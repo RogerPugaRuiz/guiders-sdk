@@ -1,4 +1,5 @@
 import { BaseComponent } from "../../interfaces/base-component.abstract";
+import { WebSocketPort } from "../../interfaces/websocket.interface";
 import { ButtonLiveChatComponent } from "./button-live-chat.component";
 
 export class LiveChatComponent extends BaseComponent {
@@ -8,8 +9,12 @@ export class LiveChatComponent extends BaseComponent {
 	private chatBottom: HTMLDivElement;
 	private chatInput: HTMLInputElement;
 	private chatButton: ButtonLiveChatComponent;
+	private socketService: WebSocketPort;
 
-	constructor(props: { container: HTMLElement | string }) {
+	constructor(props: { 
+		container: HTMLElement | string,
+		socketService: WebSocketPort,
+	}) {
 		super(props);
 		this.chatContainer = document.createElement("div");
 		this.chatHeader = document.createElement("div");
@@ -20,6 +25,7 @@ export class LiveChatComponent extends BaseComponent {
 			container: props.container
 		});
 
+		this.socketService = props.socketService;
 		this.render();
 		this.attachEvents();
 	}
@@ -43,19 +49,22 @@ export class LiveChatComponent extends BaseComponent {
 			bottom: "80px",
 			right: "20px",
 			zIndex: "1000",
-			height: "70vh",
+			height: "calc(100% - 100px)",
+			maxHeight: "500px",
 			width: "350px",
 			background: "white",
 			borderRadius: "10px",
 			boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.2)",
-			transition: "opacity 0.3s ease, transform 0.3s ease",
 			opacity: "0",
-			transform: "translateY(50px)",
+			transform: "scale(0.8)", // Comienza contraído
+			transformOrigin: "bottom right", // 🔥 La transformación ocurre desde la esquina inferior derecha
 			pointerEvents: "none",
+			display: "flex",
+			flexDirection: "column",
 		});
 
 		Object.assign(this.chatHeader.style, <Partial<CSSStyleDeclaration>>{
-			background: "#007bff",
+			background: "#0089f6",
 			color: "white",
 			padding: "10px",
 			borderTopLeftRadius: "10px",
@@ -63,13 +72,16 @@ export class LiveChatComponent extends BaseComponent {
 			fontSize: "18px",
 			fontWeight: "bold",
 			textAlign: "center",
-			flex: "0 0 auto"
+			flex: "0 0 auto",
+			fontFamily: "Arial, sans-serif",
 		});
 
 		Object.assign(this.chatBody.style, <Partial<CSSStyleDeclaration>>{
 			padding: "10px",
 			overflowY: "auto",
-			flex: "1 1 auto"
+			flex: "1 1 auto",
+			display: "flex",
+			flexDirection: "column",
 		});
 
 		Object.assign(this.chatBottom.style, <Partial<CSSStyleDeclaration>>{
@@ -86,12 +98,26 @@ export class LiveChatComponent extends BaseComponent {
 			outline: "none",
 			margin: "10px",
 			padding: "10px",
-			borderTopLeftRadius: "10px",
-			borderTopRightRadius: "10px",
-			borderBottomLeftRadius: "10px",
-			borderBottomRightRadius: "10px",
+			borderRadius: "20px",
 			border: "1px solid #ccc",
 		});
+
+		const message = document.createElement("div");
+		message.classList.add("live-chat-message");
+		message.classList.add("live-chat-message--other");
+		message.textContent = "Hola, ¿en qué puedo ayudarte?";
+
+		Object.assign(message.style, <Partial<CSSStyleDeclaration>>{
+			background: "#ebebeb",
+			padding: "10px",
+			margin: "2px",
+			borderRadius: "12px",
+			fontFamily: "Arial, sans-serif",
+			fontSize: "0.8rem",
+			width: "fit-content",
+		});
+
+		this.chatBody.appendChild(message);
 
 
 		this.chatBottom.appendChild(this.chatInput);
@@ -102,21 +128,58 @@ export class LiveChatComponent extends BaseComponent {
 
 		this.container.appendChild(this.chatContainer);
 	}
+
 	attachEvents(): void {
 		this.chatButton.onClick(() => {
 			const isOpen = this.chatContainer.classList.toggle("chat-open");
 
 			if (isOpen) {
 				this.chatContainer.style.opacity = "1";
-				this.chatContainer.style.transform = "translateY(0)";
+				this.chatContainer.style.transform = "scale(1)";
 				this.chatContainer.style.pointerEvents = "auto";
+				this.chatContainer.style.transition = "transform 0.3s, opacity 0.3s"; // 🔥 Se agrega transición
+
+				this.chatInput.focus();
 			} else {
 				this.chatContainer.style.opacity = "0";
-				this.chatContainer.style.transform = "translateY(50px)";
+				this.chatContainer.style.transform = "scale(0.8)"; // Se contrae hacia la esquina
 				this.chatContainer.style.pointerEvents = "none";
+				// quitar la transición para que no se vea al cerrar
+				this.chatContainer.style.transition = "none";
 			}
 		});
+
+		this.chatInput.addEventListener("keydown", (event) => {
+			if (event.key === "Enter") {
+				const message = document.createElement("div");
+				message.classList.add("live-chat-message");
+				message.classList.add("live-chat-message--self");
+				message.textContent = this.chatInput.value;
+
+				Object.assign(message.style, <Partial<CSSStyleDeclaration>>{
+					background: "#0089f6",
+					color: "white",
+					padding: "10px",
+					margin: "2px",
+					borderRadius: "12px",
+					fontFamily: "Arial, sans-serif",
+					fontSize: "0.8rem",
+					width: "fit-content",
+					alignSelf: "flex-end",
+				});
+
+				this.chatBody.appendChild(message);
+				this.chatInput.value = "";
+				this.chatBody.scrollTop = this.chatBody.scrollHeight;
+			}
+		}
+		);
+
+		// 🔥 Evento WebSocket para detectar desconexión y mostrar mensaje
+		this.socketService.onDisconnect(() => {
+		});
 	}
+
 	updateProps(props: Record<string, any>): void {
 		throw new Error("Method not implemented.");
 	}

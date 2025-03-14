@@ -24,7 +24,7 @@ export class ButtonLiveChatComponent extends BaseComponent {
 			bottom: "20px",
 			right: "20px",
 			zIndex: "1000",
-			background: "#007bff",
+			background: "#0089f6",
 			color: "white",
 			border: "none",
 			borderRadius: "50px",

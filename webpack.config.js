@@ -1,6 +1,12 @@
 const path = require('path');
+const {
+	BundleAnalyzerPlugin
+} = require("webpack-bundle-analyzer");
 
 module.exports = {
+	plugins: [
+		new BundleAnalyzerPlugin()
+	],
 	entry: './src/index.ts', // Archivo principal del SDK
 	output: {
 		path: path.resolve(__dirname, 'dist'),

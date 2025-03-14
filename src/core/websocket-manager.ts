@@ -48,12 +48,28 @@ export class WebSocketAdapter implements WebSocketPort {
 		return this.socket ? this.socket.connected : false;
 	}
 
+	public onConnect(callback: () => void): void {
+		this.on("connect", callback);
+	}
+
+	public onDisconnect(callback: () => void): void {
+		this.on("disconnect", callback);
+	}
+
 	private on(event: string, callback: (...args: any[]) => void): void {
 		this.socket?.on(event, callback);
 	}
 
 	private emit(event: string, data: any): void {
 		this.socket?.emit(event, data);
+	}
+
+	private emitThrottled(event: string, data: any): void {
+		const now = Date.now();
+		if (now - this.lastEmitTime >= this.throttleInterval) {
+			this.socket?.emit(event, data);
+			this.lastEmitTime = now;
+		}
 	}
 
 	private setEventListeners(): void {
@@ -104,14 +120,6 @@ export class WebSocketAdapter implements WebSocketPort {
 
 	private lastEmitTime: number = 0;
 	private throttleInterval: number = 1000; // 1 segundo
-
-	private emitThrottled(event: string, data: any): void {
-		const now = Date.now();
-		if (now - this.lastEmitTime >= this.throttleInterval) {
-			this.socket?.emit(event, data);
-			this.lastEmitTime = now;
-		}
-	}
 
 	/** 📌 Registrar actividad del usuario */
 	private registerActivity(): void {

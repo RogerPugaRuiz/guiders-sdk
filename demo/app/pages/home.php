@@ -2,6 +2,8 @@
 
 <h1>Página Principal</h1>
 <p>Bienvenido a la página principal.</p>
-
+<script>
+	window.guidersPixel.showChat();
+</script>
 </body>
 </html>
