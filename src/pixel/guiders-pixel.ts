@@ -1,12 +1,14 @@
 import { FingerprintPort } from "../interfaces/fingerprint.interface";
 import { TokenPort } from "../interfaces/token.interface";
 import { WebSocketPort } from "../interfaces/websocket.interface";
+import { LiveChatComponent } from "../presentation/live-chat/live-chat.component";
 
 export class GuidersPixel {
 	private apiKey: string | null = null;
 	private tokenService: TokenPort;
 	private socketService: WebSocketPort;
 	private fingerprintService: FingerprintPort;
+
 	constructor(
 		providers: {
 			tokenService: TokenPort,
@@ -28,6 +30,11 @@ export class GuidersPixel {
 		// Luego, obtener el token y conectar el socket
 		await this.tokenService.getValidAccessToken();
 		await this.socketService.connectSocket();
+
+		// Finalmente, inicializar el componente de chat
+		const chatComponent = new LiveChatComponent({
+			container: options.container || document.body,
+		});
 	}
 
 	private async registerVisitor(): Promise<void> {

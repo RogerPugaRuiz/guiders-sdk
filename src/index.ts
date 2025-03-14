@@ -3,6 +3,12 @@ import { FingerprintAdapter } from "./core/fingerprint-manager";
 import { WebSocketAdapter } from "./core/websocket-manager";
 import { GuidersPixel } from "./pixel/guiders-pixel";
 
+declare global {
+	interface Window {
+		guidersPixel: GuidersPixel;
+	}
+}
+
 const fingerprintService = new FingerprintAdapter();
 const tokenService = new TokenAdapter('http://localhost:3000/pixel', fingerprintService);
 const socketService = new WebSocketAdapter('ws://localhost:3000/tracking', {
@@ -10,7 +16,7 @@ const socketService = new WebSocketAdapter('ws://localhost:3000/tracking', {
 	inactivityThreshold: 60 * 1000 // 1 minuto
 }, { tokenService });
 
-(window as any).guidersPixel = new GuidersPixel({
+window.guidersPixel = new GuidersPixel({
 	fingerprintService,
 	tokenService,
 	socketService
