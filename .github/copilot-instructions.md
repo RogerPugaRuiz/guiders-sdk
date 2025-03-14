@@ -1,8 +1,14 @@
 # Copilot Instructions
 
-## Estilo de Commits
+## Estilo de Código
 
-Los mensajes de commit deben seguir la convención `tipo(scope): descripción`, donde:
+- Sigue la convención de nombres en **camelCase** para variables y métodos.
+- Sigue la convención de nombres en **kebab-case** para archivos.
+- Usa programación orientada a objetos
+
+## Estilo de Commits
+cuando copilot genere los mensajes de confimación
+debe seguir la convención `tipo(scope): descripción`, donde:
 
 - **tipo**: Indica el propósito del cambio. Puede ser uno de los siguientes:
   - `feat`: Nueva funcionalidad.
@@ -21,6 +27,7 @@ Los mensajes de commit deben seguir la convención `tipo(scope): descripción`, 
 - **descripción**: Un resumen claro y conciso del cambio (en tiempo presente, sin mayúscula inicial y sin punto final).
 
 ## Estructura del proyecto
+
 src
 │── core
 │   │── fingerprint-manager.ts
