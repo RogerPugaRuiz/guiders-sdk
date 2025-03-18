@@ -15,7 +15,7 @@ declare global {
 
 const fingerprintService = FingerprintAdapter.getInstance();
 const tokenService = TokenFactory.getInstance('http://localhost:3000/pixel');
-const socketService = SocketFactory.getInstance('ws://localhost:3000/tracking', {
+const socketService = SocketFactory.getInstance('ws://localhost:3000', {
 	autoReconnect: true,
 	inactivityThreshold: 60 * 1000 // 1 minuto
 });

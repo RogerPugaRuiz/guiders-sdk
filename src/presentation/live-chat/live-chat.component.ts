@@ -10,6 +10,7 @@ export class LiveChatComponent extends BaseComponent {
 	private chatInput: HTMLInputElement;
 	private chatButton: ButtonLiveChatComponent;
 	private socketService: WebSocketPort;
+	private disconnectMessage: HTMLDivElement;
 
 	constructor(props: { 
 		container: HTMLElement | string,
@@ -23,6 +24,17 @@ export class LiveChatComponent extends BaseComponent {
 		this.chatInput = document.createElement("input");
 		this.chatButton = new ButtonLiveChatComponent({
 			container: props.container
+		});
+		this.disconnectMessage = document.createElement("div");
+		this.disconnectMessage.classList.add("disconnect-message");
+		this.disconnectMessage.textContent = "Conexión perdida. Intentando reconectar...";
+		this.disconnectMessage.style.display = "none"; // Oculto por defecto
+		Object.assign(this.disconnectMessage.style, <Partial<CSSStyleDeclaration>>{
+			color: "red",
+			fontSize: "0.8rem",
+			textAlign: "center",
+			marginTop: "10px",
+			fontFamily: "Arial, sans-serif",
 		});
 
 		this.socketService = props.socketService;
@@ -86,7 +98,7 @@ export class LiveChatComponent extends BaseComponent {
 
 		Object.assign(this.chatBottom.style, <Partial<CSSStyleDeclaration>>{
 			display: "flex",
-			flexDirection: "row",
+			flexDirection: "column", // Cambiado a columna para que el mensaje esté debajo del input
 			flexWrap: "nowrap",
 			justifyContent: "space-between",
 			alignItems: "center",
@@ -94,10 +106,10 @@ export class LiveChatComponent extends BaseComponent {
 		});
 
 		Object.assign(this.chatInput.style, <Partial<CSSStyleDeclaration>>{
-			width: "100%",
 			outline: "none",
 			margin: "10px",
 			padding: "10px",
+			width: "calc(100% - 55px)",
 			borderRadius: "20px",
 			border: "1px solid #ccc",
 		});
@@ -121,6 +133,7 @@ export class LiveChatComponent extends BaseComponent {
 
 
 		this.chatBottom.appendChild(this.chatInput);
+		this.chatBottom.appendChild(this.disconnectMessage);
 
 		this.chatContainer.appendChild(this.chatHeader);
 		this.chatContainer.appendChild(this.chatBody);
@@ -172,11 +185,6 @@ export class LiveChatComponent extends BaseComponent {
 				this.chatInput.value = "";
 				this.chatBody.scrollTop = this.chatBody.scrollHeight;
 			}
-		}
-		);
-
-		// 🔥 Evento WebSocket para detectar desconexión y mostrar mensaje
-		this.socketService.onDisconnect(() => {
 		});
 	}
 

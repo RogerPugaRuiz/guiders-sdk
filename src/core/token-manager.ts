@@ -46,8 +46,12 @@ export class TokenAdapter implements TokenPort {
 
 			const { access_token, refresh_token } = await response.json();
 			this.storeTokens(access_token, refresh_token);
-		} catch (error) {
+		} catch (error: any) {
 			console.error(`Error solicitando tokens (Intento ${retryCount}):`, error);
+
+			if (error.message === "Account not found") {
+				console.error("🚨 La cuenta no fue encontrada.");
+			}
 
 			if (retryCount >= 5) {  // ❌ Después de 5 intentos, se detiene el reintento
 				console.error("🚨 No se pudo obtener el token después de múltiples intentos.");

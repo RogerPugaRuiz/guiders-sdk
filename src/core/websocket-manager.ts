@@ -1,69 +1,156 @@
 import { io, Socket } from "socket.io-client";
 import { TokenPort } from "../interfaces/token.interface";
 import { WebSocketPort } from "../interfaces/websocket.interface";
+import { FingerprintPort } from "../interfaces/fingerprint.interface";
 
+interface WebSocketOptions {
+	autoReconnect: boolean;
+	inactivityThreshold: number;
+}
+
+interface WebSocketProviders {
+	tokenService: TokenPort;
+	fingerprintService: FingerprintPort;
+}
+
+/**
+ * WebSocketAdapter
+ * Maneja la conexión WebSocket con lógica de:
+ *  - Auto-reconexión
+ *  - Detección de actividad/inactividad
+ *  - Desconexión si la pestaña no está en foco
+ */
 export class WebSocketAdapter implements WebSocketPort {
+	/**
+	 * Socket de Socket.IO
+	 */
 	private socket: Socket | null = null;
-	private wsEndpoint: string;
-	private tokenService: TokenPort;
-	private autoReconnect: boolean;
-	private inactivityThreshold: number;
+
+	/**
+	 * Endpoint del servidor de WebSocket
+	 */
+	private readonly wsEndpoint: string;
+
+	/**
+	 * Servicios y opciones
+	 */
+	private readonly tokenService: TokenPort;
+	private readonly fingerprintService: FingerprintPort;
+	private readonly autoReconnect: boolean;
+	private readonly inactivityThreshold: number;
+
+	/**
+	 * Estado de actividad
+	 */
 	private lastActivity: number = Date.now();
-	private isFocused: boolean = true;
+	private isFocused: boolean = true;         // Indica si la pestaña está en foco
 	private inactivityTimeout: number | null = null;
 	private wasInactive: boolean = false;
 
-	constructor(wsEndpoint: string, options: {
-		autoReconnect: boolean,
-		inactivityThreshold: number
-	}, providers: { tokenService: TokenPort }) {
+	/**
+	 * Control de emisiones (throttling)
+	 */
+	private lastEmitTime: number = 0;
+	private readonly throttleInterval: number = 1000; // 1 segundo
+
+	constructor(
+		wsEndpoint: string,
+		options: WebSocketOptions,
+		providers: WebSocketProviders
+	) {
 		this.wsEndpoint = wsEndpoint;
-		const { autoReconnect, inactivityThreshold } = options;
-		const { tokenService } = providers;
-		this.tokenService = tokenService;
-		this.autoReconnect = autoReconnect;
-		this.inactivityThreshold = inactivityThreshold;
+		this.autoReconnect = options.autoReconnect;
+		this.inactivityThreshold = options.inactivityThreshold;
+		this.tokenService = providers.tokenService;
+		this.fingerprintService = providers.fingerprintService;
+
 		this.setupActivityListeners();
 	}
 
+	/**
+	 * Conecta el socket con el servidor
+	 */
 	public async connectSocket(): Promise<void> {
-		const accessToken = await this.tokenService.getValidAccessToken();
-		if (!accessToken) return;
+		try {
+			const accessToken = await this.tokenService.getValidAccessToken();
+			if (!accessToken) {
+				console.warn("No se obtuvo token de acceso. Conexión abortada.");
+				return;
+			}
 
-		this.socket = io(this.wsEndpoint, {
-			auth: { token: accessToken },
-			reconnection: true,
-			reconnectionAttempts: 10,
-			reconnectionDelay: 500,
-			reconnectionDelayMax: 3000,
-			timeout: 10000,
-			autoConnect: false,
-		});
+			this.socket = io(this.wsEndpoint, {
+				auth: { token: accessToken },
+				reconnection: true,
+				reconnectionAttempts: 10,
+				reconnectionDelay: 500,
+				reconnectionDelayMax: 3000,
+				timeout: 10000,
+				autoConnect: false,
+			}).connect();
 
-		this.socket.connect();
-		this.setEventListeners();
+			this.setEventListeners();
+		} catch (error) {
+			console.error("Error al obtener token de acceso:", error);
+			// Manejo personalizado en caso de error de token
+		}
 	}
 
+	/**
+	 * Devuelve si el socket está conectado
+	 */
 	public get isConnected(): boolean {
 		return this.socket ? this.socket.connected : false;
 	}
 
-	public onConnect(callback: () => void): void {
+	/**
+	 * Callback al reconectar
+	 */
+	public onReconnect(callback: () => void): void {
+		this.checkSocketExists();
 		this.on("connect", callback);
 	}
 
+	/**
+	 * Callback al desconectar
+	 */
 	public onDisconnect(callback: () => void): void {
+		this.checkSocketExists();
 		this.on("disconnect", callback);
 	}
 
-	private on(event: string, callback: (...args: any[]) => void): void {
+	/**
+	 * Callback de error
+	 */
+	public onError(callback: (error: any) => void): void {
+		this.checkSocketExists();
+		this.on("error", callback);
+	}
+
+	/**
+	 * Suscribirse a un evento custom
+	 */
+	public on(event: string, callback: (...args: any[]) => void): void {
 		this.socket?.on(event, callback);
 	}
 
+	/**
+	 * Desuscribirse de un evento custom
+	 */
+	public off(event: string, callback: (...args: any[]) => void): void {
+		this.socket?.off(event, callback);
+	}
+
+	/**
+	 * Emitir evento sin restricciones
+	 */
 	private emit(event: string, data: any): void {
 		this.socket?.emit(event, data);
 	}
 
+	/**
+	 * Emitir evento con throttling
+	 * para no spamear el servidor
+	 */
 	private emitThrottled(event: string, data: any): void {
 		const now = Date.now();
 		if (now - this.lastEmitTime >= this.throttleInterval) {
@@ -72,92 +159,136 @@ export class WebSocketAdapter implements WebSocketPort {
 		}
 	}
 
+	/**
+	 * Configura los listeners principales de Socket.IO
+	 */
 	private setEventListeners(): void {
 		if (!this.socket) return;
 
 		this.socket.on("connect", () => {
 			console.log("✅ Conectado al servidor");
-			this.emitUserStatus(); // Emitir estado al conectar
+			this.emitUserStatus();
+
+			// Unir a una sala/room específica si se desea
+			this.socket?.emit("join_chat", {
+				room: this.fingerprintService.getClientFingerprint(),
+			});
 		});
 
-		this.socket.on("disconnect", (reason) => console.warn("❌ Desconectado:", reason));
+		this.socket.on("disconnect", (reason) => {
+			console.warn("❌ Desconectado:", reason);
+		});
 
 		this.socket.on("auth_error", async (error) => {
 			console.error("🔴 Error de autenticación:", error);
 
-			// if (error.message === "invalid token") {
-			if (this.tokenService.isTokenRequestInProgress()) return;
-			await new Promise(resolve => setTimeout(resolve, 2000));
-			await this.tokenService.getValidAccessToken();
-			// }
+			// Si no se está renovando token, intentalo
+			if (!this.tokenService.isTokenRequestInProgress()) {
+				// Esperar un poco antes de reintentar
+				await new Promise((resolve) => setTimeout(resolve, 2000));
+				await this.tokenService.getValidAccessToken();
+			}
 
 			if (this.autoReconnect) {
 				this.socket?.disconnect();
 				this.connectSocket();
-				// setTimeout(() => this.connectSocket(), 5000);
 			}
 		});
 
+		// Loggea todos los eventos recibidos
 		this.socket.onAny((event, ...args) => {
 			console.log(`📡 Evento recibido: ${event}`, args);
 		});
 	}
 
-
-
-	/** 📌 Configurar detección de actividad del usuario */
+	/**
+	 * Suscribir eventos de actividad del usuario (ratón, teclado, scroll...)
+	 * y control de foco (visibilitychange)
+	 */
 	private setupActivityListeners(): void {
-		const events = ["mousemove", "keydown", "scroll", "touchstart"];
-		events.forEach(event => {
-			document.addEventListener(event, () => this.registerActivity());
+		const userEvents = ["mousemove", "keydown", "scroll", "touchstart"];
+		userEvents.forEach((evt) => {
+			document.addEventListener(evt, () => this.registerActivity());
 		});
 
 		document.addEventListener("visibilitychange", () => {
 			this.isFocused = !document.hidden;
+			if (!this.isFocused) {
+				console.log("Página no en foco. Desconectando socket...");
+				if (this.socket?.connected) {
+					this.socket.disconnect();
+				}
+			} else {
+				console.log("Página en foco. Reconectando socket...");
+				if (this.autoReconnect && (!this.socket || !this.socket.connected)) {
+					this.connectSocket();
+				}
+			}
 			this.emitUserStatus();
 		});
 	}
 
-	private lastEmitTime: number = 0;
-	private throttleInterval: number = 1000; // 1 segundo
-
-	/** 📌 Registrar actividad del usuario */
+	/**
+	 * Registrar la actividad del usuario
+	 * - Si estaba inactivo, emite "user_active"
+	 * - Reinicia el temporizador de inactividad
+	 */
 	private registerActivity(): void {
 		this.lastActivity = Date.now();
 
-		// Si estaba inactivo y vuelve a interactuar, emite "user_active"
 		if (this.wasInactive) {
 			this.wasInactive = false;
 			console.log("🟢 Emitiendo estado del usuario: active");
 			this.emit("user_active", { status: "active" });
 		}
 
-
 		this.emitUserStatus();
-
-		// Reiniciar el temporizador de inactividad
-		if (this.inactivityTimeout) clearTimeout(this.inactivityTimeout);
-		this.inactivityTimeout = window.setTimeout(() => this.checkInactivity(), this.inactivityThreshold);
+		this.resetInactivityTimer();
 	}
 
-	/** 📌 Verificar si el usuario está inactivo */
+	/**
+	 * Reinicia el temporizador para chequear inactividad
+	 */
+	private resetInactivityTimer(): void {
+		if (this.inactivityTimeout) {
+			clearTimeout(this.inactivityTimeout);
+		}
+		// Programar check de inactividad
+		this.inactivityTimeout = window.setTimeout(
+			() => this.checkInactivity(),
+			this.inactivityThreshold
+		);
+	}
+
+	/**
+	 * Verifica si el usuario está inactivo
+	 */
 	private checkInactivity(): void {
 		const now = Date.now();
 		const isInactive = now - this.lastActivity >= this.inactivityThreshold;
 
 		if (isInactive && !this.wasInactive) {
 			this.wasInactive = true;
-
 			console.log("🔴 Emitiendo estado del usuario: inactive");
 			this.emit("user_inactive", { status: "inactive" });
 		}
 	}
 
-	/** 📌 Emitir estado del usuario */
+	/**
+	 * Emite el estado del usuario (active/inactive) con throttling
+	 */
 	private emitUserStatus(): void {
 		const status = this.isFocused ? "active" : "inactive";
 		console.log(`🟡 Emitiendo estado del usuario: ${status}`);
 		this.emitThrottled("user_status", { status });
-		// this.emit("user_status", { status });
+	}
+
+	/**
+	 * Verifica si el socket existe antes de usarlo
+	 */
+	private checkSocketExists(): void {
+		if (!this.socket) {
+			throw new Error("No se ha conectado el socket al servidor");
+		}
 	}
 }

@@ -1,3 +1,4 @@
+import { FingerprintAdapter } from "../core/fingerprint-manager";
 import { WebSocketAdapter } from "../core/websocket-manager";
 import { WebSocketPort } from "../interfaces/websocket.interface";
 import { TokenFactory } from "./token.factory";
@@ -11,7 +12,8 @@ export class SocketFactory {
 	}): WebSocketPort {
 		if (!this.instances.has(endpoint)) {
 			const tokenService = TokenFactory.getInstance('http://localhost:3000/pixel');
-			this.instances.set(endpoint, new WebSocketAdapter(endpoint, options, { tokenService }));
+			const fingerprintService = FingerprintAdapter.getInstance();
+			this.instances.set(endpoint, new WebSocketAdapter(endpoint, options, { tokenService, fingerprintService }));
 		}
 
 		return this.instances.get(endpoint)!;
