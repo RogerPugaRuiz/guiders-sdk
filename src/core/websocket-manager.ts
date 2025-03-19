@@ -53,6 +53,11 @@ export class WebSocketAdapter implements WebSocketPort {
 	private lastEmitTime: number = 0;
 	private readonly throttleInterval: number = 1000; // 1 segundo
 
+	/**
+	 * Control de token
+	 */
+	private tokenCheckTimeoutId: number | null = null;
+
 	constructor(
 		wsEndpoint: string,
 		options: WebSocketOptions,
@@ -89,6 +94,8 @@ export class WebSocketAdapter implements WebSocketPort {
 			}).connect();
 
 			this.setEventListeners();
+
+			this.startTokenExpirationCheck();
 		} catch (error) {
 			console.error("Error al obtener token de acceso:", error);
 			// Manejo personalizado en caso de error de token
@@ -140,6 +147,54 @@ export class WebSocketAdapter implements WebSocketPort {
 		this.socket?.off(event, callback);
 	}
 
+	public sendMsg(eventName: string, payload: any): void {
+		this.emit(eventName, payload);
+	}
+
+
+	// --------------------------------------------------------------------
+	//  1) Verificación recursiva del token SIN usar setInterval
+	// --------------------------------------------------------------------
+	private startTokenExpirationCheck(intervalMs = 30000): void {
+		// Cancelamos cualquier verificación previa
+		if (this.tokenCheckTimeoutId) {
+			clearTimeout(this.tokenCheckTimeoutId);
+		}
+
+		const checkToken = async () => {
+			try {
+				const nearExpiration = await this.tokenService.isAccessTokenNearExpiration();
+				if (nearExpiration) {
+					console.log("🔍 Token cerca de expirar. Renovando...");
+					await this.connectSocket();
+				}
+			} catch (error) {
+				console.error("Error revisando/renovando token:", error);
+			} finally {
+				// Programamos la siguiente ejecución recursiva
+				this.tokenCheckTimeoutId = window.setTimeout(
+					checkToken,
+					intervalMs
+				);
+			}
+		};
+
+		// Lanzamos la primera ejecución
+		this.tokenCheckTimeoutId = window.setTimeout(checkToken, intervalMs);
+	}
+
+	/**
+	 * (Opcional) Método para detener el ciclo de verificación de token.
+	 * Por ejemplo, podrías llamarlo cuando desconectas el socket.
+	 */
+	private stopTokenExpirationCheck(): void {
+		if (this.tokenCheckTimeoutId) {
+			clearTimeout(this.tokenCheckTimeoutId);
+			this.tokenCheckTimeoutId = null;
+			console.log("🚫 Verificación de token detenida.");
+		}
+	}
+
 	/**
 	 * Emitir evento sin restricciones
 	 */
@@ -177,6 +232,7 @@ export class WebSocketAdapter implements WebSocketPort {
 
 		this.socket.on("disconnect", (reason) => {
 			console.warn("❌ Desconectado:", reason);
+			this.stopTokenExpirationCheck();
 		});
 
 		this.socket.on("auth_error", async (error) => {

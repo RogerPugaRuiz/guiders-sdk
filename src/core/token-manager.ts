@@ -16,21 +16,74 @@ export class TokenAdapter implements TokenPort {
 	}
 
 	public async getValidAccessToken(): Promise<string | null> {
-		this.loadTokensFromStorage();
+		this.loadTokensFromStorage(); // Cargar desde localStorage
 
+		// Si no hay token o está “casi” expirado/expirado
 		if (!this.accessToken || this.isTokenExpired()) {
+			// Verificamos si ya se está intentando obtener/refrescar token
 			if (this.tokenRequestInProgress) {
+				// Espera en un loop a que termine el request en progreso
 				while (this.tokenRequestInProgress) {
-					await new Promise(resolve => setTimeout(resolve, 100)); // Espera 100ms
+					await new Promise(resolve => setTimeout(resolve, 100));
 				}
 			} else {
+				// Marcamos la bandera para prevenir múltiples solicitudes en paralelo
 				this.tokenRequestInProgress = true;
-				await this.requestTokens();
-				this.tokenRequestInProgress = false;
+
+				try {
+					// Si tenemos refreshToken, intentamos refrescar
+					if (this.refreshToken) {
+						await this.refreshAccessToken();
+					} else {
+						// Si no hay refreshToken, se solicitan ambos tokens
+						await this.requestTokens();
+					}
+				} catch (error) {
+					// Si algo falla refrescando, volvemos a pedir ambos tokens
+					console.error("Error refrescando token, solicitando un nuevo par de tokens:", error);
+					await this.requestTokens();
+				} finally {
+					// Al finalizar, reseteamos la bandera
+					this.tokenRequestInProgress = false;
+				}
 			}
 		}
 
 		return this.accessToken;
+	}
+
+
+	public async isAccessTokenNearExpiration(): Promise<boolean> {
+		if (!this.accessToken) return false;
+		const accessToken = this.accessToken;
+		if (!accessToken) return false;	// ❌ Si no hay token, no está cerca de expirar
+		const payload = JSON.parse(atob(accessToken.split('.')[1]));
+		const expirationTime = payload.exp * 1000;
+		const currentTime = Date.now();
+		return expirationTime - currentTime < 30000; // ⚠️ 30 segundos antes de expirar
+	}
+
+	private async refreshAccessToken(): Promise<void> {
+		if (!this.refreshToken) {
+			console.error("No se puede refrescar el token sin un token de refresco.");
+			return;
+		}
+
+		const client = this.fingerPrint.getClientFingerprint();
+		console.log("Refrescando token de acceso...");
+		const response = await fetch(`${this.endpoint}/token/refresh`, {
+			method: "POST",
+			headers: this.getHeaders(),
+			body: JSON.stringify({ client, refresh_token: this.refreshToken }),
+		});
+
+		if (!response.ok) {
+			console.error("Error refrescando el token de acceso.");
+			return;
+		}
+
+		const { access_token } = await response.json();
+		this.storeTokens(access_token, this.refreshToken);
 	}
 
 	private async requestTokens(retryCount = 0): Promise<void> {

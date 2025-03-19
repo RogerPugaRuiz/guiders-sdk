@@ -114,22 +114,22 @@ export class LiveChatComponent extends BaseComponent {
 			border: "1px solid #ccc",
 		});
 
-		const message = document.createElement("div");
-		message.classList.add("live-chat-message");
-		message.classList.add("live-chat-message--other");
-		message.textContent = "Hola, ¿en qué puedo ayudarte?";
+		// const message = document.createElement("div");
+		// message.classList.add("live-chat-message");
+		// message.classList.add("live-chat-message--other");
+		// message.textContent = "Hola, ¿en qué puedo ayudarte?";
 
-		Object.assign(message.style, <Partial<CSSStyleDeclaration>>{
-			background: "#ebebeb",
-			padding: "10px",
-			margin: "2px",
-			borderRadius: "12px",
-			fontFamily: "Arial, sans-serif",
-			fontSize: "0.8rem",
-			width: "fit-content",
-		});
+		// Object.assign(message.style, <Partial<CSSStyleDeclaration>>{
+		// 	background: "#ebebeb",
+		// 	padding: "10px",
+		// 	margin: "2px",
+		// 	borderRadius: "12px",
+		// 	fontFamily: "Arial, sans-serif",
+		// 	fontSize: "0.8rem",
+		// 	width: "fit-content",
+		// });
 
-		this.chatBody.appendChild(message);
+		// this.chatBody.appendChild(message);
 
 
 		this.chatBottom.appendChild(this.chatInput);
@@ -184,6 +184,10 @@ export class LiveChatComponent extends BaseComponent {
 				this.chatBody.appendChild(message);
 				this.chatInput.value = "";
 				this.chatBody.scrollTop = this.chatBody.scrollHeight;
+
+				this.socketService.sendMsg('send_chat_message', {
+					message: message.textContent,
+				});
 			}
 		});
 	}
