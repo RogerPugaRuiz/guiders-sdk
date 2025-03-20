@@ -1,16 +1,17 @@
 // src/services/websocket-manager.ts
 
 import { io, Socket } from "socket.io-client";
+import { TokenManager } from "../core/token-manager";
 
-export class WebSocketManager {
+export class WebSocketClient {
 	private socket: Socket | null = null;
 	private endpoint: string;
 	private token: string | null = null;
-	private useTokenInEvents: boolean;
 
-	constructor(endpoint: string, useTokenInEvents: boolean = false) {
+	constructor(endpoint: string) {
 		this.endpoint = endpoint;
-		this.useTokenInEvents = useTokenInEvents;
+
+		TokenManager.subscribeToTokenChanges(this.updateToken.bind(this));
 	}
 
 	/**
@@ -35,6 +36,38 @@ export class WebSocketManager {
 	}
 
 	/**
+	 * Desconecta el WebSocket.
+	 * @returns void
+	 */
+	public disconnect(): void {
+		if (this.socket) {
+			this.socket.disconnect();
+			this.socket = null;
+		}
+	}
+
+	/**
+	 * Actualiza el token de autenticación del WebSocket.
+	 * Si el socket está conectado, lo reconecta automáticamente.
+	 */
+	public updateToken(token: string): void {
+		if (this.token === token) return; // No hacer nada si el token no ha cambiado
+
+		this.token = token;
+
+		if (this.socket) {
+			console.log("🔄 Actualizando token en WebSocket...");
+			this.socket.auth = { token };
+
+			if (this.socket.connected) {
+				console.log("⚡ WebSocket ya conectado, reconectando...");
+				this.socket.disconnect(); // Cerrar conexión con el token anterior
+				this.socket.connect();    // Conectar con el nuevo token
+			}
+		}
+	}
+
+	/**
 	 * Envía un mensaje por WebSocket.
 	 * @param event Evento a enviar.
 	 */
@@ -42,10 +75,6 @@ export class WebSocketManager {
 		if (!this.socket || !this.socket.connected) {
 			console.warn("⚠️ WebSocket no está conectado, mensaje no enviado");
 			return;
-		}
-
-		if (this.useTokenInEvents && this.token) {
-			event.token = this.token;
 		}
 
 		this.socket.emit("event", event);

@@ -2,11 +2,41 @@
 import { refreshToken } from "../services/token-service";
 import { TrackingEvent } from "../types/index";
 
+type TokenChangeSubscriber = (token: string) => void;
+
 export class TokenManager {
 	private static accessToken: string | null = null;
 	private static refreshToken: string | null = null;
 	private static expirationTime: number | null = null;
 	private static tokenMonitorInterval: NodeJS.Timeout | null = null;
+	private static tokenChangeSubscribers: TokenChangeSubscriber[] = [];
+
+	/**
+	 * Agrega un suscriptor de cambios en el token.
+	 * @param subscriber 
+	 */
+	public static subscribeToTokenChanges(subscriber: TokenChangeSubscriber) {
+		this.tokenChangeSubscribers.push(subscriber);
+	}
+
+	/**
+	 * Remueve un suscriptor de cambios en el token.
+	 * @param subscriber 
+	 */
+	public static unsubscribeFromTokenChanges(subscriber: TokenChangeSubscriber) {
+		const index = this.tokenChangeSubscribers.indexOf(subscriber);
+		if (index >= 0) {
+			this.tokenChangeSubscribers.splice(index, 1);
+		}
+	}
+
+	/**
+	 * Notifica a los suscriptores que el token ha cambiado.
+	 * @param token 
+	 */
+	private static notifyTokenChange(token: string) {
+		this.tokenChangeSubscribers.forEach(subscriber => subscriber(token));
+	}
 
 	/**
 	 * Guarda los tokens y su expiración en memoria y localStorage.
@@ -130,6 +160,7 @@ export class TokenManager {
 				console.log("⚠️ Token a punto de expirar, intentando refrescar...");
 				const token = await this.getValidAccessToken();
 				if (token) {
+					this.notifyTokenChange(token);
 					console.log("✅ Token refrescado automáticamente.");
 				} else {
 					console.error("❌ No se pudo refrescar el token.");
@@ -149,8 +180,6 @@ export class TokenManager {
 			console.log("🛑 Token monitor detenido.");
 		}
 	}
-
-
 
 	private static setExpirationTime(access_token: string) {
 		// Decodificar la expiración del token

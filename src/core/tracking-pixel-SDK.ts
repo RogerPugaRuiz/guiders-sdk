@@ -6,6 +6,7 @@ import { TrackingEvent } from "../types";
 import { TokenManager } from "./token-manager";
 import { ensureTokens } from "../services/token-service";
 import { checkServerConnection } from "../services/health-check-service";
+import { WebSocketClient } from "../services/websocket-service";
 
 export class TrackingPixelSDK {
 	private pipelineStages: PipelineStage[] = [];
@@ -13,13 +14,14 @@ export class TrackingPixelSDK {
 	private endpoint: string;
 	private apiKey: string;
 	private fingerprint: string | null = null;
+	private webSocket: WebSocketClient | null = null;
 
 	constructor(options: { endpoint?: string, apiKey: string }) {
 		this.endpoint = options.endpoint || 'http://localhost:3000';
 		this.apiKey = options.apiKey;
 
-		// Acceder una sola vez a localStorage y evitar reflows innecesarios
-
+		// Inicializar el WebSocket
+		this.webSocket = new WebSocketClient(this.endpoint);
 	}
 
 
@@ -51,6 +53,16 @@ export class TrackingPixelSDK {
 				}
 			} catch (error) {
 				console.error('Error al refrescar tokens:', error);
+			}
+		}
+
+		// Conectar el WebSocket
+		if (this.webSocket) {
+			const token = await TokenManager.getValidAccessToken();
+			if (token) {
+				this.webSocket.connect(token);
+			} else {
+				console.error('No se pudo obtener un token válido para el WebSocket.');
 			}
 		}
 
