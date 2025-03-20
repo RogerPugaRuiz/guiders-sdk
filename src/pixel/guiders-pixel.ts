@@ -32,13 +32,20 @@ export class GuidersPixel {
 		await this.socketService.connectSocket();
 
 		// Finalmente, inicializar el componente de chat
-		
+		this.socketService.on('connect', () => {
+			console.log('🚀 Conexión establecida');
+		}
+		);
+		this.showChat(options);
+
 	}
 
 	public showChat(options: Record<string, any> = {}): void {
-		const chatComponent = new LiveChatComponent({
-			container: options.container || document.body,
-			socketService: this.socketService,
+		this.socketService.waitForConnection().then(() => {
+			const chatComponent = new LiveChatComponent({
+				container: options.container || document.body,
+				socketService: this.socketService,
+			});
 		});
 	}
 

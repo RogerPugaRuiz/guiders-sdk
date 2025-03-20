@@ -12,7 +12,10 @@ export class LiveChatComponent extends BaseComponent {
 	private socketService: WebSocketPort;
 	private disconnectMessage: HTMLDivElement;
 
-	constructor(props: { 
+	// Lista de suscripciones para persistir los listeners
+	private subscriptions: Array<{ event: string; callback: (...args: any[]) => void }> = [];
+
+	constructor(props: {
 		container: HTMLElement | string,
 		socketService: WebSocketPort,
 	}) {
@@ -68,8 +71,8 @@ export class LiveChatComponent extends BaseComponent {
 			borderRadius: "10px",
 			boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.2)",
 			opacity: "0",
-			transform: "scale(0.8)", // Comienza contraído
-			transformOrigin: "bottom right", // 🔥 La transformación ocurre desde la esquina inferior derecha
+			transform: "scale(0.8)",
+			transformOrigin: "bottom right",
 			pointerEvents: "none",
 			display: "flex",
 			flexDirection: "column",
@@ -92,13 +95,15 @@ export class LiveChatComponent extends BaseComponent {
 			padding: "10px",
 			overflowY: "auto",
 			flex: "1 1 auto",
+			minHeight: "0", // Permite que se encoja y active el scroll
 			display: "flex",
 			flexDirection: "column",
+			// Sin justify-content; se controlará con margin-top en el último mensaje
 		});
 
 		Object.assign(this.chatBottom.style, <Partial<CSSStyleDeclaration>>{
 			display: "flex",
-			flexDirection: "column", // Cambiado a columna para que el mensaje esté debajo del input
+			flexDirection: "column",
 			flexWrap: "nowrap",
 			justifyContent: "space-between",
 			alignItems: "center",
@@ -114,24 +119,6 @@ export class LiveChatComponent extends BaseComponent {
 			border: "1px solid #ccc",
 		});
 
-		// const message = document.createElement("div");
-		// message.classList.add("live-chat-message");
-		// message.classList.add("live-chat-message--other");
-		// message.textContent = "Hola, ¿en qué puedo ayudarte?";
-
-		// Object.assign(message.style, <Partial<CSSStyleDeclaration>>{
-		// 	background: "#ebebeb",
-		// 	padding: "10px",
-		// 	margin: "2px",
-		// 	borderRadius: "12px",
-		// 	fontFamily: "Arial, sans-serif",
-		// 	fontSize: "0.8rem",
-		// 	width: "fit-content",
-		// });
-
-		// this.chatBody.appendChild(message);
-
-
 		this.chatBottom.appendChild(this.chatInput);
 		this.chatBottom.appendChild(this.disconnectMessage);
 
@@ -142,7 +129,48 @@ export class LiveChatComponent extends BaseComponent {
 		this.container.appendChild(this.chatContainer);
 	}
 
-	attachEvents(): void {
+	async attachEvents(): Promise<void> {
+		await this.socketService.waitForConnection();
+
+		// Función para manejar el nuevo mensaje
+		const newMessageHandler = (data: { message: string }) => {
+			const message = document.createElement("div");
+			message.classList.add("live-chat-message", "live-chat-message--other");
+			message.textContent = data.message;
+
+			Object.assign(message.style, <Partial<CSSStyleDeclaration>>{
+				background: "#ebebeb",
+				padding: "10px",
+				margin: "2px",
+				borderRadius: "12px",
+				fontFamily: "Arial, sans-serif",
+				fontSize: "0.8rem",
+				width: "fit-content",
+			});
+			// Al agregar un mensaje, actualizamos el margin-top de todos para que solo el último tenga auto.
+			this.chatBody.appendChild(message);
+			this.updateMessagesMargin();
+			this.chatBody.scrollTop = this.chatBody.scrollHeight;
+		};
+
+		// Función para manejar la reconexión
+		const connectHandler = () => {
+			console.log("WebSocket reconectado. Re-activando listeners.");
+			// Vuelve a suscribir todos los listeners guardados
+			this.subscriptions.forEach(sub => {
+				this.socketService.on(sub.event, sub.callback);
+			});
+		};
+
+		// Registrar las suscripciones y guardarlas
+		this.registerSubscription("new_message", newMessageHandler);
+		this.registerSubscription("connect", connectHandler);
+
+		// Suscribirse inmediatamente
+		this.socketService.on("new_message", newMessageHandler);
+		this.socketService.on("connect", connectHandler);
+
+		// Eventos locales: botón y envío de mensajes
 		this.chatButton.onClick(() => {
 			const isOpen = this.chatContainer.classList.toggle("chat-open");
 
@@ -150,14 +178,12 @@ export class LiveChatComponent extends BaseComponent {
 				this.chatContainer.style.opacity = "1";
 				this.chatContainer.style.transform = "scale(1)";
 				this.chatContainer.style.pointerEvents = "auto";
-				this.chatContainer.style.transition = "transform 0.3s, opacity 0.3s"; // 🔥 Se agrega transición
-
+				this.chatContainer.style.transition = "transform 0.3s, opacity 0.3s";
 				this.chatInput.focus();
 			} else {
 				this.chatContainer.style.opacity = "0";
-				this.chatContainer.style.transform = "scale(0.8)"; // Se contrae hacia la esquina
+				this.chatContainer.style.transform = "scale(0.8)";
 				this.chatContainer.style.pointerEvents = "none";
-				// quitar la transición para que no se vea al cerrar
 				this.chatContainer.style.transition = "none";
 			}
 		});
@@ -165,8 +191,7 @@ export class LiveChatComponent extends BaseComponent {
 		this.chatInput.addEventListener("keydown", (event) => {
 			if (event.key === "Enter") {
 				const message = document.createElement("div");
-				message.classList.add("live-chat-message");
-				message.classList.add("live-chat-message--self");
+				message.classList.add("live-chat-message", "live-chat-message--self");
 				message.textContent = this.chatInput.value;
 
 				Object.assign(message.style, <Partial<CSSStyleDeclaration>>{
@@ -182,13 +207,30 @@ export class LiveChatComponent extends BaseComponent {
 				});
 
 				this.chatBody.appendChild(message);
+				this.updateMessagesMargin();
 				this.chatInput.value = "";
 				this.chatBody.scrollTop = this.chatBody.scrollHeight;
 
-				this.socketService.sendMsg('send_chat_message', {
+				this.socketService.sendMsg("send_chat_message", {
 					message: message.textContent,
 				});
 			}
+		});
+	}
+
+	// Método para registrar una suscripción y guardarla en la lista
+	private registerSubscription(event: string, callback: (...args: any[]) => void): void {
+		// Evitamos duplicados
+		if (!this.subscriptions.find(sub => sub.event === event && sub.callback === callback)) {
+			this.subscriptions.push({ event, callback });
+		}
+	}
+
+	// Actualiza el margin-top para que solo el último mensaje tenga "auto"
+	private updateMessagesMargin(): void {
+		const children = Array.from(this.chatBody.children);
+		children.forEach((child, index) => {
+			child instanceof HTMLElement && (child.style.marginTop = index === children.length - 1 ? "auto" : "");
 		});
 	}
 

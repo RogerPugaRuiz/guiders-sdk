@@ -7,4 +7,5 @@ export interface WebSocketPort {
     onDisconnect(callback: () => void): void;
     onError(callback: (error: any) => void): void;
     sendMsg(eventName: string, payload: any): void;
+    waitForConnection(): Promise<void>;
 }
