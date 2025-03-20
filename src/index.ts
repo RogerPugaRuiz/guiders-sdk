@@ -1,28 +1,27 @@
-import { TokenAdapter } from "./core/token-manager";
-import { FingerprintAdapter } from "./core/fingerprint-manager";
-import { WebSocketAdapter } from "./core/websocket-manager";
-import { GuidersPixel } from "./pixel/guiders-pixel";
-import { TokenPort } from "./interfaces/token.interface";
-import { WebSocketPort } from "./interfaces/websocket.interface";
-import { SocketFactory } from "./factories/socket.factory";
-import { TokenFactory } from "./factories/token.factory";
+// src/index.ts
+
+import { TokenManager } from "./core/token-manager";
+import { TrackingPixelSDK } from "./core/tracking-pixel-SDK";
+
+export * from "./core/tracking-pixel-SDK";
+export * from "./core/token-manager";
+export * from "./pipeline/pipeline-stage";
+export * from "./pipeline/token-stage";
+export * from "./types";
+// Se pueden exportar más etapas o servicios según se vayan implementando.
+
 
 declare global {
 	interface Window {
-		guidersPixel: GuidersPixel;
+		TrackingPixelSDK: typeof TrackingPixelSDK;
+		TokenManager: typeof TokenManager;
 	}
 }
 
-const fingerprintService = FingerprintAdapter.getInstance();
-const tokenService = TokenFactory.getInstance('http://localhost:3000/pixel');
-const socketService = SocketFactory.getInstance('ws://localhost:3000', {
-	autoReconnect: true,
-	inactivityThreshold: 60 * 1000, // 1 minuto,
-	alias: 'pixel'
-});
-
-window.guidersPixel = new GuidersPixel({
-	fingerprintService,
-	tokenService,
-	socketService
-});
+// Si estamos en un entorno de navegador, asignamos los módulos al objeto global.
+if (typeof window !== "undefined") {
+	// Para evitar problemas de módulos, asegúrate de que estas importaciones
+	// se correspondan con la salida compilada de tu proyecto.
+	window.TrackingPixelSDK = TrackingPixelSDK;
+	window.TokenManager = TokenManager;
+}
