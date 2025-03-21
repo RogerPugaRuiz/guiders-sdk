@@ -28,11 +28,11 @@ export class WebSocketClient {
 			reconnectionDelay: 3000, // Espera 3s antes de intentar reconectar
 		});
 
-		this.socket.on("connect", () => console.log("✅ WebSocket conectado"));
-		this.socket.on("connect_error", (err) => console.error("❌ WebSocket error:", err));
-		this.socket.on("disconnect", () => {
-			console.warn("⚠️ WebSocket desconectado, intentando reconectar...");
-		});
+		// this.socket.on("connect", () => console.log("✅ WebSocket conectado"));
+		// this.socket.on("connect_error", (err) => console.error("❌ WebSocket error:", err));
+		// this.socket.on("disconnect", () => {
+		// 	console.warn("⚠️ WebSocket desconectado, intentando reconectar...");
+		// });
 	}
 
 	/**
@@ -77,6 +77,47 @@ export class WebSocketClient {
 			return;
 		}
 
-		this.socket.emit("event", event);
+		this.socket.emit("message", event);
+	}
+
+	/**
+	 * Añade un listener a un evento específico.
+	 * @param event Nombre del evento.
+	 * @param listener Función a ejecutar
+	 */
+	public addListener(event: string, listener: (...args: any[]) => void): void {
+		if (!this.socket) {
+			console.error("❌ WebSocket no conectado");
+			return;
+		}
+
+		this.socket.on(event, listener);
+	}
+
+	/**
+	 * Añede un listener cuando el WebSocket se conecta.
+	 * @param listener Función a ejecutar
+	 * @returns void
+	 */
+	public onConnect(listener: () => void): void {
+		this.addListener("connect", listener);
+	}
+
+	/**
+	 * Añede un listener cuando el WebSocket se desconecta.
+	 * @param listener Función a ejecutar
+	 * @returns void
+	 */
+	public onDisconnect(listener: () => void): void {
+		this.addListener("disconnect", listener);
+	}
+
+	/**
+	 * Verifica si el WebSocket está conectado.
+	 * @returns boolean
+	 * @returns void
+	 */
+	public isConnected(): boolean {
+		return !!this.socket && this.socket.connected;
 	}
 }

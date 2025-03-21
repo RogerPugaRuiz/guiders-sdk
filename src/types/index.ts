@@ -1,9 +1,20 @@
 // src/types/index.ts
 
-export interface TrackingEvent {
+export interface TrackingEvent<T = Record<string, unknown>> {
 	type: string;
-	data: Record<string, any>;
+	data: T;
 	timestamp: number;
-	token?: string;
+}
+
+export const WebSocketMessageTypes = {
+	CONNECT: "CONNECT",
+	DISCONNECT: "DISCONNECT",
+	MESSAGE: "MESSAGE"
+} as const;
+
+export interface WebSocketMessage<T = Record<string, unknown>> {
+	type: WebSocketMessage
+	data: T;
+	timestamp: number;
 }
 

@@ -12,7 +12,10 @@
 <body>
   <script>
     const sdk = new window.TrackingPixelSDK({
-      apiKey: "49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d9763"
+      apiKey: "49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d9763",
+      autoFlush: true,
+      flushInterval: 1000, // 1 second
+      maxRetries: 2,
     });
 
     sdk.init();

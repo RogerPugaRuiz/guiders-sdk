@@ -6,7 +6,7 @@ import { TrackingPixelSDK } from "./core/tracking-pixel-SDK";
 export * from "./core/tracking-pixel-SDK";
 export * from "./core/token-manager";
 export * from "./pipeline/pipeline-stage";
-export * from "./pipeline/token-stage";
+export * from "./pipeline/stages/token-stage";
 export * from "./types";
 // Se pueden exportar más etapas o servicios según se vayan implementando.
 
@@ -14,7 +14,6 @@ export * from "./types";
 declare global {
 	interface Window {
 		TrackingPixelSDK: typeof TrackingPixelSDK;
-		TokenManager: typeof TokenManager;
 	}
 }
 
@@ -23,5 +22,5 @@ if (typeof window !== "undefined") {
 	// Para evitar problemas de módulos, asegúrate de que estas importaciones
 	// se correspondan con la salida compilada de tu proyecto.
 	window.TrackingPixelSDK = TrackingPixelSDK;
-	window.TokenManager = TokenManager;
+
 }

@@ -1,5 +1,5 @@
 import { TrackingEvent } from '../types';
 
-export interface PipelineStage {
-	process(event: TrackingEvent): TrackingEvent;
+export interface PipelineStage<I = any, O = I> {
+	process(input: I): O;
 }
