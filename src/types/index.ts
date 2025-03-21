@@ -3,17 +3,13 @@
 export interface TrackingEvent<T = Record<string, unknown>> {
 	type: string;
 	data: T;
-	timestamp: number;
+	timestamp?: number;
+	token?: string;
 }
 
-export const WebSocketMessageTypes = {
-	CONNECT: "CONNECT",
-	DISCONNECT: "DISCONNECT",
-	MESSAGE: "MESSAGE"
-} as const;
 
 export interface WebSocketMessage<T = Record<string, unknown>> {
-	type: WebSocketMessage
+	type: string;
 	data: T;
 	timestamp: number;
 }

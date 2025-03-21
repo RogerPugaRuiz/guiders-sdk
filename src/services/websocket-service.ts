@@ -71,14 +71,29 @@ export class WebSocketClient {
 	 * Envía un mensaje por WebSocket.
 	 * @param event Evento a enviar.
 	 */
-	public sendMessage(event: Record<string, any>): void {
-		if (!this.socket || !this.socket.connected) {
-			console.warn("⚠️ WebSocket no está conectado, mensaje no enviado");
-			return;
-		}
-
-		this.socket.emit("message", event);
+	public sendMessage(event: Record<string, any>): Promise<void> {
+		return new Promise((resolve, reject) => {
+			if (!this.socket || !this.socket.connected) {
+				console.warn("⚠️ WebSocket no está conectado, mensaje no enviado");
+				return reject("WebSocket no conectado");
+			}
+			const { type } = event;
+			this.socket.emit(type || "event", event, (ack: any) => {
+				console.log("📩 Mensaje recibido por el servidor:", ack);
+				resolve();
+			});
+		});
 	}
+
+	/**
+	 * Añade un listener cuando el WebSocket recibe un mensaje del chat
+	 * @param listener Función a ejecutar
+	 * @returns void
+	 */
+	public onChatMessage(listener: (message: Record<string, any>) => void): void {
+		this.addListener("chat_message", listener);
+	}
+
 
 	/**
 	 * Añade un listener a un evento específico.
@@ -86,12 +101,12 @@ export class WebSocketClient {
 	 * @param listener Función a ejecutar
 	 */
 	public addListener(event: string, listener: (...args: any[]) => void): void {
-		if (!this.socket) {
-			console.error("❌ WebSocket no conectado");
-			return;
-		}
+	if(!this.socket) {
+	console.error("❌ WebSocket no conectado");
+	return;
+}
 
-		this.socket.on(event, listener);
+this.socket.on(event, listener);
 	}
 
 	/**
@@ -100,8 +115,8 @@ export class WebSocketClient {
 	 * @returns void
 	 */
 	public onConnect(listener: () => void): void {
-		this.addListener("connect", listener);
-	}
+	this.addListener("connect", listener);
+}
 
 	/**
 	 * Añede un listener cuando el WebSocket se desconecta.
@@ -109,8 +124,8 @@ export class WebSocketClient {
 	 * @returns void
 	 */
 	public onDisconnect(listener: () => void): void {
-		this.addListener("disconnect", listener);
-	}
+	this.addListener("disconnect", listener);
+}
 
 	/**
 	 * Verifica si el WebSocket está conectado.
@@ -118,6 +133,6 @@ export class WebSocketClient {
 	 * @returns void
 	 */
 	public isConnected(): boolean {
-		return !!this.socket && this.socket.connected;
-	}
+	return !!this.socket && this.socket.connected;
+}
 }

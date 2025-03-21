@@ -15,3 +15,16 @@ export class PipelineProcessor<I = any, O = I> {
 		this.stages.push(stage);
 	}
 }
+
+export class PipelineProcessorBuilder<I = any, O = I> {
+	private stages: PipelineStage<I, O>[] = [];
+
+	public addStage(stage: PipelineStage<I, O>): PipelineProcessorBuilder<I, O> {
+		this.stages.push(stage);
+		return this;
+	}
+
+	public build(): PipelineProcessor<I, O> {
+		return new PipelineProcessor(this.stages);
+	}
+}
