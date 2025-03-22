@@ -28,6 +28,9 @@ export class WebSocketClient {
 			reconnectionDelay: 3000, // Espera 3s antes de intentar reconectar
 		});
 
+		this.socket.on("auth_error", (error) => {
+			console.error("❌ Error de autenticación en WebSocket:", error);
+		});
 		// this.socket.on("connect", () => console.log("✅ WebSocket conectado"));
 		// this.socket.on("connect_error", (err) => console.error("❌ WebSocket error:", err));
 		// this.socket.on("disconnect", () => {
