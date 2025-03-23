@@ -108,7 +108,9 @@ export class TrackingPixelSDK {
 	}
 
 	public addPipelineStage(stage: PipelineStage<TrackingEvent, TrackingEvent>): void {
-		this.eventPipeline.addStage(stage);
+		this.eventPipeline = this.pipelineBuilder
+			.addStage(stage)
+			.build();
 	}
 
 	public captureEvent(type: string, data: Record<string, unknown>): void {
@@ -164,12 +166,6 @@ export class TrackingPixelSDK {
 				console.error("❌ No se pudo enviar el evento después de varios intentos:", event);
 			}
 		}
-	}
-
-	private setupInternalPipeline(): void {
-		this.eventPipeline.addStage(new TimeStampStage());
-		this.eventPipeline.addStage(new TokenInjectionStage());
-		this.eventPipeline.addStage(new ValidationStage());
 	}
 
 	private startAutoFlush(): void {

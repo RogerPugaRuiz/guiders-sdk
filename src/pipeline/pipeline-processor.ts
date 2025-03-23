@@ -24,10 +24,6 @@ export class PipelineProcessor<I = any, O = I> {
 		return output;
 		// return this.stages.reduce((acc, stage) => stage.process(acc), input as any);
 	}
-
-	public addStage(stage: PipelineStage<I, O>) {
-		this.stages.push(stage);
-	}
 }
 
 export class PipelineProcessorBuilder<I = any, O = I> {
