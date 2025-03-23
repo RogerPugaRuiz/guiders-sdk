@@ -1,7 +1,7 @@
 import { ClientJS } from "clientjs";
-import { PipelineProcessor } from "../pipeline/pipeline-processor";
+import { PipelineProcessor, PipelineProcessorBuilder } from "../pipeline/pipeline-processor";
 import { PipelineStage } from "../pipeline/pipeline-stage";
-import { TrackingEvent, WebSocketMessage } from "../types";
+import { TrackingEvent } from "../types";
 import { TokenManager } from "./token-manager";
 import { ensureTokens } from "../services/token-service";
 import { checkServerConnection } from "../services/health-check-service";
@@ -19,12 +19,10 @@ interface SDKOptions {
 }
 
 export class TrackingPixelSDK {
-	private internalPipeline: PipelineProcessor<TrackingEvent, TrackingEvent>;
-	private userPipeline: PipelineProcessor<TrackingEvent, TrackingEvent>;
-	private webSocketPipeline: PipelineProcessor<TrackingEvent, WebSocketMessage>;
-	private incomingPipeline: PipelineProcessor<unknown, WebSocketMessage>;
+	private readonly pipelineBuilder = new PipelineProcessorBuilder<TrackingEvent, TrackingEvent>();
+	private eventPipeline: PipelineProcessor<TrackingEvent, TrackingEvent>;
 
-	private eventQueue: WebSocketMessage[] = [];
+	private eventQueue: TrackingEvent[] = [];
 	private endpoint: string;
 	private apiKey: string;
 	private fingerprint: string | null = null;
@@ -34,7 +32,7 @@ export class TrackingPixelSDK {
 	private flushInterval = 10000;
 	private flushTimer: ReturnType<typeof setInterval> | null = null;
 	private maxRetries = 3;
-	private listeners = new Map<string, Set<(msg: WebSocketMessage) => void>>();
+	private listeners = new Map<string, Set<(msg: TrackingEvent) => void>>();
 
 	constructor(options: SDKOptions) {
 		this.endpoint = options.endpoint || "http://localhost:3000";
@@ -43,16 +41,18 @@ export class TrackingPixelSDK {
 		this.flushInterval = options.flushInterval ?? 10000;
 		this.maxRetries = options.maxRetries ?? 3;
 
-		this.internalPipeline = new PipelineProcessor<TrackingEvent, TrackingEvent>();
-		this.userPipeline = new PipelineProcessor<TrackingEvent, TrackingEvent>();
-		this.webSocketPipeline = new PipelineProcessor<TrackingEvent, WebSocketMessage>();
-		this.incomingPipeline = new PipelineProcessor<unknown, WebSocketMessage>();
+		this.eventPipeline = this.pipelineBuilder
+			.addStage(new TimeStampStage())
+			.addStage(new TokenInjectionStage())
+			.addStage(new ValidationStage())
+			.build();
 
 		this.webSocket = new WebSocketClient(this.endpoint);
+
 	}
 
 	public async init(): Promise<void> {
-		this.setupInternalPipeline();
+		
 
 		await checkServerConnection(this.endpoint);
 		console.log("✅ Conexión con el servidor establecida.");
@@ -79,7 +79,7 @@ export class TrackingPixelSDK {
 
 		if (this.webSocket) {
 			this.webSocket.onChatMessage((message) => {
-				const processedMessage = this.incomingPipeline.process(message);
+				const processedMessage = this.eventPipeline.process(message as TrackingEvent);
 				console.log("Mensaje recibido:", processedMessage);
 				this.dispatchMessage(processedMessage);
 			});
@@ -88,27 +88,27 @@ export class TrackingPixelSDK {
 		this.createChatWidget();
 	}
 
-	public on(type: string, listener: (msg: WebSocketMessage) => void): void {
+	public on(type: string, listener: (msg: TrackingEvent) => void): void {
 		if (!this.listeners.has(type)) {
 			this.listeners.set(type, new Set());
 		}
 		this.listeners.get(type)?.add(listener);
 	}
 
-	public off(type: string, listener: (msg: WebSocketMessage) => void): void {
+	public off(type: string, listener: (msg: TrackingEvent) => void): void {
 		this.listeners.get(type)?.delete(listener);
 	}
 
-	public addUserPipelineStage(stage: PipelineStage<TrackingEvent, TrackingEvent>): void {
-		this.userPipeline.addStage(stage);
+	public once(type: string, listener: (msg: TrackingEvent) => void): void {
+		const wrappedListener = (msg: TrackingEvent) => {
+			listener(msg);
+			this.off(type, wrappedListener);
+		};
+		this.on(type, wrappedListener);
 	}
 
-	public addWebSocketPipelineStage(stage: PipelineStage<TrackingEvent, WebSocketMessage>): void {
-		this.webSocketPipeline.addStage(stage);
-	}
-
-	public addIncomingPipelineStage(stage: PipelineStage<WebSocketMessage, WebSocketMessage>): void {
-		this.incomingPipeline.addStage(stage);
+	public addPipelineStage(stage: PipelineStage<TrackingEvent, TrackingEvent>): void {
+		this.eventPipeline.addStage(stage);
 	}
 
 	public captureEvent(type: string, data: Record<string, unknown>): void {
@@ -117,11 +117,18 @@ export class TrackingPixelSDK {
 			data,
 			timestamp: Date.now(),
 		};
-
-		const internalEvent = this.internalPipeline.process(rawEvent);
-		const userEvent = this.userPipeline.process(internalEvent);
-		const processedEvent = this.webSocketPipeline.process(userEvent);
+		const processedEvent = this.eventPipeline.process(rawEvent);
 		this.eventQueue.push(processedEvent);
+	}
+
+	public setMetadata(event: string, metadata: Record<string, unknown>): void {
+		const eventIndex = this.eventQueue.findIndex((e) => e.type === event);
+		if (eventIndex === -1) {
+			console.warn(`Evento '${event}' no encontrado en la cola.`);
+			return;
+		}
+
+		this.eventQueue[eventIndex].metadata = metadata;
 	}
 
 	public flushEvents(): void {
@@ -140,7 +147,7 @@ export class TrackingPixelSDK {
 		}
 	}
 
-	private async trySendEventWithRetry(event: WebSocketMessage, retriesLeft: number): Promise<void> {
+	private async trySendEventWithRetry(event: TrackingEvent, retriesLeft: number): Promise<void> {
 		try {
 			if (this.webSocket?.isConnected()) {
 				await this.webSocket.sendMessage(event);
@@ -160,9 +167,9 @@ export class TrackingPixelSDK {
 	}
 
 	private setupInternalPipeline(): void {
-		this.internalPipeline.addStage(new TimeStampStage());
-		this.internalPipeline.addStage(new TokenInjectionStage());
-		this.internalPipeline.addStage(new ValidationStage());
+		this.eventPipeline.addStage(new TimeStampStage());
+		this.eventPipeline.addStage(new TokenInjectionStage());
+		this.eventPipeline.addStage(new ValidationStage());
 	}
 
 	private startAutoFlush(): void {
@@ -172,7 +179,7 @@ export class TrackingPixelSDK {
 		}, this.flushInterval);
 	}
 
-	private dispatchMessage(message: WebSocketMessage): void {
+	private dispatchMessage(message: TrackingEvent): void {
 		const listeners = this.listeners.get(message.type);
 		if (!listeners || listeners.size === 0) return;
 
@@ -271,7 +278,7 @@ export class TrackingPixelSDK {
 		});
 
 		// Suscribirse a mensajes entrantes de chat y mostrarlos en el widget
-		this.on("chat_message", (msg: WebSocketMessage) => {
+		this.on("chat_message", (msg: TrackingEvent) => {
 			const msgEl = document.createElement("div");
 			msgEl.style.marginBottom = "8px";
 			// Se asume que msg.timestamp está en segundos; ajusta si es en milisegundos.
