@@ -3,7 +3,6 @@ import { PipelineStage } from '../pipeline-stage';
 
 export class ValidationStage implements PipelineStage<TrackingEvent, TrackingEvent> {
     process(event: TrackingEvent): TrackingEvent {
-        console.log('Proceso de validación de evento');
 
         // Validar que el evento tenga los campos requeridos
         if (!event.type) {
@@ -17,6 +16,10 @@ export class ValidationStage implements PipelineStage<TrackingEvent, TrackingEve
         // Crear un nuevo evento con timestamp
         if (!event.timestamp) {
             throw new Error('El evento debe tener una marca de tiempo');
+        }
+
+        if (!event.token) {
+            throw new Error('El evento debe tener un token');
         }
         return event;
     }

@@ -9,6 +9,10 @@ import { WebSocketClient } from "../services/websocket-service";
 import { TimeStampStage } from "../pipeline/stages/time-stamp-stage";
 import { TokenInjectionStage } from "../pipeline/stages/token-stage";
 import { ValidationStage } from "../pipeline/stages/validation-stage";
+import { MetadataInjectionStage } from "../pipeline/stages/metadata-stage";
+import { ChatUI } from "../presentation/chat";
+import { ChatInputUI } from "../presentation/chat-input";
+import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
 
 interface SDKOptions {
 	endpoint?: string;
@@ -44,16 +48,15 @@ export class TrackingPixelSDK {
 		this.eventPipeline = this.pipelineBuilder
 			.addStage(new TimeStampStage())
 			.addStage(new TokenInjectionStage())
+			.addStage(new MetadataInjectionStage())
 			.addStage(new ValidationStage())
 			.build();
 
 		this.webSocket = new WebSocketClient(this.endpoint);
-
 	}
 
 	public async init(): Promise<void> {
 		
-
 		await checkServerConnection(this.endpoint);
 		console.log("✅ Conexión con el servidor establecida.");
 
@@ -78,14 +81,41 @@ export class TrackingPixelSDK {
 		}
 
 		if (this.webSocket) {
+			await this.webSocket.waitForConnection();
 			this.webSocket.onChatMessage((message) => {
 				const processedMessage = this.eventPipeline.process(message as TrackingEvent);
 				console.log("Mensaje recibido:", processedMessage);
 				this.dispatchMessage(processedMessage);
 			});
 		}
+		const chat = new ChatUI({
+			widget: true,
+		});
+		const chatInput = new ChatInputUI(chat);
+		const chatToggleButton = new ChatToggleButtonUI(chat);
 
-		this.createChatWidget();
+		chat.init();
+		chatInput.init();
+		chatToggleButton.init();
+		
+		chat.renderChatMessage({
+			text: "¡Hola! ¿En qué puedo ayudarte?",
+			sender: "other",
+		});
+
+		chatInput.onSubmit((message: string) => {
+			if (!message) return;
+			this.captureEvent("chat_message", { message });
+			this.flush();
+		});
+
+		this.on("chat_message", (msg: TrackingEvent) => {
+			chat.renderChatMessage({
+				text: msg.data.message as string,
+				sender: "other",
+			});
+		});
+
 	}
 
 	public on(type: string, listener: (msg: TrackingEvent) => void): void {
@@ -113,15 +143,7 @@ export class TrackingPixelSDK {
 			.build();
 	}
 
-	public captureEvent(type: string, data: Record<string, unknown>): void {
-		const rawEvent: TrackingEvent = {
-			type,
-			data,
-			timestamp: Date.now(),
-		};
-		const processedEvent = this.eventPipeline.process(rawEvent);
-		this.eventQueue.push(processedEvent);
-	}
+
 
 	public setMetadata(event: string, metadata: Record<string, unknown>): void {
 		const eventIndex = this.eventQueue.findIndex((e) => e.type === event);
@@ -133,13 +155,15 @@ export class TrackingPixelSDK {
 		this.eventQueue[eventIndex].metadata = metadata;
 	}
 
-	public flushEvents(): void {
+	public async flush(): Promise<void> {
 		if (this.eventQueue.length === 0) return;
 
 		const eventsToSend = [...this.eventQueue];
 		this.eventQueue = [];
 
-		eventsToSend.forEach((event) => this.trySendEventWithRetry(event, this.maxRetries));
+		await Promise.all(
+			eventsToSend.map((event) => this.trySendEventWithRetry(event, this.maxRetries))
+		);
 	}
 
 	public stopAutoFlush(): void {
@@ -147,6 +171,34 @@ export class TrackingPixelSDK {
 			clearInterval(this.flushTimer);
 			this.flushTimer = null;
 		}
+	}
+
+	public async track(params: Record<string, unknown>): Promise<void> {
+		return new Promise((resolve, reject) => {
+			const { event, ...data } = params;
+			if (typeof event !== "string") {
+				console.error("El evento debe tener un tipo.");
+				reject(new Error("El evento debe tener un tipo."));
+				return;
+			}
+			try {
+				this.captureEvent(event, data);
+				resolve();
+			} catch (error) {
+				console.error("Error al capturar el evento:", error);
+				reject(error);
+			}
+		});
+	}
+
+	private captureEvent(type: string, data: Record<string, unknown>): void {
+		const rawEvent: TrackingEvent = {
+			type,
+			data,
+			timestamp: Date.now(),
+		};
+		const processedEvent = this.eventPipeline.process(rawEvent);
+		this.eventQueue.push(processedEvent);
 	}
 
 	private async trySendEventWithRetry(event: TrackingEvent, retriesLeft: number): Promise<void> {
@@ -157,6 +209,7 @@ export class TrackingPixelSDK {
 				throw new Error("WebSocket no conectado");
 			}
 		} catch (error) {
+			console.error("❌ Error al enviar evento:", error);
 			if (retriesLeft > 0) {
 				console.warn(`Retrying (${this.maxRetries - retriesLeft + 1})...`);
 				setTimeout(() => {
@@ -171,7 +224,7 @@ export class TrackingPixelSDK {
 	private startAutoFlush(): void {
 		if (this.flushTimer) clearInterval(this.flushTimer);
 		this.flushTimer = setInterval(() => {
-			this.flushEvents();
+			this.flush();
 		}, this.flushInterval);
 	}
 
@@ -266,7 +319,7 @@ export class TrackingPixelSDK {
 				if (messageText) {
 					// Captura el evento de chat
 					this.captureEvent("chat_message", { message: messageText });
-					this.flushEvents();
+					this.flush();
 					this.renderChatMessage({ message: messageText }, messagesContainer);
 					input.value = "";
 				}

@@ -139,6 +139,7 @@ export class TokenManager {
 			console.error("No hay access token disponible.");
 			return event;
 		}
+		console.log("🔒 Adjuntando token al evento.");
 		return {
 			...event,
 			token: this.accessToken

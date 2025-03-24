@@ -1,3 +1,4 @@
+
 <!-- partials/header.php -->
 <!DOCTYPE html>
 <html lang="es">
@@ -18,5 +19,18 @@
       maxRetries: 2,
     });
 
-    sdk.init();
+    sdk.init().then(() => {
+      console.log("SDK initialized");
+      sdk.track({
+        event: "pageview",
+        data: {
+          page: "home",
+          client: { id: "1234567890" },
+        }
+      }).then(() => {
+        console.log("Event tracked");
+      }).catch((error) => {
+        console.error("Error tracking event", error);
+      });
+    });
   </script>

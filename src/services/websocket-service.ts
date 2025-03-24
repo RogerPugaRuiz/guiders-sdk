@@ -104,12 +104,12 @@ export class WebSocketClient {
 	 * @param listener Función a ejecutar
 	 */
 	public addListener(event: string, listener: (...args: any[]) => void): void {
-	if(!this.socket) {
-	console.error("❌ WebSocket no conectado");
-	return;
-}
+		if (!this.socket) {
+			console.error("❌ WebSocket no conectado");
+			return;
+		}
 
-this.socket.on(event, listener);
+		this.socket.on(event, listener);
 	}
 
 	/**
@@ -118,8 +118,8 @@ this.socket.on(event, listener);
 	 * @returns void
 	 */
 	public onConnect(listener: () => void): void {
-	this.addListener("connect", listener);
-}
+		this.addListener("connect", listener);
+	}
 
 	/**
 	 * Añede un listener cuando el WebSocket se desconecta.
@@ -127,8 +127,8 @@ this.socket.on(event, listener);
 	 * @returns void
 	 */
 	public onDisconnect(listener: () => void): void {
-	this.addListener("disconnect", listener);
-}
+		this.addListener("disconnect", listener);
+	}
 
 	/**
 	 * Verifica si el WebSocket está conectado.
@@ -136,6 +136,20 @@ this.socket.on(event, listener);
 	 * @returns void
 	 */
 	public isConnected(): boolean {
-	return !!this.socket && this.socket.connected;
-}
+		return !!this.socket && this.socket.connected;
+	}
+
+	/**
+	 * Espera a que el WebSocket se conecte.
+	 * @returns Promise<void>
+	 */
+	public waitForConnection(): Promise<void> {
+		return new Promise((resolve) => {
+			if (this.isConnected()) {
+				resolve();
+			} else {
+				this.onConnect(resolve);
+			}
+		});
+	}
 }
