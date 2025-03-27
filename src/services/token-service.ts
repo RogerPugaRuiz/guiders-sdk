@@ -41,12 +41,13 @@ export async function refreshToken(refreshToken: string): Promise<{ access_token
 		},
 		body: JSON.stringify({ refresh_token: refreshToken })
 	});
+	const data = await response.json();
 
 	if (!response.ok) {
-		throw new Error(`Error al refrescar tokens: ${response.statusText}`);
+		throw new Error(`${data.message}`);
 	}
 
-	const data = await response.json();
+	
 	return {
 		access_token: data.access_token
 	};

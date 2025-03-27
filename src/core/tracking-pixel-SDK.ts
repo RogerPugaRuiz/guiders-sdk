@@ -95,6 +95,7 @@ export class TrackingPixelSDK {
 		const chatToggleButton = new ChatToggleButtonUI(chat);
 
 		chat.init();
+		chat.hide();
 		chatInput.init();
 		chatToggleButton.init();
 		
@@ -105,7 +106,7 @@ export class TrackingPixelSDK {
 
 		chatInput.onSubmit((message: string) => {
 			if (!message) return;
-			this.captureEvent("chat_message", { message });
+			this.captureEvent("visitor_send_message", { message });
 			this.flush();
 		});
 
@@ -240,114 +241,4 @@ export class TrackingPixelSDK {
 			}
 		});
 	}
-
-	// Método para crear un widget de chat similar a Intercom
-	private createChatWidget(): void {
-		// Crear contenedor del chat (inicialmente oculto)
-		const chatContainer = document.createElement("div");
-		chatContainer.id = "chatWidget";
-		chatContainer.style.position = "fixed";
-		chatContainer.style.bottom = "60px"; // Se deja espacio para el botón de toggle
-		chatContainer.style.right = "20px";
-		chatContainer.style.width = "300px";
-		chatContainer.style.height = "400px";
-		chatContainer.style.backgroundColor = "#fff";
-		chatContainer.style.border = "1px solid #ccc";
-		chatContainer.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)";
-		chatContainer.style.display = "none"; // Oculto inicialmente
-		chatContainer.style.flexDirection = "column";
-		chatContainer.style.zIndex = "1000";
-
-		// Encabezado del chat
-		const header = document.createElement("div");
-		header.innerText = "Chat";
-		header.style.backgroundColor = "#007bff";
-		header.style.color = "#fff";
-		header.style.padding = "10px";
-		header.style.fontWeight = "bold";
-		chatContainer.appendChild(header);
-
-		// Contenedor de mensajes
-		const messagesContainer = document.createElement("div");
-		messagesContainer.id = "chatMessages";
-		messagesContainer.style.flex = "1";
-		messagesContainer.style.overflowY = "auto";
-		messagesContainer.style.padding = "10px";
-		chatContainer.appendChild(messagesContainer);
-
-		// Contenedor de entrada (sin botón, se usa Enter)
-		const inputContainer = document.createElement("div");
-		inputContainer.style.display = "flex";
-		inputContainer.style.borderTop = "1px solid #ccc";
-
-		const input = document.createElement("input");
-		input.type = "text";
-		input.placeholder = "Escribe un mensaje y pulsa Enter...";
-		input.style.flex = "1";
-		input.style.padding = "10px";
-
-		inputContainer.appendChild(input);
-		chatContainer.appendChild(inputContainer);
-
-		// Agregar el contenedor del chat al documento
-		document.body.appendChild(chatContainer);
-
-		// Crear el botón de toggle (si aún no existe)
-		let toggleButton = document.getElementById("chatToggleButton");
-		if (!toggleButton) {
-			toggleButton = document.createElement("button");
-			toggleButton.id = "chatToggleButton";
-			toggleButton.innerText = "Chat";
-			toggleButton.style.position = "fixed";
-			toggleButton.style.bottom = "20px";
-			toggleButton.style.right = "20px";
-			toggleButton.style.padding = "10px 20px";
-			toggleButton.style.zIndex = "1000";
-			document.body.appendChild(toggleButton);
-		}
-
-		// Evento para el botón de toggle: muestra/oculta el widget de chat
-		toggleButton.addEventListener("click", () => {
-			chatContainer.style.display =
-				chatContainer.style.display === "none" ? "flex" : "none";
-		});
-
-		// Enviar mensaje del chat al pulsar Enter en el input
-		input.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") {
-				const messageText = input.value.trim();
-				if (messageText) {
-					// Captura el evento de chat
-					this.captureEvent("chat_message", { message: messageText });
-					this.flush();
-					this.renderChatMessage({ message: messageText }, messagesContainer);
-					input.value = "";
-				}
-			}
-		});
-
-		// Suscribirse a mensajes entrantes de chat y mostrarlos en el widget
-		this.on("chat_message", (msg: TrackingEvent) => {
-			const msgEl = document.createElement("div");
-			msgEl.style.marginBottom = "8px";
-			// Se asume que msg.timestamp está en segundos; ajusta si es en milisegundos.
-			msgEl.innerHTML = `<strong>${new Date(
-				msg.timestamp * 1000
-			).toLocaleTimeString()}</strong>: ${JSON.stringify(msg.data)}`;
-			messagesContainer.appendChild(msgEl);
-			messagesContainer.scrollTop = messagesContainer.scrollHeight;
-		});
-
-	}
-
-	private renderChatMessage(message: Record<string, unknown>, container: HTMLElement): void {
-		const msgEl = document.createElement("div");
-		msgEl.style.marginBottom = "8px";
-		msgEl.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${JSON.stringify(
-			message
-		)}`;
-		container.appendChild(msgEl);
-		container.scrollTop = container.scrollHeight;
-	}
-
 }

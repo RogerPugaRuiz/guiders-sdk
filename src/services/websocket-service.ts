@@ -30,6 +30,7 @@ export class WebSocketClient {
 
 		this.socket.on("auth_error", (error) => {
 			console.error("❌ Error de autenticación en WebSocket:", error);
+			this.socket?.disconnect();
 		});
 		// this.socket.on("connect", () => console.log("✅ WebSocket conectado"));
 		// this.socket.on("connect_error", (err) => console.error("❌ WebSocket error:", err));

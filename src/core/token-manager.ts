@@ -1,6 +1,7 @@
 // src/core/token-manager.ts
-import { refreshToken } from "../services/token-service";
+import { fetchTokens, refreshToken } from "../services/token-service";
 import { TrackingEvent } from "../types/index";
+import { ClientJS } from "clientjs";
 
 type TokenChangeSubscriber = (token: string) => void;
 
@@ -88,8 +89,12 @@ export class TokenManager {
 				this.setTokens({ access_token: newToken.access_token, refresh_token: this.refreshToken });
 				console.log("Token refrescado exitosamente.");
 			} catch (error) {
-				console.error("Error al refrescar el token:", error);
-				return null;
+				console.error(error);
+				const client = new ClientJS();
+				const fingerprint = localStorage.getItem("fingerprint") || client.getFingerprint().toString();
+				const tokens = await fetchTokens(fingerprint);
+				this.setTokens(tokens);
+				return tokens.access_token;
 			}
 		}
 		return this.accessToken;
