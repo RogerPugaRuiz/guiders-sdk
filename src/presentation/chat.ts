@@ -163,6 +163,7 @@ export class ChatUI {
 		messageDiv.style.margin = '5px';
 		messageDiv.style.borderRadius = '10px';
 		messageDiv.style.maxWidth = this.options.maxWidthMessage!;
+		messageDiv.style.whiteSpace = 'pre-wrap'; // Permite saltos de línea
 
 		if (sender === 'user') {
 			messageDiv.style.backgroundColor = this.options.userBgColor!;

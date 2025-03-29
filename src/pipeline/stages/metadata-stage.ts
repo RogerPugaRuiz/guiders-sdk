@@ -1,8 +1,8 @@
-import { TrackingEvent } from "../../types";
+import { PixelEvent } from "../../types";
 import { PipelineStage } from "../pipeline-stage";
 
-export class MetadataInjectionStage implements PipelineStage<TrackingEvent, TrackingEvent> {
-	process(event: TrackingEvent): TrackingEvent {
+export class MetadataInjectionStage implements PipelineStage<PixelEvent, PixelEvent> {
+	process(event: PixelEvent): PixelEvent {
 		event.metadata = {
 			...event.metadata,
 			// información sobre el dispositivo

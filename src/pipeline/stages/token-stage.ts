@@ -1,10 +1,10 @@
 
 import { TokenManager } from "../../core/token-manager";
-import { TrackingEvent } from "../../types";
+import { PixelEvent } from "../../types";
 import { PipelineStage } from "../pipeline-stage";
 
-export class TokenInjectionStage implements PipelineStage<TrackingEvent, TrackingEvent> {
-	process(event: TrackingEvent): TrackingEvent {
+export class TokenInjectionStage implements PipelineStage<PixelEvent, PixelEvent> {
+	process(event: PixelEvent): PixelEvent {
 		const attachedToken = TokenManager.attachTokenToEvent(event);
 		return attachedToken;
 	}

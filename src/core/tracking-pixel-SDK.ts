@@ -1,7 +1,7 @@
 import { ClientJS } from "clientjs";
 import { PipelineProcessor, PipelineProcessorBuilder } from "../pipeline/pipeline-processor";
 import { PipelineStage } from "../pipeline/pipeline-stage";
-import { TrackingEvent } from "../types";
+import { ChatMessageReceived, PixelEvent } from "../types";
 import { TokenManager } from "./token-manager";
 import { ensureTokens } from "../services/token-service";
 import { checkServerConnection } from "../services/health-check-service";
@@ -23,10 +23,10 @@ interface SDKOptions {
 }
 
 export class TrackingPixelSDK {
-	private readonly pipelineBuilder = new PipelineProcessorBuilder<TrackingEvent, TrackingEvent>();
-	private eventPipeline: PipelineProcessor<TrackingEvent, TrackingEvent>;
+	private readonly pipelineBuilder = new PipelineProcessorBuilder();
+	private eventPipeline: PipelineProcessor;
 
-	private eventQueue: TrackingEvent[] = [];
+	private eventQueue: PixelEvent[] = [];
 	private endpoint: string;
 	private apiKey: string;
 	private fingerprint: string | null = null;
@@ -36,7 +36,7 @@ export class TrackingPixelSDK {
 	private flushInterval = 10000;
 	private flushTimer: ReturnType<typeof setInterval> | null = null;
 	private maxRetries = 3;
-	private listeners = new Map<string, Set<(msg: TrackingEvent) => void>>();
+	private listeners = new Map<string, Set<(msg: PixelEvent) => void>>();
 
 	constructor(options: SDKOptions) {
 		this.endpoint = options.endpoint || "http://localhost:3000";
@@ -83,7 +83,7 @@ export class TrackingPixelSDK {
 		if (this.webSocket) {
 			await this.webSocket.waitForConnection();
 			this.webSocket.onChatMessage((message) => {
-				const processedMessage = this.eventPipeline.process(message as TrackingEvent);
+				const processedMessage = this.eventPipeline.process(message);
 				console.log("Mensaje recibido:", processedMessage);
 				this.dispatchMessage(processedMessage);
 			});
@@ -106,11 +106,14 @@ export class TrackingPixelSDK {
 
 		chatInput.onSubmit((message: string) => {
 			if (!message) return;
-			this.captureEvent("visitor_send_message", { message });
+			this.captureEvent("send_message_to_commercial", { 
+				message,
+				timestamp: new Date().getTime(),
+			});
 			this.flush();
 		});
 
-		this.on("chat_message", (msg: TrackingEvent) => {
+		this.on("chat_message", (msg: PixelEvent) => {
 			chat.renderChatMessage({
 				text: msg.data.message as string,
 				sender: "other",
@@ -119,26 +122,26 @@ export class TrackingPixelSDK {
 
 	}
 
-	public on(type: string, listener: (msg: TrackingEvent) => void): void {
+	public on(type: string, listener: (msg: PixelEvent) => void): void {
 		if (!this.listeners.has(type)) {
 			this.listeners.set(type, new Set());
 		}
 		this.listeners.get(type)?.add(listener);
 	}
 
-	public off(type: string, listener: (msg: TrackingEvent) => void): void {
+	public off(type: string, listener: (msg: PixelEvent) => void): void {
 		this.listeners.get(type)?.delete(listener);
 	}
 
-	public once(type: string, listener: (msg: TrackingEvent) => void): void {
-		const wrappedListener = (msg: TrackingEvent) => {
+	public once(type: string, listener: (msg: PixelEvent) => void): void {
+		const wrappedListener = (msg: PixelEvent) => {
 			listener(msg);
 			this.off(type, wrappedListener);
 		};
 		this.on(type, wrappedListener);
 	}
 
-	public addPipelineStage(stage: PipelineStage<TrackingEvent, TrackingEvent>): void {
+	public addPipelineStage(stage: PipelineStage): void {
 		this.eventPipeline = this.pipelineBuilder
 			.addStage(stage)
 			.build();
@@ -193,7 +196,7 @@ export class TrackingPixelSDK {
 	}
 
 	private captureEvent(type: string, data: Record<string, unknown>): void {
-		const rawEvent: TrackingEvent = {
+		const rawEvent: PixelEvent = {
 			type,
 			data,
 			timestamp: Date.now(),
@@ -202,7 +205,7 @@ export class TrackingPixelSDK {
 		this.eventQueue.push(processedEvent);
 	}
 
-	private async trySendEventWithRetry(event: TrackingEvent, retriesLeft: number): Promise<void> {
+	private async trySendEventWithRetry(event: PixelEvent, retriesLeft: number): Promise<void> {
 		try {
 			if (this.webSocket?.isConnected()) {
 				await this.webSocket.sendMessage(event);
@@ -229,7 +232,7 @@ export class TrackingPixelSDK {
 		}, this.flushInterval);
 	}
 
-	private dispatchMessage(message: TrackingEvent): void {
+	private dispatchMessage(message: PixelEvent): void {
 		const listeners = this.listeners.get(message.type);
 		if (!listeners || listeners.size === 0) return;
 

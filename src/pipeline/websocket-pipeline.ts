@@ -1,4 +1,4 @@
-import { TrackingEvent } from '../types';
+import { PixelEvent } from '../types';
 import { PipelineStage } from './pipeline-stage';
 import { WebSocketClient } from '../services/websocket-service';
 
@@ -23,7 +23,7 @@ export class WebSocketPipeline {
      * Procesa un evento a través de todas las etapas del pipeline
      * @param event El evento a procesar
      */
-    private processEvent(event: TrackingEvent): TrackingEvent {
+    private processEvent(event: PixelEvent): PixelEvent {
         return this.stages.reduce((processedEvent, stage) => {
             return stage.process(processedEvent);
         }, event);
@@ -44,7 +44,7 @@ export class WebSocketPipeline {
      * Envía un evento a través del pipeline y luego por WebSocket
      * @param event El evento a enviar
      */
-    public sendEvent(event: TrackingEvent): void {
+    public sendEvent(event: PixelEvent): void {
         const processedEvent = this.processEvent(event);
         this.websocketClient.sendMessage(processedEvent);
     }

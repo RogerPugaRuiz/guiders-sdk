@@ -1,6 +1,6 @@
 // src/core/token-manager.ts
 import { fetchTokens, refreshToken } from "../services/token-service";
-import { TrackingEvent } from "../types/index";
+import { PixelEvent } from "../types/index";
 import { ClientJS } from "clientjs";
 
 type TokenChangeSubscriber = (token: string) => void;
@@ -139,7 +139,7 @@ export class TokenManager {
 	 * @param event 
 	 * @returns 
 	 */
-	public static attachTokenToEvent<T extends TrackingEvent>(event: T): T {
+	public static attachTokenToEvent<T extends PixelEvent>(event: T): T {
 		if (!this.accessToken) {
 			console.error("No hay access token disponible.");
 			return event;

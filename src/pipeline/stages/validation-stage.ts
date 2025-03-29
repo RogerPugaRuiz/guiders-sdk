@@ -1,8 +1,8 @@
-import { TrackingEvent } from '../../types';
+import { PixelEvent } from '../../types';
 import { PipelineStage } from '../pipeline-stage';
 
-export class ValidationStage implements PipelineStage<TrackingEvent, TrackingEvent> {
-    process(event: TrackingEvent): TrackingEvent {
+export class ValidationStage implements PipelineStage<PixelEvent, PixelEvent> {
+    process(event: PixelEvent): PixelEvent {
 
         // Validar que el evento tenga los campos requeridos
         if (!event.type) {

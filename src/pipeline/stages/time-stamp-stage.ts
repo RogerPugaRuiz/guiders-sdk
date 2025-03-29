@@ -1,8 +1,8 @@
-import { TrackingEvent } from "../../types";
+import { PixelEvent } from "../../types";
 import { PipelineStage } from "../pipeline-stage";
 
-export class TimeStampStage implements PipelineStage<TrackingEvent, TrackingEvent> {
-	process(event: TrackingEvent): TrackingEvent {
+export class TimeStampStage implements PipelineStage<PixelEvent, PixelEvent> {
+	process(event: PixelEvent): PixelEvent {
 		event.timestamp = new Date().getTime();
 		return event;
 	}
