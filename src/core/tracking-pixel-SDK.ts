@@ -104,6 +104,28 @@ export class TrackingPixelSDK {
 			sender: "other",
 		});
 
+		const res = await fetch('http://localhost:3000/chat/visitor', {
+			headers: {
+				'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`,
+				'Content-Type': 'application/json',
+			},
+			method: 'GET',
+		});
+
+		if (!res.ok) {
+			throw new Error('Error al obtener los mensajes iniciales');
+		}
+		const data = await res.json() as {
+			chat: {
+				id: string;
+			};
+		};
+		const chatFetch = data.chat;
+		const chatId = chatFetch.id;
+		chat.setChatId(chatId);
+
+		chat.loadInitialMessages(20);
+
 		chatInput.onSubmit((message: string) => {
 			if (!message) return;
 			this.captureEvent("send_message_to_commercial", { 

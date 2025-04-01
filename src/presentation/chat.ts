@@ -1,5 +1,7 @@
 // chat-ui.ts
 
+import { Message } from "../types";
+
 // Posible tipo para el remitente
 export type Sender = 'user' | 'other';
 
@@ -15,11 +17,24 @@ export interface ChatUIOptions {
 	maxWidthMessage?: string;
 }
 
-// Clase ChatUI para renderizar mensajes en el chat.
+/**
+ * Clase ChatUI para renderizar mensajes en el chat.
+ * Se incluye lógica para:
+ *  - scroll infinito (cargar mensajes antiguos en onScroll)
+ *  - métodos para cargar mensajes iniciales y "prepend" mensajes antiguos
+ */
 export class ChatUI {
 	private container: HTMLElement | null = null;
 	private containerMessages: HTMLElement | null = null;
 	private options: ChatUIOptions;
+
+	/**
+	 * Guarda un "index" para paginación inversa.
+	 * Por defecto, null (no hay más mensajes que cargar).
+	 */
+	private currentIndex: string | null = null;
+
+	private chatId: string | null = null;
 
 	constructor(options: ChatUIOptions = {}) {
 		this.options = {
@@ -44,11 +59,11 @@ export class ChatUI {
 	}
 
 	/**
-	 * Inicializa el chat: si la opción widget está activa o no se pasa containerId,
-	 * creamos un contenedor propio. 
+	 * Inicializa el chat.
+	 * Si la opción widget está activa o no se pasa containerId,
+	 * creamos un contenedor propio en el body.
 	 */
 	public init(): void {
-		// Si no hay un contenedor definido o se configura como widget, creamos uno en el body.
 		if (!this.container || this.options.widget) {
 			this.container = document.createElement('div');
 			this.container.classList.add('chat-widget'); // clase para estilos
@@ -69,39 +84,225 @@ export class ChatUI {
 				this.container.style.transition = 'all 0.3s';
 			}
 		}
+
+		// Creamos un contenedor para mensajes con scroll vertical
 		const containerMessages = document.createElement('div');
 		containerMessages.style.display = 'flex';
 		containerMessages.style.flexDirection = 'column';
-		containerMessages.style.flex = '1'; // Ocupa el espacio disponible
-		containerMessages.style.overflowY = 'auto'; // Scroll vertical
+		containerMessages.style.flex = '1';
+		containerMessages.style.overflowY = 'auto'; // Scroll
 		this.container.appendChild(containerMessages);
 		this.containerMessages = containerMessages;
 
+		// Bloque inferior para "empujar" mensajes hacia arriba
 		const div = document.createElement('div');
-		div.style.marginTop = 'auto'; // Agrega margin-top auto
+		div.style.marginTop = 'auto';
 		this.containerMessages.appendChild(div);
 
-		// Estilo general del contenedor (puede ir en CSS, pero lo dejamos aquí como ejemplo)
+		// Estilo general
 		this.container.style.display = 'flex';
 		this.container.style.flexDirection = 'column';
 		this.container.style.gap = '5px';
+
+		// --- Scroll infinito: detecta scroll top ---
+		this.containerMessages.addEventListener('scroll', () => {
+			// Si el usuario llegó al tope (scrollTop == 0) y tenemos index
+			if (this.containerMessages && this.containerMessages.scrollTop === 0 && this.currentIndex) {
+				// Cargar más mensajes antiguos
+				this.loadOlderMessages();
+			}
+		});
+	}
+
+
+	/**
+	 * Establece el ID del chat actual.
+	 * @param chatId ID del chat
+	 */
+	public setChatId(chatId: string): void {
+		if (!this.container) {
+			throw new Error('No se ha inicializado el chat');
+		}
+		this.chatId = chatId;
+		this.container.setAttribute('data-chat-id', chatId);
 	}
 
 	/**
-	 * Renderiza un mensaje. Alias de addMessage para mayor legibilidad.
-	 * @param text El texto del mensaje
-	 * @param sender Quien envía el mensaje
+	 * Renderiza un mensaje (alias de addMessage).
+	 * @param params 
 	 */
 	public renderChatMessage(params: { text: string; sender: Sender }): void {
 		const { text, sender } = params;
 		this.addMessage(text, sender);
 	}
 
+	/**
+	 * Carga inicial de mensajes desde el servidor (los más recientes).
+	 * @param chatId ID del chat
+	 * @param limit  cuántos mensajes traer
+	 */
+	public async loadInitialMessages(limit = 20): Promise<void> {
+		if (!this.containerMessages) return;
+		if (!this.chatId) {
+			throw new Error('No se ha establecido un chatId');
+		}
+		const chatId = this.chatId;
+		try {
+			const data = await this.fetchMessages(chatId, null, limit);
+			console.log("Mensajes iniciales:", data);
+			// Ejemplo de respuesta: { total, index, message: [...] }
+
+			// Guardamos el index para futuras peticiones (mensajes antiguos)
+			this.currentIndex = data.index || null;
+
+			// Renderizamos los mensajes (los más recientes)
+			for (const msg of data.messages) {
+				const sender: Sender = (msg.senderId === "MI_USUARIO_ID") ? "user" : "other";
+				this.renderChatMessage({ text: msg.content, sender });
+			}
+
+			// Ajustar scroll al final (donde están los más nuevos)
+			this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
+		} catch (err) {
+			console.error("Error cargando mensajes iniciales:", err);
+		}
+	}
 
 	/**
-	 * Esconde el chat.
-	 * @returns void
+	 * Scroll hacia abajo (último mensaje).
+	 * @param scrollToBottom
 	 */
+	public scrollToBottom(scrollToBottom: boolean): void {
+		if (!this.containerMessages) return;
+		if (scrollToBottom) {
+			this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
+		} else {
+			this.containerMessages.scrollTop = 0;
+		}
+	}
+
+	/**
+	 * Cuando hacemos scroll hacia arriba, cargamos los mensajes "más antiguos".
+	 */
+	private async loadOlderMessages(): Promise<void> {
+		if (!this.containerMessages || !this.currentIndex) return;
+
+		// Guardamos la posición inicial para restaurarla
+		const oldScrollHeight = this.containerMessages.scrollHeight;
+		const oldScrollTop = this.containerMessages.scrollTop;
+
+		try {
+			const chatId = "0d920ea3-c4cf-4011-8342-2a7ac1c2ff30"; // ejemplo fijo
+			const data = await this.fetchMessages(chatId, this.currentIndex, 20);
+
+			// Actualizamos el index para la siguiente carga (si hay más)
+			this.currentIndex = data.index || null;
+
+			// "Prepend" de mensajes antiguos
+			for (const msg of data.messages) {
+				const sender: Sender = (msg.senderId === "MI_USUARIO_ID") ? "user" : "other";
+				this.prependMessage(msg.content, sender);
+			}
+
+			// Restaurar la posición del scroll para que no se mueva de golpe
+			const newScrollHeight = this.containerMessages.scrollHeight;
+			this.containerMessages.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+		} catch (err) {
+			console.error("Error cargando mensajes antiguos:", err);
+		}
+	}
+
+	/**
+	 * Ejemplo de método para hacer fetch de mensajes al servidor
+	 * Ajusta la URL a tu ruta real
+	 */
+	private async fetchMessages(chatId: string, index: string | null, limit: number) {
+		const params = new URLSearchParams();
+		if (index) params.append("index", index);
+		params.append("limit", String(limit));
+		const accessToken = localStorage.getItem('accessToken');
+
+		const url = `http://localhost:3000/chat/${chatId}/messages?${params.toString()}`;
+		const res = await fetch(url, {
+			headers: {
+				'Authorization': `Bearer ${accessToken}`,
+				'Content-Type': 'application/json',
+			},
+		});
+		if (!res.ok) {
+			throw new Error(`Error al obtener mensajes (${res.status})`);
+		}
+		return res.json() as Promise<{
+			total: number;
+			index: string;
+			messages: Array<Message>;
+		}>;
+	}
+
+	/**
+	 * Agrega un mensaje al final de la lista
+	 */
+	private addMessage(text: string, sender: Sender): void {
+		if (!this.container || !this.containerMessages) {
+			throw new Error('No se ha inicializado el chat');
+		}
+		const messageDiv = this.createMessageDiv(text, sender);
+		this.containerMessages.appendChild(messageDiv);
+	}
+
+	/**
+	 * Inserta un mensaje al principio de la lista (para mensajes antiguos)
+	 */
+	private prependMessage(text: string, sender: Sender): void {
+		if (!this.container || !this.containerMessages) {
+			throw new Error('No se ha inicializado el chat');
+		}
+		const messageDiv = this.createMessageDiv(text, sender);
+
+		if (this.containerMessages.firstChild) {
+			this.containerMessages.insertBefore(messageDiv, this.containerMessages.firstChild);
+		} else {
+			// Si no hay nada, es equivalente a un addMessage
+			this.containerMessages.appendChild(messageDiv);
+		}
+	}
+
+	/**
+	 * Crea un nodo <div> con estilos de mensaje y contenido
+	 */
+	private createMessageDiv(text: string, sender: Sender): HTMLDivElement {
+		const div = document.createElement('div');
+		div.classList.add('chat-message');
+
+		// Clases según remitente
+		if (sender === 'user') {
+			div.classList.add('chat-message-user');
+		} else {
+			div.classList.add('chat-message-other');
+		}
+
+		// Texto
+		div.textContent = text;
+
+		// Estilos en línea (recomendable usar CSS separado)
+		div.style.padding = '10px';
+		div.style.margin = '5px';
+		div.style.borderRadius = '10px';
+		div.style.maxWidth = this.options.maxWidthMessage!;
+		div.style.whiteSpace = 'pre-wrap';
+
+		if (sender === 'user') {
+			div.style.backgroundColor = this.options.userBgColor!;
+			div.style.color = this.options.textColor!;
+			div.style.alignSelf = 'flex-end';
+		} else {
+			div.style.backgroundColor = this.options.otherBgColor!;
+			div.style.color = this.options.textColor!;
+			div.style.alignSelf = 'flex-start';
+		}
+		return div;
+	}
+
 	public hide(): void {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
@@ -109,72 +310,80 @@ export class ChatUI {
 		this.container.style.display = 'none';
 	}
 
-	/**
-	 * Muestra el chat.
-	 * @returns void
-	 */
 	public show(): void {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
 		}
 		this.container.style.display = 'flex';
+
+		this.scrollToBottom(true);
 	}
 
-	/**
-	 * Cambia la visibilidad del chat.
-	 * @returns void
-	 */
 	public toggle(): void {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
 		}
-		this.container.style.display = this.container.style.display === 'none' ? 'flex' : 'none';
+		this.container.style.display =
+			this.container.style.display === 'none' ? 'flex' : 'none';
+
+		this.scrollToBottom(true);
 	}
 
 	public getOptions(): ChatUIOptions {
 		return this.options;
 	}
+}
 
+// -------------------------------------------------------------------
+// ChatInputUI.ts (ejemplo mínimo)
+// -------------------------------------------------------------------
+export class ChatInputUI {
+	private chat: ChatUI;
+	private inputContainer: HTMLElement | null = null;
+	private submitCallbacks: Array<(message: string) => void> = [];
 
-	/**
-	 * Crea y agrega un mensaje al chat.
-	 * @param text El texto del mensaje
-	 * @param sender El remitente del mensaje (user | other)
-	 */
-	private addMessage(text: string, sender: Sender): void {
-		if (!this.container || !this.containerMessages) {
-			throw new Error('No se ha inicializado el chat');
-		}
-		const messageDiv = document.createElement('div');
-		messageDiv.classList.add('chat-message'); // clase genérica para estilos
+	constructor(chat: ChatUI) {
+		this.chat = chat;
+	}
 
-		// Para mayor flexibilidad, aplica clases según remitente
-		if (sender === 'user') {
-			messageDiv.classList.add('chat-message-user');
-		} else {
-			messageDiv.classList.add('chat-message-other');
-		}
+	public init(): void {
+		// Por simplicidad, creamos un input text y lo pegamos debajo del chat.
+		this.inputContainer = document.createElement('div');
+		this.inputContainer.style.display = 'flex';
+		this.inputContainer.style.padding = '5px';
 
-		// Asigna contenido
-		messageDiv.textContent = text;
+		const input = document.createElement('input');
+		input.type = 'text';
+		input.style.flex = '1';
+		input.placeholder = 'Escribe un mensaje...';
 
-		// Estilos en línea de ejemplo (recomendable usar CSS)
-		messageDiv.style.padding = '10px';
-		messageDiv.style.margin = '5px';
-		messageDiv.style.borderRadius = '10px';
-		messageDiv.style.maxWidth = this.options.maxWidthMessage!;
-		messageDiv.style.whiteSpace = 'pre-wrap'; // Permite saltos de línea
+		const button = document.createElement('button');
+		button.textContent = 'Enviar';
 
-		if (sender === 'user') {
-			messageDiv.style.backgroundColor = this.options.userBgColor!;
-			messageDiv.style.color = this.options.textColor!;
-			messageDiv.style.alignSelf = 'flex-end';
-		} else {
-			messageDiv.style.backgroundColor = this.options.otherBgColor!;
-			messageDiv.style.color = this.options.textColor!;
-			messageDiv.style.alignSelf = 'flex-start';
-		}
+		button.addEventListener('click', () => {
+			const msg = input.value.trim();
+			if (msg) {
+				this.submitCallbacks.forEach(cb => cb(msg));
+				// Opcional, también podemos renderizarlo en el chat de inmediato
+				this.chat.renderChatMessage({ text: msg, sender: 'user' });
+				input.value = '';
+			}
+		});
 
-		this.containerMessages.appendChild(messageDiv);
+		// EventListener para Enter
+		input.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') {
+				button.click();
+			}
+		});
+
+		this.inputContainer.appendChild(input);
+		this.inputContainer.appendChild(button);
+
+		document.body.appendChild(this.inputContainer);
+	}
+
+	public onSubmit(callback: (message: string) => void): void {
+		this.submitCallbacks.push(callback);
 	}
 }

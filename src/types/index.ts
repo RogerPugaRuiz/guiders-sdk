@@ -8,6 +8,14 @@ export interface PixelEvent<T = Record<string, unknown>> {
 	metadata?: Record<string, unknown>;
 }
 
+export interface Message {
+	id: string;
+	chatId: string;
+	senderId: string;
+	content: string;
+	createdAt: number;
+}
+
 export interface ChatMessageReceived {
 	type: "chat_message";
 	message: string;
