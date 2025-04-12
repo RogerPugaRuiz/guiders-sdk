@@ -2,16 +2,30 @@
 
 import { io, Socket } from "socket.io-client";
 import { TokenManager } from "../core/token-manager";
+import { PixelEvent, WebSocketResponse } from "../types";
 
 export class WebSocketClient {
 	private socket: Socket | null = null;
 	private endpoint: string;
 	private token: string | null = null;
+	private static instance: WebSocketClient | null = null;
 
 	constructor(endpoint: string) {
 		this.endpoint = endpoint;
 
 		TokenManager.subscribeToTokenChanges(this.updateToken.bind(this));
+	}
+
+	/**
+	 * Crea una instancia única de WebSocketClient.
+	 * @param endpoint URL del WebSocket.
+	 * @returns WebSocketClient
+	 */
+	public static getInstance(endpoint: string): WebSocketClient {
+		if (!this.instance) {
+			this.instance = new WebSocketClient(endpoint);
+		}
+		return this.instance;
 	}
 
 	/**
@@ -75,16 +89,16 @@ export class WebSocketClient {
 	 * Envía un mensaje por WebSocket.
 	 * @param event Evento a enviar.
 	 */
-	public sendMessage(event: Record<string, any>): Promise<void> {
+	public sendMessage(event: Record<string, any>): Promise<WebSocketResponse> {
 		return new Promise((resolve, reject) => {
 			if (!this.socket || !this.socket.connected) {
 				console.warn("⚠️ WebSocket no está conectado, mensaje no enviado");
 				return reject("WebSocket no conectado");
 			}
 			const { type } = event;
-			this.socket.emit(type || "event", event, (ack: any) => {
+			this.socket.emit(type || "event", event, (ack: WebSocketResponse) => {
 				console.log("📩 Mensaje recibido por el servidor:", ack);
-				resolve();
+				resolve(ack);
 			});
 		});
 	}

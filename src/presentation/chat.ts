@@ -1,6 +1,7 @@
 // chat-ui.ts
 
 import { Message } from "../types";
+import { startChat } from "../services/chat-service";
 
 // Posible tipo para el remitente
 export type Sender = 'user' | 'other';
@@ -112,6 +113,14 @@ export class ChatUI {
 				this.loadOlderMessages();
 			}
 		});
+
+		startChat().then((res) => {
+			console.log("Chat iniciado:", res);
+			this.setChatId(res.id);
+			this.loadInitialMessages(20);
+		}).catch((err) => {
+			console.error("Error iniciando chat:", err);
+		});
 	}
 
 
@@ -125,6 +134,18 @@ export class ChatUI {
 		}
 		this.chatId = chatId;
 		this.container.setAttribute('data-chat-id', chatId);
+	}
+
+	/**
+	 * Devuelve el ID del chat actual.
+	 * @returns chatId
+	 */
+
+	public getChatId(): string | null {
+		if (!this.container) {
+			throw new Error('No se ha inicializado el chat');
+		}
+		return this.chatId;
 	}
 
 	/**
@@ -154,10 +175,13 @@ export class ChatUI {
 
 			// Guardamos el index para futuras peticiones (mensajes antiguos)
 			this.currentIndex = data.index || null;
+			// {"id": xxx, "email": xxx, roles: [xxx]}
+			const user = JSON.parse(localStorage.getItem('user') || '{}');
+			console.log("Usuario:", user);
 
 			// Renderizamos los mensajes (los más recientes)
 			for (const msg of data.messages) {
-				const sender: Sender = (msg.senderId === "MI_USUARIO_ID") ? "user" : "other";
+				const sender: Sender = (msg.senderId === user.id) ? "user" : "other";
 				this.renderChatMessage({ text: msg.content, sender });
 			}
 
@@ -220,12 +244,11 @@ export class ChatUI {
 		const params = new URLSearchParams();
 		if (index) params.append("index", index);
 		params.append("limit", String(limit));
-		const accessToken = localStorage.getItem('accessToken');
-
-		const url = `http://localhost:3000/chat/${chatId}/messages?${params.toString()}`;
-		const res = await fetch(url, {
+		const URL = `${localStorage.getItem('pixelEndpoint')}/chat/${chatId}/messages`;
+		// const url = `http://localhost:3000/chat/${chatId}/messages?${params.toString()}`;
+		const res = await fetch(URL, {
 			headers: {
-				'Authorization': `Bearer ${accessToken}`,
+				'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`,
 				'Content-Type': 'application/json',
 			},
 		});

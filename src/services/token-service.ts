@@ -1,6 +1,5 @@
 // src/core/token-service.ts
-const URL = 'http://localhost:3000/pixel';
-
+// const URL = `${localStorage.getItem('pixelEndpoint')}/pixel`;
 
 /**
  * Obtiene los tokens iniciales usando el apiKey.
@@ -8,6 +7,7 @@ const URL = 'http://localhost:3000/pixel';
  * @returns tokens de acceso y refresco
  */
 export async function fetchTokens(client: string): Promise<{ access_token: string; refresh_token: string }> {
+	const URL = `${localStorage.getItem('pixelEndpoint')}/pixel`;
 	const response = await fetch(`${URL}/token`, {
 		method: 'POST',
 		headers: {
@@ -34,6 +34,7 @@ export async function fetchTokens(client: string): Promise<{ access_token: strin
  * @returns nuevo access token
  */
 export async function refreshToken(refreshToken: string): Promise<{ access_token: string }> {
+	const URL = `${localStorage.getItem('pixelEndpoint')}/pixel`;
 	const response = await fetch(`${URL}/token/refresh`, {
 		method: 'POST',
 		headers: {
@@ -60,6 +61,7 @@ export async function refreshToken(refreshToken: string): Promise<{ access_token
  * @returns new access token and refresh token
  */
 export async function registerClient(client: string, apiKey: string): Promise<{ access_token: string; refresh_token: string }> {
+	const URL = `${localStorage.getItem('pixelEndpoint')}/pixel`;
 	const userAgent = navigator.userAgent;
 	const response = await fetch(`${URL}/register`, {
 		method: 'POST',

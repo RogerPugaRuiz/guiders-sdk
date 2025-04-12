@@ -45,6 +45,8 @@ export class TrackingPixelSDK {
 		this.flushInterval = options.flushInterval ?? 10000;
 		this.maxRetries = options.maxRetries ?? 3;
 
+		localStorage.setItem("pixelEndpoint", this.endpoint);
+
 		this.eventPipeline = this.pipelineBuilder
 			.addStage(new TimeStampStage())
 			.addStage(new TokenInjectionStage())
@@ -52,7 +54,7 @@ export class TrackingPixelSDK {
 			.addStage(new ValidationStage())
 			.build();
 
-		this.webSocket = new WebSocketClient(this.endpoint);
+		this.webSocket = WebSocketClient.getInstance(this.endpoint);
 	}
 
 	public async init(): Promise<void> {
@@ -98,39 +100,13 @@ export class TrackingPixelSDK {
 		chat.hide();
 		chatInput.init();
 		chatToggleButton.init();
-		
-		chat.renderChatMessage({
-			text: "¡Hola! ¿En qué puedo ayudarte?",
-			sender: "other",
-		});
-
-		const res = await fetch('http://localhost:3000/chat/visitor', {
-			headers: {
-				'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`,
-				'Content-Type': 'application/json',
-			},
-			method: 'GET',
-		});
-
-		if (!res.ok) {
-			throw new Error('Error al obtener los mensajes iniciales');
-		}
-		const data = await res.json() as {
-			chat: {
-				id: string;
-			};
-		};
-		const chatFetch = data.chat;
-		const chatId = chatFetch.id;
-		chat.setChatId(chatId);
-
-		chat.loadInitialMessages(20);
 
 		chatInput.onSubmit((message: string) => {
 			if (!message) return;
-			this.captureEvent("send_message_to_commercial", { 
+			this.captureEvent("visitor:send-message", { 
 				message,
 				timestamp: new Date().getTime(),
+				chatId: chat.getChatId(),
 			});
 			this.flush();
 		});

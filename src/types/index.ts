@@ -8,6 +8,19 @@ export interface PixelEvent<T = Record<string, unknown>> {
 	metadata?: Record<string, unknown>;
 }
 
+export interface WebSocketSuccessResponse<T = Record<string, unknown>> {
+	type: string;
+	data: T;
+	timestamp: number;
+	message: string;
+}
+export interface WebSocketErrorResponse {
+	error: string;
+	timestamp: number;
+}
+
+export type WebSocketResponse<T = Record<string, unknown>> = WebSocketSuccessResponse<T> | WebSocketErrorResponse;
+
 export interface Message {
 	id: string;
 	chatId: string;
