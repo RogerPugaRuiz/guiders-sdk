@@ -46,6 +46,11 @@ export class WebSocketClient {
 			console.error("❌ Error de autenticación en WebSocket:", error);
 			this.socket?.disconnect();
 		});
+
+		this.socket.onAny((event, ...args) => {
+			if (event === "auth_error") return; // Ignorar errores de autenticación
+			console.log(`📩 Mensaje recibido del servidor: ${event}`, args);
+		});
 		// this.socket.on("connect", () => console.log("✅ WebSocket conectado"));
 		// this.socket.on("connect_error", (err) => console.error("❌ WebSocket error:", err));
 		// this.socket.on("disconnect", () => {
@@ -109,7 +114,7 @@ export class WebSocketClient {
 	 * @returns void
 	 */
 	public onChatMessage(listener: (message: Record<string, any>) => void): void {
-		this.addListener("chat_message", listener);
+		this.addListener("receive-message", listener);
 	}
 
 

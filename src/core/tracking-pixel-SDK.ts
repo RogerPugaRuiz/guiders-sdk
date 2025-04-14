@@ -13,6 +13,8 @@ import { MetadataInjectionStage } from "../pipeline/stages/metadata-stage";
 import { ChatUI } from "../presentation/chat";
 import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
+import { v4 as uuidv4 } from "uuid";
+
 
 interface SDKOptions {
 	endpoint?: string;
@@ -104,6 +106,7 @@ export class TrackingPixelSDK {
 		chatInput.onSubmit((message: string) => {
 			if (!message) return;
 			this.captureEvent("visitor:send-message", { 
+				id: uuidv4(),
 				message,
 				timestamp: new Date().getTime(),
 				chatId: chat.getChatId(),
@@ -111,13 +114,12 @@ export class TrackingPixelSDK {
 			this.flush();
 		});
 
-		this.on("chat_message", (msg: PixelEvent) => {
+		this.on("receive-message", (msg: PixelEvent) => {
 			chat.renderChatMessage({
 				text: msg.data.message as string,
 				sender: "other",
 			});
 		});
-
 	}
 
 	public on(type: string, listener: (msg: PixelEvent) => void): void {
