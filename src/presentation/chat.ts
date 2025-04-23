@@ -2,6 +2,7 @@
 
 import { Message } from "../types";
 import { startChat } from "../services/chat-service";
+import { fetchMessages } from "../services/fetch-messages";
 
 // Posible tipo para el remitente
 export type Sender = 'user' | 'other';
@@ -169,19 +170,26 @@ export class ChatUI {
 		}
 		const chatId = this.chatId;
 		try {
-			const data = await this.fetchMessages(chatId, null, limit);
+			const data = await fetchMessages(chatId, null, limit);
 			console.log("Mensajes iniciales:", data);
 			// Ejemplo de respuesta: { total, index, message: [...] }
 
 			// Guardamos el index para futuras peticiones (mensajes antiguos)
-			this.currentIndex = data.index || null;
+			this.currentIndex = data.cursor || null;
 			// {"id": xxx, "email": xxx, roles: [xxx]}
-			const user = JSON.parse(localStorage.getItem('user') || '{}');
+			const accessToken = localStorage.getItem('accessToken') || '';
+			if (!accessToken) {
+				throw new Error('No se ha encontrado el token de acceso');
+			}
+			const payload = JSON.parse(atob(accessToken.split('.')[1]));
+			const user = payload.sub; // ID del usuario
 			console.log("Usuario:", user);
 
 			// Renderizamos los mensajes (los más recientes)
+			data.messages.reverse(); // Invertimos para mostrar los más nuevos al final
 			for (const msg of data.messages) {
-				const sender: Sender = (msg.senderId === user.id) ? "user" : "other";
+				console.log("Mensaje:", msg.senderId);
+				const sender: Sender = (msg.senderId.includes(user)) ? 'user' : 'other';
 				this.renderChatMessage({ text: msg.content, sender });
 			}
 
@@ -216,11 +224,14 @@ export class ChatUI {
 		const oldScrollTop = this.containerMessages.scrollTop;
 
 		try {
-			const chatId = "0d920ea3-c4cf-4011-8342-2a7ac1c2ff30"; // ejemplo fijo
-			const data = await this.fetchMessages(chatId, this.currentIndex, 20);
+			const chatId = this.getChatId();
+			if (!chatId) {
+				throw new Error('No se ha establecido un chatId');
+			}
+			const data = await fetchMessages(chatId, this.currentIndex, 20);
 
 			// Actualizamos el index para la siguiente carga (si hay más)
-			this.currentIndex = data.index || null;
+			this.currentIndex = data.cursor || null;
 
 			// "Prepend" de mensajes antiguos
 			for (const msg of data.messages) {
@@ -234,32 +245,6 @@ export class ChatUI {
 		} catch (err) {
 			console.error("Error cargando mensajes antiguos:", err);
 		}
-	}
-
-	/**
-	 * Ejemplo de método para hacer fetch de mensajes al servidor
-	 * Ajusta la URL a tu ruta real
-	 */
-	private async fetchMessages(chatId: string, index: string | null, limit: number) {
-		const params = new URLSearchParams();
-		if (index) params.append("index", index);
-		params.append("limit", String(limit));
-		const URL = `${localStorage.getItem('pixelEndpoint')}/chat/${chatId}/messages`;
-		// const url = `http://localhost:3000/chat/${chatId}/messages?${params.toString()}`;
-		const res = await fetch(URL, {
-			headers: {
-				'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`,
-				'Content-Type': 'application/json',
-			},
-		});
-		if (!res.ok) {
-			throw new Error(`Error al obtener mensajes (${res.status})`);
-		}
-		return res.json() as Promise<{
-			total: number;
-			index: string;
-			messages: Array<Message>;
-		}>;
 	}
 
 	/**
