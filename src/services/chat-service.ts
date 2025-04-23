@@ -3,7 +3,7 @@ import { WebSocketClient } from './websocket-service';
 
 const chats: string[] = JSON.parse(localStorage.getItem('chats') || '[]');
 
-const webSocketClient = WebSocketClient.getInstance(localStorage.getItem('pixelEndpoint') || '');
+
 
 export async function startChat(): Promise<any> {
 	const uuid = uuidv4();
@@ -16,6 +16,7 @@ export async function startChat(): Promise<any> {
 	}
 
 	try {
+		const webSocketClient = WebSocketClient.getInstance(localStorage.getItem('pixelEndpoint') || '');
 		const response = await webSocketClient.sendMessage({
 			type: 'visitor:start-chat',
 			data: {
