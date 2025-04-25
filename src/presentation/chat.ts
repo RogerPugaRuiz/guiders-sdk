@@ -68,6 +68,7 @@ export class ChatUI {
 	public init(): void {
 		if (!this.container || this.options.widget) {
 			this.container = document.createElement('div');
+			this.container.style.backgroundColor = '#fff';
 			this.container.classList.add('chat-widget'); // clase para estilos
 			document.body.appendChild(this.container);
 
