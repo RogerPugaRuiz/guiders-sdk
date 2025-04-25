@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<productos>
+  <producto>
+    <id>1</id>
+    <nombre>Camiseta</nombre>
+    <precio>19.99</precio>
+    <stock>20</stock>
+    <descripcion>Camiseta de algodón 100% color blanco.</descripcion>
+    <detail>
+      <material>Algodón 100%</material>
+      <tallas>S, M, L, XL</tallas>
+      <color>Blanco</color>
+      <cuidados>Lavar a máquina a 30ºC</cuidados>
+    </detail>
+  </producto>
+  <producto>
+    <id>2</id>
+    <nombre>Taza</nombre>
+    <precio>9.99</precio>
+    <stock>35</stock>
+    <descripcion>Taza de cerámica con logo.</descripcion>
+    <detail>
+      <material>Cerámica</material>
+      <capacidad>350ml</capacidad>
+      <aptoLavavajillas>Sí</aptoLavavajillas>
+      <color>Blanco con logo azul</color>
+    </detail>
+  </producto>
+  <producto>
+    <id>3</id>
+    <nombre>Mochila</nombre>
+    <precio>29.99</precio>
+    <stock>10</stock>
+    <descripcion>Mochila resistente al agua, color negro.</descripcion>
+    <detail>
+      <material>Poliéster</material>
+      <capacidad>20L</capacidad>
+      <color>Negro</color>
+      <compartimentos>3</compartimentos>
+    </detail>
+  </producto>
+  <producto>
+    <id>4</id>
+    <nombre>Gorra</nombre>
+    <precio>14.99</precio>
+    <stock>15</stock>
+    <descripcion>Gorra ajustable, color azul marino.</descripcion>
+    <detail>
+      <material>Algodón</material>
+      <ajustable>Sí</ajustable>
+      <color>Azul marino</color>
+    </detail>
+  </producto>
+  <producto>
+    <id>5</id>
+    <nombre>Botella</nombre>
+    <precio>12.50</precio>
+    <stock>25</stock>
+    <descripcion>Botella térmica de acero inoxidable, 500ml.</descripcion>
+    <detail>
+      <material>Acero inoxidable</material>
+      <capacidad>500ml</capacidad>
+      <aislante>Sí</aislante>
+      <color>Plata</color>
+    </detail>
+  </producto>
+  <producto>
+    <id>6</id>
+    <nombre>Sudadera</nombre>
+    <precio>34.90</precio>
+    <stock>12</stock>
+    <descripcion>Sudadera con capucha, color gris.</descripcion>
+    <detail>
+      <material>Algodón y poliéster</material>
+      <tallas>M, L, XL</tallas>
+      <color>Gris</color>
+      <capucha>Sí</capucha>
+    </detail>
+  </producto>
+  <producto>
+    <id>7</id>
+    <nombre>Libreta</nombre>
+    <precio>7.99</precio>
+    <stock>40</stock>
+    <descripcion>Libreta A5 con tapa dura y hojas rayadas.</descripcion>
+    <detail>
+      <formato>A5</formato>
+      <paginas>120</paginas>
+      <tapa>Dura</tapa>
+      <color>Negro</color>
+    </detail>
+  </producto>
+  <producto>
+    <id>8</id>
+    <nombre>Bolígrafo</nombre>
+    <precio>2.99</precio>
+    <stock>100</stock>
+    <descripcion>Bolígrafo de tinta azul, cuerpo metálico.</descripcion>
+    <detail>
+      <color>Tinta azul</color>
+      <cuerpo>Metálico</cuerpo>
+      <recargable>No</recargable>
+    </detail>
+  </producto>
+</productos>

@@ -15,6 +15,14 @@ switch ($page) {
         require 'pages/contact.php';
         break;
 
+    case 'ecommerce':
+        require 'pages/ecommerce-demo.php';
+        break;
+
+    case 'ecommerce/pages/product-detail.php':
+        require 'pages/product-detail.php';
+        break;
+
     default:
         http_response_code(404);
         echo "<h1>404 - Página no encontrada</h1>";

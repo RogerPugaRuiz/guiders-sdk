@@ -1,0 +1,186 @@
+/* style.css para la demo ecommerce */
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f7f7f7;
+  margin: 0;
+  padding: 0;
+}
+#products, #cart {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  margin: 2rem auto;
+  padding: 2rem;
+  max-width: 500px;
+}
+.product {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+}
+.product:last-child {
+  border-bottom: none;
+}
+button {
+  background: #0070f3;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1.2rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+button:hover {
+  background: #005bb5;
+}
+h1, h2 {
+  color: #222;
+}
+#cart-list {
+  list-style: none;
+  padding: 0;
+}
+#cart-list li {
+  margin-bottom: 0.5rem;
+}
+#cart-total {
+  font-weight: bold;
+  margin-top: 1rem;
+  color: #0070f3;
+}
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+.shop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  padding: 1.5rem 2rem;
+  margin-bottom: 2rem;
+}
+.shop-header h1 {
+  margin: 0;
+  color: #0070f3;
+  font-size: 2rem;
+}
+.shop-header nav a {
+  margin-left: 2rem;
+  color: #222;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.shop-header nav a:hover {
+  color: #0070f3;
+}
+.shop-main {
+  display: flex;
+  gap: 2rem;
+}
+#products {
+  flex: 2;
+}
+.product-list {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+.product-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  padding: 1rem;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: box-shadow 0.2s;
+}
+.product-card:hover {
+  box-shadow: 0 4px 16px rgba(0,112,243,0.12);
+}
+.product-card img {
+  width: 200px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+.product-info {
+  text-align: center;
+}
+.product-info h3 {
+  margin: 0.5rem 0 0.2rem 0;
+}
+.product-info .price {
+  color: #0070f3;
+  font-weight: bold;
+  margin-bottom: 0.7rem;
+}
+.product-info button {
+  width: 100%;
+}
+.cart-sidebar {
+  flex: 1;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  padding: 1.5rem 1rem;
+  min-width: 260px;
+  max-width: 320px;
+  height: fit-content;
+}
+.cart-sidebar h2 {
+  margin-top: 0;
+}
+.checkout-btn {
+  width: 100%;
+  margin-top: 1rem;
+  background: #0070f3;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.7rem 0;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.checkout-btn:hover {
+  background: #005bb5;
+}
+#cart-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+#cart-list li {
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.3rem;
+}
+#cart-total {
+  font-weight: bold;
+  margin-top: 1rem;
+  color: #0070f3;
+}
+@media (max-width: 900px) {
+  .shop-main {
+    flex-direction: column;
+  }
+  .cart-sidebar {
+    max-width: 100%;
+    margin-top: 2rem;
+  }
+  .product-list {
+    justify-content: center;
+  }
+}
