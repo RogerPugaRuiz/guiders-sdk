@@ -94,3 +94,4 @@ foreach ($xml->producto as $p) {
 </script>
 </body>
 </html>
+https://www.youtube.com/watch?v=zYGkKJVXArs
