@@ -38,6 +38,10 @@ export class ChatUI {
 
 	private chatId: string | null = null;
 
+	// Callbacks para eventos de apertura y cierre
+	private openCallbacks: Array<() => void> = [];
+	private closeCallbacks: Array<() => void> = [];
+
 	constructor(options: ChatUIOptions = {}) {
 		this.options = {
 			widget: false,
@@ -317,6 +321,8 @@ export class ChatUI {
 			throw new Error('No se ha inicializado el chat');
 		}
 		this.container.style.display = 'none';
+		// Dispara callbacks de cierre
+		this.closeCallbacks.forEach(cb => cb());
 	}
 
 	public show(): void {
@@ -324,8 +330,9 @@ export class ChatUI {
 			throw new Error('No se ha inicializado el chat');
 		}
 		this.container.style.display = 'flex';
-
 		this.scrollToBottom(true);
+		// Dispara callbacks de apertura
+		this.openCallbacks.forEach(cb => cb());
 	}
 
 	public toggle(): void {
@@ -340,6 +347,20 @@ export class ChatUI {
 
 	public getOptions(): ChatUIOptions {
 		return this.options;
+	}
+
+	/**
+	 * Suscribe un callback al evento de apertura del chat.
+	 */
+	public onOpen(callback: () => void): void {
+		this.openCallbacks.push(callback);
+	}
+
+	/**
+	 * Suscribe un callback al evento de cierre del chat.
+	 */
+	public onClose(callback: () => void): void {
+		this.closeCallbacks.push(callback);
 	}
 }
 
