@@ -98,6 +98,9 @@ export class TrackingPixelSDK {
 		const chatInput = new ChatInputUI(chat);
 		const chatToggleButton = new ChatToggleButtonUI(chat);
 		chat.init();
+		chatInput.init();
+		chatToggleButton.init();
+
 		chat.hide();
 		
 		chat.onOpen(() => {
@@ -113,9 +116,22 @@ export class TrackingPixelSDK {
 			});
 		});
 
+		chat.onActiveInterval(() => {
+			console.log("Intervalo activo");
+			this.captureEvent("visitor:chat-active", {
+				timestamp: new Date().getTime(),
+				chatId: chat.getChatId(),
+			});
+		}, 1000 * 10); // 10 segundos de intervalo
 
-		chatInput.init();
-		chatToggleButton.init();
+
+		chatToggleButton.onToggle((visible: boolean) => {
+			if (visible) {
+				chat.show();
+			} else {
+				chat.hide();
+			}
+		});
 
 		chatInput.onSubmit((message: string) => {
 			if (!message) return;

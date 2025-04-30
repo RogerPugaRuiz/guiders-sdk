@@ -14,6 +14,9 @@ export class ChatToggleButtonUI {
 	private chatUI: ChatUI;
 	private button: HTMLButtonElement;
 	private options: ChatToggleButtonOptions;
+	private isVisible: boolean = false;
+
+	private toggleCallback: Array<(visible: boolean) => void> = [];
 
 	constructor(chatUI: ChatUI, options: ChatToggleButtonOptions = {}) {
 		this.chatUI = chatUI;
@@ -43,6 +46,15 @@ export class ChatToggleButtonUI {
 
 		// Añadimos el botón al body para que sea flotante en la pantalla.
 		document.body.appendChild(this.button);
+	}
+
+	/**
+	 * Subscribe a un evento de toggle del chat.
+	 * @param callback Función a ejecutar cuando el chat cambia de estado.
+	 * @returns void
+	 */
+	public onToggle(callback: (visible: boolean) => void): void {
+		this.toggleCallback.push(callback);
 	}
 
 	/**
@@ -80,9 +92,10 @@ export class ChatToggleButtonUI {
 	 */
 	private addEventListeners(): void {
 		this.button.addEventListener('click', () => {
-			this.chatUI.toggle();
-			// Podrías cambiar texto o estilo del botón en función del estado del chat.
-			// if (this.chatUI.estaVisible()) { ... } else { ... }
+			this.isVisible = !this.isVisible;
+			this.toggleCallback.forEach(callback => {
+				callback(this.isVisible);
+			});
 		});
 	}
 }

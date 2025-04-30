@@ -42,6 +42,9 @@ export class ChatUI {
 	private openCallbacks: Array<() => void> = [];
 	private closeCallbacks: Array<() => void> = [];
 
+	// Estructura para almacenar múltiples intervalos y callbacks
+	private activeIntervals: Array<{ id: number | null, callback: () => void, intervalMs: number }> = [];
+
 	constructor(options: ChatUIOptions = {}) {
 		this.options = {
 			widget: false,
@@ -321,7 +324,13 @@ export class ChatUI {
 			throw new Error('No se ha inicializado el chat');
 		}
 		this.container.style.display = 'none';
-		// Dispara callbacks de cierre
+		// Limpia todos los intervalos activos
+		this.activeIntervals.forEach(intervalObj => {
+			if (intervalObj.id !== null) {
+				clearInterval(intervalObj.id);
+				intervalObj.id = null;
+			}
+		});
 		this.closeCallbacks.forEach(cb => cb());
 	}
 
@@ -331,7 +340,12 @@ export class ChatUI {
 		}
 		this.container.style.display = 'flex';
 		this.scrollToBottom(true);
-		// Dispara callbacks de apertura
+		// Inicia todos los intervalos configurados
+		this.activeIntervals.forEach(intervalObj => {
+			if (intervalObj.id === null) {
+				intervalObj.id = window.setInterval(intervalObj.callback, intervalObj.intervalMs);
+			}
+		});
 		this.openCallbacks.forEach(cb => cb());
 	}
 
@@ -367,6 +381,15 @@ export class ChatUI {
 	 */
 	public onClose(callback: () => void): void {
 		this.closeCallbacks.push(callback);
+	}
+
+	/**
+	 * Permite registrar múltiples callbacks periódicos mientras el chat está activo.
+	 * @param callback Función a ejecutar
+	 * @param intervalMs Intervalo en milisegundos (por defecto 5000ms)
+	 */
+	public onActiveInterval(callback: () => void, intervalMs: number = 5000): void {
+		this.activeIntervals.push({ id: null, callback, intervalMs });
 	}
 }
 
