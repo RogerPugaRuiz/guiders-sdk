@@ -97,9 +97,23 @@ export class TrackingPixelSDK {
 		});
 		const chatInput = new ChatInputUI(chat);
 		const chatToggleButton = new ChatToggleButtonUI(chat);
-
 		chat.init();
 		chat.hide();
+		
+		chat.onOpen(() => {
+			this.captureEvent("visitor:open-chat", {
+				timestamp: new Date().getTime(),
+				chatId: chat.getChatId(),
+			});
+		});
+		chat.onClose(() => {
+			this.captureEvent("visitor:close-chat", {
+				timestamp: new Date().getTime(),
+				chatId: chat.getChatId(),
+			});
+		});
+
+
 		chatInput.init();
 		chatToggleButton.init();
 
@@ -114,18 +128,7 @@ export class TrackingPixelSDK {
 			this.flush();
 		});
 
-		chat.onOpen(() => {
-			this.captureEvent("visitor:open-chat", {
-				timestamp: new Date().getTime(),
-				chatId: chat.getChatId(),
-			});
-		});
-		chat.onClose(() => {
-			this.captureEvent("visitor:close-chat", {
-				timestamp: new Date().getTime(),
-				chatId: chat.getChatId(),
-			});
-		});
+
 
 		this.on("receive-message", (msg: PixelEvent) => {
 			chat.renderChatMessage({

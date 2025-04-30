@@ -343,6 +343,12 @@ export class ChatUI {
 			this.container.style.display === 'none' ? 'flex' : 'none';
 
 		this.scrollToBottom(true);
+
+		if (this.container.style.display === 'flex') {
+			this.openCallbacks.forEach(cb => cb());
+		} else {
+			this.closeCallbacks.forEach(cb => cb());
+		}
 	}
 
 	public getOptions(): ChatUIOptions {
