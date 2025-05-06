@@ -46,3 +46,10 @@ export interface ErrorReceived {
 	error: string;
 	timestamp: number;
 }
+
+
+export enum TrackingType {
+	PAGE_VIEW = "page_view",
+	CLICK = "click",
+	HOVER = "hover",
+}

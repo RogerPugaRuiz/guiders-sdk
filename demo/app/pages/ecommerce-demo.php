@@ -28,7 +28,11 @@ foreach ($xml->producto as $p) {
       <h2>Productos destacados</h2>
       <div class="product-list">
         <?php foreach ($productos as $prod): ?>
-        <div class="product-card" data-id="<?= $prod['id'] ?>" data-name="<?= htmlspecialchars($prod['nombre']) ?>" data-price="<?= $prod['precio'] ?>">
+        <div class="product-card"
+             data-track-event="view_product"
+             data-product-id="<?= $prod['id'] ?>"
+             data-product-name="<?= htmlspecialchars($prod['nombre']) ?>"
+             data-product-price="<?= $prod['precio'] ?>">
           <a href="/ecommerce/pages/product-detail.php?id=<?= $prod['id'] ?>" class="product-link">
             <img src="https://dummyimage.com/200x200/0070f3/fff&text=<?= urlencode($prod['nombre']) ?>" alt="<?= htmlspecialchars($prod['nombre']) ?>">
           </a>
@@ -36,17 +40,27 @@ foreach ($xml->producto as $p) {
             <h3><a href="/ecommerce/pages/product-detail.php?id=<?= $prod['id'] ?>" class="product-link"><?= htmlspecialchars($prod['nombre']) ?></a></h3>
             <p class="price"><?= number_format($prod['precio'], 2, ',', '.') ?> €</p>
             <p class="desc"><?= htmlspecialchars($prod['descripcion']) ?></p>
-            <button onclick="addToCart(<?= $prod['id'] ?>, '<?= htmlspecialchars($prod['nombre']) ?>', <?= $prod['precio'] ?>)">Añadir al carrito</button>
+            <button class="add-to-cart-btn"
+                    data-track-event="add_to_cart"
+                    data-product-id="<?= $prod['id'] ?>"
+                    data-product-name="<?= htmlspecialchars($prod['nombre']) ?>"
+                    data-product-price="<?= $prod['precio'] ?>">
+              Añadir al carrito
+            </button>
           </div>
         </div>
         <?php endforeach; ?>
       </div>
     </section>
-    <aside id="cart" class="cart-sidebar">
+    <aside id="cart" class="cart-sidebar"
+           data-track-event="view_cart">
       <h2>Carrito</h2>
       <ul id="cart-list"></ul>
       <p id="cart-total">Total: 0 €</p>
-      <button onclick="checkout()" class="checkout-btn">Comprar</button>
+      <button class="checkout-btn"
+              data-track-event="purchase">
+        Comprar
+      </button>
     </aside>
   </main>
 </div>
@@ -55,7 +69,7 @@ foreach ($xml->producto as $p) {
   function addToCart(id, name, price) {
     cart.push({ id, name, price });
     renderCart();
-    sdk.track({ event: 'ecommerce:add_to_cart', productId: id, name, price });
+    // sdk.track eliminado, ahora tracking por data attributes
   }
   function renderCart() {
     const list = document.getElementById('cart-list');
@@ -75,22 +89,20 @@ foreach ($xml->producto as $p) {
       alert('El carrito está vacío');
       return;
     }
-    sdk.track({ event: 'ecommerce:purchase', items: cart, total: cart.reduce((a, b) => a + b.price, 0) });
+    // sdk.track eliminado, ahora tracking por data attributes
     alert('¡Compra realizada!');
     cart.length = 0;
     renderCart();
   }
-  // Evento de vista de producto
-  document.querySelectorAll('.product-card').forEach(el => {
-    el.addEventListener('click', function() {
-      sdk.track({ event: 'ecommerce:view_product', productId: this.dataset.id, name: this.dataset.name, price: this.dataset.price });
-    });
-  });
+  // Evento de vista de producto eliminado, tracking por data attributes
   // Mostrar/ocultar carrito
   document.getElementById('cart-link').onclick = function(e) {
     e.preventDefault();
     document.getElementById('cart').scrollIntoView({ behavior: 'smooth' });
   };
+  // Track de page_view al cargar la página
+  document.body.setAttribute('data-track-event', 'page_view');
+  document.body.setAttribute('data-page', 'ecommerce');
 </script>
 </body>
 </html>

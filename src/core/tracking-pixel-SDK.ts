@@ -1,7 +1,7 @@
 import { ClientJS } from "clientjs";
 import { PipelineProcessor, PipelineProcessorBuilder } from "../pipeline/pipeline-processor";
 import { PipelineStage } from "../pipeline/pipeline-stage";
-import { ChatMessageReceived, PixelEvent } from "../types";
+import { ChatMessageReceived, PixelEvent, TrackingType } from "../types";
 import { TokenManager } from "./token-manager";
 import { ensureTokens } from "../services/token-service";
 import { checkServerConnection } from "../services/health-check-service";
@@ -26,7 +26,7 @@ interface SDKOptions {
 
 export class TrackingPixelSDK {
 	private readonly pipelineBuilder = new PipelineProcessorBuilder();
-	private eventPipeline: PipelineProcessor;
+	private eventPipeline: PipelineProcessor<any, PixelEvent>;
 
 	private eventQueue: PixelEvent[] = [];
 	private endpoint: string;
@@ -39,6 +39,14 @@ export class TrackingPixelSDK {
 	private flushTimer: ReturnType<typeof setInterval> | null = null;
 	private maxRetries = 3;
 	private listeners = new Map<string, Set<(msg: PixelEvent) => void>>();
+
+	private domEventMap: Record<string, string> = {
+		"view_product": "mouseenter",
+		"add_to_cart": "click",
+		"view_cart": "mouseenter",
+		"purchase": "click",
+		"page_view": "load"
+	};
 
 	constructor(options: SDKOptions) {
 		this.endpoint = options.endpoint || "http://localhost:3000";
@@ -179,7 +187,49 @@ export class TrackingPixelSDK {
 			.build();
 	}
 
+	/**
+	 * Escanea el DOM y asocia listeners a los elementos con data-track-event.
+	 * Cuando se dispara el trigger, llama a this.track con los datos del elemento.
+	 */
+	public enableDOMTracking(): void {
+		// page_view: se lanza en window.onload si existe el elemento
+		const pageViewElem = document.querySelector('[data-track-event="page_view"]');
+		if (pageViewElem && this.domEventMap["page_view"] === "load") {
+			window.addEventListener("load", () => {
+				this.track(this.getTrackDataFromElement(pageViewElem as HTMLElement));
+			});
+		}
 
+		// Para el resto de eventos
+		Object.entries(this.domEventMap).forEach(([eventName, domEvent]) => {
+			if (eventName === "page_view") return;
+			const elements = document.querySelectorAll(`[data-track-event="${eventName}"]`);
+			elements.forEach((el) => {
+				const listenerKey = `__track_listener_${eventName}`;
+				if ((el as any)[listenerKey]) return;
+				const handler = () => {
+					this.track(this.getTrackDataFromElement(el as HTMLElement));
+				};
+				el.addEventListener(domEvent, handler);
+				(el as any)[listenerKey] = true;
+			});
+		});
+	}
+
+	/**
+	 * Extrae los datos de tracking de un elemento HTML con data-track-event y otros data-*
+	 */
+	private getTrackDataFromElement(el: HTMLElement): Record<string, unknown> {
+		const dataset = el.dataset;
+		const event = dataset.trackEvent;
+		const data: Record<string, unknown> = { event };
+		Object.keys(dataset).forEach((key) => {
+			if (key === "trackEvent") return;
+			const prop = key.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+			data[prop] = dataset[key];
+		});
+		return data;
+	}
 
 	public setMetadata(event: string, metadata: Record<string, unknown>): void {
 		const eventIndex = this.eventQueue.findIndex((e) => e.type === event);
@@ -218,7 +268,13 @@ export class TrackingPixelSDK {
 				return;
 			}
 			try {
-				this.captureEvent(event, data);
+				this.captureEvent('tracking:tracking-event', {
+					trackingEventId: uuidv4(),
+					metadata: {
+						...data,
+					},
+					eventType: event,
+				});
 				resolve();
 			} catch (error) {
 				console.error("Error al capturar el evento:", error);
@@ -228,7 +284,7 @@ export class TrackingPixelSDK {
 	}
 
 	private captureEvent(type: string, data: Record<string, unknown>): void {
-		const rawEvent: PixelEvent = {
+		const rawEvent = {
 			type,
 			data,
 			timestamp: Date.now(),
