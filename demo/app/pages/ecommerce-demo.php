@@ -58,50 +58,71 @@ foreach ($xml->producto as $p) {
       <h2>Carrito</h2>
       <ul id="cart-list"></ul>
       <p id="cart-total">Total: 0 €</p>
-      <button class="checkout-btn"
-              data-track-event="purchase">
-        Comprar
-      </button>
+      <div class="cart-actions">
+        <button class="checkout-btn"
+                data-track-event="purchase">
+          Comprar
+        </button>
+        <button class="clear-cart-btn"
+                data-track-event="clear_cart">
+          Vaciar carrito
+        </button>
+      </div>
     </aside>
   </main>
 </div>
 <script>
   const cart = [];
-  function addToCart(id, name, price) {
-    cart.push({ id, name, price });
-    renderCart();
-    // sdk.track eliminado, ahora tracking por data attributes
-  }
+  // Añadir producto al carrito
+  document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-product-id');
+      const name = this.getAttribute('data-product-name');
+      const price = parseFloat(this.getAttribute('data-product-price'));
+      cart.push({ id, name, price });
+      renderCart();
+    });
+  });
+  // Renderizar el carrito
   function renderCart() {
     const list = document.getElementById('cart-list');
     list.innerHTML = '';
     let total = 0;
     cart.forEach(item => {
       const li = document.createElement('li');
-      li.textContent = `${item.name} - ${item.price} €`;
+      li.textContent = `${item.name} - ${item.price.toFixed(2)} €`;
       list.appendChild(li);
       total += item.price;
     });
     document.getElementById('cart-total').textContent = `Total: ${total.toFixed(2)} €`;
     document.getElementById('cart-count').textContent = cart.length;
   }
-  function checkout() {
+  // Comprar
+  document.querySelector('.checkout-btn').addEventListener('click', function() {
     if (cart.length === 0) {
       alert('El carrito está vacío');
       return;
     }
-    // sdk.track eliminado, ahora tracking por data attributes
-    alert('¡Compra realizada!');
+    alert('¡Compra realizada! (demo)');
     cart.length = 0;
     renderCart();
-  }
-  // Evento de vista de producto eliminado, tracking por data attributes
-  // Mostrar/ocultar carrito
+  });
+  // Vaciar carrito
+  document.querySelector('.clear-cart-btn').addEventListener('click', function() {
+    if (cart.length === 0) {
+      alert('El carrito ya está vacío');
+      return;
+    }
+    cart.length = 0;
+    renderCart();
+  });
+  // Mostrar/ocultar carrito (scroll)
   document.getElementById('cart-link').onclick = function(e) {
     e.preventDefault();
     document.getElementById('cart').scrollIntoView({ behavior: 'smooth' });
   };
-  // Track de page_view al cargar la página
+  // Inicializar contador
+  renderCart();
 </script>
 </body>
 </html>
