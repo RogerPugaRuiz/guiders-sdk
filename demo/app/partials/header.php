@@ -21,5 +21,10 @@
     });
 
     sdk.init();
+    (async () => {
+      await sdk.init();
+      sdk.enableDOMTracking();
+      window.sdk = sdk;
+    })();
 
   </script>

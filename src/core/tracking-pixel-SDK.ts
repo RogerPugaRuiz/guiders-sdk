@@ -14,6 +14,7 @@ import { ChatUI } from "../presentation/chat";
 import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
 import { v4 as uuidv4 } from "uuid";
+import { DomTrackingManager } from "./dom-tracking-manager";
 
 
 interface SDKOptions {
@@ -39,14 +40,7 @@ export class TrackingPixelSDK {
 	private flushTimer: ReturnType<typeof setInterval> | null = null;
 	private maxRetries = 3;
 	private listeners = new Map<string, Set<(msg: PixelEvent) => void>>();
-
-	private domEventMap: Record<string, string> = {
-		"view_product": "mouseenter",
-		"add_to_cart": "click",
-		"view_cart": "mouseenter",
-		"purchase": "click",
-		"page_view": "load"
-	};
+	private domTrackingManager: DomTrackingManager;
 
 	constructor(options: SDKOptions) {
 		this.endpoint = options.endpoint || "http://localhost:3000";
@@ -65,6 +59,7 @@ export class TrackingPixelSDK {
 			.build();
 
 		this.webSocket = WebSocketClient.getInstance(this.endpoint);
+		this.domTrackingManager = new DomTrackingManager((params) => this.track(params));
 	}
 
 	public async init(): Promise<void> {
@@ -188,47 +183,10 @@ export class TrackingPixelSDK {
 	}
 
 	/**
-	 * Escanea el DOM y asocia listeners a los elementos con data-track-event.
-	 * Cuando se dispara el trigger, llama a this.track con los datos del elemento.
+	 * Habilita el tracking de eventos del DOM usando DomTrackingManager.
 	 */
 	public enableDOMTracking(): void {
-		// page_view: se lanza en window.onload si existe el elemento
-		const pageViewElem = document.querySelector('[data-track-event="page_view"]');
-		if (pageViewElem && this.domEventMap["page_view"] === "load") {
-			window.addEventListener("load", () => {
-				this.track(this.getTrackDataFromElement(pageViewElem as HTMLElement));
-			});
-		}
-
-		// Para el resto de eventos
-		Object.entries(this.domEventMap).forEach(([eventName, domEvent]) => {
-			if (eventName === "page_view") return;
-			const elements = document.querySelectorAll(`[data-track-event="${eventName}"]`);
-			elements.forEach((el) => {
-				const listenerKey = `__track_listener_${eventName}`;
-				if ((el as any)[listenerKey]) return;
-				const handler = () => {
-					this.track(this.getTrackDataFromElement(el as HTMLElement));
-				};
-				el.addEventListener(domEvent, handler);
-				(el as any)[listenerKey] = true;
-			});
-		});
-	}
-
-	/**
-	 * Extrae los datos de tracking de un elemento HTML con data-track-event y otros data-*
-	 */
-	private getTrackDataFromElement(el: HTMLElement): Record<string, unknown> {
-		const dataset = el.dataset;
-		const event = dataset.trackEvent;
-		const data: Record<string, unknown> = { event };
-		Object.keys(dataset).forEach((key) => {
-			if (key === "trackEvent") return;
-			const prop = key.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
-			data[prop] = dataset[key];
-		});
-		return data;
+		this.domTrackingManager.enableDOMTracking();
 	}
 
 	public setMetadata(event: string, metadata: Record<string, unknown>): void {

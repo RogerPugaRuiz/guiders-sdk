@@ -16,6 +16,7 @@ foreach ($xml->producto as $p) {
 }
 ?>
 <div class="container">
+  <div style="display:none" data-track-event="page_view" data-page="ecommerce"></div>
   <header class="shop-header">
     <h1>GuiderShop</h1>
     <nav>
@@ -101,8 +102,6 @@ foreach ($xml->producto as $p) {
     document.getElementById('cart').scrollIntoView({ behavior: 'smooth' });
   };
   // Track de page_view al cargar la página
-  document.body.setAttribute('data-track-event', 'page_view');
-  document.body.setAttribute('data-page', 'ecommerce');
 </script>
 </body>
 </html>
