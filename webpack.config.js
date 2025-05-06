@@ -10,14 +10,14 @@ module.exports = {
 	entry: './src/index.ts', // Archivo principal del SDK
 	output: {
 		path: path.resolve(__dirname, 'dist'),
-		filename: 'guiders-pixel.min.js', // Asegurar que el nombre es el correcto
+		filename: 'index.js', // Nombre del archivo de salida
 		library: 'GuidersPixel', // Nombre de la librería
 		libraryTarget: 'umd', // Compatible con CommonJS, AMD y global en navegador
 		globalObject: 'this', // Para que funcione en navegadores y Node.js
 		libraryExport: 'default'
 	},
 	resolve: {
-		extensions: ['.ts', '.js']
+		extensions: ['.ts', '.js'], // Extensiones de archivos a resolver
 	},
 	module: {
 		rules: [{
