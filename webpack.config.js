@@ -5,7 +5,6 @@ const {
 
 module.exports = {
 	plugins: [
-		new BundleAnalyzerPlugin()
 	],
 	entry: './src/index.ts', // Archivo principal del SDK
 	output: {
