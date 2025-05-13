@@ -11,20 +11,3 @@
 
 </head>
 <body>
-  <script>
-    const sdk = new window.TrackingPixelSDK({
-      // endpoint: "https://guiders-backend-production.up.railway.app",
-      apiKey: "44",
-      autoFlush: true,
-      flushInterval: 1000, // 1 second
-      maxRetries: 2,
-    });
-
-    sdk.init();
-    (async () => {
-      await sdk.init();
-      sdk.enableDOMTracking();
-      window.guiders = sdk;
-    })();
-
-  </script>
