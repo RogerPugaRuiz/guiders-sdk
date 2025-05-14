@@ -26,7 +26,7 @@ export class ChatToggleButtonUI {
 			label: 'Chat',
 			buttonSize: '50px',
 			backgroundColor: '#007bff',
-			textColor: '#fff',
+			textColor: '#ffffff',
 			positionRight: `20px`, // Centrar respecto al eje X
 			positionBottom: '20px',
 			borderRadius: '50%',
@@ -74,6 +74,7 @@ export class ChatToggleButtonUI {
 		this.button.style.backgroundColor = this.options.backgroundColor!;
 		this.button.style.color = this.options.textColor!;
 		this.button.style.border = 'none';
+		this.button.style.color = this.options.textColor!;
 		this.button.style.cursor = 'pointer';
 		this.button.style.zIndex = '2147483647'; // Asegura que el botón esté por encima de otros elementos
 
