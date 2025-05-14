@@ -21,27 +21,27 @@ declare global {
 
 // Si estamos en un entorno de navegador, asignamos los módulos al objeto global.
 if (typeof window !== "undefined") {
-	try {
-		const { apiKey } = getParams();
-		window.GUIDERS_API_KEY = apiKey;
-		window.TrackingPixelSDK = TrackingPixelSDK;
-		window.guiders = new window.TrackingPixelSDK({
-			// endpoint: "https://guiders-backend-production.up.railway.app",
-			endpoint: "https://guiders.ancoradual.com/api",
-			apiKey,
-			autoFlush: true,
-			flushInterval: 1000, // 1 second
-			maxRetries: 2,
-		});
-
-		window.guiders.init();
-		(async () => {
-			await window.guiders.init();
-			window.guiders.enableDOMTracking();
-		})();
-	} catch (error) {
-		console.error(error);
-	}
+	document.addEventListener("DOMContentLoaded", () => {
+		try {
+			const { apiKey } = getParams();
+			window.GUIDERS_API_KEY = apiKey;
+			window.TrackingPixelSDK = TrackingPixelSDK;
+			window.guiders = new window.TrackingPixelSDK({
+				// endpoint: "https://guiders-backend-production.up.railway.app",
+				endpoint: "https://guiders.ancoradual.com/api",
+				apiKey,
+				autoFlush: true,
+				flushInterval: 1000, // 1 second
+				maxRetries: 2,
+			});
+			(async () => {
+				await window.guiders.init();
+				window.guiders.enableDOMTracking();
+			})();
+		} catch (error) {
+			console.error(error);
+		}
+	});
 }
 
 function getParams(): {
