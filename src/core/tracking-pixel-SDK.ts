@@ -100,61 +100,67 @@ export class TrackingPixelSDK {
 		});
 		const chatInput = new ChatInputUI(chat);
 		const chatToggleButton = new ChatToggleButtonUI(chat);
-		chat.init();
-		chatInput.init();
-		chatToggleButton.init();
 
-		chat.hide();
+		const initializeChatComponents = () => {
+			chat.init();
+			chatInput.init();
+			chatToggleButton.init();
+			chat.hide();
 		
-		chat.onOpen(() => {
-			this.captureEvent("visitor:open-chat", {
-				timestamp: new Date().getTime(),
-				chatId: chat.getChatId(),
+			chat.onOpen(() => {
+				this.captureEvent("visitor:open-chat", {
+					timestamp: new Date().getTime(),
+					chatId: chat.getChatId(),
+				});
 			});
-		});
-		chat.onClose(() => {
-			this.captureEvent("visitor:close-chat", {
-				timestamp: new Date().getTime(),
-				chatId: chat.getChatId(),
+			chat.onClose(() => {
+				this.captureEvent("visitor:close-chat", {
+					timestamp: new Date().getTime(),
+					chatId: chat.getChatId(),
+				});
 			});
-		});
-
-		chat.onActiveInterval(() => {
-			console.log("Intervalo activo");
-			this.captureEvent("visitor:chat-active", {
-				timestamp: new Date().getTime(),
-				chatId: chat.getChatId(),
+		
+			chat.onActiveInterval(() => {
+				console.log("Intervalo activo");
+				this.captureEvent("visitor:chat-active", {
+					timestamp: new Date().getTime(),
+					chatId: chat.getChatId(),
+				});
+			}, 1000 * 10); // 10 segundos de intervalo
+		
+			chatToggleButton.onToggle((visible: boolean) => {
+				if (visible) {
+					chat.show();
+				} else {
+					chat.hide();
+				}
 			});
-		}, 1000 * 10); // 10 segundos de intervalo
-
-
-		chatToggleButton.onToggle((visible: boolean) => {
-			if (visible) {
-				chat.show();
-			} else {
-				chat.hide();
-			}
-		});
-
-		chatInput.onSubmit((message: string) => {
-			if (!message) return;
-			this.captureEvent("visitor:send-message", { 
-				id: uuidv4(),
-				message,
-				timestamp: new Date().getTime(),
-				chatId: chat.getChatId(),
+		
+			chatInput.onSubmit((message: string) => {
+				if (!message) return;
+				this.captureEvent("visitor:send-message", { 
+					id: uuidv4(),
+					message,
+					timestamp: new Date().getTime(),
+					chatId: chat.getChatId(),
+				});
+				this.flush();
 			});
-			this.flush();
-		});
-
-
-
-		this.on("receive-message", (msg: PixelEvent) => {
-			chat.renderChatMessage({
-				text: msg.data.message as string,
-				sender: "other",
+		
+			this.on("receive-message", (msg: PixelEvent) => {
+				chat.renderChatMessage({
+					text: msg.data.message as string,
+					sender: "other",
+				});
 			});
-		});
+		};
+		
+		if (document.readyState === "loading") {
+			document.addEventListener("DOMContentLoaded", initializeChatComponents);
+			console.log("Esperando a que el DOM esté completamente cargado...");
+		} else {
+			initializeChatComponents();
+		}
 	}
 
 	public on(type: string, listener: (msg: PixelEvent) => void): void {
