@@ -16,7 +16,7 @@ export async function startChat(): Promise<any> {
 	}
 
 	try {
-		const webSocketClient = WebSocketClient.getInstance(localStorage.getItem('pixelEndpoint') || '');
+		const webSocketClient = WebSocketClient.getInstance('https://guiders.ancoradual.com');
 		const response = await webSocketClient.sendMessage({
 			type: 'visitor:start-chat',
 			data: {

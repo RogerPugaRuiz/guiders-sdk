@@ -10,7 +10,6 @@ export * from "./pipeline/stages/token-stage";
 export * from "./types";
 // Se pueden exportar más etapas o servicios según se vayan implementando.
 
-
 declare global {
 	interface Window {
 		TrackingPixelSDK: typeof TrackingPixelSDK;

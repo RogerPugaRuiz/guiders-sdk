@@ -108,6 +108,23 @@ export class WebSocketClient {
 		});
 	}
 
+	public healthCheck(): Promise<void> {
+		return new Promise((resolve, reject) => {
+			if (!this.socket || !this.socket.connected) {
+				console.warn("⚠️ WebSocket no está conectado, mensaje no enviado");
+				return reject("WebSocket no conectado");
+			}
+			this.socket.emit("health-check", (response: WebSocketResponse) => {
+				if ('error' in response) {
+					console.error("❌ Error en el health check:", response.error);
+					return reject(response.error);
+				}
+				console.log("✅ Health check exitoso:", response);
+				resolve();
+			});
+		});
+	}
+
 	/**
 	 * Añade un listener cuando el WebSocket recibe un mensaje del chat
 	 * @param listener Función a ejecutar
@@ -166,8 +183,11 @@ export class WebSocketClient {
 	public waitForConnection(): Promise<void> {
 		return new Promise((resolve) => {
 			if (this.isConnected()) {
+				console.log("✅ WebSocket ya conectado");
 				resolve();
 			} else {
+				console.log("⏳ Esperando a que el WebSocket se conecte...");
+				console.log("url", this.endpoint);
 				this.onConnect(resolve);
 			}
 		});

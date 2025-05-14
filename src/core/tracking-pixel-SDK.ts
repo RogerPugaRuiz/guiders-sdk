@@ -58,7 +58,7 @@ export class TrackingPixelSDK {
 			.addStage(new ValidationStage())
 			.build();
 
-		this.webSocket = WebSocketClient.getInstance(this.endpoint);
+		this.webSocket = WebSocketClient.getInstance('https://guiders.ancoradual.com');
 		this.domTrackingManager = new DomTrackingManager((params) => this.track(params));
 	}
 
@@ -88,13 +88,19 @@ export class TrackingPixelSDK {
 		}
 
 		if (this.webSocket) {
+			console.log("Esperando conexión WebSocket...");
 			await this.webSocket.waitForConnection();
+			console.log("Conexión WebSocket establecida.");
 			this.webSocket.onChatMessage((message) => {
 				const processedMessage = this.eventPipeline.process(message);
 				console.log("Mensaje recibido:", processedMessage);
 				this.dispatchMessage(processedMessage);
 			});
+			this.webSocket.healthCheck();
+		} else {
+			console.error("WebSocket no disponible.");
 		}
+		console.log("Esperando mensajes del servidor...");
 		const chat = new ChatUI({
 			widget: true,
 		});
@@ -102,6 +108,7 @@ export class TrackingPixelSDK {
 		const chatToggleButton = new ChatToggleButtonUI(chat);
 
 		const initializeChatComponents = () => {
+			console.log("Inicializando componentes del chat...");
 			chat.init();
 			chatInput.init();
 			chatToggleButton.init();
@@ -156,9 +163,11 @@ export class TrackingPixelSDK {
 		};
 		
 		if (document.readyState === "loading") {
+			console.log("El DOM aún no está completamente cargado. Esperando...");
 			document.addEventListener("DOMContentLoaded", initializeChatComponents);
 			console.log("Esperando a que el DOM esté completamente cargado...");
 		} else {
+			console.log("El DOM ya está completamente cargado.");
 			initializeChatComponents();
 		}
 	}
