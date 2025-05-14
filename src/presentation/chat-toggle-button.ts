@@ -34,18 +34,57 @@ export class ChatToggleButtonUI {
 		};
 
 		this.button = document.createElement('button');
-		// this.button.style.transform = `translateX(50%)`; // Centrar respecto al eje X
+		this.button.className = 'chat-toggle-btn';
 	}
 
 	/**
 	 * Crea y muestra el botón flotante en el DOM, asociando el evento de toggle del chat.
 	 */
 	public init(): void {
+		if (!this.button) {
+			this.button = document.createElement('button');
+			this.button.className = 'chat-toggle-btn';
+		}
+		// Buscar el host del Shadow DOM del chat
+		const shadowHost = document.querySelector('.chat-widget-host') as HTMLElement;
+		if (shadowHost && shadowHost.shadowRoot) {
+			// Insertar el botón flotante dentro del shadowRoot, pero antes del chat-widget para que quede visible
+			shadowHost.shadowRoot.insertBefore(this.button, shadowHost.shadowRoot.firstChild);
+			// Inyectar estilos específicos del botón si no existen
+			if (!shadowHost.shadowRoot.querySelector('style[data-chat-toggle-btn]')) {
+				const style = document.createElement('style');
+				style.setAttribute('data-chat-toggle-btn', 'true');
+				style.textContent = `
+					.chat-toggle-btn {
+						position: fixed;
+						right: 20px;
+						bottom: 20px;
+						width: 50px;
+						height: 50px;
+						border-radius: 50%;
+						background: #007bff;
+						color: #fff !important;
+						border: none;
+						cursor: pointer;
+						z-index: 2147483647;
+						display: flex;
+						align-items: center;
+						justify-content: center;
+						font-weight: bold;
+						box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+						transition: opacity 0.3s, transform 0.3s;
+					}
+					.chat-toggle-btn:hover {
+						background: #005bb5;
+					}
+				`;
+				shadowHost.shadowRoot.appendChild(style);
+			}
+		} else {
+			document.body.appendChild(this.button);
+		}
 		this.applyStyles();
 		this.addEventListeners();
-
-		// Añadimos el botón al body para que sea flotante en la pantalla.
-		document.body.appendChild(this.button);
 	}
 
 	/**
@@ -61,32 +100,8 @@ export class ChatToggleButtonUI {
 	 * Configura estilos y contenido del botón.
 	 */
 	private applyStyles(): void {
-		// Texto o ícono en el botón
-		this.button.textContent = this.options.label || 'Chat';
-
-		// Estilos mínimos para que se vea como botón flotante.
-		this.button.style.position = 'fixed';
-		this.button.style.right = this.options.positionRight!;
-		this.button.style.bottom = this.options.positionBottom!;
-		this.button.style.width = this.options.buttonSize!;
-		this.button.style.height = this.options.buttonSize!;
-		this.button.style.borderRadius = this.options.borderRadius!;
-		this.button.style.backgroundColor = this.options.backgroundColor!;
-		this.button.style.color = this.options.textColor!;
-		this.button.style.border = 'none';
-		this.button.style.color = this.options.textColor!;
-		this.button.style.cursor = 'pointer';
-		this.button.style.zIndex = '2147483647'; // Asegura que el botón esté por encima de otros elementos
-
-		// Si es circular, podemos poner el texto centrado.
-		this.button.style.display = 'flex';
-		this.button.style.alignItems = 'center';
-		this.button.style.justifyContent = 'center';
-		this.button.style.fontWeight = 'bold';
-
-		// Sombras, transiciones, etc. (opcional)
-		this.button.style.boxShadow = '0 2px 5px rgba(0,0,0,0.3)';
-		this.button.style.transition = 'opacity 0.3s, transform 0.3s';
+			// El estilo se gestiona por CSS externo
+			this.button.textContent = this.options.label || 'Chat';
 	}
 
 	/**

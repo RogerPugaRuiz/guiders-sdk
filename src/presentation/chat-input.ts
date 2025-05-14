@@ -24,22 +24,13 @@ export class ChatInputUI {
 
 		// Creamos un contenedor para el input, por si quieres separarlo visualmente
 		this.inputContainer = document.createElement('div');
-		this.inputContainer.style.display = 'flex';
-		this.inputContainer.style.alignItems = 'center';
-		this.inputContainer.style.padding = '10px';
-		// Puedes cambiar el color de fondo a tu preferencia
-		this.inputContainer.style.backgroundColor = '#f8f9fa';
-		// Posición "sticky" en la parte inferior, para que se quede fijo en el widget
-		this.inputContainer.style.position = 'sticky';
-		this.inputContainer.style.bottom = '0';
+		this.inputContainer.className = 'chat-input-container';
 
 		// Creamos el campo de texto
 		this.inputField = document.createElement('input');
 		this.inputField.type = 'text';
 		this.inputField.placeholder = this.options.placeholder!;
-		// Ajustes de estilo mínimos
-		this.inputField.style.flex = '1'; // ocupa el ancho disponible
-		this.inputField.style.padding = '5px';
+		this.inputField.className = 'chat-input-field';
 
 		// Suscribimos el evento "keydown" para que "Enter" envíe el mensaje
 		this.inputField.addEventListener('keydown', (event) => {

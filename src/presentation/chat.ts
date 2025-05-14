@@ -74,39 +74,59 @@ export class ChatUI {
 	 */
 	public init(): void {
 		if (!this.container || this.options.widget) {
+			// Crear un host para el Shadow DOM
+			const shadowHost = document.createElement('div');
+			shadowHost.classList.add('chat-widget-host');
+			// Adjuntar al body
+			document.body.appendChild(shadowHost);
+			// Crear el shadow root
+			const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+			// Crear el contenedor principal dentro del shadow root
 			this.container = document.createElement('div');
-			this.container.style.backgroundColor = '#fff';
-			this.container.classList.add('chat-widget'); // clase para estilos
-			document.body.appendChild(this.container);
-
-			// Configuramos el widget si así se requiere
+			this.container.classList.add('chat-widget');
 			if (this.options.widget) {
-				this.container.style.width = this.options.widgetWidth!;
-				this.container.style.height = this.options.widgetHeight!;
-				this.container.style.border = '1px solid #ccc';
-				this.container.style.borderRadius = '10px';
-				this.container.style.overflow = 'auto';
-				this.container.style.display = 'flex';
-				this.container.style.flexDirection = 'column';
-				this.container.style.position = 'fixed';
-				this.container.style.bottom = '80px';
-				this.container.style.right = '20px';
-				this.container.style.transition = 'all 0.3s';
+				this.container.classList.add('chat-widget-fixed');
+			}
+			shadowRoot.appendChild(this.container);
+			// Inyectar el CSS dentro del shadow root
+			const style = document.createElement('style');
+			style.textContent = `
+				@import url('https://fonts.googleapis.com/css?family=Inter:400,600&display=swap');
+				:host { all: initial; }
+				/* Copia aquí el CSS relevante del chat y botón flotante */
+				.chat-widget { box-shadow: 0 4px 24px rgba(0,0,0,0.10); border-radius: 12px; overflow: hidden; background: #fff; }
+				.chat-widget-fixed { width: 300px; height: 400px; border: 1px solid #ccc; border-radius: 10px; overflow: auto; display: flex; flex-direction: column; position: fixed; bottom: 80px; right: 20px; transition: all 0.3s; z-index: 2147483647; background: #fff; }
+				.chat-messages { display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding: 0.5rem 1rem; }
+				.chat-messages-bottom { margin-top: auto; }
+				.chat-message { padding: 10px; margin: 5px; border-radius: 10px; max-width: 80%; white-space: pre-wrap; word-break: break-word; }
+				.chat-message-user { background: #007bff; color: #fff; align-self: flex-end; }
+				.chat-message-other { background: #e9ecef; color: #222; align-self: flex-start; }
+				.chat-input-container { display: flex; align-items: center; padding: 10px; background: #f8f9fa; position: sticky; bottom: 0; border-top: 1px solid #eee; }
+				.chat-input-field { flex: 1; padding: 5px; border: 1px solid #e0e0e0; border-radius: 5px; font-size: 1rem; }
+			`;
+			shadowRoot.appendChild(style);
+		} else {
+			if (!this.container || this.options.widget) {
+				this.container = document.createElement('div');
+				this.container.classList.add('chat-widget');
+				document.body.appendChild(this.container);
+
+				// Configuramos el widget si así se requiere
+				if (this.options.widget) {
+					this.container.classList.add('chat-widget-fixed');
+				}
 			}
 		}
 
 		// Creamos un contenedor para mensajes con scroll vertical
 		const containerMessages = document.createElement('div');
-		containerMessages.style.display = 'flex';
-		containerMessages.style.flexDirection = 'column';
-		containerMessages.style.flex = '1';
-		containerMessages.style.overflowY = 'auto'; // Scroll
+		containerMessages.className = 'chat-messages';
 		this.container.appendChild(containerMessages);
 		this.containerMessages = containerMessages;
 
 		// Bloque inferior para "empujar" mensajes hacia arriba
 		const div = document.createElement('div');
-		div.style.marginTop = 'auto';
+		div.className = 'chat-messages-bottom';
 		this.containerMessages.appendChild(div);
 
 		// Estilo general
@@ -300,22 +320,6 @@ export class ChatUI {
 		// Texto
 		div.textContent = text;
 
-		// Estilos en línea (recomendable usar CSS separado)
-		div.style.padding = '10px';
-		div.style.margin = '5px';
-		div.style.borderRadius = '10px';
-		div.style.maxWidth = this.options.maxWidthMessage!;
-		div.style.whiteSpace = 'pre-wrap';
-
-		if (sender === 'user') {
-			div.style.backgroundColor = this.options.userBgColor!;
-			div.style.color = this.options.textColor!;
-			div.style.alignSelf = 'flex-end';
-		} else {
-			div.style.backgroundColor = this.options.otherBgColor!;
-			div.style.color = this.options.textColor!;
-			div.style.alignSelf = 'flex-start';
-		}
 		return div;
 	}
 
