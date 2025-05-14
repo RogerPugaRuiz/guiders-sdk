@@ -75,6 +75,7 @@ export class ChatToggleButtonUI {
 		this.button.style.color = this.options.textColor!;
 		this.button.style.border = 'none';
 		this.button.style.cursor = 'pointer';
+		this.button.style.zIndex = '2147483647'; // Asegura que el botón esté por encima de otros elementos
 
 		// Si es circular, podemos poner el texto centrado.
 		this.button.style.display = 'flex';
