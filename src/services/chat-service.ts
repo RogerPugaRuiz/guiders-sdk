@@ -1,9 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { WebSocketClient } from './websocket-service';
+import { EndpointManager } from '../core/tracking-pixel-SDK';
 
 const chats: string[] = JSON.parse(localStorage.getItem('chats') || '[]');
-
-
 
 export async function startChat(): Promise<any> {
 	const uuid = uuidv4();
@@ -16,7 +15,8 @@ export async function startChat(): Promise<any> {
 	}
 
 	try {
-		const webSocketClient = WebSocketClient.getInstance('https://guiders.ancoradual.com');
+		const endpoints = EndpointManager.getInstance();
+		const webSocketClient = WebSocketClient.getInstance(endpoints.getWebSocketEndpoint());
 		const response = await webSocketClient.sendMessage({
 			type: 'visitor:start-chat',
 			data: {

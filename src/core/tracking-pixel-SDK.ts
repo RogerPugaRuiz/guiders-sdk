@@ -19,10 +19,55 @@ import { DomTrackingManager } from "./dom-tracking-manager";
 
 interface SDKOptions {
 	endpoint?: string;
+	webSocketEndpoint?: string;
 	apiKey: string;
 	autoFlush?: boolean;
 	flushInterval?: number;
 	maxRetries?: number;
+}
+
+
+export class EndpointManager {
+	private static instance: EndpointManager;
+	private endpoint: string;
+	private webSocketEndpoint: string;
+
+	private constructor(endpoint: string, webSocketEndpoint: string) {
+		this.endpoint = endpoint;
+		this.webSocketEndpoint = webSocketEndpoint;
+	}
+
+	public static getInstance(endpoint: string = "http://localhost:3000", webSocketEndpoint: string = "ws://localhost:3000"): EndpointManager {
+		if (!EndpointManager.instance) {
+			EndpointManager.instance = new EndpointManager(endpoint, webSocketEndpoint);
+		}
+		return EndpointManager.instance;
+	}
+
+	public static setInstance(endpoint: string, webSocketEndpoint: string): void {
+		if (!EndpointManager.instance) {
+			EndpointManager.instance = new EndpointManager(endpoint, webSocketEndpoint);
+		} else {
+			EndpointManager.instance.endpoint = endpoint;
+			EndpointManager.instance.webSocketEndpoint = webSocketEndpoint;
+		}
+	}
+
+	public getEndpoint(): string {
+		return this.endpoint;
+	}
+
+	public getWebSocketEndpoint(): string {
+		return this.webSocketEndpoint;
+	}
+
+	public setEndpoint(endpoint: string): void {
+		this.endpoint = endpoint;
+	}
+
+	public setWebSocketEndpoint(webSocketEndpoint: string): void {
+		this.webSocketEndpoint = webSocketEndpoint;
+	}
 }
 
 export class TrackingPixelSDK {
@@ -31,6 +76,7 @@ export class TrackingPixelSDK {
 
 	private eventQueue: PixelEvent[] = [];
 	private endpoint: string;
+	private webSocketEndpoint: string;
 	private apiKey: string;
 	private fingerprint: string | null = null;
 	private webSocket: WebSocketClient | null = null;
@@ -43,7 +89,12 @@ export class TrackingPixelSDK {
 	private domTrackingManager: DomTrackingManager;
 
 	constructor(options: SDKOptions) {
-		this.endpoint = options.endpoint || "http://localhost:3000";
+		const endpoint = options.endpoint || "http://localhost:3000";
+		const webSocketEndpoint = options.webSocketEndpoint || "ws://localhost:3000";
+		EndpointManager.setInstance(endpoint, webSocketEndpoint);
+
+		this.endpoint = endpoint;
+		this.webSocketEndpoint = webSocketEndpoint;
 		this.apiKey = options.apiKey;
 		this.autoFlush = options.autoFlush ?? false;
 		this.flushInterval = options.flushInterval ?? 10000;
@@ -58,7 +109,7 @@ export class TrackingPixelSDK {
 			.addStage(new ValidationStage())
 			.build();
 
-		this.webSocket = WebSocketClient.getInstance('https://guiders.ancoradual.com');
+		this.webSocket = WebSocketClient.getInstance(this.webSocketEndpoint);
 		this.domTrackingManager = new DomTrackingManager((params) => this.track(params));
 	}
 

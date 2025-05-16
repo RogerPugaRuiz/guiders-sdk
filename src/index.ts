@@ -25,7 +25,9 @@ if (typeof window !== "undefined") {
 		window.GUIDERS_API_KEY = apiKey;
 		window.TrackingPixelSDK = TrackingPixelSDK;
 		window.guiders = new window.TrackingPixelSDK({
+			// endpoint: "https://guiders.ancoradual.com/api",
 			endpoint: "https://guiders.ancoradual.com/api",
+			webSocketEndpoint: "wss://guiders.ancoradual.com",
 			apiKey,
 			autoFlush: true,
 			flushInterval: 1000, // 1 second
