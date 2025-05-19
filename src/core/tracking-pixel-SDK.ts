@@ -394,6 +394,28 @@ export class TrackingPixelSDK {
 					console.log("TrackingPixelSDK: Incrementando contador de mensajes no leídos");
 					unreadService.incrementUnreadCount();
 					
+						// Notificación del navegador si está permitido
+						if (typeof window !== "undefined" && "Notification" in window) {
+							const notifBody = (message.data && typeof message.data.message === 'string' && message.data.message)
+								? message.data.message
+								: "Tienes un nuevo mensaje en el chat";
+							if (Notification.permission === "granted") {
+								new Notification("Nuevo mensaje", {
+									body: notifBody,
+									icon: "/favicon.ico"
+								});
+							} else if (Notification.permission !== "denied") {
+								Notification.requestPermission().then(permission => {
+									if (permission === "granted") {
+										new Notification("Nuevo mensaje", {
+											body: notifBody,
+											icon: "/favicon.ico"
+										});
+									}
+								});
+							}
+						}
+					
 					// Intentar notificar visualmente al usuario que hay un nuevo mensaje
 					try {
 						// Intenta hacer parpadear el badge si existe en el DOM
