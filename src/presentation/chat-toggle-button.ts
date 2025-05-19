@@ -247,10 +247,12 @@ export class ChatToggleButtonUI {
 		
 		if (count <= 0) {
 			this.badgeElement.classList.add('hidden');
+			this.badgeElement.style.opacity = '0';
 			this.badgeElement.textContent = '';
 			console.log("🚫 Badge oculto - sin mensajes no leídos");
 		} else {
 			this.badgeElement.classList.remove('hidden');
+			this.badgeElement.style.opacity = '1';
 			this.badgeElement.textContent = count > 99 ? '99+' : count.toString();
 			console.log(`🔴 Badge visible - ${count} mensajes no leídos`);
 			
