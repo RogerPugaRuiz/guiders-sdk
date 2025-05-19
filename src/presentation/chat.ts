@@ -631,15 +631,14 @@ export class ChatUI {
 	 * Agrega un mensaje de bienvenida al chat
 	 */
 	private addWelcomeMessage(): void {
-		// Mostrar indicador de escritura primero para simular que alguien está escribiendo
-		this.showTypingIndicator(2000);
-		
-		// Después mostrar el mensaje de bienvenida con un tono más humano
-		setTimeout(() => {
-			const welcomeText = "👋 ¡Hola! Soy un asesor del equipo de soporte. ¿En qué puedo ayudarte hoy?";
-			this.addMessage(welcomeText, 'other');
-		}, 2000);
-	}
+			// Ya no mostramos el indicador de escritura aquí, será controlado por WebSocket.
+			
+			// Después mostrar el mensaje de bienvenida con un tono más humano
+			setTimeout(() => {
+				const welcomeText = "👋 ¡Hola! Soy un asesor del equipo de soporte. ¿En qué puedo ayudarte hoy?";
+				this.addMessage(welcomeText, 'other');
+			}, 1000); // Ajusta el delay si es necesario o elimínalo.
+		}
 
 	/**
 	 * Establece el ID del chat actual.
@@ -1001,14 +1000,14 @@ export class ChatUI {
 	}
 
 	/**
-	 * Muestra un indicador de "escribiendo..." durante unos segundos
-	 * @param durationMs Duración en milisegundos
+	 * Muestra un indicador de "escribiendo..."
+	 * Este indicador permanecerá visible hasta que se llame a hideTypingIndicator().
 	 */
-	public showTypingIndicator(durationMs: number = 2000): void {
+	public showTypingIndicator(): void {
 		if (!this.containerMessages) return;
-		
-		// Eliminar cualquier indicador existente
-		this.hideTypingIndicator();
+
+		// Si ya hay un indicador visible, no hacer nada.
+		if (this.typingIndicator) return;
 		
 		// Crear el indicador de escritura
 		const indicator = document.createElement('div');
@@ -1041,17 +1040,12 @@ export class ChatUI {
 		
 		// Agregar al contenedor
 		this.containerMessages.appendChild(indicator);
-		this.typingIndicator = indicator;
+		this.typingIndicator = indicator; // Guardar referencia al indicador activo
 		
 		// Scroll para ver el indicador
 		this.scrollToBottom(true);
-		
-		// Eliminar después de la duración especificada
-		setTimeout(() => {
-			this.hideTypingIndicator();
-		}, durationMs);
 	}
-	
+
 	/**
 	 * Oculta el indicador de escritura
 	 */

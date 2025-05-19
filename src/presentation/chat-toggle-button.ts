@@ -61,7 +61,7 @@ export class ChatToggleButtonUI {
 			this.badgeElement = document.createElement('div');
 			this.badgeElement.className = 'chat-unread-badge';
 			this.badgeElement.setAttribute('id', 'chat-unread-badge');
-			this.button.appendChild(this.badgeElement);
+			shadowHost.shadowRoot.appendChild(this.badgeElement);
 			
 			// Inicialmente ocultar el badge si no hay mensajes
 			console.log("Inicializando badge de mensajes no leídos");
@@ -121,9 +121,9 @@ export class ChatToggleButtonUI {
 						background: linear-gradient(145deg, #0062cc, #0084ff);
 					}
 					.chat-unread-badge {
-						position: absolute;
-						top: -6px;
-						right: -6px;
+						position: fixed;
+						top: calc(100% - 90px); /* Posición calculada basada en la posición del botón */
+						right: 13px; /* Posición calculada para alinearse con el botón */
 						min-width: 22px;
 						height: 22px;
 						background: linear-gradient(145deg, #ff5146, #e53a30);
@@ -163,7 +163,7 @@ export class ChatToggleButtonUI {
 			this.badgeElement = document.createElement('div');
 			this.badgeElement.className = 'chat-unread-badge';
 			this.badgeElement.setAttribute('id', 'chat-unread-badge');
-			this.button.appendChild(this.badgeElement);
+			document.body.appendChild(this.badgeElement);
 			
 			// Inicialmente comprobar si hay mensajes no leídos al iniciar
 			console.log("Inicializando badge de mensajes no leídos (sin shadow DOM)");
@@ -196,12 +196,10 @@ export class ChatToggleButtonUI {
 	 */
 	private applyStyles(): void {
 				// Para el estilo Intercom, usamos SVG directamente en CSS con ::before
-				// Eliminamos cualquier span anterior (menos el badge)
+				// Eliminamos cualquier texto o elemento span dentro del botón
 				Array.from(this.button.childNodes).forEach(child => {
 					if (child.nodeType === Node.TEXT_NODE || (child as Element).tagName === 'SPAN') {
-						if ((child as Element).className !== 'chat-unread-badge') {
-							this.button.removeChild(child);
-						}
+						this.button.removeChild(child);
 					}
 				});
 				
@@ -302,9 +300,9 @@ export class ChatToggleButtonUI {
 		// Si existe el badge, aplicar estilos inline
 		if (this.badgeElement) {
 			Object.assign(this.badgeElement.style, {
-				position: 'absolute',
-				top: '-6px',
-				right: '-6px',
+				position: 'fixed',
+				top: 'calc(100% - 90px)', /* Posición calculada basada en la posición del botón */
+				right: '13px', /* Posición calculada para alinearse con el botón */
 				minWidth: '22px',
 				height: '22px',
 				background: 'linear-gradient(145deg, #ff5146, #e53a30)',

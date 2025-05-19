@@ -117,10 +117,7 @@ export class ChatInputUI {
 		// Limpiamos el campo de texto
 		this.inputField.value = '';
 		
-		// Mostrar indicador de escritura para simular respuesta
-		setTimeout(() => {
-			this.chatUI.showTypingIndicator(2000);
-		}, 500);
+		// Ya no mostramos el indicador de escritura aquí, será controlado por WebSocket.
 
 		// Ejecutamos el callback de "submit"
 		if (this.listeners.submit) {
