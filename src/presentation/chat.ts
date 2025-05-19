@@ -1057,6 +1057,17 @@ export class ChatUI {
 	}
 
 	/**
+	 * Verifica si el chat está visible actualmente
+	 * @returns boolean - true si el chat está visible, false si no
+	 */
+	public isVisible(): boolean {
+		if (!this.container) {
+			return false;
+		}
+		return this.container.style.display === 'flex';
+	}
+
+	/**
 	 * Muestra un indicador de satisfacción del cliente
 	 */
 	public showSatisfactionIndicator(): void {

@@ -174,6 +174,24 @@ export class WebSocketClient {
 	}
 
 	/**
+	 * Añade un listener para cuando el asesor comienza a escribir
+	 * @param listener Función a ejecutar
+	 * @returns void
+	 */
+	public onTypingStarted(listener: () => void): void {
+		this.addListener("typing-started", listener);
+	}
+
+	/**
+	 * Añade un listener para cuando el asesor termina de escribir
+	 * @param listener Función a ejecutar
+	 * @returns void
+	 */
+	public onTypingStopped(listener: () => void): void {
+		this.addListener("typing-stopped", listener);
+	}
+
+	/**
 	 * Verifica si el WebSocket está conectado.
 	 * @returns boolean
 	 * @returns void

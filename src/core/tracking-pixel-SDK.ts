@@ -242,6 +242,25 @@ export class TrackingPixelSDK {
 		}
 	}
 
+	private configureTypingIndicators(chat: ChatUI): void {
+		if (!this.webSocket) {
+			console.warn("WebSocket no está configurado - No se pueden añadir listeners para indicadores de escritura");
+			return;
+		}
+
+		// Cuando el asesor comienza a escribir
+		this.webSocket.onTypingStarted(() => {
+			if (chat.isVisible()) {
+				chat.showTypingIndicator();
+			}
+		});
+		
+		// Cuando el asesor deja de escribir
+		this.webSocket.onTypingStopped(() => {
+			chat.hideTypingIndicator();
+		});
+	}
+
 	public on(type: string, listener: (msg: PixelEvent) => void): void {
 		if (!this.listeners.has(type)) {
 			this.listeners.set(type, new Set());
