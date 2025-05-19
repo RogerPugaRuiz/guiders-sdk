@@ -11,6 +11,8 @@ export class UnreadMessagesService {
 
   private constructor() {
     // Constructor privado para Singleton
+    const stored = localStorage.getItem("guiders-unread-count");
+    this.unreadCount = stored ? parseInt(stored, 10) || 0 : 0;
     console.log("Servicio UnreadMessages inicializado");
   }
 
@@ -30,6 +32,7 @@ export class UnreadMessagesService {
   public incrementUnreadCount(): void {
     if (!this.isActive) {
       this.unreadCount++;
+      localStorage.setItem("guiders-unread-count", this.unreadCount.toString());
       this.notifyListeners();
       console.log("Unread count incremented:", this.unreadCount);
     }
@@ -40,6 +43,7 @@ export class UnreadMessagesService {
    */
   public resetUnreadCount(): void {
     this.unreadCount = 0;
+    localStorage.setItem("guiders-unread-count", "0");
     this.notifyListeners();
     console.log("Unread count reset");
   }
@@ -59,6 +63,9 @@ export class UnreadMessagesService {
     this.isActive = active;
     if (active) {
       this.resetUnreadCount();
+    } else {
+      // Guardar el valor actual aunque no cambie
+      localStorage.setItem("guiders-unread-count", this.unreadCount.toString());
     }
   }
 
