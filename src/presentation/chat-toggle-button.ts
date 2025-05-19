@@ -80,10 +80,10 @@ export class ChatToggleButtonUI {
 						position: fixed;
 						right: 20px;
 						bottom: 20px;
-						width: 50px;
-						height: 50px;
+						width: 56px;
+						height: 56px;
 						border-radius: 50%;
-						background: #007bff;
+						background: linear-gradient(145deg, #0084ff, #0062cc);
 						color: #fff !important;
 						border: none;
 						cursor: pointer;
@@ -92,41 +92,66 @@ export class ChatToggleButtonUI {
 						align-items: center;
 						justify-content: center;
 						font-weight: bold;
-						box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-						transition: opacity 0.3s, transform 0.3s;
+						box-shadow: 0 4px 10px rgba(0,123,255,0.3), 0 0 0 rgba(0,123,255,0);
+						transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 						position: relative; /* Asegurar que el badge se posicione correctamente */
+						overflow: hidden;
+					}
+					.chat-toggle-btn::before {
+						content: '';
+						display: block;
+						width: 24px;
+						height: 24px;
+						background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 3C6.5 3 2 6.58 2 11C2.05 13.15 3.06 15.17 4.75 16.5C4.75 17.1 4.33 18.67 2 21C4.37 20.89 6.64 20 8.47 18.5C9.61 18.83 10.81 19 12 19C17.5 19 22 15.42 22 11C22 6.58 17.5 3 12 3ZM12 17C7.58 17 4 14.31 4 11C4 7.69 7.58 5 12 5C16.42 5 20 7.69 20 11C20 14.31 16.42 17 12 17Z' fill='white'/%3E%3C/svg%3E");
+						background-repeat: no-repeat;
+						background-position: center;
+						transition: transform 0.3s ease;
+					}
+					.chat-toggle-btn.open::before {
+						background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z' fill='white'/%3E%3C/svg%3E");
 					}
 					.chat-toggle-btn:hover {
-						background: #005bb5;
+						transform: translateY(-3px);
+						box-shadow: 0 6px 16px rgba(0,123,255,0.4);
+						background: linear-gradient(145deg, #0090ff, #0070e0);
+					}
+					.chat-toggle-btn:active {
+						transform: translateY(0) scale(0.95);
+						box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+						background: linear-gradient(145deg, #0062cc, #0084ff);
 					}
 					.chat-unread-badge {
 						position: absolute;
-						top: -8px;
-						right: -8px;
-						min-width: 20px;
-						height: 20px;
-						background-color: #ff4136;
+						top: -6px;
+						right: -6px;
+						min-width: 22px;
+						height: 22px;
+						background: linear-gradient(145deg, #ff5146, #e53a30);
 						color: white;
-						border-radius: 50%;
+						border-radius: 12px;
 						font-size: 12px;
 						font-weight: bold;
 						display: flex;
 						align-items: center;
 						justify-content: center;
-						padding: 0 4px;
+						padding: 0 5px;
 						box-sizing: border-box;
 						border: 2px solid white;
 						z-index: 2147483647;
-						box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+						box-shadow: 0 2px 8px rgba(255,65,54,0.3);
 						pointer-events: none; /* Evitar que el badge interfiera con el botón */
+						transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 					}
 					.chat-unread-badge.hidden {
-						display: none !important;
+						transform: scale(0);
+						opacity: 0;
+						display: flex !important;
 					}
 					@keyframes pulse {
-						0% { transform: scale(1); }
-						50% { transform: scale(1.3); }
-						100% { transform: scale(1); }
+						0% { transform: scale(0.8); opacity: 0.7; }
+						50% { transform: scale(1.3); opacity: 1; }
+						80% { transform: scale(0.95); opacity: 1; }
+						100% { transform: scale(1); opacity: 1; }
 					}
 				`;
 				shadowHost.shadowRoot.appendChild(style);
@@ -170,23 +195,20 @@ export class ChatToggleButtonUI {
 	 * Configura estilos y contenido del botón.
 	 */
 	private applyStyles(): void {
-			// Crear un span para el texto dentro del botón
-			const labelSpan = document.createElement('span');
-			labelSpan.textContent = this.options.label || 'Chat';
-			
-			// Limpiar el contenido del botón antes de añadir el span
-			// Esto mantiene el badge intacto si ya existe
-			Array.from(this.button.childNodes).forEach(child => {
-				if (child.nodeType === Node.TEXT_NODE || (child as Element).tagName === 'SPAN') {
-					this.button.removeChild(child);
-				}
-			});
-			
-			this.button.appendChild(labelSpan);
-			
-			// Aplicar estilos adicionales si es necesario
-			this.button.style.backgroundColor = this.options.backgroundColor || '#007bff';
-			this.button.style.color = this.options.textColor || '#ffffff';
+				// Para el estilo Intercom, usamos SVG directamente en CSS con ::before
+				// Eliminamos cualquier span anterior (menos el badge)
+				Array.from(this.button.childNodes).forEach(child => {
+					if (child.nodeType === Node.TEXT_NODE || (child as Element).tagName === 'SPAN') {
+						if ((child as Element).className !== 'chat-unread-badge') {
+							this.button.removeChild(child);
+						}
+					}
+				});
+				
+				// Aplicar estilos adicionales si es necesario
+				const baseColor = this.options.backgroundColor || '#0084ff';
+				this.button.style.background = `linear-gradient(145deg, ${baseColor}, #0062cc)`;
+				this.button.style.color = this.options.textColor || '#ffffff';
 	}
 
 	/**
@@ -198,6 +220,13 @@ export class ChatToggleButtonUI {
 			
 			// Actualizar el estado de visibilidad en el servicio de mensajes no leídos
 			this.unreadMessagesService.setActive(this.isVisible);
+			
+				// Aplicar/quitar clase para animar icono
+			if (this.isVisible) {
+				this.button.classList.add('open');
+			} else {
+				this.button.classList.remove('open');
+			}
 			
 			// Notificar a todos los callbacks sobre el cambio de estado
 			this.toggleCallback.forEach(callback => {
@@ -233,11 +262,11 @@ export class ChatToggleButtonUI {
 			this.badgeElement.style.transform = 'scale(1)';
 			
 			// Aplicar animación de pulso cuando se actualizan los mensajes
-			if (this.badgeElement) { // Verificación adicional para TypeScript
+			if (this.badgeElement) {
 				this.badgeElement.style.animation = 'none';
 				setTimeout(() => {
-					if (this.badgeElement) { // También verificar dentro del setTimeout
-						this.badgeElement.style.animation = 'pulse 0.5s 2';
+					if (this.badgeElement) {
+						this.badgeElement.style.animation = 'pulse 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
 					}
 				}, 10);
 			}
@@ -253,10 +282,10 @@ export class ChatToggleButtonUI {
 			position: 'fixed',
 			right: '20px',
 			bottom: '20px',
-			width: '50px',
-			height: '50px',
+			width: '56px',
+			height: '56px',
 			borderRadius: '50%',
-			background: this.options.backgroundColor || '#007bff',
+			background: `linear-gradient(145deg, ${this.options.backgroundColor || '#0084ff'}, #0062cc)`,
 			color: this.options.textColor || '#ffffff',
 			border: 'none',
 			cursor: 'pointer',
@@ -265,32 +294,34 @@ export class ChatToggleButtonUI {
 			alignItems: 'center',
 			justifyContent: 'center',
 			fontWeight: 'bold',
-			boxShadow: '0 2px 5px rgba(0,0,0,0.15)',
-			transition: 'opacity 0.3s, transform 0.3s'
+			boxShadow: '0 4px 10px rgba(0,123,255,0.3)',
+			transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+			overflow: 'hidden'
 		});
 
 		// Si existe el badge, aplicar estilos inline
 		if (this.badgeElement) {
 			Object.assign(this.badgeElement.style, {
 				position: 'absolute',
-				top: '-8px',
-				right: '-8px',
-				minWidth: '20px',
-				height: '20px',
-				backgroundColor: '#ff4136',
+				top: '-6px',
+				right: '-6px',
+				minWidth: '22px',
+				height: '22px',
+				background: 'linear-gradient(145deg, #ff5146, #e53a30)',
 				color: 'white',
-				borderRadius: '50%',
+				borderRadius: '12px',
 				fontSize: '12px',
 				fontWeight: 'bold',
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'center',
-				padding: '0 4px',
+				padding: '0 5px',
 				boxSizing: 'border-box',
 				border: '2px solid white',
 				zIndex: '2147483647',
-				boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-				pointerEvents: 'none'
+				boxShadow: '0 2px 8px rgba(255,65,54,0.3)',
+				pointerEvents: 'none',
+				transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
 			});
 		}
 	}

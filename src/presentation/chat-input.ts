@@ -47,11 +47,53 @@ export class ChatInputUI {
 		// Obtenemos el contenedor principal del chat
 		const chatContainer = this.getChatContainer();
 
+		// Crear un contenedor para el input con estilo moderno
+		this.inputContainer = document.createElement('div');
+		this.inputContainer.className = 'chat-input-container';
+		
+		// Contenedor de acciones adicionales (adjuntos, emojis, etc.)
+		const actionsContainer = document.createElement('div');
+		actionsContainer.className = 'chat-input-actions';
+		
+		// Botón para adjuntar archivos
+		const attachmentBtn = document.createElement('button');
+		attachmentBtn.className = 'chat-attachment-btn';
+		attachmentBtn.setAttribute('aria-label', 'Adjuntar archivo');
+		attachmentBtn.addEventListener('click', () => {
+			// Aquí se implementaría la lógica para adjuntar archivos
+			alert('Función de adjuntar archivos no implementada aún');
+		});
+		
+		actionsContainer.appendChild(attachmentBtn);
+		this.inputContainer.appendChild(actionsContainer);
+
+		// Campo de entrada de texto
+		this.inputField = document.createElement('input');
+		this.inputField.type = 'text';
+		this.inputField.className = 'chat-input-field';
+		this.inputField.placeholder = this.options.placeholder || 'Escribe un mensaje...';
+		this.inputField.setAttribute('aria-label', 'Mensaje');
+
+		// Botón de envío
+		const sendButton = document.createElement('button');
+		sendButton.className = 'chat-send-btn';
+		sendButton.setAttribute('aria-label', 'Enviar mensaje');
+		sendButton.addEventListener('click', () => this.handleSendMessage());
+
+		// Agregar elementos al contenedor
+		this.inputContainer.appendChild(this.inputField);
+		this.inputContainer.appendChild(sendButton);
+		
+		// Evento para enviar con Enter
+		this.inputField.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter') {
+				this.handleSendMessage();
+				event.preventDefault();
+			}
+		});
+
 		// Agregamos el contenedor de input al chat
 		chatContainer.appendChild(this.inputContainer);
-
-		// Insertamos el input en el contenedor
-		this.inputContainer.appendChild(this.inputField);
 	}
 
 	/**
@@ -74,6 +116,11 @@ export class ChatInputUI {
 
 		// Limpiamos el campo de texto
 		this.inputField.value = '';
+		
+		// Mostrar indicador de escritura para simular respuesta
+		setTimeout(() => {
+			this.chatUI.showTypingIndicator(2000);
+		}, 500);
 
 		// Ejecutamos el callback de "submit"
 		if (this.listeners.submit) {

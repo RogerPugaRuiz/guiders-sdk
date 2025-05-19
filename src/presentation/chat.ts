@@ -45,6 +45,10 @@ export class ChatUI {
 	// Estructura para almacenar múltiples intervalos y callbacks
 	private activeIntervals: Array<{ id: number | null, callback: () => void, intervalMs: number }> = [];
 
+	private typingIndicator: HTMLElement | null = null;
+
+	private lastMessageDate: string | null = null;
+	
 	constructor(options: ChatUIOptions = {}) {
 		this.options = {
 			widget: false,
@@ -88,21 +92,475 @@ export class ChatUI {
 				this.container.classList.add('chat-widget-fixed');
 			}
 			shadowRoot.appendChild(this.container);
+			
+			// Añadir encabezado del chat
+			const headerEl = document.createElement('div');
+			headerEl.className = 'chat-header';
+			
+			const titleEl = document.createElement('div');
+			titleEl.className = 'chat-header-title';
+			
+			// Mostrar título simplificado sin indicador de estado
+			titleEl.textContent = 'Soporte Técnico';
+			
+			// Añadir subtítulo con nombre del asesor
+			const subtitleEl = document.createElement('div');
+			subtitleEl.className = 'chat-header-subtitle';
+			subtitleEl.textContent = 'Atendido por asesores disponibles';
+			titleEl.appendChild(subtitleEl);
+			
+			headerEl.appendChild(titleEl);
+			
+			const actionsEl = document.createElement('div');
+			actionsEl.className = 'chat-header-actions';
+			
+			const closeBtn = document.createElement('button');
+			closeBtn.className = 'chat-close-btn';
+			closeBtn.setAttribute('aria-label', 'Cerrar chat');
+			closeBtn.addEventListener('click', () => {
+				this.hide();
+			});
+			
+			actionsEl.appendChild(closeBtn);
+			headerEl.appendChild(actionsEl);
+			
+			this.container.appendChild(headerEl);
+			
 			// Inyectar el CSS dentro del shadow root
 			const style = document.createElement('style');
 			style.textContent = `
-				@import url('https://fonts.googleapis.com/css?family=Inter:400,600&display=swap');
-				:host { all: initial; }
-				/* Copia aquí el CSS relevante del chat y botón flotante */
-				.chat-widget { box-shadow: 0 4px 24px rgba(0,0,0,0.10); border-radius: 12px; overflow: hidden; background: #fff; }
-				.chat-widget-fixed { width: 300px; height: 400px; border: 1px solid #ccc; border-radius: 10px; overflow: auto; display: flex; flex-direction: column; position: fixed; bottom: 80px; right: 20px; transition: all 0.3s; z-index: 2147483647; background: #fff; }
-				.chat-messages { display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding: 0.5rem 1rem; }
-				.chat-messages-bottom { margin-top: auto; }
-				.chat-message { padding: 10px; margin: 5px; border-radius: 10px; max-width: 80%; white-space: pre-wrap; word-break: break-word; }
-				.chat-message-user { background: #007bff; color: #fff; align-self: flex-end; }
-				.chat-message-other { background: #e9ecef; color: #222; align-self: flex-start; }
-				.chat-input-container { display: flex; align-items: center; padding: 10px; background: #f8f9fa; position: sticky; bottom: 0; border-top: 1px solid #eee; }
-				.chat-input-field { flex: 1; padding: 5px; border: 1px solid #e0e0e0; border-radius: 5px; font-size: 1rem; }
+				@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+				:host { all: initial; font-family: 'Inter', sans-serif; }
+				
+				/* Contenedor principal del chat */
+				.chat-widget { 
+					box-shadow: 0 5px 40px rgba(0,0,0,0.16); 
+					border-radius: 16px; 
+					overflow: hidden; 
+					background: #fff;
+					font-family: 'Inter', sans-serif;
+					display: flex;
+					flex-direction: column;
+				}
+				
+				.chat-widget-fixed { 
+					width: 340px; 
+					height: 520px; 
+					position: fixed; 
+					bottom: 90px; 
+					right: 20px; 
+					transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+					z-index: 2147483647; 
+					display: flex;
+					flex-direction: column;
+				}
+				
+				/* Cabecera del chat */
+				.chat-header {
+					background: linear-gradient(145deg, #0084ff, #0062cc);
+					color: white;
+					padding: 16px;
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+					border-top-left-radius: 16px;
+					border-top-right-radius: 16px;
+				}
+				
+				.chat-header-title {
+					font-weight: 600;
+					font-size: 16px;
+					display: flex;
+					flex-direction: column;
+					align-items: flex-start;
+					gap: 4px;
+				}
+				
+				/* Se eliminó el indicador de status (punto verde) */
+				
+				.chat-header-subtitle {
+					font-size: 12px;
+					font-weight: 400;
+					opacity: 0.9;
+				}
+				
+				.chat-header-actions {
+					display: flex;
+					gap: 10px;
+				}
+				
+				.chat-close-btn {
+					background: transparent;
+					border: none;
+					color: white;
+					cursor: pointer;
+					width: 24px;
+					height: 24px;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					padding: 0;
+					opacity: 0.8;
+					transition: opacity 0.2s;
+				}
+				
+				.chat-close-btn:hover {
+					opacity: 1;
+				}
+				
+				.chat-close-btn::before {
+					content: '';
+					display: block;
+					width: 16px;
+					height: 16px;
+					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'%3E%3C/line%3E%3Cline x1='6' y1='6' x2='18' y2='18'%3E%3C/line%3E");
+					background-repeat: no-repeat;
+					background-position: center;
+				}
+				
+				/* Contenedor de mensajes */
+				.chat-messages { 
+					display: flex; 
+					flex-direction: column; 
+					flex: 1; 
+					overflow-y: auto; 
+					padding: 16px; 
+					background-color: #f7f9fc;
+					scroll-behavior: smooth;
+				}
+				
+				.chat-messages-bottom { 
+					margin-top: auto; 
+				}
+				
+				/* Estilos de los mensajes */
+				.chat-message-wrapper {
+					position: relative;
+					margin-bottom: 16px;
+					max-width: 85%;
+					display: flex;
+					flex-direction: column;
+				}
+				
+				.chat-message { 
+					padding: 12px 16px; 
+					border-radius: 18px; 
+					white-space: pre-wrap; 
+					word-break: break-word;
+					line-height: 1.5;
+					font-size: 14px;
+					position: relative;
+					box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+				}
+				
+				.chat-message-time {
+					font-size: 11px;
+					color: #8a9aa9;
+					margin-top: 4px;
+					opacity: 0.8;
+				}
+				
+				.chat-message-user-wrapper {
+					align-self: flex-end;
+				}
+				
+				.chat-message-user { 
+					background: linear-gradient(145deg, #0084ff, #0062cc);
+					color: #fff; 
+					border-bottom-right-radius: 4px;
+				}
+				
+				.chat-message-user + .chat-message-time {
+					text-align: right;
+				}
+				
+				.chat-message-other-wrapper {
+					align-self: flex-start;
+					display: flex;
+					gap: 8px;
+				}
+				
+				.chat-avatar {
+					width: 28px;
+					height: 28px;
+					border-radius: 50%;
+					background-color: #e1e9f1;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					flex-shrink: 0;
+				}
+				
+				.chat-avatar img {
+					width: 100%;
+					height: 100%;
+					border-radius: 50%;
+					object-fit: cover;
+				}
+				
+				.chat-message-other { 
+					background: #fff; 
+					color: #333;
+					border: 1px solid #e1e9f1;
+					border-bottom-left-radius: 4px;
+				}
+				
+				/* Contenedor de input */
+				.chat-input-container { 
+					display: flex; 
+					align-items: center; 
+					padding: 12px 16px; 
+					background: #fff; 
+					position: relative;
+					border-top: 1px solid #e1e9f1;
+				}
+				
+				.chat-input-field { 
+					flex: 1; 
+					padding: 10px 14px; 
+					border: 1px solid #e1e9f1; 
+					border-radius: 24px; 
+					font-size: 14px;
+					outline: none;
+					transition: border-color 0.2s;
+					font-family: 'Inter', sans-serif;
+				}
+				
+				.chat-input-field:focus {
+					border-color: #0084ff;
+				}
+				
+				.chat-send-btn {
+					width: 36px;
+					height: 36px;
+					border-radius: 50%;
+					background: linear-gradient(145deg, #0084ff, #0062cc);
+					color: white;
+					border: none;
+					cursor: pointer;
+					margin-left: 8px;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					transition: transform 0.2s;
+				}
+				
+				.chat-send-btn:hover {
+					transform: scale(1.05);
+				}
+				
+				.chat-send-btn::before {
+					content: '';
+					display: block;
+					width: 18px;
+					height: 18px;
+					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 2L11 13'%3E%3C/path%3E%3Cpath d='M22 2L15 22L11 13L2 9L22 2Z'%3E%3C/path%3E%3C/svg%3E");
+					background-repeat: no-repeat;
+					background-position: center;
+				}
+				
+				/* Animaciones de entrada */
+				@keyframes slideInUp {
+					from { transform: translateY(20px); opacity: 0; }
+					to { transform: translateY(0); opacity: 1; }
+				}
+				
+				.chat-widget-fixed {
+					animation: slideInUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+					}
+					
+				/* Indicador de escritura */
+				.chat-typing-indicator {
+					display: flex;
+					align-items: center;
+					margin-top: 8px;
+					margin-bottom: 16px;
+					max-width: 100px;
+					align-self: flex-start;
+				}
+				
+				.chat-typing-avatar {
+					width: 28px;
+					height: 28px;
+					border-radius: 50%;
+					background-color: #e1e9f1;
+					margin-right: 8px;
+					flex-shrink: 0;
+				}
+				
+				.chat-typing-bubble {
+					background-color: #f1f3f5;
+					padding: 10px 14px;
+					border-radius: 18px;
+					position: relative;
+					display: flex;
+					align-items: center;
+					border: 1px solid #e1e9f1;
+				}
+				
+				.chat-typing-dot {
+					width: 8px;
+					height: 8px;
+					background-color: #adb5bd;
+					border-radius: 50%;
+					margin: 0 2px;
+					animation: typingAnimation 1.2s infinite ease-in-out;
+				}
+				
+				.chat-typing-dot:nth-child(1) { animation-delay: 0s; }
+				.chat-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+				chat-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+				
+				@keyframes typingAnimation {
+					0%, 60%, 100% { transform: translateY(0); }
+					30% { transform: translateY(-4px); }
+					}
+					
+				/* Animaciones para los mensajes */
+				@keyframes fadeInRight {
+					from { transform: translateX(20px); opacity: 0; }
+					to { transform: translateX(0); opacity: 1; }
+				}
+				
+				@keyframes fadeInLeft {
+					from { transform: translateX(-20px); opacity: 0; }
+					to { transform: translateX(0); opacity: 1; }
+				}
+				
+				.chat-message-user-wrapper {
+					animation: fadeInRight 0.3s ease forwards;
+				}
+				
+				.chat-message-other-wrapper {
+					animation: fadeInLeft 0.3s ease forwards;
+					}
+					
+				/* Footer del chat */
+				.chat-footer {
+					padding: 8px 16px;
+					background-color: #f7f9fc;
+					border-top: 1px solid #e1e9f1;
+					font-size: 12px;
+					color: #8a9aa9;
+					text-align: center;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+				}
+				
+				.chat-footer-text {
+					opacity: 0.8;
+				}
+				
+				.chat-footer-text strong {
+					font-weight: 500;
+					color: #0084ff;
+				}
+				
+				/* Botones adicionales para el input */
+				.chat-input-actions {
+					display: flex;
+					align-items: center;
+					margin-right: 10px;
+				}
+				
+				.chat-attachment-btn {
+					width: 30px;
+					height: 30px;
+					background: transparent;
+					border: none;
+					cursor: pointer;
+					opacity: 0.6;
+					transition: opacity 0.2s;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+				}
+				
+				.chat-attachment-btn:hover {
+					opacity: 1;
+				}
+				
+				.chat-attachment-btn::before {
+					content: '';
+					display: block;
+					width: 18px;
+					height: 18px;
+					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'/%3E%3C/svg%3E");
+					background-repeat: no-repeat;
+					background-position: center;
+					}
+					
+				/* Indicador de satisfacción */
+				.chat-satisfaction {
+					margin-top: 16px;
+					padding: 12px 16px;
+					background-color: #fff;
+					border: 1px solid #e1e9f1;
+					border-radius: 12px;
+					font-size: 13px;
+					display: flex;
+					flex-direction: column;
+					gap: 10px;
+					align-self: flex-start;
+					box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+					max-width: 85%;
+				}
+				
+				.chat-satisfaction-question {
+					color: #5a6877;
+					font-weight: 500;
+				}
+				
+				.chat-satisfaction-options {
+					display: flex;
+					gap: 8px;
+				}
+				
+				.chat-satisfaction-option {
+					padding: 6px 12px;
+					background-color: #f1f3f5;
+					border: 1px solid #e1e9f1;
+					border-radius: 16px;
+					color: #5a6877;
+					font-size: 12px;
+					cursor: pointer;
+					transition: all 0.2s;
+				}
+				
+				.chat-satisfaction-option:hover {
+					background-color: #e7f3ff;
+					border-color: #0084ff;
+					color: #0084ff;
+				}
+				
+				/* Separador de fecha para mensajes */
+				.chat-date-separator {
+					text-align: center;
+					margin: 16px 0;
+					position: relative;
+					font-size: 12px;
+					color: #8a9aa9;
+				}
+				
+				.chat-date-separator::before {
+					content: '';
+					position: absolute;
+					top: 50%;
+					left: 0;
+					right: 0;
+					height: 1px;
+					background-color: #e1e9f1;
+					z-index: 1;
+				}
+				
+				.chat-date-text {
+					position: relative;
+					z-index: 2;
+					background-color: #f7f9fc;
+					padding: 0 10px;
+					display: inline-block;
+				}
 			`;
 			shadowRoot.appendChild(style);
 		} else {
@@ -128,12 +586,23 @@ export class ChatUI {
 		const div = document.createElement('div');
 		div.className = 'chat-messages-bottom';
 		this.containerMessages.appendChild(div);
+		
+		// Agregar footer con información
+		const footerEl = document.createElement('div');
+		footerEl.className = 'chat-footer';
+		
+		const footerText = document.createElement('div');
+		footerText.className = 'chat-footer-text';
+		footerText.innerHTML = 'Equipo de atención al cliente de <strong>Guiders</strong>';
+		footerEl.appendChild(footerText);
+		
+		this.container.appendChild(footerEl);
 
 		// Estilo general
 		this.container.style.display = 'flex';
 		this.container.style.flexDirection = 'column';
-		this.container.style.gap = '5px';
-
+		this.container.style.gap = '0'; // Cambio a 0 para evitar espacios entre secciones
+		
 		// --- Scroll infinito: detecta scroll top ---
 		this.containerMessages.addEventListener('scroll', () => {
 			// Si el usuario llegó al tope (scrollTop == 0) y tenemos index
@@ -146,12 +615,31 @@ export class ChatUI {
 		startChat().then((res) => {
 			console.log("Chat iniciado:", res);
 			this.setChatId(res.id);
+			
+			// Agregar un pequeño retraso antes de mostrar el mensaje de bienvenida
+			setTimeout(() => {
+				this.addWelcomeMessage();
+			}, 1000);
+			
 			this.loadInitialMessages(20);
 		}).catch((err) => {
 			console.error("Error iniciando chat:", err);
 		});
 	}
-
+	
+	/**
+	 * Agrega un mensaje de bienvenida al chat
+	 */
+	private addWelcomeMessage(): void {
+		// Mostrar indicador de escritura primero para simular que alguien está escribiendo
+		this.showTypingIndicator(2000);
+		
+		// Después mostrar el mensaje de bienvenida con un tono más humano
+		setTimeout(() => {
+			const welcomeText = "👋 ¡Hola! Soy un asesor del equipo de soporte. ¿En qué puedo ayudarte hoy?";
+			this.addMessage(welcomeText, 'other');
+		}, 2000);
+	}
 
 	/**
 	 * Establece el ID del chat actual.
@@ -184,6 +672,23 @@ export class ChatUI {
 	public renderChatMessage(params: { text: string; sender: Sender }): void {
 		const { text, sender } = params;
 		this.addMessage(text, sender);
+		
+		// Reconstruir los separadores de fecha después de añadir un mensaje
+		this.rebuildDateSeparators();
+		
+		// DESACTIVADO TEMPORALMENTE: Indicador de satisfacción del cliente
+		// Si es un mensaje del operador (no del usuario),
+		// ocasionalmente mostrar el indicador de satisfacción
+		/*
+		if (sender === 'other') {
+			// Mostrar el indicador con una probabilidad del 20%
+			if (Math.random() < 0.2) {
+				setTimeout(() => {
+					this.showSatisfactionIndicator();
+				}, 1000);
+			}
+		}
+		*/
 	}
 
 	/**
@@ -220,6 +725,9 @@ export class ChatUI {
 				const sender: Sender = (msg.senderId.includes(user)) ? 'user' : 'other';
 				this.renderChatMessage({ text: msg.content, sender });
 			}
+
+			// Reconstruir los separadores de fecha después de cargar mensajes
+			this.rebuildDateSeparators();
 
 			// Ajustar scroll al final (donde están los más nuevos)
 			this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
@@ -267,6 +775,9 @@ export class ChatUI {
 				this.prependMessage(msg.content, sender);
 			}
 
+			// Reconstruir los separadores de fecha después de cargar mensajes antiguos
+			this.rebuildDateSeparators();
+
 			// Restaurar la posición del scroll para que no se mueva de golpe
 			const newScrollHeight = this.containerMessages.scrollHeight;
 			this.containerMessages.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
@@ -281,10 +792,18 @@ export class ChatUI {
 	private addMessage(text: string, sender: Sender): void {
 		if (!this.container || !this.containerMessages) {
 			throw new Error('No se ha inicializado el chat');
+			}
+			
+			// Añadir separador de fecha si es necesario
+			this.addDateSeparatorIfNeeded(new Date());
+			
+			// Crear y añadir el mensaje
+			const messageDiv = this.createMessageDiv(text, sender);
+			this.containerMessages.appendChild(messageDiv);
+			
+			// Scroll al final
+			this.scrollToBottom(true);
 		}
-		const messageDiv = this.createMessageDiv(text, sender);
-		this.containerMessages.appendChild(messageDiv);
-	}
 
 	/**
 	 * Inserta un mensaje al principio de la lista (para mensajes antiguos)
@@ -307,43 +826,128 @@ export class ChatUI {
 	 * Crea un nodo <div> con estilos de mensaje y contenido
 	 */
 	private createMessageDiv(text: string, sender: Sender): HTMLDivElement {
-		const div = document.createElement('div');
-		div.classList.add('chat-message');
-
-		// Clases según remitente
+		// Contenedor principal del mensaje
+		const wrapperDiv = document.createElement('div');
+		wrapperDiv.classList.add('chat-message-wrapper');
+		
+		// Configuración según el remitente
 		if (sender === 'user') {
-			div.classList.add('chat-message-user');
+			// Mensaje del usuario (derecha)
+			wrapperDiv.classList.add('chat-message-user-wrapper');
+			
+			// Mensaje con texto
+			const messageDiv = document.createElement('div');
+			messageDiv.classList.add('chat-message', 'chat-message-user');
+			messageDiv.textContent = text;
+			wrapperDiv.appendChild(messageDiv);
+			
+			// Hora del mensaje
+			const timeDiv = document.createElement('div');
+			timeDiv.classList.add('chat-message-time');
+			timeDiv.textContent = this.formatTime(new Date());
+			wrapperDiv.appendChild(timeDiv);
+			
 		} else {
-			div.classList.add('chat-message-other');
+			// Mensaje del asesor (izquierda)
+			wrapperDiv.classList.add('chat-message-other-wrapper');
+			
+			// Avatar del asesor con iniciales
+			const avatarDiv = document.createElement('div');
+			avatarDiv.classList.add('chat-avatar');
+			
+			// Añadir iniciales del asesor (aquí podríamos usar datos reales)
+			const advisorInitials = 'AS'; // Por ejemplo, para "Ana Sánchez"
+			avatarDiv.textContent = advisorInitials;
+			avatarDiv.style.display = 'flex';
+			avatarDiv.style.alignItems = 'center';
+			avatarDiv.style.justifyContent = 'center';
+			avatarDiv.style.color = '#0062cc';
+			avatarDiv.style.fontWeight = '600';
+			avatarDiv.style.fontSize = '10px';
+			
+			wrapperDiv.appendChild(avatarDiv);
+			
+			// Contenedor para mensaje y tiempo
+			const contentDiv = document.createElement('div');
+			
+			// Añadir nombre del asesor (opcional)
+			const nameDiv = document.createElement('div');
+			nameDiv.classList.add('chat-message-name');
+			nameDiv.textContent = 'Asesor';
+			nameDiv.style.fontSize = '11px';
+			nameDiv.style.color = '#5a6877';
+			nameDiv.style.marginBottom = '3px';
+			nameDiv.style.fontWeight = '500';
+			contentDiv.appendChild(nameDiv);
+			
+			// Mensaje con texto
+			const messageDiv = document.createElement('div');
+			messageDiv.classList.add('chat-message', 'chat-message-other');
+			messageDiv.textContent = text;
+			contentDiv.appendChild(messageDiv);
+			
+			// Hora del mensaje
+			const timeDiv = document.createElement('div');
+			timeDiv.classList.add('chat-message-time');
+			timeDiv.textContent = this.formatTime(new Date());
+			contentDiv.appendChild(timeDiv);
+			
+			wrapperDiv.appendChild(contentDiv);
 		}
-
-		// Texto
-		div.textContent = text;
-
-		return div;
+		
+		return wrapperDiv;
+	}
+	
+	/**
+	 * Formatea la hora para mostrarla en los mensajes
+	 */
+	private formatTime(date: Date): string {
+		const hours = date.getHours().toString().padStart(2, '0');
+		const minutes = date.getMinutes().toString().padStart(2, '0');
+		return `${hours}:${minutes}`;
 	}
 
 	public hide(): void {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
-		}
-		this.container.style.display = 'none';
-		// Limpia todos los intervalos activos
-		this.activeIntervals.forEach(intervalObj => {
-			if (intervalObj.id !== null) {
-				clearInterval(intervalObj.id);
-				intervalObj.id = null;
 			}
-		});
-		this.closeCallbacks.forEach(cb => cb());
-	}
+			
+			// Añadir animación de salida
+			this.container.style.transform = 'translateY(20px)';
+			this.container.style.opacity = '0';
+			
+			// Ocultar después de que termine la animación
+			setTimeout(() => {
+				this.container!.style.display = 'none';
+				
+				// Limpia todos los intervalos activos
+				this.activeIntervals.forEach(intervalObj => {
+					if (intervalObj.id !== null) {
+						clearInterval(intervalObj.id);
+						intervalObj.id = null;
+					}
+				});
+				this.closeCallbacks.forEach(cb => cb());
+			}, 300);
+		}
 
 	public show(): void {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
 		}
+		
+		// Primero mostrar el contenedor (pero transparente)
 		this.container.style.display = 'flex';
+		
+		// Forzar un reflow para que la animación funcione
+		this.container.offsetHeight;
+		
+		// Animar entrada
+		this.container.style.opacity = '1';
+		this.container.style.transform = 'translateY(0)';
+		
 		this.scrollToBottom(true);
+		
 		// Inicia todos los intervalos configurados
 		this.activeIntervals.forEach(intervalObj => {
 			if (intervalObj.id === null) {
@@ -394,6 +998,237 @@ export class ChatUI {
 	 */
 	public onActiveInterval(callback: () => void, intervalMs: number = 5000): void {
 		this.activeIntervals.push({ id: null, callback, intervalMs });
+	}
+
+	/**
+	 * Muestra un indicador de "escribiendo..." durante unos segundos
+	 * @param durationMs Duración en milisegundos
+	 */
+	public showTypingIndicator(durationMs: number = 2000): void {
+		if (!this.containerMessages) return;
+		
+		// Eliminar cualquier indicador existente
+		this.hideTypingIndicator();
+		
+		// Crear el indicador de escritura
+		const indicator = document.createElement('div');
+		indicator.className = 'chat-typing-indicator';
+		
+		// Avatar con iniciales para humanizar (podría ser dinámico con el nombre del asesor real)
+		const avatar = document.createElement('div');
+		avatar.className = 'chat-typing-avatar';
+		avatar.textContent = 'AS'; // Iniciales de "Asesor"
+		avatar.style.display = 'flex';
+		avatar.style.alignItems = 'center';
+		avatar.style.justifyContent = 'center';
+		avatar.style.color = '#0062cc';
+		avatar.style.fontWeight = '600';
+		avatar.style.fontSize = '10px';
+		indicator.appendChild(avatar);
+		
+		// Burbuja con puntos
+		const bubble = document.createElement('div');
+		bubble.className = 'chat-typing-bubble';
+		
+		// Puntos animados
+		for (let i = 0; i < 3; i++) {
+			const dot = document.createElement('div');
+			dot.className = 'chat-typing-dot';
+			bubble.appendChild(dot);
+		}
+		
+		indicator.appendChild(bubble);
+		
+		// Agregar al contenedor
+		this.containerMessages.appendChild(indicator);
+		this.typingIndicator = indicator;
+		
+		// Scroll para ver el indicador
+		this.scrollToBottom(true);
+		
+		// Eliminar después de la duración especificada
+		setTimeout(() => {
+			this.hideTypingIndicator();
+		}, durationMs);
+	}
+	
+	/**
+	 * Oculta el indicador de escritura
+	 */
+	public hideTypingIndicator(): void {
+		if (this.typingIndicator && this.typingIndicator.parentNode) {
+			this.typingIndicator.parentNode.removeChild(this.typingIndicator);
+			this.typingIndicator = null;
+		}
+	}
+
+	/**
+	 * Muestra un indicador de satisfacción del cliente
+	 */
+	public showSatisfactionIndicator(): void {
+		if (!this.containerMessages) return;
+		
+		// Crear contenedor principal
+		const container = document.createElement('div');
+		container.className = 'chat-satisfaction';
+		
+		// Pregunta
+		const question = document.createElement('div');
+		question.className = 'chat-satisfaction-question';
+		question.textContent = '¿Te ha sido útil la ayuda del asesor?';
+		container.appendChild(question);
+		
+		// Opciones
+		const options = document.createElement('div');
+		options.className = 'chat-satisfaction-options';
+		
+		// Opciones: Sí, No
+		const optionYes = document.createElement('div');
+		optionYes.className = 'chat-satisfaction-option';
+		optionYes.textContent = 'Sí, gracias';
+		optionYes.addEventListener('click', () => {
+			container.innerHTML = '<div class="chat-satisfaction-question">¡Gracias por tu feedback! Nos alegra haber podido ayudarte.</div>';
+			setTimeout(() => {
+				if (container.parentNode) {
+					container.parentNode.removeChild(container);
+				}
+			}, 2000);
+		});
+		
+		const optionNo = document.createElement('div');
+		optionNo.className = 'chat-satisfaction-option';
+		optionNo.textContent = 'No';
+		optionNo.addEventListener('click', () => {
+			container.innerHTML = '<div class="chat-satisfaction-question">Lamentamos no haber podido resolver tu consulta. Transmitiremos tu feedback al equipo.</div>';
+			setTimeout(() => {
+				if (container.parentNode) {
+					container.parentNode.removeChild(container);
+				}
+			}, 2000);
+		});
+		
+		options.appendChild(optionYes);
+		options.appendChild(optionNo);
+		container.appendChild(options);
+		
+		// Agregar al contenedor
+		this.containerMessages.appendChild(container);
+		this.scrollToBottom(true);
+	}
+
+	/**
+	 * Agrega un separador de fecha si es necesario
+	 * @param date Fecha a evaluar
+	 */
+	private addDateSeparatorIfNeeded(date: Date): void {
+		if (!this.containerMessages) return;
+		
+		const dateStr = this.formatDate(date);
+		
+		// Si es el primer mensaje o la fecha es diferente a la última, añadir separador
+		if (!this.lastMessageDate || this.lastMessageDate !== dateStr) {
+			const separator = document.createElement('div');
+			separator.className = 'chat-date-separator';
+			separator.setAttribute('data-date', dateStr);
+			
+			const dateText = document.createElement('span');
+			dateText.className = 'chat-date-text';
+			dateText.textContent = dateStr;
+			
+			separator.appendChild(dateText);
+			this.containerMessages.appendChild(separator);
+			
+			// Actualizar la última fecha
+			this.lastMessageDate = dateStr;
+		}
+	}
+	
+	/**
+	 * Formatea la fecha para el separador
+	 */
+	private formatDate(date: Date): string {
+		const today = new Date();
+		const yesterday = new Date();
+		yesterday.setDate(yesterday.getDate() - 1);
+		
+		const isToday = date.toDateString() === today.toDateString();
+		const isYesterday = date.toDateString() === yesterday.toDateString();
+		
+		if (isToday) {
+			return 'Hoy';
+		} else if (isYesterday) {
+			return 'Ayer';
+		} else {
+			const options: Intl.DateTimeFormatOptions = { 
+				day: 'numeric', 
+				month: 'long', 
+				year: 'numeric' 
+			};
+			return date.toLocaleDateString('es-ES', options);
+		}
+	}
+	
+	/**
+	 * Reconstruye todos los separadores de fecha en el chat
+	 * Esta función debería llamarse después de cargar mensajes o cuando
+	 * se realizan cambios importantes en la estructura del chat
+	 */
+	private rebuildDateSeparators(): void {
+		if (!this.containerMessages) return;
+		
+		// Resetear el estado de la última fecha
+		this.lastMessageDate = null;
+		
+		// Eliminar todos los separadores existentes
+		const existingSeparators = this.containerMessages.querySelectorAll('.chat-date-separator');
+		existingSeparators.forEach(sep => sep.parentNode?.removeChild(sep));
+		
+		// Ordenar los mensajes por fecha
+		const messageWrappers = Array.from(this.containerMessages.querySelectorAll('.chat-message-wrapper'));
+		
+		// Si no hay mensajes, no hay nada que hacer
+		if (messageWrappers.length === 0) return;
+		
+		// Para cada día, crear un separador antes del primer mensaje de ese día
+		let currentDateStr: string | null = null;
+		let insertPoint: HTMLElement | null = null;
+		
+		messageWrappers.forEach((wrapper) => {
+			// Intentar obtener la fecha del mensaje de su atributo o timestamp
+			const messageTime = wrapper.querySelector('.chat-message-time');
+			if (!messageTime) return;
+			
+			// Para simplificar, usamos la fecha actual (en una implementación real,
+			// deberías extraer la fecha real del mensaje)
+			const messageDate = new Date();
+			const messageDateStr = this.formatDate(messageDate);
+			
+			// Si es un nuevo día, insertar un separador
+			if (messageDateStr !== currentDateStr) {
+				currentDateStr = messageDateStr;
+				
+				// Crear nuevo separador
+				const separator = document.createElement('div');
+				separator.className = 'chat-date-separator';
+				separator.setAttribute('data-date', messageDateStr);
+				
+				const dateText = document.createElement('span');
+				dateText.className = 'chat-date-text';
+				dateText.textContent = messageDateStr;
+				
+				separator.appendChild(dateText);
+				
+				// Insertar el separador antes del mensaje actual
+				if (this.containerMessages) {
+					this.containerMessages.insertBefore(separator, wrapper);
+				}
+			}
+		});
+		
+		// Actualizar la última fecha conocida
+		if (currentDateStr) {
+			this.lastMessageDate = currentDateStr;
+		}
 	}
 }
 
