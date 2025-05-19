@@ -93,15 +93,16 @@ export class WebSocketClient {
 	/**
 	 * Envía un mensaje por WebSocket.
 	 * @param event Evento a enviar.
+	 * @returns Promise<Response<any>>
 	 */
-	public sendMessage(event: Record<string, any>): Promise<WebSocketResponse> {
+	public sendMessage(event: Record<string, any>): Promise<any> {
 		return new Promise((resolve, reject) => {
 			if (!this.socket || !this.socket.connected) {
 				console.warn("⚠️ WebSocket no está conectado, mensaje no enviado");
 				return reject("WebSocket no conectado");
 			}
 			const { type } = event;
-			this.socket.emit(type || "event", event, (ack: WebSocketResponse) => {
+			this.socket.emit(type || "event", event, (ack: any) => {
 				console.log("📩 Mensaje recibido por el servidor:", ack);
 				resolve(ack);
 			});
