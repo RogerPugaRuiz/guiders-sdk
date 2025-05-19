@@ -131,7 +131,13 @@ export class WebSocketClient {
 	 * @returns void
 	 */
 	public onChatMessage(listener: (message: Record<string, any>) => void): void {
-		this.addListener("receive-message", listener);
+		console.log("Agregando listener para mensajes del chat");
+		this.addListener("receive-message", (message) => {
+			console.log("WebSocket: Mensaje del chat recibido", message);
+			
+			// Ejecutar el listener original
+			listener(message);
+		});
 	}
 
 

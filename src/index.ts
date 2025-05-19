@@ -2,11 +2,13 @@
 
 import { TokenManager } from "./core/token-manager";
 import { TrackingPixelSDK } from "./core/tracking-pixel-SDK";
+import { UnreadMessagesService } from "./services/unread-messages-service";
 
 export * from "./core/tracking-pixel-SDK";
 export * from "./core/token-manager";
 export * from "./pipeline/pipeline-stage";
 export * from "./pipeline/stages/token-stage";
+export * from "./services/unread-messages-service";
 export * from "./types";
 // Se pueden exportar más etapas o servicios según se vayan implementando.
 
@@ -26,14 +28,20 @@ if (typeof window !== "undefined") {
 		window.TrackingPixelSDK = TrackingPixelSDK;
 		window.guiders = new window.TrackingPixelSDK({
 			// endpoint: "https://guiders.ancoradual.com/api",
-			endpoint: "https://guiders.ancoradual.com/api",
-			webSocketEndpoint: "wss://guiders.ancoradual.com",
+			// webSocketEndpoint: "wss://guiders.ancoradual.com",
 			apiKey,
 			autoFlush: true,
 			flushInterval: 1000, // 1 second
 			maxRetries: 2,
 		});
 		(async () => {
+			// Inicializar el servicio de mensajes no leídos
+			const unreadService = UnreadMessagesService.getInstance();
+			console.log("Servicio de mensajes no leídos inicializado");
+			
+			// Forzar una actualización inicial del contador para que se muestre correctamente
+			unreadService.forceUpdate();
+			
 			await window.guiders.init();
 			window.guiders.enableDOMTracking();
 		})();

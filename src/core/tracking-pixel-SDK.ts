@@ -15,6 +15,7 @@ import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
 import { v4 as uuidv4 } from "uuid";
 import { DomTrackingManager } from "./dom-tracking-manager";
+import { UnreadMessagesService } from "../services/unread-messages-service";
 
 
 interface SDKOptions {
@@ -170,12 +171,30 @@ export class TrackingPixelSDK {
 					timestamp: new Date().getTime(),
 					chatId: chat.getChatId(),
 				});
+				
+				// Marcar chat como activo en el servicio de mensajes no leídos
+				try {
+					const unreadService = UnreadMessagesService.getInstance();
+					console.log("Chat abierto: Marcando chat como activo");
+					unreadService.setActive(true);
+				} catch (error) {
+					console.error("Error al marcar chat como activo:", error);
+				}
 			});
 			chat.onClose(() => {
 				this.captureEvent("visitor:close-chat", {
 					timestamp: new Date().getTime(),
 					chatId: chat.getChatId(),
 				});
+				
+				// Marcar chat como inactivo en el servicio de mensajes no leídos
+				try {
+					const unreadService = UnreadMessagesService.getInstance();
+					console.log("Chat cerrado: Marcando chat como inactivo");
+					unreadService.setActive(false);
+				} catch (error) {
+					console.error("Error al marcar chat como inactivo:", error);
+				}
 			});
 		
 			chat.onActiveInterval(() => {
@@ -346,6 +365,38 @@ export class TrackingPixelSDK {
 
 	private dispatchMessage(message: PixelEvent): void {
 		const listeners = this.listeners.get(message.type);
+		
+		// Incrementar contador de mensajes no leídos si es un mensaje de chat
+		// Esta es la ubicación centralizada para incrementar el contador
+		if (message.type === "receive-message") {
+			try {
+				const unreadService = UnreadMessagesService.getInstance();
+				if (!unreadService.isChatActive()) {
+					console.log("TrackingPixelSDK: Incrementando contador de mensajes no leídos");
+					unreadService.incrementUnreadCount();
+					
+					// Intentar notificar visualmente al usuario que hay un nuevo mensaje
+					try {
+						// Intenta hacer parpadear el badge si existe en el DOM
+						const badgeElement = document.getElementById('chat-unread-badge');
+						if (badgeElement) {
+							badgeElement.style.animation = 'none';
+							setTimeout(() => {
+								badgeElement.style.animation = 'pulse 0.5s 2';
+							}, 10);
+						}
+					} catch (animError) {
+						console.error("Error al animar badge:", animError);
+					}
+				} else {
+					console.log("TrackingPixelSDK: Chat activo, no se incrementa contador");
+				}
+			} catch (error) {
+				console.error("Error al incrementar contador de mensajes no leídos:", error);
+			}
+		}
+
+		// Si no hay listeners, no continuamos
 		if (!listeners || listeners.size === 0) return;
 
 		listeners.forEach((listener) => {
