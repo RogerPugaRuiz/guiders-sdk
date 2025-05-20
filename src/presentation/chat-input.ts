@@ -78,6 +78,7 @@ export class ChatInputUI {
 		const sendButton = document.createElement('button');
 		sendButton.className = 'chat-send-btn';
 		sendButton.setAttribute('aria-label', 'Enviar mensaje');
+		sendButton.type = 'button';
 		sendButton.addEventListener('click', () => this.handleSendMessage());
 
 		// Agregar elementos al contenedor

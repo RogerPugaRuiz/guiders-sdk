@@ -316,7 +316,7 @@ export class ChatUI {
 				}
 				
 				.chat-input-field { 
-					flex: 1; 
+					flex-shrink: 1;
 					padding: 10px 14px; 
 					border: 1px solid #e1e9f1; 
 					border-radius: 24px; 
@@ -331,6 +331,7 @@ export class ChatUI {
 				}
 				
 				.chat-send-btn {
+					flex-shrink: 0;
 					width: 36px;
 					height: 36px;
 					border-radius: 50%;
@@ -343,6 +344,9 @@ export class ChatUI {
 					align-items: center;
 					justify-content: center;
 					transition: transform 0.2s;
+					box-sizing: border-box;
+					overflow: visible;
+					padding: 0;
 				}
 				
 				.chat-send-btn:hover {
@@ -352,11 +356,13 @@ export class ChatUI {
 				.chat-send-btn::before {
 					content: '';
 					display: block;
-					width: 18px;
-					height: 18px;
-					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 2L11 13'%3E%3C/path%3E%3Cpath d='M22 2L15 22L11 13L2 9L22 2Z'%3E%3C/path%3E%3C/svg%3E");
+					width: 24px;
+					height: 24px;
+					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-send-icon lucide-send'%3E%3Cpath d='M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z'/%3E%3Cpath d='m21.854 2.147-10.94 10.939'/%3E%3C/svg%3E");
 					background-repeat: no-repeat;
 					background-position: center;
+					background-size: 24px 24px;
+					margin: auto;
 				}
 				
 				/* Animaciones de entrada */
@@ -465,6 +471,7 @@ export class ChatUI {
 				}
 				
 				.chat-attachment-btn {
+					flex-shrink: 0;
 					width: 30px;
 					height: 30px;
 					background: transparent;
@@ -608,8 +615,9 @@ export class ChatUI {
 				}
 				
 				.chat-input-field { 
-					flex: 1; 
-					padding: 10px 14px; 
+					flex-shrink: 0;
+					width: calc(100% - 120px); /* Ajustar el ancho para el botón de enviar */
+					padding: 10px 14px;
 					border: 1px solid #e1e9f1; 
 					border-radius: 24px; 
 					font-size: 14px;
@@ -623,8 +631,9 @@ export class ChatUI {
 				}
 				
 				.chat-send-btn {
-					width: 36px;
-					height: 36px;
+					flex-shrink: 0;
+					width: 40px;
+					height: 40px;
 					border-radius: 50%;
 					background: linear-gradient(145deg, #0084ff, #0062cc);
 					color: white;
@@ -635,6 +644,9 @@ export class ChatUI {
 					align-items: center;
 					justify-content: center;
 					transition: transform 0.2s;
+					box-sizing: border-box;
+					overflow: visible;
+					padding: 0;
 				}
 				
 				.chat-send-btn:hover {
@@ -644,11 +656,13 @@ export class ChatUI {
 				.chat-send-btn::before {
 					content: '';
 					display: block;
-					width: 18px;
-					height: 18px;
-					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 2L11 13'%3E%3C/path%3E%3Cpath d='M22 2L15 22L11 13L2 9L22 2Z'%3E%3C/path%3E%3C/svg%3E");
+					width: 24px;
+					height: 24px;
+					margin: auto;
+					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-send-icon lucide-send'%3E%3Cpath d='M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z'/%3E%3Cpath d='m21.854 2.147-10.94 10.939'/%3E%3C/svg%3E");
 					background-repeat: no-repeat;
 					background-position: center;
+					background-size: 24px 24px;
 				}
 				
 				/* Animaciones de entrada */
@@ -753,7 +767,6 @@ export class ChatUI {
 				.chat-input-actions {
 					display: flex;
 					align-items: center;
-					margin-right: 10px;
 				}
 				
 				.chat-attachment-btn {

@@ -2,9 +2,11 @@ const path = require('path');
 const {
 	BundleAnalyzerPlugin
 } = require("webpack-bundle-analyzer");
+const Dotenv = require('dotenv-webpack');
 
 module.exports = {
 	plugins: [
+		new Dotenv(),
 	],
 	entry: './src/index.ts', // Archivo principal del SDK
 	output: {

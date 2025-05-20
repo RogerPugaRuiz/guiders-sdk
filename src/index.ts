@@ -26,14 +26,25 @@ if (typeof window !== "undefined") {
 		const { apiKey } = getParams();
 		window.GUIDERS_API_KEY = apiKey;
 		window.TrackingPixelSDK = TrackingPixelSDK;
-		window.guiders = new window.TrackingPixelSDK({
-			// endpoint: "https://guiders.ancoradual.com/api",
-			// webSocketEndpoint: "wss://guiders.ancoradual.com",
+
+		// Detectar entorno por variable de entorno NODE_ENV
+		console.log("Entorno de desarrollo:", process.env.NODE_ENV);
+		const endpoint = (typeof process !== 'undefined' && process.env && process.env.API_URL) ? process.env.API_URL : "http://localhost:3000";
+		const webSocketEndpoint = (typeof process !== 'undefined' && process.env && process.env.WS_URL) ? process.env.WS_URL : "ws://localhost:3000";
+		const isDev = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development');
+
+		const sdkOptions: any = {
 			apiKey,
 			autoFlush: true,
 			flushInterval: 1000, // 1 second
 			maxRetries: 2,
-		});
+		};
+		if (!isDev) {
+			sdkOptions.endpoint = endpoint;
+			sdkOptions.webSocketEndpoint = webSocketEndpoint;
+		}
+		window.guiders = new window.TrackingPixelSDK(sdkOptions);
+
 		(async () => {
 			// Inicializar el servicio de mensajes no leídos
 			const unreadService = UnreadMessagesService.getInstance();
