@@ -25,7 +25,11 @@ export async function startChat(): Promise<any> {
 				validChatId = chatId;
 				chatsToKeep.push(chatId);
 				break;
+			} else if (response.status !== 404) {
+				// Si es otro error diferente a 404, solo lo logueamos
+				console.warn(`Error al recuperar chat ${chatId}: status ${response.status}`);
 			}
+			// Si es 404, no lo agregamos a chatsToKeep (lo eliminamos de la lista)
 		} catch (error) {
 			console.warn('Error al recuperar chat existente:', error);
 		}
