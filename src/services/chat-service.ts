@@ -1,42 +1,65 @@
 import { v4 as uuidv4 } from 'uuid';
-import { WebSocketClient } from './websocket-service';
 import { EndpointManager } from '../core/tracking-pixel-SDK';
 
 const chats: string[] = JSON.parse(localStorage.getItem('chats') || '[]');
 
 export async function startChat(): Promise<any> {
-	const uuid = uuidv4();
 	const accessToken = localStorage.getItem('accessToken');
+	const endpoints = EndpointManager.getInstance();
+	const baseEndpoint = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
 
-	if (chats.length > 0) {
-		return {
-			id: chats[0],
+	let validChatId: string | null = null;
+	let chatsToKeep: string[] = [];
+
+	// Buscar el primer chat válido en la lista
+	for (const chatId of chats) {
+		try {
+			const response = await fetch(`${baseEndpoint}/chat/${chatId}`, {
+				method: 'GET',
+				headers: {
+					'Authorization': `Bearer ${accessToken || ''}`,
+					'Content-Type': 'application/json'
+				}
+			});
+			if (response.ok) {
+				validChatId = chatId;
+				chatsToKeep.push(chatId);
+				break;
+			}
+		} catch (error) {
+			console.warn('Error al recuperar chat existente:', error);
 		}
 	}
 
+	if (validChatId) {
+		localStorage.setItem('chats', JSON.stringify(chatsToKeep));
+		console.log('Chat existente recuperado');
+		return { id: validChatId };
+	}
+
+	// Si no hay chats válidos, crear uno nuevo
 	try {
-		const endpoints = EndpointManager.getInstance();
-		const webSocketClient = WebSocketClient.getInstance(endpoints.getWebSocketEndpoint());
-		const response = await webSocketClient.sendMessage({
-			type: 'visitor:start-chat',
-			data: {
-				chatId: uuid,
-			},
-		})
+		const uuid = uuidv4();
+		const response = await fetch(`${baseEndpoint}/chat/${uuid}`, {
+			method: 'POST',
+			headers: {
+				'Authorization': `Bearer ${accessToken || ''}`,
+				'Content-Type': 'application/json'
+			}
+		});
 
-		if ('error' in response) {
-			throw new Error('Network response was not ok');
+		if (!response.ok) {
+			throw new Error(`Error al crear chat (${response.status})`);
 		}
-		console.log('Chat started:', response);
 
-		chats.push(uuid);
-		localStorage.setItem('chats', JSON.stringify(chats));
+		console.log('Chat creado:', uuid);
 
-		return {
-			id: uuid,
-		}
+		chatsToKeep = [uuid];
+		localStorage.setItem('chats', JSON.stringify(chatsToKeep));
+
+		return { id: uuid };
 	} catch (error) {
-		console.error('There was a problem with the fetch operation:', error);
+		console.error('Error al iniciar el chat:', error);
 		throw error;
 	}
 }

@@ -29,7 +29,8 @@ if (typeof window !== "undefined") {
 
 		// Detectar entorno por variable de entorno NODE_ENV
 		console.log("Entorno de desarrollo:", process.env.NODE_ENV);
-		const isDev = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development');
+		const isDev = process.env.NODE_ENV === 'development';
+		console.log("Entorno de desarrollo:", isDev);
 		const endpoint = isDev ? "http://localhost:3000" : "https://guiders.ancoradual.com/api";
 		const webSocketEndpoint = isDev ? "ws://localhost:3000" : "wss://guiders.ancoradual.com";
 
