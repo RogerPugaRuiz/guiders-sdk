@@ -101,12 +101,12 @@ export class ChatUI {
 			titleEl.className = 'chat-header-title';
 			
 			// Mostrar título simplificado sin indicador de estado
-			titleEl.textContent = 'Soporte Técnico';
+			titleEl.textContent = 'Chat';
 			
 			// Añadir subtítulo con nombre del asesor
 			const subtitleEl = document.createElement('div');
 			subtitleEl.className = 'chat-header-subtitle';
-			subtitleEl.textContent = 'Atendido por asesores disponibles';
+			subtitleEl.textContent = 'Atención personalizada';
 			titleEl.appendChild(subtitleEl);
 			
 			headerEl.appendChild(titleEl);
@@ -940,7 +940,7 @@ export class ChatUI {
 			
 			// Después mostrar el mensaje de bienvenida con un tono más humano
 			setTimeout(() => {
-				const welcomeText = "👋 ¡Hola! Soy un asesor del equipo de soporte. ¿En qué puedo ayudarte hoy?";
+				const welcomeText = "👋 ¡Hola! Soy una persona real de nuestro equipo y estoy aquí para ayudarte. Cuéntame, ¿qué necesitas? No dudes en escribir cualquier pregunta o problema que tengas 😊";
 				this.addMessage(welcomeText, 'other');
 			}, 1000); // Ajusta el delay si es necesario o elimínalo.
 		}
@@ -1185,7 +1185,7 @@ export class ChatUI {
 			avatarDiv.classList.add('chat-avatar');
 			
 			// Añadir iniciales del asesor (aquí podríamos usar datos reales)
-			const advisorInitials = 'AS'; // Por ejemplo, para "Ana Sánchez"
+			const advisorInitials = 'AH'; // Iniciales de "Asesor Humano"
 			avatarDiv.textContent = advisorInitials;
 			avatarDiv.style.display = 'flex';
 			avatarDiv.style.alignItems = 'center';
@@ -1202,7 +1202,7 @@ export class ChatUI {
 			// Añadir nombre del asesor (opcional)
 			const nameDiv = document.createElement('div');
 			nameDiv.classList.add('chat-message-name');
-			nameDiv.textContent = 'Asesor';
+			nameDiv.textContent = 'Asesor Humano';
 			nameDiv.style.fontSize = '11px';
 			nameDiv.style.color = '#5a6877';
 			nameDiv.style.marginBottom = '3px';
@@ -1346,7 +1346,7 @@ export class ChatUI {
 		// Avatar con iniciales para humanizar (podría ser dinámico con el nombre del asesor real)
 		const avatar = document.createElement('div');
 		avatar.className = 'chat-typing-avatar';
-		avatar.textContent = 'AS'; // Iniciales de "Asesor"
+		avatar.textContent = 'AH'; // Iniciales de "Asesor Humano"
 		avatar.style.display = 'flex';
 		avatar.style.alignItems = 'center';
 		avatar.style.justifyContent = 'center';
@@ -1410,7 +1410,7 @@ export class ChatUI {
 		// Pregunta
 		const question = document.createElement('div');
 		question.className = 'chat-satisfaction-question';
-		question.textContent = '¿Te ha sido útil la ayuda del asesor?';
+		question.textContent = '¿Te ha sido útil la ayuda de nuestro asesor humano?';
 		container.appendChild(question);
 		
 		// Opciones

@@ -123,10 +123,24 @@ export class TrackingPixelSDK {
 		this.fingerprint = localStorage.getItem("fingerprint") || client.getFingerprint().toString();
 		localStorage.setItem("fingerprint", this.fingerprint);
 
-		if (!TokenManager.loadTokensFromStorage()) {
-			console.log("No se encontraron tokens en el almacenamiento local.");
+		// Primero intentamos cargar los tokens por si existen
+		TokenManager.loadTokensFromStorage();
+		
+		// Siempre registramos el cliente para obtener tokens nuevos
+		// Esto asegura que si la cuenta fue borrada en el backend, obtendremos nuevos tokens
+		console.log("Registrando cliente para asegurar tokens válidos...");
+		try {
 			const tokens = await ensureTokens(this.fingerprint, this.apiKey);
 			TokenManager.setTokens(tokens);
+			console.log("Cliente registrado exitosamente.");
+		} catch (error) {
+			console.error("Error al registrar cliente:", error);
+			// Si hay error y no tenemos tokens, no podremos continuar
+			if (!TokenManager.hasValidTokens()) {
+				throw new Error("No se pudo registrar el cliente y no hay tokens válidos.");
+			}
+			// Si hay tokens existentes, continuamos con ellos y esperamos que sean válidos
+			console.warn("Continuando con tokens existentes...");
 		}
 
 		const token = await TokenManager.getValidAccessToken();

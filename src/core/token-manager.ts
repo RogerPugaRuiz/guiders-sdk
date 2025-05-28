@@ -133,6 +133,14 @@ export class TokenManager {
 		}
 	}
 
+	/**
+	 * Verifica si hay tokens válidos en la memoria.
+	 * @returns true si existen access_token y refresh_token, false en caso contrario.
+	 */
+	public static hasValidTokens(): boolean {
+		return !!this.accessToken && !!this.refreshToken;
+	}
+
 
 	/**
 	 * Adjunta el token a un evento de seguimiento.
