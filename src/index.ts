@@ -3,9 +3,11 @@
 import { TokenManager } from "./core/token-manager";
 import { TrackingPixelSDK } from "./core/tracking-pixel-SDK";
 import { UnreadMessagesService } from "./services/unread-messages-service";
+import { BotDetector } from "./core/bot-detector";
 
 export * from "./core/tracking-pixel-SDK";
 export * from "./core/token-manager";
+export * from "./core/bot-detector";
 export * from "./pipeline/pipeline-stage";
 export * from "./pipeline/stages/token-stage";
 export * from "./services/unread-messages-service";
@@ -44,19 +46,31 @@ if (typeof window !== "undefined") {
 			sdkOptions.endpoint = endpoint;
 			sdkOptions.webSocketEndpoint = webSocketEndpoint;
 		}
-		window.guiders = new window.TrackingPixelSDK(sdkOptions);
 
-		(async () => {
-			// Inicializar el servicio de mensajes no leídos
-			const unreadService = UnreadMessagesService.getInstance();
-			console.log("Servicio de mensajes no leídos inicializado");
+		// Detectar bots antes de inicializar el SDK
+		const detector = new BotDetector();
+		detector.detect().then(result => {
+			if (result.isBot) {
+				console.log("Bot detectado. Probabilidad:", result.probability);
+				console.log("Detalles:", result.details);
+				return; // No inicializar el SDK
+			}
+
+			// Solo inicializar el SDK para usuarios legítimos
+			window.guiders = new window.TrackingPixelSDK(sdkOptions);
 			
-			// Forzar una actualización inicial del contador para que se muestre correctamente
-			unreadService.forceUpdate();
-			
-			await window.guiders.init();
-			window.guiders.enableDOMTracking();
-		})();
+			(async () => {
+				// Inicializar el servicio de mensajes no leídos
+				const unreadService = UnreadMessagesService.getInstance();
+				console.log("Servicio de mensajes no leídos inicializado");
+				
+				// Forzar una actualización inicial del contador para que se muestre correctamente
+				unreadService.forceUpdate();
+				
+				await window.guiders.init();
+				window.guiders.enableDOMTracking();
+			})();
+		});
 	} catch (error) {
 		console.error(error);
 	}
