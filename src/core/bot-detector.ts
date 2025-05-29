@@ -82,7 +82,7 @@ export class BotDetector {
             setTimeout(() => {
                 this.addCheck('behavior', !hasInteraction, hasInteraction ? 0 : 1);
                 resolve();
-            }, 5000);
+            }, 1000); // Reducido de 5000ms a 1000ms para mejorar el tiempo de carga
         });
     }
     

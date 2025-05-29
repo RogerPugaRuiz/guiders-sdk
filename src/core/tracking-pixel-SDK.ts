@@ -115,16 +115,22 @@ export class TrackingPixelSDK {
 	}
 
 	public async init(): Promise<void> {
+		// Iniciar la verificación de conexión y cargar datos simultáneamente
+		const connectionCheck = checkServerConnection(this.endpoint);
 		
-		await checkServerConnection(this.endpoint);
-		console.log("✅ Conexión con el servidor establecida.");
-
+		// Configurar el cliente mientras se verifica la conexión
 		const client = new ClientJS();
 		this.fingerprint = localStorage.getItem("fingerprint") || client.getFingerprint().toString();
 		localStorage.setItem("fingerprint", this.fingerprint);
 
-		// Primero intentamos cargar los tokens por si existen
+		// Primero intentamos cargar los tokens por si existen (inmediatamente)
 		TokenManager.loadTokensFromStorage();
+		
+		// Inicializaremos los componentes del chat después de la conexión a WebSocket
+		
+		// Esperar a que se complete la verificación de conexión
+		await connectionCheck;
+		console.log("✅ Conexión con el servidor establecida.");
 		
 		// Siempre registramos el cliente para obtener tokens nuevos
 		// Esto asegura que si la cuenta fue borrada en el backend, obtendremos nuevos tokens
@@ -174,11 +180,17 @@ export class TrackingPixelSDK {
 		const chatToggleButton = new ChatToggleButtonUI(chat);
 
 		const initializeChatComponents = () => {
-			console.log("Inicializando componentes del chat...");
+			console.log("Inicializando componentes del chat rápidamente...");
+			// Inicializar componentes (el chat comienza oculto por defecto)
 			chat.init();
+			// Asegurarnos explícitamente que el chat esté oculto ANTES de inicializar cualquier
+			// otro componente para evitar que el chat se muestre y luego se oculte
+			chat.hide();
+			// Inicializar los demás componentes después de ocultar el chat
 			chatInput.init();
 			chatToggleButton.init();
-			chat.hide();
+
+			console.log("Componentes del chat inicializados. Chat oculto por defecto.");
 		
 			chat.onOpen(() => {
 				this.captureEvent("visitor:open-chat", {
@@ -220,9 +232,12 @@ export class TrackingPixelSDK {
 			}, 1000 * 10); // 10 segundos de intervalo
 		
 			chatToggleButton.onToggle((visible: boolean) => {
+				console.log(`Toggle event: chat debe estar ${visible ? 'visible' : 'oculto'}`);
 				if (visible) {
+					// Mostrar el chat si debe estar visible
 					chat.show();
 				} else {
+					// Ocultar el chat si debe estar oculto
 					chat.hide();
 				}
 			});

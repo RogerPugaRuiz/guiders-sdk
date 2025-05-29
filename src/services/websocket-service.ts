@@ -202,10 +202,11 @@ export class WebSocketClient {
 	}
 
 	/**
-	 * Espera a que el WebSocket se conecte.
+	 * Espera a que el WebSocket se conecte con un timeout para evitar bloquear la aplicación.
+	 * @param timeoutMs Tiempo máximo de espera en milisegundos (por defecto 3000ms)
 	 * @returns Promise<void>
 	 */
-	public waitForConnection(): Promise<void> {
+	public waitForConnection(timeoutMs: number = 3000): Promise<void> {
 		return new Promise((resolve) => {
 			if (this.isConnected()) {
 				console.log("✅ WebSocket ya conectado");
@@ -213,7 +214,19 @@ export class WebSocketClient {
 			} else {
 				console.log("⏳ Esperando a que el WebSocket se conecte...");
 				console.log("url", this.endpoint);
-				this.onConnect(resolve);
+				
+				// Listener para cuando se conecte
+				const connectHandler = () => {
+					clearTimeout(timeoutId);
+					resolve();
+				};
+				this.onConnect(connectHandler);
+				
+				// Establecer un timeout para no bloquear demasiado tiempo
+				const timeoutId = setTimeout(() => {
+					console.warn("⚠️ Timeout esperando conexión WebSocket, continuando de todos modos");
+					resolve();
+				}, timeoutMs);
 			}
 		});
 	}

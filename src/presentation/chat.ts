@@ -91,6 +91,15 @@ export class ChatUI {
 			if (this.options.widget) {
 				this.container.classList.add('chat-widget-fixed');
 			}
+			// Ocultar el chat por defecto al inicializarlo (establecer explícitamente)
+			this.container.style.display = 'none';
+			this.container.style.opacity = '0';
+			this.container.style.transform = 'translateY(20px)';
+			
+			// Asegurar que el chat comience oculto desde el principio, sin posibilidad de verse
+			this.container.setAttribute('data-initial-state', 'hidden');
+			
+			console.log("Chat inicializado con estado: oculto");
 			shadowRoot.appendChild(this.container);
 			
 			// Añadir encabezado del chat
@@ -490,12 +499,12 @@ export class ChatUI {
 				
 				.chat-attachment-btn::before {
 					content: '';
-					display: block;
-					width: 18px;
-					height: 18px;
-					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'/%3E%3C/svg%3E");
-					background-repeat: no-repeat;
-					background-position: center;
+				 display: block;
+				 width: 18px;
+				 height: 18px;
+				 background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'/%3E%3C/svg%3E");
+				 background-repeat: no-repeat;
+				 background-position: center;
 				}
 
 				/* Estilos para mensajes del sistema */
@@ -903,10 +912,13 @@ export class ChatUI {
 		
 		this.container.appendChild(footerEl);
 
-		// Estilo general
-		this.container.style.display = 'flex';
+		// Estilo general - MANTENER OCULTO HASTA QUE SE LLAME EXPLÍCITAMENTE A show()
+		this.container.style.display = 'none'; // Cambio crítico: mantener oculto
 		this.container.style.flexDirection = 'column';
 		this.container.style.gap = '0'; // Cambio a 0 para evitar espacios entre secciones
+		
+		// Agregar bandera para indicar que el contenido está listo pero no debe mostrarse
+		this.container.setAttribute('data-content-ready', 'true');
 		
 		// --- Scroll infinito: detecta scroll top ---
 		this.containerMessages.addEventListener('scroll', () => {
@@ -917,19 +929,8 @@ export class ChatUI {
 			}
 		});
 
-		startChat().then((res) => {
-			console.log("Chat iniciado:", res);
-			this.setChatId(res.id);
-			
-			// Agregar un pequeño retraso antes de mostrar el mensaje de bienvenida
-			setTimeout(() => {
-				this.addWelcomeMessage();
-			}, 1000);
-			
-			this.loadInitialMessages(20);
-		}).catch((err) => {
-			console.error("Error iniciando chat:", err);
-		});
+		// Inicializar el chat de forma lazy - solo cargar contenido cuando se muestre por primera vez
+		this.initializeChatContent();
 	}
 	
 	/**
@@ -938,11 +939,9 @@ export class ChatUI {
 	private addWelcomeMessage(): void {
 			// Ya no mostramos el indicador de escritura aquí, será controlado por WebSocket.
 			
-			// Después mostrar el mensaje de bienvenida con un tono más humano
-			setTimeout(() => {
-				const welcomeText = "👋 ¡Hola! Soy una persona real de nuestro equipo y estoy aquí para ayudarte. Cuéntame, ¿qué necesitas? No dudes en escribir cualquier pregunta o problema que tengas 😊";
-				this.addMessage(welcomeText, 'other');
-			}, 1000); // Ajusta el delay si es necesario o elimínalo.
+			// Mostrar el mensaje de bienvenida inmediatamente sin delay
+			const welcomeText = "👋 ¡Hola! Soy una persona real de nuestro equipo y estoy aquí para ayudarte. Cuéntame, ¿qué necesitas? No dudes en escribir cualquier pregunta o problema que tengas 😊";
+			this.addMessage(welcomeText, 'other');
 		}
 
 	/**
@@ -1006,35 +1005,48 @@ export class ChatUI {
 			throw new Error('No se ha establecido un chatId');
 		}
 		const chatId = this.chatId;
+		
+		// Iniciar la carga de mensajes y procesar el token en paralelo
+		const messagePromise = fetchMessages(chatId, null, limit);
+		
+		// Extraer el ID de usuario del token mientras se cargan los mensajes
+		let user = '';
 		try {
-			const data = await fetchMessages(chatId, null, limit);
-			console.log("Mensajes iniciales:", data);
-			// Ejemplo de respuesta: { total, index, message: [...] }
-
+			const accessToken = localStorage.getItem('accessToken') || '';
+			if (accessToken) {
+				const payload = JSON.parse(atob(accessToken.split('.')[1]));
+				user = payload.sub; // ID del usuario
+			}
+		} catch (tokenErr) {
+			console.warn("Error al procesar el token de acceso:", tokenErr);
+		}
+		
+		try {
+			// Esperar por los mensajes
+			const data = await messagePromise;
+			
 			// Guardamos el index para futuras peticiones (mensajes antiguos)
 			this.currentIndex = data.cursor || null;
-			// {"id": xxx, "email": xxx, roles: [xxx]}
-			const accessToken = localStorage.getItem('accessToken') || '';
-			if (!accessToken) {
-				throw new Error('No se ha encontrado el token de acceso');
-			}
-			const payload = JSON.parse(atob(accessToken.split('.')[1]));
-			const user = payload.sub; // ID del usuario
-			console.log("Usuario:", user);
-
+			
 			// Renderizamos los mensajes (los más recientes)
-			data.messages.reverse(); // Invertimos para mostrar los más nuevos al final
-			for (const msg of data.messages) {
-				console.log("Mensaje:", msg.senderId);
-				const sender: Sender = (msg.senderId.includes(user)) ? 'user' : 'other';
-				this.renderChatMessage({ text: msg.content, sender });
+			if (data.messages && data.messages.length > 0) {
+				const reversedMessages = [...data.messages].reverse(); // Invertimos para mostrar los más nuevos al final
+				
+				// Crear un fragmento para renderizar todos los mensajes de una vez (mejor rendimiento)
+				const batch = reversedMessages.map(msg => {
+					const sender: Sender = (user && msg.senderId.includes(user)) ? 'user' : 'other';
+					return { text: msg.content, sender };
+				});
+				
+				// Renderizar mensajes en lote
+				batch.forEach(item => this.renderChatMessage(item));
+				
+				// Reconstruir los separadores de fecha después de cargar mensajes
+				this.rebuildDateSeparators();
+				
+				// Ajustar scroll al final (donde están los más nuevos)
+				this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
 			}
-
-			// Reconstruir los separadores de fecha después de cargar mensajes
-			this.rebuildDateSeparators();
-
-			// Ajustar scroll al final (donde están los más nuevos)
-			this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
 		} catch (err) {
 			console.error("Error cargando mensajes iniciales:", err);
 		}
@@ -1239,25 +1251,30 @@ export class ChatUI {
 	public hide(): void {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
-			}
+		}
 			
-			// Añadir animación de salida
-			this.container.style.transform = 'translateY(20px)';
-			this.container.style.opacity = '0';
+		// Si ya está oculto, no necesitamos hacer nada
+		if (this.container.style.display === 'none') {
+			return;
+		}
 			
-			// Ocultar después de que termine la animación
-			setTimeout(() => {
-				this.container!.style.display = 'none';
+		// Añadir animación de salida
+		this.container.style.transform = 'translateY(20px)';
+		this.container.style.opacity = '0';
+			
+		// Ocultar después de que termine la animación
+		setTimeout(() => {
+			this.container!.style.display = 'none';
 				
-				// Limpia todos los intervalos activos
-				this.activeIntervals.forEach(intervalObj => {
-					if (intervalObj.id !== null) {
-						clearInterval(intervalObj.id);
-						intervalObj.id = null;
-					}
-				});
-				this.closeCallbacks.forEach(cb => cb());
-			}, 300);
+			// Limpia todos los intervalos activos
+			this.activeIntervals.forEach(intervalObj => {
+				if (intervalObj.id !== null) {
+					clearInterval(intervalObj.id);
+					intervalObj.id = null;
+				}
+			});
+			this.closeCallbacks.forEach(cb => cb());
+		}, 300);
 		}
 
 	public show(): void {
@@ -1275,6 +1292,9 @@ export class ChatUI {
 		this.container.style.opacity = '1';
 		this.container.style.transform = 'translateY(0)';
 		
+		// Cargar contenido del chat si es la primera vez que se muestra
+		this.loadChatContent();
+		
 		this.scrollToBottom(true);
 		
 		// Inicia todos los intervalos configurados
@@ -1290,20 +1310,27 @@ export class ChatUI {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
 		}
-		this.container.style.display =
-			this.container.style.display === 'none' ? 'flex' : 'none';
-
-		this.scrollToBottom(true);
-
-		if (this.container.style.display === 'flex') {
-			this.openCallbacks.forEach(cb => cb());
+		
+		// Si está oculto, lo mostramos con animación
+		if (this.container.style.display === 'none') {
+			this.show();
 		} else {
-			this.closeCallbacks.forEach(cb => cb());
+			// Si está visible, lo ocultamos con animación
+			this.hide();
 		}
 	}
 
 	public getOptions(): ChatUIOptions {
 		return this.options;
+	}
+
+	/**
+	 * Verifica si el chat está actualmente visible
+	 * @returns boolean true si el chat está visible, false si está oculto
+	 */
+	public isVisible(): boolean {
+		if (!this.container) return false;
+		return this.container.style.display !== 'none';
 	}
 
 	/**
@@ -1386,16 +1413,7 @@ export class ChatUI {
 		}
 	}
 
-	/**
-	 * Verifica si el chat está visible actualmente
-	 * @returns boolean - true si el chat está visible, false si no
-	 */
-	public isVisible(): boolean {
-		if (!this.container) {
-			return false;
-		}
-		return this.container.style.display === 'flex';
-	}
+	// La implementación de isVisible() ya existe en la línea 1327
 
 	/**
 	 * Muestra un indicador de satisfacción del cliente
@@ -1449,6 +1467,48 @@ export class ChatUI {
 		// Agregar al contenedor
 		this.containerMessages.appendChild(container);
 		this.scrollToBottom(true);
+	}
+
+	/**
+	 * Inicializa el contenido del chat de forma lazy
+	 * Solo se ejecuta cuando el chat se muestra por primera vez
+	 */
+	private async initializeChatContent(): Promise<void> {
+		try {
+			console.log("Inicializando contenido del chat...");
+			const res = await startChat();
+			console.log("Chat iniciado:", res);
+			this.setChatId(res.id);
+			
+			// Marcar que el chat está listo para mostrar contenido
+			this.container?.setAttribute('data-chat-initialized', 'true');
+			
+			// Si el chat está visible, cargar el contenido inmediatamente
+			if (this.isVisible()) {
+				this.loadChatContent();
+			}
+		} catch (err) {
+			console.error("Error iniciando chat:", err);
+		}
+	}
+	
+	/**
+	 * Carga el contenido del chat (mensajes de bienvenida e iniciales)
+	 * Solo se ejecuta cuando el chat está visible
+	 */
+	private loadChatContent(): void {
+		if (!this.container?.getAttribute('data-chat-initialized')) {
+			console.log("Chat no inicializado aún, esperando...");
+			return;
+		}
+		
+		console.log("Cargando contenido del chat...");
+		
+		// Mostramos el mensaje de bienvenida
+		this.addWelcomeMessage();
+		
+		// Cargar mensajes iniciales
+		this.loadInitialMessages(20);
 	}
 
 	/**

@@ -39,6 +39,9 @@ export class ChatToggleButtonUI {
 		this.button = document.createElement('button');
 		this.button.className = 'chat-toggle-btn';
 		
+		// Inicializar como oculto (no visible)
+		this.isVisible = false;
+		
 		// Obtener la instancia del servicio de mensajes no leídos
 		this.unreadMessagesService = UnreadMessagesService.getInstance();
 	}
@@ -51,6 +54,11 @@ export class ChatToggleButtonUI {
 			this.button = document.createElement('button');
 			this.button.className = 'chat-toggle-btn';
 		}
+		
+		// Asegurar que el estado inicial sea coherente con el estado del chat
+		// Inicialmente el botón no debe mostrar el estado 'open'
+		this.isVisible = false;
+		this.button.classList.remove('open');
 		// Buscar el host del Shadow DOM del chat
 		const shadowHost = document.querySelector('.chat-widget-host') as HTMLElement;
 		if (shadowHost && shadowHost.shadowRoot) {
@@ -214,14 +222,23 @@ export class ChatToggleButtonUI {
 	 */
 	private addEventListeners(): void {
 		this.button.addEventListener('click', () => {
+			// Invierte el estado actual
 			this.isVisible = !this.isVisible;
+			
+			console.log("Toggle button clicked, new state:", this.isVisible ? "visible" : "hidden");
 			
 			// Actualizar el estado de visibilidad en el servicio de mensajes no leídos
 			this.unreadMessagesService.setActive(this.isVisible);
 			
-				// Aplicar/quitar clase para animar icono
+			// Aplicar/quitar clase para animar icono
 			if (this.isVisible) {
 				this.button.classList.add('open');
+				
+				// Si hay mensajes no leídos, resetear el contador
+				if (this.unreadMessagesService.getUnreadCount() > 0) {
+					this.unreadMessagesService.resetUnreadCount();
+					this.updateUnreadBadge(0);
+				}
 			} else {
 				this.button.classList.remove('open');
 			}

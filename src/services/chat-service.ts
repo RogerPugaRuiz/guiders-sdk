@@ -11,27 +11,42 @@ export async function startChat(): Promise<any> {
 	let validChatId: string | null = null;
 	let chatsToKeep: string[] = [];
 
-	// Buscar el primer chat válido en la lista
-	for (const chatId of chats) {
+	// Verificar todos los chats en paralelo para mejorar el rendimiento
+	if (chats.length > 0) {
 		try {
-			const response = await fetch(`${baseEndpoint}/chat/${chatId}`, {
-				method: 'GET',
-				headers: {
-					'Authorization': `Bearer ${accessToken || ''}`,
-					'Content-Type': 'application/json'
-				}
-			});
-			if (response.ok) {
-				validChatId = chatId;
-				chatsToKeep.push(chatId);
-				break;
-			} else if (response.status !== 404) {
-				// Si es otro error diferente a 404, solo lo logueamos
-				console.warn(`Error al recuperar chat ${chatId}: status ${response.status}`);
+			// Crear un array de promesas para todas las peticiones
+			const checkPromises = chats.map(chatId => 
+				fetch(`${baseEndpoint}/chat/${chatId}`, {
+					method: 'GET',
+					headers: {
+						'Authorization': `Bearer ${accessToken || ''}`,
+						'Content-Type': 'application/json'
+					}
+				})
+				.then(response => {
+					if (response.ok) {
+						return chatId; // Devuelve el chatId si es válido
+					}
+					return null; // No válido
+				})
+				.catch(error => {
+					console.warn(`Error al recuperar chat ${chatId}:`, error);
+					return null;
+				})
+			);
+			
+			// Esperar a que todas las promesas se resuelvan
+			const results = await Promise.all(checkPromises);
+			
+			// Filtrar los resultados válidos
+			chatsToKeep = results.filter(id => id !== null) as string[];
+			
+			// Usar el primer chat válido
+			if (chatsToKeep.length > 0) {
+				validChatId = chatsToKeep[0];
 			}
-			// Si es 404, no lo agregamos a chatsToKeep (lo eliminamos de la lista)
 		} catch (error) {
-			console.warn('Error al recuperar chat existente:', error);
+			console.warn('Error al recuperar chats existentes:', error);
 		}
 	}
 
