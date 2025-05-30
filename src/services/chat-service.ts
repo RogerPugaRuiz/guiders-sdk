@@ -16,7 +16,7 @@ export async function startChat(): Promise<any> {
 		try {
 			// Crear un array de promesas para todas las peticiones
 			const checkPromises = chats.map(chatId => 
-				fetch(`${baseEndpoint}/chat/${chatId}`, {
+				fetch(`${baseEndpoint}/chats/${chatId}`, {
 					method: 'GET',
 					headers: {
 						'Authorization': `Bearer ${accessToken || ''}`,
@@ -59,7 +59,7 @@ export async function startChat(): Promise<any> {
 	// Si no hay chats válidos, crear uno nuevo
 	try {
 		const uuid = uuidv4();
-		const response = await fetch(`${baseEndpoint}/chat/${uuid}`, {
+		const response = await fetch(`${baseEndpoint}/chats/${uuid}`, {
 			method: 'POST',
 			headers: {
 				'Authorization': `Bearer ${accessToken || ''}`,

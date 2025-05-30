@@ -8,8 +8,8 @@ export async function fetchMessages(chatId: string, cursor?: string | null, limi
 	const params = new URLSearchParams();
 	if (cursor) params.append("cursor", cursor);
 	params.append("limit", String(limit));
-	const URL = `${localStorage.getItem('pixelEndpoint')}/chat/${chatId}/messages?${params.toString()}`;
-	// const url = `http://localhost:3000/chat/${chatId}/messages?${params.toString()}`;
+	const URL = `${localStorage.getItem('pixelEndpoint')}/chats/${chatId}/messages?${params.toString()}`;
+	// const url = `http://localhost:3000/chats/${chatId}/messages?${params.toString()}`;
 	const res = await fetch(URL, {
 		headers: {
 			'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`,
