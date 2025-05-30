@@ -104,6 +104,21 @@ export class WebSocketClient {
 			const { type } = event;
 			this.socket.emit(type || "event", event, (ack: any) => {
 				console.log("📩 Mensaje recibido por el servidor:", ack);
+				
+				// Verificar si es el error específico de "No receivers"
+				if (ack && typeof ack === 'object' && 'error' in ack && ack.error === 'No receivers') {
+					console.warn("⚠️ No hay comerciales disponibles en este momento");
+					
+					// Devolver un objeto especial para que el código que lo llama pueda identificar este error
+					// y mostrar un mensaje apropiado al usuario
+					return resolve({
+						error: 'No receivers',
+						noReceiversError: true,
+						timestamp: ack.timestamp,
+						message: "En este momento no hay comerciales disponibles. Tu mensaje no será guardado."
+					});
+				}
+				
 				resolve(ack);
 			});
 		});

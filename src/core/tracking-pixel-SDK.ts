@@ -81,6 +81,7 @@ export class TrackingPixelSDK {
 	private apiKey: string;
 	private fingerprint: string | null = null;
 	private webSocket: WebSocketClient | null = null;
+	private chatUI: ChatUI | null = null;
 
 	private autoFlush = false;
 	private flushInterval = 10000;
@@ -173,9 +174,11 @@ export class TrackingPixelSDK {
 			console.error("WebSocket no disponible.");
 		}
 		console.log("Esperando mensajes del servidor...");
-		const chat = new ChatUI({
+		// Guardar la referencia al chat para usarla más tarde (ej: mostrar mensajes del sistema)
+		this.chatUI = new ChatUI({
 			widget: true,
 		});
+		const chat = this.chatUI; // Alias para mantener compatibilidad con el código existente
 		const chatInput = new ChatInputUI(chat);
 		const chatToggleButton = new ChatToggleButtonUI(chat);
 
@@ -189,6 +192,15 @@ export class TrackingPixelSDK {
 			// Inicializar los demás componentes después de ocultar el chat
 			chatInput.init();
 			chatToggleButton.init();
+
+			// Añadir listener para mensajes de sistema
+			const chatEls = document.querySelectorAll('.chat-widget, .chat-widget-fixed');
+			chatEls.forEach(el => {
+				el.addEventListener('system-message', (event: Event) => {
+					const customEvent = event as CustomEvent;
+					chat.addSystemMessage(customEvent.detail.message);
+				});
+			});
 
 			console.log("Componentes del chat inicializados. Chat oculto por defecto.");
 		
@@ -387,7 +399,16 @@ export class TrackingPixelSDK {
 	private async trySendEventWithRetry(event: PixelEvent, retriesLeft: number): Promise<void> {
 		try {
 			if (this.webSocket?.isConnected()) {
-				await this.webSocket.sendMessage(event);
+				const response = await this.webSocket.sendMessage(event);
+				
+				// Verificar si es un evento de mensaje y hay un error de "No receivers"
+				if (event.type === "visitor:send-message" && response && response.noReceiversError) {
+					// Usar directamente la propiedad chatUI para mostrar el mensaje del sistema
+					if (this.chatUI) {
+						this.chatUI.addSystemMessage(response.message || "En este momento no hay comerciales disponibles. Tu mensaje no será guardado.");
+					}
+					return; // No considerar esto como un error para reintentar
+				}
 			} else {
 				throw new Error("WebSocket no conectado");
 			}
