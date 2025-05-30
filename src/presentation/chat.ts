@@ -934,15 +934,25 @@ export class ChatUI {
 	}
 	
 	/**
-	 * Agrega un mensaje de bienvenida al chat
+	 * Agrega un mensaje de bienvenida al chat solo si no hay mensajes existentes
 	 */
 	private addWelcomeMessage(): void {
-			// Ya no mostramos el indicador de escritura aquí, será controlado por WebSocket.
-			
-			// Mostrar el mensaje de bienvenida inmediatamente sin delay
+		// Verificamos primero si ya hay mensajes en el chat
+		// Buscar si hay algún mensaje real (excluir elementos que no son mensajes como separadores de fecha)
+		const hasMessages = this.containerMessages && 
+			Array.from(this.containerMessages.children).some(el => 
+				el.classList && (
+					el.classList.contains('chat-message-user-wrapper') || 
+					el.classList.contains('chat-message-other-wrapper')
+				)
+			);
+		
+		// Solo mostramos el mensaje de bienvenida si no hay mensajes existentes
+		if (!hasMessages) {
 			const welcomeText = "👋 ¡Hola! Soy una persona real de nuestro equipo y estoy aquí para ayudarte. Cuéntame, ¿qué necesitas? No dudes en escribir cualquier pregunta o problema que tengas 😊";
 			this.addMessage(welcomeText, 'other');
 		}
+	}
 
 	/**
 	 * Establece el ID del chat actual.
@@ -1496,7 +1506,7 @@ export class ChatUI {
 	 * Carga el contenido del chat (mensajes de bienvenida e iniciales)
 	 * Solo se ejecuta cuando el chat está visible
 	 */
-	private loadChatContent(): void {
+	private async loadChatContent(): Promise<void> {
 		if (!this.container?.getAttribute('data-chat-initialized')) {
 			console.log("Chat no inicializado aún, esperando...");
 			return;
@@ -1504,11 +1514,17 @@ export class ChatUI {
 		
 		console.log("Cargando contenido del chat...");
 		
-		// Mostramos el mensaje de bienvenida
-		this.addWelcomeMessage();
-		
-		// Cargar mensajes iniciales
-		this.loadInitialMessages(20);
+		// Primero cargamos los mensajes iniciales
+		try {
+			await this.loadInitialMessages(20);
+			
+			// Después de cargar los mensajes, verificamos si debemos mostrar el mensaje de bienvenida
+			this.addWelcomeMessage();
+		} catch(error) {
+			console.error("Error al cargar el contenido del chat:", error);
+			// Si no pudimos cargar mensajes, mostramos el mensaje de bienvenida de todos modos
+			this.addWelcomeMessage();
+		}
 	}
 
 	/**
