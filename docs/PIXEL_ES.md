@@ -15,7 +15,7 @@ npm install guiders-pixel
 ### Mediante script directo
 
 ```html
-<script src="path/to/guiders-sdk.js" data-api-key="YOUR_API_KEY"></script>
+<script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js" data-api-key="YOUR_API_KEY"></script>
 ```
 
 ## Integración Básica
@@ -23,13 +23,13 @@ npm install guiders-pixel
 ### Opción 1: Atributo data-api-key
 
 ```html
-<script src="https://cdn.example.com/guiders-sdk.js" data-api-key="YOUR_API_KEY"></script>
+<script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js" data-api-key="YOUR_API_KEY"></script>
 ```
 
 ### Opción 2: Parámetro en URL
 
 ```html
-<script src="https://cdn.example.com/guiders-sdk.js?apiKey=YOUR_API_KEY"></script>
+<script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js?apiKey=YOUR_API_KEY"></script>
 ```
 
 ### Opción 3: Inicialización manual
@@ -332,7 +332,7 @@ window.guiders.addPipelineStage({
   </div>
 
   <!-- Integración del SDK -->
-  <script src="https://cdn.example.com/guiders-sdk.js" 
+  <script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js" 
           data-api-key="your-api-key-here"></script>
 </body>
 </html>
