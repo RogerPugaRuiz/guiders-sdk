@@ -14,8 +14,16 @@ npm install guiders-pixel
 
 ### Via direct script
 
+#### Method 1: Using data-api-key attribute
+
 ```html
 <script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js" data-api-key="YOUR_API_KEY"></script>
+```
+
+#### Method 2: Using URL parameter
+
+```html
+<script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js?apiKey=YOUR_API_KEY"></script>
 ```
 
 ## Basic Integration
@@ -31,6 +39,8 @@ npm install guiders-pixel
 ```html
 <script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js?apiKey=YOUR_API_KEY"></script>
 ```
+
+### Option 3: Manual initialization
 
 ### Option 3: Manual initialization
 
