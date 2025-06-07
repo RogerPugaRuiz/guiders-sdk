@@ -19,6 +19,14 @@ switch ($page) {
         require 'pages/ecommerce-demo.php';
         break;
 
+    case 'vehicle-search':
+        require 'pages/vehicle-search.php';
+        break;
+
+    case 'vehicle-comparison':
+        require 'pages/vehicle-comparison.php';
+        break;
+
     case 'ecommerce/pages/product-detail.php':
         require 'pages/product-detail.php';
         break;

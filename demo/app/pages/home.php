@@ -12,6 +12,8 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
       <a href="/about">Nosotros</a>
       <a href="/contact">Contacto</a>
       <a href="/ecommerce">Demo Tienda</a>
+      <a href="/vehicle-search">Búsqueda Vehículos</a>
+      <a href="/vehicle-comparison">Comparar Vehículos</a>
     </nav>
   </div>
 </header>

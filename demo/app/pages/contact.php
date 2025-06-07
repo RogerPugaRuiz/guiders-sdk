@@ -4,6 +4,20 @@ $link = '/style.css';
 echo "<link rel=\"stylesheet\" href=\"$link\">";
 ?>
 
+<header>
+  <div class="header-content">
+    <h1>Guiders SDK</h1>
+    <nav>
+      <a href="/">Inicio</a>
+      <a href="/about">Nosotros</a>
+      <a href="/contact">Contacto</a>
+      <a href="/ecommerce">Demo Tienda</a>
+      <a href="/vehicle-search">Búsqueda Vehículos</a>
+      <a href="/vehicle-comparison">Comparar Vehículos</a>
+    </nav>
+  </div>
+</header>
+
 <main class="main-content">
     <!-- Hero Section -->
     <section class="hero-section">

@@ -22,7 +22,54 @@ export class DomTrackingManager {
         "add_to_cart": "click",
         "view_cart": "mouseenter",
         "purchase": "click",
-        "page_view": "DOMContentLoaded"
+        "page_view": "DOMContentLoaded",
+        // Eventos específicos de vehículos
+        "search_vehicle_type": "change",
+        "search_brand": "change",
+        "search_model": "change",
+        "search_fuel": "change",
+        "search_price_type": "change",
+        "sort_vehicles": "change",
+        "calculate_financing": "click",
+        "add_to_favorites": "click",
+        "view_vehicle_location": "mouseenter",
+        "filter_by_price": "change",
+        "filter_by_payment": "change",
+        "search_submit": "click",
+        "search_input": "input",
+        // Eventos avanzados de comparación
+        "add_to_comparison": "click",
+        "remove_from_comparison": "click",
+        "select_comparison_vehicle": "click",
+        "view_vehicle_comparison": "mouseenter",
+        "save_comparison": "click",
+        "export_comparison": "click",
+        "share_comparison": "click",
+        "clear_comparison": "click",
+        // Eventos de filtros avanzados
+        "filter_by_year": "change",
+        "filter_by_transmission": "change",
+        "filter_by_doors": "change",
+        "filter_by_mileage": "change",
+        "filter_by_condition": "change",
+        "toggle_advanced_filters": "click",
+        // Eventos de interacción de usuario
+        "contact_dealer": "click",
+        "schedule_test_drive": "click",
+        "request_quote": "click",
+        "view_vehicle_details": "click",
+        "view_vehicle_gallery": "click",
+        "view_vehicle_specs": "click",
+        "view_vehicle_history": "click",
+        "download_brochure": "click",
+        // Eventos de analytics y seguimiento
+        "analytics_dashboard_view": "mouseenter",
+        "export_analytics": "click",
+        "share_analytics": "click",
+        // Eventos de chat específicos para vehículos
+        "chat_ask_about_vehicle": "click",
+        "chat_request_financing": "click",
+        "chat_schedule_viewing": "click"
     };
     private trackCallback: (params: Record<string, unknown>) => void;
     private extractor: TrackDataExtractor;
