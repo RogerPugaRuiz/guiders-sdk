@@ -19,6 +19,8 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
 </header>
 
 <main class="main-content">
+    <div style="display:none" data-track-event="page_view" data-page="about" data-page-title="Acerca de Nosotros"></div>
+    
     <!-- Hero Section -->
     <section class="hero-section">
       <div class="container">

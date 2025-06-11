@@ -1137,15 +1137,6 @@ class VehicleComparison {
 document.addEventListener('DOMContentLoaded', () => {
   window.vehicleComparison = new VehicleComparison();
 });
-
-// Include Guiders SDK
-document.addEventListener('DOMContentLoaded', function() {
-  // Mock API key for demo
-  const script = document.createElement('script');
-  script.src = 'https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js';
-  script.setAttribute('data-api-key', 'demo-vehicle-comparison-key');
-  document.head.appendChild(script);
-});
 </script>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

@@ -10,6 +10,7 @@ import { TimeStampStage } from "../pipeline/stages/time-stamp-stage";
 import { TokenInjectionStage } from "../pipeline/stages/token-stage";
 import { ValidationStage } from "../pipeline/stages/validation-stage";
 import { MetadataInjectionStage } from "../pipeline/stages/metadata-stage";
+import { URLInjectionStage } from "../pipeline/stages/url-injection-stage";
 import { ChatUI } from "../presentation/chat";
 import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
@@ -107,6 +108,7 @@ export class TrackingPixelSDK {
 		this.eventPipeline = this.pipelineBuilder
 			.addStage(new TimeStampStage())
 			.addStage(new TokenInjectionStage())
+			.addStage(new URLInjectionStage())
 			.addStage(new MetadataInjectionStage())
 			.addStage(new ValidationStage())
 			.build();

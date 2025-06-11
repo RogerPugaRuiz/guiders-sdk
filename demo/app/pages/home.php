@@ -19,6 +19,8 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
 </header>
 
 <div class="container">
+  <div style="display:none" data-track-event="page_view" data-page="home" data-page-title="Página de Inicio"></div>
+  
   <div class="hero-banner">
     <div class="hero-content">
       <h1>Solución integral de análisis web</h1>

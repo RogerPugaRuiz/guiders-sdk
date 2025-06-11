@@ -24,6 +24,8 @@ if (!$producto) {
 }
 ?>
 <div class="container">
+  <div style="display:none" data-track-event="page_view" data-page="product_detail" data-page-title="Detalle de Producto" data-product-id="<?php echo htmlspecialchars($id); ?>"></div>
+  
   <header class="shop-header">
     <h1>GuiderShop</h1>
     <nav>
