@@ -44,24 +44,24 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
             <form class="contact-form" id="contactForm">
               <div class="form-row">
                 <div class="form-group">
-                  <label for="name">Nombre completo</label>
-                  <input type="text" id="name" name="name" required>
+                  <label for="contact-name">Nombre completo</label>
+                  <input type="text" id="contact-name" name="name" required>
                 </div>
                 
                 <div class="form-group">
-                  <label for="email">Correo electrónico</label>
-                  <input type="email" id="email" name="email" required>
+                  <label for="contact-email">Correo electrónico</label>
+                  <input type="email" id="contact-email" name="email" required>
                 </div>
               </div>
               
               <div class="form-group">
-                <label for="company">Empresa (opcional)</label>
-                <input type="text" id="company" name="company">
+                <label for="contact-company">Empresa (opcional)</label>
+                <input type="text" id="contact-company" name="company">
               </div>
               
               <div class="form-group">
-                <label for="subject">Asunto</label>
-                <select id="subject" name="subject" required>
+                <label for="contact-subject">Asunto</label>
+                <select id="contact-subject" name="subject" required>
                   <option value="">Selecciona un tema</option>
                   <option value="demo">Solicitar demo</option>
                   <option value="pricing">Información de precios</option>
@@ -72,8 +72,8 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
               </div>
               
               <div class="form-group">
-                <label for="message">Mensaje</label>
-                <textarea id="message" name="message" rows="6" required placeholder="Cuéntanos cómo podemos ayudarte..."></textarea>
+                <label for="contact-message">Mensaje</label>
+                <textarea id="contact-message" name="message" rows="6" required placeholder="Cuéntanos cómo podemos ayudarte..."></textarea>
               </div>
               
               <button type="submit" class="btn btn-primary btn-full">

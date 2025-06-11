@@ -361,13 +361,13 @@ $vehicleId = $_GET['id'] ?? 'v001';
           <div class="financing-calculator">
             <div class="calculator-inputs">
               <div class="input-group">
-                <label for="downPayment">Entrada (€)</label>
-                <input type="number" id="downPayment" value="5000" min="0" max="28500" 
+                <label for="vehicle-downPayment">Entrada (€)</label>
+                <input type="number" id="vehicle-downPayment" value="5000" min="0" max="28500" 
                        data-track-event="calculate_financing" data-input-type="down_payment">
               </div>
               <div class="input-group">
-                <label for="loanTerm">Plazo (meses)</label>
-                <select id="loanTerm" data-track-event="calculate_financing" data-input-type="loan_term">
+                <label for="vehicle-loanTerm">Plazo (meses)</label>
+                <select id="vehicle-loanTerm" data-track-event="calculate_financing" data-input-type="loan_term">
                   <option value="24">24 meses</option>
                   <option value="36">36 meses</option>
                   <option value="48" selected>48 meses</option>
@@ -376,8 +376,8 @@ $vehicleId = $_GET['id'] ?? 'v001';
                 </select>
               </div>
               <div class="input-group">
-                <label for="interestRate">Interés (%)</label>
-                <input type="number" id="interestRate" value="6.5" min="0" max="15" step="0.1"
+                <label for="vehicle-interestRate">Interés (%)</label>
+                <input type="number" id="vehicle-interestRate" value="6.5" min="0" max="15" step="0.1"
                        data-track-event="calculate_financing" data-input-type="interest_rate">
               </div>
             </div>
@@ -385,19 +385,19 @@ $vehicleId = $_GET['id'] ?? 'v001';
             <div class="calculator-results">
               <div class="result-item">
                 <span class="result-label">Importe a financiar:</span>
-                <span class="result-value" id="financeAmount">23.500 €</span>
+                <span class="result-value" id="vehicle-financeAmount">23.500 €</span>
               </div>
               <div class="result-item">
                 <span class="result-label">Cuota mensual:</span>
-                <span class="result-value result-highlight" id="monthlyPayment">245 €</span>
+                <span class="result-value result-highlight" id="vehicle-monthlyPayment">245 €</span>
               </div>
               <div class="result-item">
                 <span class="result-label">Total a pagar:</span>
-                <span class="result-value" id="totalPayment">28.760 €</span>
+                <span class="result-value" id="vehicle-totalPayment">28.760 €</span>
               </div>
               <div class="result-item">
                 <span class="result-label">Intereses totales:</span>
-                <span class="result-value" id="totalInterest">260 €</span>
+                <span class="result-value" id="vehicle-totalInterest">260 €</span>
               </div>
             </div>
 
@@ -1199,9 +1199,9 @@ class VehicleDetail {
   }
   
   setupFinancingCalculator() {
-    const downPaymentInput = document.getElementById('downPayment');
-    const loanTermSelect = document.getElementById('loanTerm');
-    const interestRateInput = document.getElementById('interestRate');
+    const downPaymentInput = document.getElementById('vehicle-downPayment');
+    const loanTermSelect = document.getElementById('vehicle-loanTerm');
+    const interestRateInput = document.getElementById('vehicle-interestRate');
     
     if (downPaymentInput && loanTermSelect && interestRateInput) {
       [downPaymentInput, loanTermSelect, interestRateInput].forEach(input => {
@@ -1220,9 +1220,9 @@ class VehicleDetail {
   
   calculateFinancing() {
     const vehiclePrice = 28500;
-    const downPayment = parseFloat(document.getElementById('downPayment')?.value || '0');
-    const loanTerm = parseInt(document.getElementById('loanTerm')?.value || '48');
-    const interestRate = parseFloat(document.getElementById('interestRate')?.value || '6.5') / 100;
+    const downPayment = parseFloat(document.getElementById('vehicle-downPayment')?.value || '0');
+    const loanTerm = parseInt(document.getElementById('vehicle-loanTerm')?.value || '48');
+    const interestRate = parseFloat(document.getElementById('vehicle-interestRate')?.value || '6.5') / 100;
     
     const financeAmount = vehiclePrice - downPayment;
     const monthlyRate = interestRate / 12;
@@ -1231,10 +1231,10 @@ class VehicleDetail {
     const totalInterest = totalPayment - vehiclePrice;
     
     // Update display
-    document.getElementById('financeAmount').textContent = `${financeAmount.toLocaleString()} €`;
-    document.getElementById('monthlyPayment').textContent = `${Math.round(monthlyPayment)} €`;
-    document.getElementById('totalPayment').textContent = `${Math.round(totalPayment).toLocaleString()} €`;
-    document.getElementById('totalInterest').textContent = `${Math.round(totalInterest).toLocaleString()} €`;
+    document.getElementById('vehicle-financeAmount').textContent = `${financeAmount.toLocaleString()} €`;
+    document.getElementById('vehicle-monthlyPayment').textContent = `${Math.round(monthlyPayment)} €`;
+    document.getElementById('vehicle-totalPayment').textContent = `${Math.round(totalPayment).toLocaleString()} €`;
+    document.getElementById('vehicle-totalInterest').textContent = `${Math.round(totalInterest).toLocaleString()} €`;
     
     this.trackEvent('financing_calculation', {
       vehiclePrice,
