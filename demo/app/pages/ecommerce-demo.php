@@ -40,7 +40,7 @@ foreach ($xml->producto as $p) {
         <p class="hero-subtitle">Descubre nuestra selección premium de productos con seguimiento avanzado</p>
         <div class="hero-actions">
           <a href="#products" class="btn btn-primary">Ver Productos</a>
-          <a href="#cart" id="ecommerce-cart-link" class="btn btn-secondary cart-link">🛒 Carrito (<span id="cart-count">0</span>)</a>
+          <a href="#cart" id="cart-link" class="btn btn-secondary">🛒 Carrito (<span id="cart-count">0</span>)</a>
         </div>
       </div>
     </div>
@@ -612,7 +612,7 @@ foreach ($xml->producto as $p) {
   });
   
   // Scroll suave al carrito
-  document.getElementById('ecommerce-cart-link').onclick = function(e) {
+  document.getElementById('cart-link').onclick = function(e) {
     e.preventDefault();
     document.getElementById('cart').scrollIntoView({ 
       behavior: 'smooth',

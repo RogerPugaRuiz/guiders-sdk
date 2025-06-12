@@ -266,18 +266,13 @@ export class TrackingPixelSDK {
 				});
 				this.flush();
 			});
-				this.on("receive-message", (msg: PixelEvent) => {
-			// Pequeño delay para permitir que los mensajes iniciales se carguen primero
-			// y evitar conflictos de duplicación
-			setTimeout(() => {
+		
+			this.on("receive-message", (msg: PixelEvent) => {
 				chat.renderChatMessage({
 					text: msg.data.message as string,
 					sender: "other",
-					timestamp: msg.data.timestamp as number,
-					id: msg.data.id as string // Incluir el ID del mensaje si está disponible
 				});
-			}, 100);
-		});
+			});
 		};
 		
 		if (document.readyState === "loading") {
@@ -476,7 +471,7 @@ export class TrackingPixelSDK {
 					// Intentar notificar visualmente al usuario que hay un nuevo mensaje
 					try {
 						// Intenta hacer parpadear el badge si existe en el DOM
-						const badgeElement = document.getElementById('guiders-chat-unread-badge');
+						const badgeElement = document.getElementById('chat-unread-badge');
 						if (badgeElement) {
 							badgeElement.style.animation = 'none';
 							setTimeout(() => {

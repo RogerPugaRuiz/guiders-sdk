@@ -30,7 +30,7 @@ if (!$producto) {
     <h1>GuiderShop</h1>
     <nav>
       <a href="/ecommerce">Inicio</a>
-      <a href="/ecommerce#cart" id="product-detail-cart-link" class="cart-link">Carrito</a>
+      <a href="/ecommerce#cart" id="cart-link">Carrito</a>
     </nav>
   </header>
   <main class="shop-main" style="display:block;">

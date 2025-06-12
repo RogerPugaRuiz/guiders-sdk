@@ -33,7 +33,6 @@ export interface ChatMessageReceived {
 	type: "chat_message";
 	message: string;
 	data: {
-		id?: string;
 		message: string;
 		sender: string;
 		timestamp: number;

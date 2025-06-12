@@ -49,12 +49,6 @@ export class ChatUI {
 
 	private lastMessageDate: string | null = null;
 	
-	// Set para trackear mensajes ya renderizados y prevenir duplicación
-	private renderedMessageIds: Set<string> = new Set();
-	
-	// Flag para prevenir múltiples cargas simultáneas
-	private isLoadingMessages: boolean = false;
-	
 	constructor(options: ChatUIOptions = {}) {
 		this.options = {
 			widget: false,
@@ -968,12 +962,6 @@ export class ChatUI {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
 		}
-		
-		// Si estamos cambiando a un chat diferente, limpiar mensajes renderizados
-		if (this.chatId && this.chatId !== chatId) {
-			this.clearRenderedMessages();
-		}
-		
 		this.chatId = chatId;
 		this.container.setAttribute('data-chat-id', chatId);
 	}
@@ -994,22 +982,9 @@ export class ChatUI {
 	 * Renderiza un mensaje (alias de addMessage).
 	 * @param params Parámetros del mensaje
 	 */
-	public renderChatMessage(params: { text: string; sender: Sender; timestamp?: number; id?: string }): void {
-		const { text, sender, timestamp, id } = params;
-		
-		// Generar un ID único para el mensaje si no se proporciona
-		const messageId = id || this.generateMessageId(text, sender, timestamp);
-		
-		// Verificar si el mensaje ya fue renderizado para prevenir duplicación
-		if (this.renderedMessageIds.has(messageId)) {
-			console.log(`Mensaje duplicado detectado y omitido: ${messageId}`);
-			return;
-		}
-		
-		// Marcar el mensaje como renderizado
-		this.renderedMessageIds.add(messageId);
-		
-		this.addMessage(text, sender, timestamp, messageId);
+	public renderChatMessage(params: { text: string; sender: Sender; timestamp?: number }): void {
+		const { text, sender, timestamp } = params;
+		this.addMessage(text, sender, timestamp);
 		
 		// Reconstruir los separadores de fecha después de añadir un mensaje
 		this.rebuildDateSeparators();
@@ -1030,37 +1005,6 @@ export class ChatUI {
 	}
 
 	/**
-	 * Genera un ID único para un mensaje basado en su contenido y timestamp
-	 * @param text Contenido del mensaje
-	 * @param sender Remitente del mensaje
-	 * @param timestamp Timestamp del mensaje
-	 * @returns ID único del mensaje
-	 */
-	private generateMessageId(text: string, sender: Sender, timestamp?: number): string {
-		// Usar timestamp si está disponible, de lo contrario usar tiempo actual
-		const time = timestamp || Date.now();
-		// Crear un hash simple basado en contenido + sender + timestamp
-		const content = `${text}-${sender}-${time}`;
-		// Función hash simple para crear un ID único
-		let hash = 0;
-		for (let i = 0; i < content.length; i++) {
-			const char = content.charCodeAt(i);
-			hash = ((hash << 5) - hash) + char;
-			hash = hash & hash; // Convertir a 32-bit integer
-		}
-		return `msg_${Math.abs(hash)}_${time}`;
-	}
-
-	/**
-	 * Limpia el set de mensajes renderizados para prevenir memory leaks
-	 * y permitir un reset limpio del estado del chat
-	 */
-	public clearRenderedMessages(): void {
-		this.renderedMessageIds.clear();
-		console.log("Set de mensajes renderizados limpiado");
-	}
-
-	/**
 	 * Carga inicial de mensajes desde el servidor (los más recientes).
 	 * @param chatId ID del chat
 	 * @param limit  cuántos mensajes traer
@@ -1070,14 +1014,6 @@ export class ChatUI {
 		if (!this.chatId) {
 			throw new Error('No se ha establecido un chatId');
 		}
-		
-		// Prevenir múltiples cargas simultáneas
-		if (this.isLoadingMessages) {
-			console.log("Ya se está cargando mensajes, omitiendo carga duplicada");
-			return;
-		}
-		
-		this.isLoadingMessages = true;
 		const chatId = this.chatId;
 		
 		// Iniciar la carga de mensajes y procesar el token en paralelo
@@ -1112,19 +1048,12 @@ export class ChatUI {
 					return { 
 						text: msg.content, 
 						sender,
-						timestamp: msg.createdAt, // Usar el timestamp de creación del mensaje
-						id: msg.id // Usar el ID real del mensaje del servidor
+						timestamp: msg.createdAt // Usar el timestamp de creación del mensaje
 					};
 				});
 				
-				// Renderizar mensajes en lote y marcar como ya procesados
-				batch.forEach(item => {
-					// Marcar el mensaje como ya renderizado usando su ID real
-					if (item.id) {
-						this.renderedMessageIds.add(item.id);
-					}
-					this.renderChatMessage(item);
-				});
+				// Renderizar mensajes en lote
+				batch.forEach(item => this.renderChatMessage(item));
 				
 				// Reconstruir los separadores de fecha después de cargar mensajes
 				this.rebuildDateSeparators();
@@ -1134,9 +1063,6 @@ export class ChatUI {
 			}
 		} catch (err) {
 			console.error("Error cargando mensajes iniciales:", err);
-		} finally {
-			// Liberar el flag de carga sin importar si hubo error o no
-			this.isLoadingMessages = false;
 		}
 	}
 
@@ -1188,11 +1114,7 @@ export class ChatUI {
 			// "Prepend" de mensajes antiguos
 			for (const msg of data.messages) {
 				const sender: Sender = (user && msg.senderId.includes(user)) ? "user" : "other";
-				// Verificar si el mensaje ya fue renderizado antes de prependerlo
-				if (!this.renderedMessageIds.has(msg.id)) {
-					this.renderedMessageIds.add(msg.id);
-					this.prependMessage(msg.content, sender, msg.createdAt, msg.id);
-				}
+				this.prependMessage(msg.content, sender, msg.createdAt);
 			}
 
 			// Reconstruir los separadores de fecha después de cargar mensajes antiguos
@@ -1209,24 +1131,24 @@ export class ChatUI {
 	/**
 	 * Agrega un mensaje al final de la lista
 	 */
-	private addMessage(text: string, sender: Sender, timestamp?: number, messageId?: string): void {
+	private addMessage(text: string, sender: Sender, timestamp?: number): void {
 		if (!this.container || !this.containerMessages) {
 			throw new Error('No se ha inicializado el chat');
+			}
+			
+			// Usar el timestamp si se proporciona, de lo contrario usar la fecha actual
+			const messageDate = timestamp ? new Date(timestamp) : new Date();
+			
+			// Añadir separador de fecha si es necesario
+			this.addDateSeparatorIfNeeded(messageDate);
+			
+			// Crear y añadir el mensaje
+			const messageDiv = this.createMessageDiv(text, sender, timestamp);
+			this.containerMessages.appendChild(messageDiv);
+			
+			// Scroll al final
+			this.scrollToBottom(true);
 		}
-		
-		// Usar el timestamp si se proporciona, de lo contrario usar la fecha actual
-		const messageDate = timestamp ? new Date(timestamp) : new Date();
-		
-		// Añadir separador de fecha si es necesario
-		this.addDateSeparatorIfNeeded(messageDate);
-		
-		// Crear y añadir el mensaje
-		const messageDiv = this.createMessageDiv(text, sender, timestamp, messageId);
-		this.containerMessages.appendChild(messageDiv);
-		
-		// Scroll al final
-		this.scrollToBottom(true);
-	}
 
 	/**
 	 * Agrega un mensaje del sistema al chat.
@@ -1258,13 +1180,12 @@ export class ChatUI {
 	 * @param text Texto del mensaje
 	 * @param sender Remitente del mensaje
 	 * @param timestamp Timestamp de creación del mensaje en milisegundos
-	 * @param messageId ID único del mensaje
 	 */
-	private prependMessage(text: string, sender: Sender, timestamp?: number, messageId?: string): void {
+	private prependMessage(text: string, sender: Sender, timestamp?: number): void {
 		if (!this.container || !this.containerMessages) {
 			throw new Error('No se ha inicializado el chat');
 		}
-		const messageDiv = this.createMessageDiv(text, sender, timestamp, messageId);
+		const messageDiv = this.createMessageDiv(text, sender, timestamp);
 
 		if (this.containerMessages.firstChild) {
 			this.containerMessages.insertBefore(messageDiv, this.containerMessages.firstChild);
@@ -1279,9 +1200,8 @@ export class ChatUI {
 	 * @param text Texto del mensaje
 	 * @param sender Remitente del mensaje (user/other)
 	 * @param timestamp Timestamp de creación del mensaje en milisegundos
-	 * @param messageId ID único del mensaje
 	 */
-	private createMessageDiv(text: string, sender: Sender, timestamp?: number, messageId?: string): HTMLDivElement {
+	private createMessageDiv(text: string, sender: Sender, timestamp?: number): HTMLDivElement {
 		// Contenedor principal del mensaje
 		const wrapperDiv = document.createElement('div');
 		wrapperDiv.classList.add('chat-message-wrapper');
@@ -1289,11 +1209,6 @@ export class ChatUI {
 		// Si hay timestamp, lo guardamos como atributo data para referencia futura
 		if (timestamp) {
 			wrapperDiv.setAttribute('data-timestamp', timestamp.toString());
-		}
-		
-		// Si hay messageId, lo guardamos como atributo data para deduplicación
-		if (messageId) {
-			wrapperDiv.setAttribute('data-message-id', messageId);
 		}
 		
 		// Configuración según el remitente
