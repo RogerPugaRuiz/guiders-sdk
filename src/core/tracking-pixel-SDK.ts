@@ -268,9 +268,19 @@ export class TrackingPixelSDK {
 			});
 		
 			this.on("receive-message", (msg: PixelEvent) => {
+				// Imprimir el mensaje completo para depuración
+				console.log("Mensaje recibido via WebSocket:", msg);
+				
+				// Verificar si el mensaje contiene senderId
+				if (!msg.data.senderId) {
+					console.warn("⚠️ Mensaje WebSocket sin senderId:", msg);
+				}
+				
 				chat.renderChatMessage({
 					text: msg.data.message as string,
 					sender: "other",
+					senderId: msg.data.senderId as string,
+					timestamp: msg.data.timestamp as number
 				});
 			});
 		};

@@ -3,6 +3,8 @@
 import { Message } from "../types";
 import { startChat } from "../services/chat-service";
 import { fetchMessages } from "../services/fetch-messages";
+import { fetchChatDetail, ChatDetail, ChatParticipant } from "../services/chat-detail-service";
+import { WebSocketClient } from "../services/websocket-service";
 
 // Posible tipo para el remitente
 export type Sender = 'user' | 'other';
@@ -37,6 +39,13 @@ export class ChatUI {
 	private currentIndex: string | null = null;
 
 	private chatId: string | null = null;
+	private chatDetail: ChatDetail | null = null;
+	
+	// Almacenar el último estado conocido del chat para detectar cambios
+	private lastKnownChatStatus: string | null = null;
+
+	// Flag para controlar si los mensajes ya fueron cargados (evitar recargas innecesarias)
+	private messagesLoaded: boolean = false;
 
 	// Callbacks para eventos de apertura y cierre
 	private openCallbacks: Array<() => void> = [];
@@ -45,10 +54,14 @@ export class ChatUI {
 	// Estructura para almacenar múltiples intervalos y callbacks
 	private activeIntervals: Array<{ id: number | null, callback: () => void, intervalMs: number }> = [];
 
+	// Elemento del título del chat para poder actualizarlo
+	private titleElement: HTMLElement | null = null;
+	private subtitleElement: HTMLElement | null = null;
+
 	private typingIndicator: HTMLElement | null = null;
 
 	private lastMessageDate: string | null = null;
-	
+
 	constructor(options: ChatUIOptions = {}) {
 		this.options = {
 			widget: false,
@@ -95,46 +108,48 @@ export class ChatUI {
 			this.container.style.display = 'none';
 			this.container.style.opacity = '0';
 			this.container.style.transform = 'translateY(20px)';
-			
+
 			// Asegurar que el chat comience oculto desde el principio, sin posibilidad de verse
 			this.container.setAttribute('data-initial-state', 'hidden');
-			
+
 			console.log("Chat inicializado con estado: oculto");
 			shadowRoot.appendChild(this.container);
-			
+
 			// Añadir encabezado del chat
 			const headerEl = document.createElement('div');
 			headerEl.className = 'chat-header';
-			
+
 			const titleEl = document.createElement('div');
 			titleEl.className = 'chat-header-title';
-			
+
 			// Mostrar título simplificado sin indicador de estado
 			titleEl.textContent = 'Chat';
-			
+			this.titleElement = titleEl; // Guardar referencia
+
 			// Añadir subtítulo con nombre del asesor
 			const subtitleEl = document.createElement('div');
 			subtitleEl.className = 'chat-header-subtitle';
 			subtitleEl.textContent = 'Atención personalizada';
+			this.subtitleElement = subtitleEl; // Guardar referencia
 			titleEl.appendChild(subtitleEl);
-			
+
 			headerEl.appendChild(titleEl);
-			
+
 			const actionsEl = document.createElement('div');
 			actionsEl.className = 'chat-header-actions';
-			
+
 			const closeBtn = document.createElement('button');
 			closeBtn.className = 'chat-close-btn';
 			closeBtn.setAttribute('aria-label', 'Cerrar chat');
 			closeBtn.addEventListener('click', () => {
 				this.hide();
 			});
-			
+
 			actionsEl.appendChild(closeBtn);
 			headerEl.appendChild(actionsEl);
-			
+
 			this.container.appendChild(headerEl);
-			
+
 			// Inyectar el CSS dentro del shadow root
 			const style = document.createElement('style');
 			style.textContent = `
@@ -365,13 +380,11 @@ export class ChatUI {
 				.chat-send-btn::before {
 					content: '';
 					display: block;
-					width: 24px;
-					height: 24px;
-					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-send-icon lucide-send'%3E%3Cpath d='M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z'/%3E%3Cpath d='m21.854 2.147-10.94 10.939'/%3E%3C/svg%3E");
+				 width: 24px;
+				 height: 24px;
+				 background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-send-icon lucide-send'%3E%3Cpath d='M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z'/%3E%3Cpath d='m21.854 2.147-10.94 10.939'/%3E%3C/svg%3E");
 					background-repeat: no-repeat;
 					background-position: center;
-					background-size: 24px 24px;
-					margin: auto;
 				}
 				
 				/* Animaciones de entrada */
@@ -671,7 +684,6 @@ export class ChatUI {
 					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-send-icon lucide-send'%3E%3Cpath d='M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z'/%3E%3Cpath d='m21.854 2.147-10.94 10.939'/%3E%3C/svg%3E");
 					background-repeat: no-repeat;
 					background-position: center;
-					background-size: 24px 24px;
 				}
 				
 				/* Animaciones de entrada */
@@ -900,26 +912,26 @@ export class ChatUI {
 		const div = document.createElement('div');
 		div.className = 'chat-messages-bottom';
 		this.containerMessages.appendChild(div);
-		
+
 		// Agregar footer con información
 		const footerEl = document.createElement('div');
 		footerEl.className = 'chat-footer';
-		
+
 		const footerText = document.createElement('div');
 		footerText.className = 'chat-footer-text';
 		footerText.innerHTML = 'Equipo de atención al cliente de <strong>Guiders</strong>';
 		footerEl.appendChild(footerText);
-		
+
 		this.container.appendChild(footerEl);
 
 		// Estilo general - MANTENER OCULTO HASTA QUE SE LLAME EXPLÍCITAMENTE A show()
 		this.container.style.display = 'none'; // Cambio crítico: mantener oculto
 		this.container.style.flexDirection = 'column';
 		this.container.style.gap = '0'; // Cambio a 0 para evitar espacios entre secciones
-		
+
 		// Agregar bandera para indicar que el contenido está listo pero no debe mostrarse
 		this.container.setAttribute('data-content-ready', 'true');
-		
+
 		// --- Scroll infinito: detecta scroll top ---
 		this.containerMessages.addEventListener('scroll', () => {
 			// Si el usuario llegó al tope (scrollTop == 0) y tenemos index
@@ -932,28 +944,27 @@ export class ChatUI {
 		// Inicializar el chat de forma lazy - solo cargar contenido cuando se muestre por primera vez
 		this.initializeChatContent();
 	}
-	
+
 	/**
 	 * Agrega un mensaje de bienvenida al chat solo si no hay mensajes existentes
 	 */
 	private addWelcomeMessage(): void {
 		// Verificamos primero si ya hay mensajes en el chat
 		// Buscar si hay algún mensaje real (excluir elementos que no son mensajes como separadores de fecha)
-		const hasMessages = this.containerMessages && 
-			Array.from(this.containerMessages.children).some(el => 
+		const hasMessages = this.containerMessages &&
+			Array.from(this.containerMessages.children).some(el =>
 				el.classList && (
-					el.classList.contains('chat-message-user-wrapper') || 
+					el.classList.contains('chat-message-user-wrapper') ||
 					el.classList.contains('chat-message-other-wrapper')
 				)
 			);
-		
+
 		// Solo mostramos el mensaje de bienvenida si no hay mensajes existentes
 		if (!hasMessages) {
 			const welcomeText = "👋 ¡Hola! Soy una persona real de nuestro equipo y estoy aquí para ayudarte. Cuéntame, ¿qué necesitas? No dudes en escribir cualquier pregunta o problema que tengas 😊";
 			this.addMessage(welcomeText, 'other');
 		}
 	}
-
 	/**
 	 * Establece el ID del chat actual.
 	 * @param chatId ID del chat
@@ -962,6 +973,13 @@ export class ChatUI {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
 		}
+		
+		// Si cambia el chat ID, debemos resetear el estado de carga de mensajes
+		if (this.chatId !== chatId) {
+			this.messagesLoaded = false;
+			this.lastKnownChatStatus = null; // Resetear el estado conocido al cambiar de chat
+		}
+		
 		this.chatId = chatId;
 		this.container.setAttribute('data-chat-id', chatId);
 	}
@@ -982,13 +1000,13 @@ export class ChatUI {
 	 * Renderiza un mensaje (alias de addMessage).
 	 * @param params Parámetros del mensaje
 	 */
-	public renderChatMessage(params: { text: string; sender: Sender; timestamp?: number }): void {
-		const { text, sender, timestamp } = params;
-		this.addMessage(text, sender, timestamp);
-		
+	public renderChatMessage(params: { text: string; sender: Sender; timestamp?: number; senderId?: string }): void {
+		const { text, sender, timestamp, senderId } = params;
+		this.addMessage(text, sender, timestamp, senderId);
+
 		// Reconstruir los separadores de fecha después de añadir un mensaje
 		this.rebuildDateSeparators();
-		
+
 		// DESACTIVADO TEMPORALMENTE: Indicador de satisfacción del cliente
 		// Si es un mensaje del operador (no del usuario),
 		// ocasionalmente mostrar el indicador de satisfacción
@@ -1015,10 +1033,10 @@ export class ChatUI {
 			throw new Error('No se ha establecido un chatId');
 		}
 		const chatId = this.chatId;
-		
+
 		// Iniciar la carga de mensajes y procesar el token en paralelo
 		const messagePromise = fetchMessages(chatId, null, limit);
-		
+
 		// Extraer el ID de usuario del token mientras se cargan los mensajes
 		let user = '';
 		try {
@@ -1030,34 +1048,35 @@ export class ChatUI {
 		} catch (tokenErr) {
 			console.warn("Error al procesar el token de acceso:", tokenErr);
 		}
-		
+
 		try {
 			// Esperar por los mensajes
 			const data = await messagePromise;
-			
+
 			// Guardamos el index para futuras peticiones (mensajes antiguos)
 			this.currentIndex = data.cursor || null;
-			
+
 			// Renderizamos los mensajes (los más recientes)
 			if (data.messages && data.messages.length > 0) {
 				const reversedMessages = [...data.messages].reverse(); // Invertimos para mostrar los más nuevos al final
-				
+
 				// Crear un fragmento para renderizar todos los mensajes de una vez (mejor rendimiento)
 				const batch = reversedMessages.map(msg => {
 					const sender: Sender = (user && msg.senderId.includes(user)) ? 'user' : 'other';
-					return { 
-						text: msg.content, 
+					return {
+						text: msg.content,
 						sender,
-						timestamp: msg.createdAt // Usar el timestamp de creación del mensaje
+						timestamp: msg.createdAt, // Usar el timestamp de creación del mensaje
+						senderId: msg.senderId // Incluir el ID del remitente
 					};
 				});
-				
+
 				// Renderizar mensajes en lote
 				batch.forEach(item => this.renderChatMessage(item));
-				
+
 				// Reconstruir los separadores de fecha después de cargar mensajes
 				this.rebuildDateSeparators();
-				
+
 				// Ajustar scroll al final (donde están los más nuevos)
 				this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
 			}
@@ -1114,7 +1133,7 @@ export class ChatUI {
 			// "Prepend" de mensajes antiguos
 			for (const msg of data.messages) {
 				const sender: Sender = (user && msg.senderId.includes(user)) ? "user" : "other";
-				this.prependMessage(msg.content, sender, msg.createdAt);
+				this.prependMessage(msg.content, sender, msg.createdAt, msg.senderId);
 			}
 
 			// Reconstruir los separadores de fecha después de cargar mensajes antiguos
@@ -1131,24 +1150,24 @@ export class ChatUI {
 	/**
 	 * Agrega un mensaje al final de la lista
 	 */
-	private addMessage(text: string, sender: Sender, timestamp?: number): void {
+	private addMessage(text: string, sender: Sender, timestamp?: number, senderId?: string): void {
 		if (!this.container || !this.containerMessages) {
 			throw new Error('No se ha inicializado el chat');
-			}
-			
-			// Usar el timestamp si se proporciona, de lo contrario usar la fecha actual
-			const messageDate = timestamp ? new Date(timestamp) : new Date();
-			
-			// Añadir separador de fecha si es necesario
-			this.addDateSeparatorIfNeeded(messageDate);
-			
-			// Crear y añadir el mensaje
-			const messageDiv = this.createMessageDiv(text, sender, timestamp);
-			this.containerMessages.appendChild(messageDiv);
-			
-			// Scroll al final
-			this.scrollToBottom(true);
 		}
+
+		// Usar el timestamp si se proporciona, de lo contrario usar la fecha actual
+		const messageDate = timestamp ? new Date(timestamp) : new Date();
+
+		// Añadir separador de fecha si es necesario
+		this.addDateSeparatorIfNeeded(messageDate);
+
+		// Crear y añadir el mensaje
+		const messageDiv = this.createMessageDiv(text, sender, timestamp, senderId);
+		this.containerMessages.appendChild(messageDiv);
+
+		// Scroll al final
+		this.scrollToBottom(true);
+	}
 
 	/**
 	 * Agrega un mensaje del sistema al chat.
@@ -1180,12 +1199,13 @@ export class ChatUI {
 	 * @param text Texto del mensaje
 	 * @param sender Remitente del mensaje
 	 * @param timestamp Timestamp de creación del mensaje en milisegundos
+	 * @param senderId ID del remitente del mensaje
 	 */
-	private prependMessage(text: string, sender: Sender, timestamp?: number): void {
+	private prependMessage(text: string, sender: Sender, timestamp?: number, senderId?: string): void {
 		if (!this.container || !this.containerMessages) {
 			throw new Error('No se ha inicializado el chat');
 		}
-		const messageDiv = this.createMessageDiv(text, sender, timestamp);
+		const messageDiv = this.createMessageDiv(text, sender, timestamp, senderId);
 
 		if (this.containerMessages.firstChild) {
 			this.containerMessages.insertBefore(messageDiv, this.containerMessages.firstChild);
@@ -1200,87 +1220,89 @@ export class ChatUI {
 	 * @param text Texto del mensaje
 	 * @param sender Remitente del mensaje (user/other)
 	 * @param timestamp Timestamp de creación del mensaje en milisegundos
+	 * @param senderId ID del remitente del mensaje para obtener información del participante
 	 */
-	private createMessageDiv(text: string, sender: Sender, timestamp?: number): HTMLDivElement {
+	private createMessageDiv(text: string, sender: Sender, timestamp?: number, senderId?: string): HTMLDivElement {
 		// Contenedor principal del mensaje
 		const wrapperDiv = document.createElement('div');
 		wrapperDiv.classList.add('chat-message-wrapper');
-		
+
 		// Si hay timestamp, lo guardamos como atributo data para referencia futura
 		if (timestamp) {
 			wrapperDiv.setAttribute('data-timestamp', timestamp.toString());
 		}
-		
+
 		// Configuración según el remitente
 		if (sender === 'user') {
 			// Mensaje del usuario (derecha)
 			wrapperDiv.classList.add('chat-message-user-wrapper');
-			
+
 			// Mensaje con texto
 			const messageDiv = document.createElement('div');
 			messageDiv.classList.add('chat-message', 'chat-message-user');
 			messageDiv.textContent = text;
 			wrapperDiv.appendChild(messageDiv);
-			
+
 			// Hora del mensaje
 			const timeDiv = document.createElement('div');
 			timeDiv.classList.add('chat-message-time');
 			// Usar el timestamp si se proporciona, de lo contrario usar la fecha actual
 			timeDiv.textContent = this.formatTime(timestamp ? new Date(timestamp) : new Date());
 			wrapperDiv.appendChild(timeDiv);
-			
+
 		} else {
 			// Mensaje del asesor (izquierda)
 			wrapperDiv.classList.add('chat-message-other-wrapper');
-			
+
 			// Avatar del asesor con iniciales
 			const avatarDiv = document.createElement('div');
 			avatarDiv.classList.add('chat-avatar');
-			
-			// Añadir iniciales del asesor (aquí podríamos usar datos reales)
-			const advisorInitials = 'AH'; // Iniciales de "Asesor Humano"
-			avatarDiv.textContent = advisorInitials;
+
+			// Añadir iniciales del asesor basadas en el participante real
+			const participantInitials = this.getParticipantInitials(senderId || '');
+			avatarDiv.textContent = participantInitials;
 			avatarDiv.style.display = 'flex';
 			avatarDiv.style.alignItems = 'center';
 			avatarDiv.style.justifyContent = 'center';
 			avatarDiv.style.color = '#0062cc';
 			avatarDiv.style.fontWeight = '600';
 			avatarDiv.style.fontSize = '10px';
-			
+
 			wrapperDiv.appendChild(avatarDiv);
-			
+
 			// Contenedor para mensaje y tiempo
 			const contentDiv = document.createElement('div');
-			
-			// Añadir nombre del asesor (opcional)
+
+			// Añadir nombre real del participante
 			const nameDiv = document.createElement('div');
 			nameDiv.classList.add('chat-message-name');
-			nameDiv.textContent = 'Asesor Humano';
+			const participantName = this.getParticipantName(senderId || '');
+			nameDiv.textContent = participantName;
 			nameDiv.style.fontSize = '11px';
 			nameDiv.style.color = '#5a6877';
 			nameDiv.style.marginBottom = '3px';
 			nameDiv.style.fontWeight = '500';
 			contentDiv.appendChild(nameDiv);
-			
+
 			// Mensaje con texto
 			const messageDiv = document.createElement('div');
 			messageDiv.classList.add('chat-message', 'chat-message-other');
 			messageDiv.textContent = text;
 			contentDiv.appendChild(messageDiv);
-			
+
 			// Hora del mensaje
 			const timeDiv = document.createElement('div');
 			timeDiv.classList.add('chat-message-time');
 			// Usar el timestamp si se proporciona, de lo contrario usar la fecha actual
 			timeDiv.textContent = this.formatTime(timestamp ? new Date(timestamp) : new Date());
 			contentDiv.appendChild(timeDiv);
-			
+
 			wrapperDiv.appendChild(contentDiv);
 		}
-		
+
 		return wrapperDiv;
 	}
-	
+
 	/**
 	 * Formatea la hora para mostrarla en los mensajes
 	 */
@@ -1294,20 +1316,20 @@ export class ChatUI {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
 		}
-			
+
 		// Si ya está oculto, no necesitamos hacer nada
 		if (this.container.style.display === 'none') {
 			return;
 		}
-			
+
 		// Añadir animación de salida
 		this.container.style.transform = 'translateY(20px)';
 		this.container.style.opacity = '0';
-			
+
 		// Ocultar después de que termine la animación
 		setTimeout(() => {
 			this.container!.style.display = 'none';
-				
+
 			// Limpia todos los intervalos activos
 			this.activeIntervals.forEach(intervalObj => {
 				if (intervalObj.id !== null) {
@@ -1317,28 +1339,31 @@ export class ChatUI {
 			});
 			this.closeCallbacks.forEach(cb => cb());
 		}, 300);
-		}
+	}
 
 	public show(): void {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
 		}
-		
+
 		// Primero mostrar el contenedor (pero transparente)
 		this.container.style.display = 'flex';
-		
+
 		// Forzar un reflow para que la animación funcione
 		this.container.offsetHeight;
-		
+
 		// Animar entrada
 		this.container.style.opacity = '1';
 		this.container.style.transform = 'translateY(0)';
-		
+
 		// Cargar contenido del chat si es la primera vez que se muestra
 		this.loadChatContent();
-		
+
+		// Actualizar detalles del chat para información en tiempo real
+		this.refreshChatDetails();
+
 		this.scrollToBottom(true);
-		
+
 		// Inicia todos los intervalos configurados
 		this.activeIntervals.forEach(intervalObj => {
 			if (intervalObj.id === null) {
@@ -1352,7 +1377,7 @@ export class ChatUI {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
 		}
-		
+
 		// Si está oculto, lo mostramos con animación
 		if (this.container.style.display === 'none') {
 			this.show();
@@ -1399,23 +1424,60 @@ export class ChatUI {
 	}
 
 	/**
+	 * Actualiza la información de un participante específico
+	 * Útil para actualizaciones en tiempo real (ej: estado de typing, online status)
+	 * @param participantId ID del participante a actualizar
+	 * @param updates Objeto con las propiedades a actualizar
+	 */
+	public updateParticipant(participantId: string, updates: Partial<ChatParticipant>): void {
+		if (!this.chatDetail) return;
+
+		const participant = this.chatDetail.participants.find(p => p.id === participantId);
+		if (participant) {
+			Object.assign(participant, updates);
+			this.updateChatHeader();
+
+			console.log(`Participante ${participantId} actualizado:`, updates);
+		}
+	}
+
+	/**
+	 * Obtiene la información actual del chat con participantes
+	 * @returns Detalles del chat o null si no está cargado
+	 */
+	public getChatDetail(): ChatDetail | null {
+		return this.chatDetail;
+	}
+
+	/**
+	 * Recarga los detalles del chat desde el servidor
+	 */
+	public async refreshChatDetails(): Promise<void> {
+		await this.loadChatDetails();
+	}
+
+	/**
 	 * Muestra un indicador de "escribiendo..."
 	 * Este indicador permanecerá visible hasta que se llame a hideTypingIndicator().
+	 * @param typingParticipantId ID del participante que está escribiendo (opcional)
 	 */
-	public showTypingIndicator(): void {
+	public showTypingIndicator(typingParticipantId?: string): void {
 		if (!this.containerMessages) return;
 
 		// Si ya hay un indicador visible, no hacer nada.
 		if (this.typingIndicator) return;
-		
+
 		// Crear el indicador de escritura
 		const indicator = document.createElement('div');
 		indicator.className = 'chat-typing-indicator';
-		
-		// Avatar con iniciales para humanizar (podría ser dinámico con el nombre del asesor real)
+
+		// Avatar con iniciales del participante que está escribiendo
 		const avatar = document.createElement('div');
 		avatar.className = 'chat-typing-avatar';
-		avatar.textContent = 'AH'; // Iniciales de "Asesor Humano"
+
+		// Obtener iniciales reales del participante que está escribiendo
+		const typingInitials = this.getParticipantInitials(typingParticipantId || '');
+		avatar.textContent = typingInitials;
 		avatar.style.display = 'flex';
 		avatar.style.alignItems = 'center';
 		avatar.style.justifyContent = 'center';
@@ -1423,24 +1485,24 @@ export class ChatUI {
 		avatar.style.fontWeight = '600';
 		avatar.style.fontSize = '10px';
 		indicator.appendChild(avatar);
-		
+
 		// Burbuja con puntos
 		const bubble = document.createElement('div');
 		bubble.className = 'chat-typing-bubble';
-		
+
 		// Puntos animados
 		for (let i = 0; i < 3; i++) {
 			const dot = document.createElement('div');
 			dot.className = 'chat-typing-dot';
 			bubble.appendChild(dot);
 		}
-		
+
 		indicator.appendChild(bubble);
-		
+
 		// Agregar al contenedor
 		this.containerMessages.appendChild(indicator);
 		this.typingIndicator = indicator; // Guardar referencia al indicador activo
-		
+
 		// Scroll para ver el indicador
 		this.scrollToBottom(true);
 	}
@@ -1455,6 +1517,20 @@ export class ChatUI {
 		}
 	}
 
+	/**
+	 * Actualiza las iniciales del indicador de escritura con información en tiempo real
+	 * @param participantId ID del participante que está escribiendo
+	 */
+	public updateTypingIndicator(participantId: string): void {
+		if (!this.typingIndicator) return;
+
+		const avatar = this.typingIndicator.querySelector('.chat-typing-avatar');
+		if (avatar) {
+			const typingInitials = this.getParticipantInitials(participantId);
+			avatar.textContent = typingInitials;
+		}
+	}
+
 	// La implementación de isVisible() ya existe en la línea 1327
 
 	/**
@@ -1462,21 +1538,21 @@ export class ChatUI {
 	 */
 	public showSatisfactionIndicator(): void {
 		if (!this.containerMessages) return;
-		
+
 		// Crear contenedor principal
 		const container = document.createElement('div');
 		container.className = 'chat-satisfaction';
-		
+
 		// Pregunta
 		const question = document.createElement('div');
 		question.className = 'chat-satisfaction-question';
 		question.textContent = '¿Te ha sido útil la ayuda de nuestro asesor humano?';
 		container.appendChild(question);
-		
+
 		// Opciones
 		const options = document.createElement('div');
 		options.className = 'chat-satisfaction-options';
-		
+
 		// Opciones: Sí, No
 		const optionYes = document.createElement('div');
 		optionYes.className = 'chat-satisfaction-option';
@@ -1489,7 +1565,7 @@ export class ChatUI {
 				}
 			}, 2000);
 		});
-		
+
 		const optionNo = document.createElement('div');
 		optionNo.className = 'chat-satisfaction-option';
 		optionNo.textContent = 'No';
@@ -1501,11 +1577,11 @@ export class ChatUI {
 				}
 			}, 2000);
 		});
-		
+
 		options.appendChild(optionYes);
 		options.appendChild(optionNo);
 		container.appendChild(options);
-		
+
 		// Agregar al contenedor
 		this.containerMessages.appendChild(container);
 		this.scrollToBottom(true);
@@ -1521,10 +1597,16 @@ export class ChatUI {
 			const res = await startChat();
 			console.log("Chat iniciado:", res);
 			this.setChatId(res.id);
-			
+
+			// Cargar detalles del chat con participantes
+			await this.loadChatDetails();
+
+			// Registrar listeners de WebSocket para eventos del chat
+			this.registerWebSocketListeners();
+
 			// Marcar que el chat está listo para mostrar contenido
 			this.container?.setAttribute('data-chat-initialized', 'true');
-			
+
 			// Si el chat está visible, cargar el contenido inmediatamente
 			if (this.isVisible()) {
 				this.loadChatContent();
@@ -1533,30 +1615,265 @@ export class ChatUI {
 			console.error("Error iniciando chat:", err);
 		}
 	}
-	
+	/**
+	 * Carga los detalles del chat incluyendo participantes y actualiza la UI
+	 */
+	private async loadChatDetails(): Promise<void> {
+		if (!this.chatId) return;
+		
+		try {
+			console.log("Cargando detalles del chat...");
+			this.chatDetail = await fetchChatDetail(this.chatId);
+			console.log("Detalles del chat:", this.chatDetail);
+			
+			// Guardar el estado actual del chat para comparaciones futuras
+			this.lastKnownChatStatus = this.chatDetail.status;
+			console.log(`Estado actual del chat: ${this.lastKnownChatStatus}`);
+			
+			// Actualizar encabezado con información de participantes
+			this.updateChatHeader();
+		} catch (error) {
+			console.warn("Error al cargar detalles del chat:", error);
+		}
+	}
+
+	/**
+	 * Actualiza el encabezado del chat con información de los participantes
+	 */
+	private updateChatHeader(): void {
+		if (!this.chatDetail || !this.titleElement || !this.subtitleElement) return;
+
+		const commercialParticipants = this.chatDetail.participants.filter(p => p.isCommercial);
+		const visitorParticipants = this.chatDetail.participants.filter(p => p.isVisitor);
+
+		// Actualizar título según el estado del chat y número de comerciales
+		if (this.chatDetail.status === 'pending' && commercialParticipants.length > 1) {
+			// Chat pendiente con múltiples comerciales asignados
+			this.titleElement.textContent = 'Chat';
+			this.subtitleElement.textContent = `Conectando con asesor (${commercialParticipants.length} disponibles)...`;
+		} else if (this.chatDetail.status === 'pending' && commercialParticipants.length === 1) {
+			// Chat pendiente con un solo comercial asignado
+			this.titleElement.textContent = 'Chat';
+			this.subtitleElement.textContent = `Conectando con ${commercialParticipants[0].name}...`;
+		} else if (commercialParticipants.length > 0) {
+			// Chat activo con comercial asignado
+			const advisor = commercialParticipants[0];
+			this.titleElement.textContent = `Chat con ${advisor.name}`;
+
+			// Actualizar subtítulo con estado
+			const onlineStatus = advisor.isOnline ? 'En línea' : 'Desconectado';
+			const typingStatus = advisor.isTyping ? ' • Escribiendo...' : '';
+			this.subtitleElement.textContent = `${onlineStatus}${typingStatus}`;
+		} else {
+			// Chat sin comerciales asignados
+			this.titleElement.textContent = 'Chat';
+			this.subtitleElement.textContent = 'Buscando asesor disponible...';
+		}
+
+		// Log información de participantes para debugging
+		console.log(`Chat ${this.chatDetail.id} - Participantes:`, {
+			comerciales: commercialParticipants.length,
+			visitantes: visitorParticipants.length,
+			total: this.chatDetail.participants.length,
+			estado: this.chatDetail.status
+		});
+	}
+
 	/**
 	 * Carga el contenido del chat (mensajes de bienvenida e iniciales)
-	 * Solo se ejecuta cuando el chat está visible
+	 * Solo se ejecuta cuando el chat está visible y los mensajes no se han cargado previamente
 	 */
 	private async loadChatContent(): Promise<void> {
 		if (!this.container?.getAttribute('data-chat-initialized')) {
 			console.log("Chat no inicializado aún, esperando...");
 			return;
 		}
-		
+
+		// Si ya cargamos los mensajes previamente, evitamos volver a ejecutar la solicitud
+		if (this.messagesLoaded) {
+			console.log("Los mensajes ya fueron cargados previamente, omitiendo fetch...");
+			return;
+		}
+
 		console.log("Cargando contenido del chat...");
-		
+
 		// Primero cargamos los mensajes iniciales
 		try {
 			await this.loadInitialMessages(20);
-			
+
+			// Marcar que los mensajes fueron cargados exitosamente
+			this.messagesLoaded = true;
+
 			// Después de cargar los mensajes, verificamos si debemos mostrar el mensaje de bienvenida
 			this.addWelcomeMessage();
-		} catch(error) {
+		} catch (error) {
 			console.error("Error al cargar el contenido del chat:", error);
 			// Si no pudimos cargar mensajes, mostramos el mensaje de bienvenida de todos modos
 			this.addWelcomeMessage();
 		}
+	}
+
+	/**
+	 * Fuerza la recarga de mensajes del chat incluso si ya fueron cargados previamente
+	 * Útil cuando hay nuevos mensajes o cuando el usuario solicita explícitamente refrescar
+	 * @param limit Cantidad de mensajes a cargar
+	 */
+	public async forceReloadMessages(limit: number = 20): Promise<void> {
+		// Resetear el estado de carga de mensajes
+		this.messagesLoaded = false;
+
+		// Si el chat está visible, cargar los mensajes inmediatamente
+		if (this.isVisible()) {
+			await this.loadChatContent();
+		}
+	}
+
+	/**
+	 * Registra listeners para eventos WebSocket
+	 */
+	private registerWebSocketListeners(): void {
+		// Obtener la instancia existente del WebSocket
+		const webSocketEndpoint = localStorage.getItem('pixelWebSocketEndpoint') || 'wss://guiders.ancoradual.com';
+		const webSocketClient = WebSocketClient.getInstance(webSocketEndpoint);
+
+		if (!webSocketClient) {
+			console.error("No se pudo obtener la instancia de WebSocketClient");
+			return;
+		}
+
+		console.log("Registrando listener para evento chat:status-updated");
+
+		// Registrar listener para el evento de cambio de estado del chat
+		webSocketClient.addListener("chat:status-updated", (payload) => {
+			console.log("Evento chat:status-updated recibido:", payload);
+			const data = payload.data as {
+				chatId: string;
+				status:
+				'active' |
+				'inactive' |
+				'closed' |
+				'archived' |
+				'pending';
+			};
+			
+			// Solo actualizar si este es el chat actualmente abierto
+			if (this.chatId && data.chatId === this.chatId) {
+				console.log(`Estado del chat actualizado: ${this.lastKnownChatStatus || 'desconocido'} → ${data.status}`);
+				
+				// Si el estado anterior era pendiente y ahora es activo, actualizamos los detalles del chat
+				const isPendingToActive = this.lastKnownChatStatus === 'pending' && data.status === 'active';
+				
+				// Detectar cualquier cambio de estado importante
+				const isStatusChange = this.lastKnownChatStatus !== data.status;
+				
+				// Si es un cambio de pending a active o cualquier otro cambio de estado
+				if (isPendingToActive || isStatusChange) {
+					console.log("Cambio de estado importante detectado - Recargando detalles del chat");
+					
+					// Actualizar nuestro estado conocido inmediatamente para evitar múltiples actualizaciones
+					this.lastKnownChatStatus = data.status;
+					
+					// Recargar los detalles del chat para reflejar los cambios
+					this.loadChatDetails().then(() => {
+						console.log("Detalles del chat actualizados después del cambio de estado");
+					});
+				}
+			}
+		});
+
+		// Registrar listener para cuando un nuevo participante se une al chat
+		webSocketClient.addListener("chat:participant-joined", (payload) => {
+			console.log("Evento chat:participant-joined recibido:", payload);
+
+			const data = payload.data as {
+				chatId: string;
+				newParticipant: ChatParticipant;
+			};
+
+			// Solo actualizar si este es el chat actualmente abierto
+			if (this.chatId && data.chatId === this.chatId) {
+				console.log("Nuevo participante unido al chat:", data.newParticipant);
+
+				// Verificar que tenemos detalles del chat cargados
+				if (this.chatDetail) {
+					// Añadir el nuevo participante a la lista de participantes
+					this.chatDetail.participants.push(data.newParticipant);
+
+					// Actualizar el encabezado para reflejar el nuevo participante
+					this.updateChatHeader();
+
+					console.log("Lista de participantes actualizada:", this.chatDetail.participants);
+				} else {
+					// Si no tenemos detalles del chat, cargarlos completamente
+					this.loadChatDetails();
+				}
+			}
+		});
+
+		// Registrar listener para cuando un participante abandona el chat
+		webSocketClient.addListener("chat:participant-left", (payload) => {
+			console.log("Evento chat:participant-left recibido:", payload);
+
+			const data = payload.data as {
+				chatId: string;
+				participantId: string;
+			};
+
+			// Solo actualizar si este es el chat actualmente abierto
+			if (this.chatId && data.chatId === this.chatId && this.chatDetail) {
+				console.log("Participante abandonó el chat:", data.participantId);
+
+				// Filtrar la lista de participantes para eliminar al que se fue
+				this.chatDetail.participants = this.chatDetail.participants.filter(
+					participant => participant.id !== data.participantId
+				);
+
+				// Actualizar el encabezado para reflejar el cambio de participantes
+				this.updateChatHeader();
+
+				console.log("Lista de participantes actualizada:", this.chatDetail.participants);
+			}
+		});
+
+		// Registrar listener para actualizaciones de participantes existentes
+		webSocketClient.addListener("chat:participant-updated", (payload) => {
+			console.log("Evento chat:participant-updated recibido:", payload);
+
+			const data = payload.data as {
+				chatId: string;
+				participant: Partial<ChatParticipant> & { id: string };
+			};
+
+			// Solo actualizar si este es el chat actualmente abierto
+			if (this.chatId && data.chatId === this.chatId && this.chatDetail) {
+				console.log("Actualización de participante recibida:", data.participant);
+
+				// Encontrar y actualizar el participante en la lista
+				const participantIndex = this.chatDetail.participants.findIndex(
+					p => p.id === data.participant.id
+				);
+
+				if (participantIndex !== -1) {
+					// Actualizar el participante con los nuevos datos
+					this.chatDetail.participants[participantIndex] = {
+						...this.chatDetail.participants[participantIndex],
+						...data.participant
+					};
+
+					// Actualizar el encabezado para reflejar cambios (online, typing, etc.)
+					this.updateChatHeader();
+
+					// Si está escribiendo, mostrar indicador
+					if (data.participant.isTyping) {
+						this.showTypingIndicator(data.participant.id);
+					} else {
+						this.hideTypingIndicator();
+					}
+
+					console.log("Participante actualizado:", this.chatDetail.participants[participantIndex]);
+				}
+			}
+		});
 	}
 
 	/**
@@ -1565,27 +1882,27 @@ export class ChatUI {
 	 */
 	private addDateSeparatorIfNeeded(date: Date): void {
 		if (!this.containerMessages) return;
-		
+
 		const dateStr = this.formatDate(date);
-		
+
 		// Si es el primer mensaje o la fecha es diferente a la última, añadir separador
 		if (!this.lastMessageDate || this.lastMessageDate !== dateStr) {
 			const separator = document.createElement('div');
 			separator.className = 'chat-date-separator';
 			separator.setAttribute('data-date', dateStr);
-			
+
 			const dateText = document.createElement('span');
 			dateText.className = 'chat-date-text';
 			dateText.textContent = dateStr;
-			
+
 			separator.appendChild(dateText);
 			this.containerMessages.appendChild(separator);
-			
+
 			// Actualizar la última fecha
 			this.lastMessageDate = dateStr;
 		}
 	}
-	
+
 	/**
 	 * Formatea la fecha para el separador
 	 */
@@ -1593,24 +1910,24 @@ export class ChatUI {
 		const today = new Date();
 		const yesterday = new Date();
 		yesterday.setDate(yesterday.getDate() - 1);
-		
+
 		const isToday = date.toDateString() === today.toDateString();
 		const isYesterday = date.toDateString() === yesterday.toDateString();
-		
+
 		if (isToday) {
 			return 'Hoy';
 		} else if (isYesterday) {
 			return 'Ayer';
 		} else {
-			const options: Intl.DateTimeFormatOptions = { 
-				day: 'numeric', 
-				month: 'long', 
-				year: 'numeric' 
+			const options: Intl.DateTimeFormatOptions = {
+				day: 'numeric',
+				month: 'long',
+				year: 'numeric'
 			};
 			return date.toLocaleDateString('es-ES', options);
 		}
 	}
-	
+
 	/**
 	 * Reconstruye todos los separadores de fecha en el chat
 	 * Esta función debería llamarse después de cargar mensajes o cuando
@@ -1618,60 +1935,106 @@ export class ChatUI {
 	 */
 	private rebuildDateSeparators(): void {
 		if (!this.containerMessages) return;
-		
+
 		// Resetear el estado de la última fecha
 		this.lastMessageDate = null;
-		
+
 		// Eliminar todos los separadores existentes
 		const existingSeparators = this.containerMessages.querySelectorAll('.chat-date-separator');
 		existingSeparators.forEach(sep => sep.parentNode?.removeChild(sep));
-		
+
 		// Ordenar los mensajes por fecha
 		const messageWrappers = Array.from(this.containerMessages.querySelectorAll('.chat-message-wrapper'));
-		
+
 		// Si no hay mensajes, no hay nada que hacer
 		if (messageWrappers.length === 0) return;
-		
+
 		// Para cada día, crear un separador antes del primer mensaje de ese día
 		let currentDateStr: string | null = null;
 		let insertPoint: HTMLElement | null = null;
-		
+
 		messageWrappers.forEach((wrapper) => {
 			// Intentar obtener la fecha del mensaje de su atributo o timestamp
 			const messageTime = wrapper.querySelector('.chat-message-time');
 			if (!messageTime) return;
-			
+
 			// Para simplificar, usamos la fecha actual (en una implementación real,
 			// deberías extraer la fecha real del mensaje)
 			const messageDate = new Date();
 			const messageDateStr = this.formatDate(messageDate);
-			
+
 			// Si es un nuevo día, insertar un separador
 			if (messageDateStr !== currentDateStr) {
 				currentDateStr = messageDateStr;
-				
+
 				// Crear nuevo separador
 				const separator = document.createElement('div');
 				separator.className = 'chat-date-separator';
 				separator.setAttribute('data-date', messageDateStr);
-				
+
 				const dateText = document.createElement('span');
 				dateText.className = 'chat-date-text';
 				dateText.textContent = messageDateStr;
-				
+
 				separator.appendChild(dateText);
-				
+
 				// Insertar el separador antes del mensaje actual
 				if (this.containerMessages) {
 					this.containerMessages.insertBefore(separator, wrapper);
 				}
 			}
 		});
-		
+
 		// Actualizar la última fecha conocida
 		if (currentDateStr) {
 			this.lastMessageDate = currentDateStr;
 		}
+	}
+
+	/**
+	 * Obtiene las iniciales de un participante basándose en su ID
+	 * @param senderId ID del remitente del mensaje
+	 * @returns Iniciales del participante
+	 */
+	private getParticipantInitials(senderId: string): string {
+		if (!this.chatDetail || !senderId) {
+			console.warn('No se ha cargado el chat o no se proporcionó un ID de remitente válido', senderId);
+			return 'AH'; // Fallback por defecto
+		}
+
+		const participant = this.chatDetail.participants.find(p => p.id === senderId);
+		if (!participant) {
+			console.warn(`No se encontró el participante con ID ${senderId}`);
+			return 'AH'; // Fallback si no se encuentra el participante
+		}
+
+		// Generar iniciales del nombre
+		const nameParts = participant.name.trim().split(' ');
+		if (nameParts.length >= 2) {
+			return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+		} else if (nameParts.length === 1) {
+			return nameParts[0].substring(0, 2).toUpperCase();
+		}
+
+		return 'AH'; // Fallback
+	}
+
+	/**
+	 * Obtiene el nombre de un participante basándose en su ID
+	 * @param senderId ID del remitente del mensaje
+	 * @returns Nombre del participante
+	 */
+	private getParticipantName(senderId: string): string {
+		if (!this.chatDetail || !senderId) {
+			return 'Asesor Humano'; // Fallback por defecto
+		}
+
+		const participant = this.chatDetail.participants.find(p => p.id === senderId);
+		if (!participant) {
+			return 'Asesor Humano'; // Fallback si no se encuentra el participante
+		}
+
+		return participant.name;
 	}
 }
 
