@@ -43,6 +43,9 @@ export class ChatUI {
 	
 	// Almacenar el último estado conocido del chat para detectar cambios
 	private lastKnownChatStatus: string | null = null;
+	
+	// Rastrear el último mensaje de notificación enviado para evitar duplicados
+	private lastNotificationType: 'online' | 'offline' | null = null;
 
 	// Flag para controlar si los mensajes ya fueron cargados (evitar recargas innecesarias)
 	private messagesLoaded: boolean = false;
@@ -200,7 +203,30 @@ export class ChatUI {
 					gap: 4px;
 				}
 				
-				/* Se eliminó el indicador de status (punto verde) */
+				/* Indicador de estado online del comercial */
+				.chat-online-indicator {
+					display: inline-flex;
+					align-items: center;
+					gap: 6px;
+				}
+				
+				.chat-status-dot {
+					width: 8px;
+					height: 8px;
+					border-radius: 50%;
+					display: inline-block;
+					transition: background-color 0.3s ease;
+				}
+				
+				.chat-status-dot.online {
+					background-color: #00d26a;
+					box-shadow: 0 0 0 2px rgba(0, 210, 106, 0.3);
+				}
+				
+				.chat-status-dot.offline {
+					background-color: #8a9aa9;
+					box-shadow: 0 0 0 2px rgba(138, 154, 169, 0.3);
+				}
 				
 				.chat-header-subtitle {
 					font-size: 12px;
@@ -978,6 +1004,7 @@ export class ChatUI {
 		if (this.chatId !== chatId) {
 			this.messagesLoaded = false;
 			this.lastKnownChatStatus = null; // Resetear el estado conocido al cambiar de chat
+			this.lastNotificationType = null; // Resetear las notificaciones al cambiar de chat
 		}
 		
 		this.chatId = chatId;
@@ -1167,6 +1194,39 @@ export class ChatUI {
 
 		// Scroll al final
 		this.scrollToBottom(true);
+	}
+
+	/**
+	 * Envía un mensaje automático informando que el comercial no está disponible
+	 * @param commercialName Nombre del comercial que se desconectó
+	 * @param isInitialLoad Si es la primera carga (true) o una desconexión en tiempo real (false)
+	 */
+	private sendOfflineNotificationMessage(commercialName: string, isInitialLoad: boolean = false): void {
+		let offlineMessage: string;
+		
+		if (isInitialLoad) {
+			offlineMessage = `${commercialName} no está disponible en este momento. Te responderá tan pronto como esté online.`;
+		} else {
+			offlineMessage = `${commercialName} se ha desconectado temporalmente. Te responderá tan pronto como esté disponible nuevamente.`;
+		}
+		
+		console.log("Enviando mensaje automático de desconexión:", offlineMessage);
+		
+		// Usar el método existente para agregar mensaje del sistema
+		this.addSystemMessage(offlineMessage);
+	}
+
+	/**
+	 * Envía un mensaje automático informando que el comercial se ha reconectado
+	 * @param commercialName Nombre del comercial que se reconectó
+	 */
+	private sendOnlineNotificationMessage(commercialName: string): void {
+		const onlineMessage = `${commercialName} se ha reconectado y está disponible para responder tus preguntas.`;
+		
+		console.log("Enviando mensaje automático de reconexión:", onlineMessage);
+		
+		// Usar el método existente para agregar mensaje del sistema
+		this.addSystemMessage(onlineMessage);
 	}
 
 	/**
@@ -1632,9 +1692,34 @@ export class ChatUI {
 			
 			// Actualizar encabezado con información de participantes
 			this.updateChatHeader();
+			
+			// Nota: checkInitialCommercialStatus se llamará desde loadChatContent 
+			// después de cargar los mensajes para que aparezca al final
 		} catch (error) {
 			console.warn("Error al cargar detalles del chat:", error);
 		}
+	}
+
+	/**
+	 * Verifica el estado inicial de los comerciales y envía mensaje si están offline
+	 * Este método debe llamarse después de cargar los mensajes iniciales
+	 */
+	private checkInitialCommercialStatus(): void {
+		if (!this.chatDetail) return;
+		
+		const commercialParticipants = this.chatDetail.participants.filter(p => p.isCommercial);
+		
+		// Si hay comerciales asignados y alguno está offline, enviar mensaje
+		commercialParticipants.forEach(commercial => {
+			if (!commercial.isOnline && this.lastNotificationType !== 'offline') {
+				console.log(`Comercial ${commercial.name} está offline en la carga inicial`);
+				// Programar el mensaje para que aparezca después de los mensajes existentes
+				setTimeout(() => {
+					this.sendOfflineNotificationMessage(commercial.name, true); // true = es carga inicial
+					this.lastNotificationType = 'offline';
+				}, 100); // Pequeño delay para asegurar que se ejecute después de cargar mensajes
+			}
+		});
 	}
 
 	/**
@@ -1658,12 +1743,40 @@ export class ChatUI {
 		} else if (commercialParticipants.length > 0) {
 			// Chat activo con comercial asignado
 			const advisor = commercialParticipants[0];
-			this.titleElement.textContent = `Chat con ${advisor.name}`;
-
-			// Actualizar subtítulo con estado
-			const onlineStatus = advisor.isOnline ? 'En línea' : 'Desconectado';
-			const typingStatus = advisor.isTyping ? ' • Escribiendo...' : '';
-			this.subtitleElement.textContent = `${onlineStatus}${typingStatus}`;
+			
+			// Solo mostrar estado online/offline cuando el chat está activo
+			if (this.chatDetail.status === 'active') {
+				// Crear el contenido del título con indicador de estado
+				const titleWithIndicator = document.createElement('div');
+				titleWithIndicator.className = 'chat-online-indicator';
+				
+				// Crear el punto indicador de estado
+				const statusDot = document.createElement('span');
+				statusDot.className = `chat-status-dot ${advisor.isOnline ? 'online' : 'offline'}`;
+				
+				// Crear el texto del título
+				const titleText = document.createElement('span');
+				titleText.textContent = `Chat con ${advisor.name}`;
+				
+				// Agregar elementos al contenedor
+				titleWithIndicator.appendChild(statusDot);
+				titleWithIndicator.appendChild(titleText);
+				
+				// Limpiar y agregar el nuevo contenido
+				this.titleElement.innerHTML = '';
+				this.titleElement.appendChild(titleWithIndicator);
+				
+				const onlineStatus = advisor.isOnline ? 'En línea' : 'Desconectado';
+				const typingStatus = advisor.isTyping ? ' • Escribiendo...' : '';
+				this.subtitleElement.textContent = `${onlineStatus}${typingStatus}`;
+			} else {
+				// Para otros estados que no sean 'active', mostrar solo el texto sin indicador
+				this.titleElement.textContent = `Chat con ${advisor.name}`;
+				const chatStatusText = this.chatDetail.status === 'inactive' ? 'Inactivo' : 
+									   this.chatDetail.status === 'closed' ? 'Cerrado' : 
+									   this.chatDetail.status === 'archived' ? 'Archivado' : 'Conectando...';
+				this.subtitleElement.textContent = chatStatusText;
+			}
 		} else {
 			// Chat sin comerciales asignados
 			this.titleElement.textContent = 'Chat';
@@ -1675,7 +1788,8 @@ export class ChatUI {
 			comerciales: commercialParticipants.length,
 			visitantes: visitorParticipants.length,
 			total: this.chatDetail.participants.length,
-			estado: this.chatDetail.status
+			estado: this.chatDetail.status,
+			comercialOnline: commercialParticipants.length > 0 ? commercialParticipants[0].isOnline : null
 		});
 	}
 
@@ -1706,10 +1820,21 @@ export class ChatUI {
 
 			// Después de cargar los mensajes, verificamos si debemos mostrar el mensaje de bienvenida
 			this.addWelcomeMessage();
+			
+			// Verificar estado inicial de los comerciales si el chat está activo
+			// Esto se hace al final para que el mensaje aparezca después de todos los mensajes existentes
+			if (this.chatDetail && this.chatDetail.status === 'active') {
+				this.checkInitialCommercialStatus();
+			}
 		} catch (error) {
 			console.error("Error al cargar el contenido del chat:", error);
 			// Si no pudimos cargar mensajes, mostramos el mensaje de bienvenida de todos modos
 			this.addWelcomeMessage();
+			
+			// También verificar el estado de comerciales en caso de error
+			if (this.chatDetail && this.chatDetail.status === 'active') {
+				this.checkInitialCommercialStatus();
+			}
 		}
 	}
 
@@ -1776,6 +1901,15 @@ export class ChatUI {
 					// Recargar los detalles del chat para reflejar los cambios
 					this.loadChatDetails().then(() => {
 						console.log("Detalles del chat actualizados después del cambio de estado");
+						
+						// Si cambió de pending a active, verificar estado de comerciales
+						if (isPendingToActive && this.chatDetail && this.chatDetail.status === 'active') {
+							console.log("Chat activado - verificando estado inicial de comerciales");
+							// Verificar el estado de comerciales después de un pequeño delay
+							setTimeout(() => {
+								this.checkInitialCommercialStatus();
+							}, 200);
+						}
 					});
 				}
 			}
@@ -1871,6 +2005,52 @@ export class ChatUI {
 					}
 
 					console.log("Participante actualizado:", this.chatDetail.participants[participantIndex]);
+				}
+			}
+		});
+
+		// Registrar listener para actualizaciones del estado online de los participantes
+		webSocketClient.addListener("participant:online-status-updated", (payload) => {
+			console.log("Evento participant:online-status-updated recibido:", payload);
+			
+			const data = payload.data as {
+				isOnline: boolean;
+				participantId: string;
+			};
+			
+			// Solo actualizar si tenemos detalles del chat cargados
+			if (this.chatDetail) {
+				console.log(`Actualizando estado online del participante ${data.participantId}: ${data.isOnline}`);
+				
+				// Encontrar y actualizar el participante
+				const participant = this.chatDetail.participants.find(p => p.id === data.participantId);
+				if (participant) {
+					// Guardar el estado anterior para detectar cambios
+					const wasOnline = participant.isOnline;
+					
+					// Actualizar el estado online del participante
+					participant.isOnline = data.isOnline;
+					
+					// Si es un participante comercial y el chat está activo
+					if (participant.isCommercial && this.chatDetail.status === 'active') {
+						console.log(`Participante comercial ${participant.name} está ahora ${data.isOnline ? 'online' : 'offline'}`);
+						
+						// Si el comercial se desconectó (pasó de online a offline), enviar mensaje automático
+						if (wasOnline && !data.isOnline && this.lastNotificationType !== 'offline') {
+							this.sendOfflineNotificationMessage(participant.name, false); // false = desconexión en tiempo real
+							this.lastNotificationType = 'offline';
+						}
+						// Si el comercial se reconectó (pasó de offline a online), enviar mensaje de reconexión
+						else if (!wasOnline && data.isOnline && this.lastNotificationType !== 'online') {
+							this.sendOnlineNotificationMessage(participant.name);
+							this.lastNotificationType = 'online';
+						}
+						
+						// Actualizar el encabezado para reflejar el cambio
+						this.updateChatHeader();
+					}
+				} else {
+					console.warn(`No se encontró el participante con ID ${data.participantId}`);
 				}
 			}
 		});
