@@ -12,6 +12,7 @@ export * from "./core/dom-tracking-manager";
 export * from "./core/enhanced-dom-tracking-manager";
 export * from "./core/heuristic-element-detector";
 export * from "./core/url-page-detector";
+export * from "./core/session-tracking-manager";
 export * from "./pipeline/pipeline-stage";
 export * from "./pipeline/stages/token-stage";
 export * from "./services/unread-messages-service";
@@ -52,6 +53,15 @@ if (typeof window !== "undefined") {
 					enabled: true,
 					confidenceThreshold: 0.7,
 					fallbackToManual: true
+				}
+			},
+			// Enable session tracking by default
+			sessionTracking: {
+				enabled: true,
+				config: {
+					enabled: true,
+					heartbeatInterval: 30000, // 30 seconds
+					trackBackgroundTime: false
 				}
 			}
 		};
