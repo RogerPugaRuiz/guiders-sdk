@@ -68,6 +68,33 @@ export class URLPageDetector {
             confidence: 0.9,
             metadata: { pageCategory: 'automotive' }
         },
+        
+        // Patrones específicos para páginas de vehículos en español
+        {
+            pattern: /\/?(vehiculos-ocasion|coches-ocasion|vehiculos-segunda-mano|coches-usados)/i,
+            pageType: 'used_vehicles',
+            confidence: 0.95,
+            metadata: { pageCategory: 'automotive', vehicleType: 'used' }
+        },
+        {
+            pattern: /\/?(vehiculos-nuevos|coches-nuevos)/i,
+            pageType: 'new_vehicles',
+            confidence: 0.95,
+            metadata: { pageCategory: 'automotive', vehicleType: 'new' }
+        },
+        {
+            pattern: /\/?(coches-km0|vehiculos-km0|km-0)/i,
+            pageType: 'km0_vehicles',
+            confidence: 0.95,
+            metadata: { pageCategory: 'automotive', vehicleType: 'km0' }
+        },
+        {
+            pattern: /\/?(ofertas-vehiculos|ofertas-coches|promociones-coches)/i,
+            pageType: 'vehicle_offers',
+            confidence: 0.9,
+            metadata: { pageCategory: 'automotive', vehicleType: 'offers' }
+        },
+        
         {
             pattern: /\/?(vehicle|vehiculo|car|auto)[\/-]?(detail|detalle)[\/-]?(\d+|[^\/]+)?/i,
             pageType: 'vehicle_detail',
