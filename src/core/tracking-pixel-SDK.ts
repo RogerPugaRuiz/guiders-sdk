@@ -15,7 +15,9 @@ import { ChatUI } from "../presentation/chat";
 import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
 import { v4 as uuidv4 } from "uuid";
-import { DomTrackingManager } from "./dom-tracking-manager";
+import { DomTrackingManager, DefaultTrackDataExtractor } from "./dom-tracking-manager";
+import { EnhancedDomTrackingManager } from "./enhanced-dom-tracking-manager";
+import { HeuristicDetectionConfig } from "./heuristic-element-detector";
 import { UnreadMessagesService } from "../services/unread-messages-service";
 
 
@@ -26,6 +28,11 @@ interface SDKOptions {
 	autoFlush?: boolean;
 	flushInterval?: number;
 	maxRetries?: number;
+	// Heuristic detection options
+	heuristicDetection?: {
+		enabled?: boolean;
+		config?: Partial<HeuristicDetectionConfig>;
+	};
 }
 
 
@@ -89,7 +96,8 @@ export class TrackingPixelSDK {
 	private flushTimer: ReturnType<typeof setInterval> | null = null;
 	private maxRetries = 3;
 	private listeners = new Map<string, Set<(msg: PixelEvent) => void>>();
-	private domTrackingManager: DomTrackingManager;
+	private domTrackingManager: DomTrackingManager | EnhancedDomTrackingManager;
+	private heuristicEnabled: boolean;
 
 	constructor(options: SDKOptions) {
 		const endpoint = options.endpoint || "http://localhost:3000";
@@ -114,7 +122,22 @@ export class TrackingPixelSDK {
 			.build();
 
 		this.webSocket = WebSocketClient.getInstance(this.webSocketEndpoint);
-		this.domTrackingManager = new DomTrackingManager((params) => this.track(params));
+		
+		// Initialize heuristic detection settings
+		this.heuristicEnabled = options.heuristicDetection?.enabled ?? true;
+		
+		// Create enhanced DOM tracking manager if heuristic detection is enabled
+		if (this.heuristicEnabled) {
+			console.log('[TrackingPixelSDK] 🚀 Initializing with heuristic detection enabled');
+			this.domTrackingManager = new EnhancedDomTrackingManager(
+				(params) => this.track(params),
+				new DefaultTrackDataExtractor(),
+				options.heuristicDetection?.config || {}
+			);
+		} else {
+			console.log('[TrackingPixelSDK] Initializing with legacy DOM tracking');
+			this.domTrackingManager = new DomTrackingManager((params) => this.track(params));
+		}
 	}
 
 	public async init(): Promise<void> {
@@ -340,10 +363,61 @@ export class TrackingPixelSDK {
 	}
 
 	/**
-	 * Habilita el tracking de eventos del DOM usando DomTrackingManager.
+	 * Habilita el tracking de eventos del DOM.
+	 * Usa detección heurística automática si está habilitada, sino el sistema legacy.
 	 */
 	public enableDOMTracking(): void {
-		this.domTrackingManager.enableDOMTracking();
+		if (this.domTrackingManager instanceof EnhancedDomTrackingManager) {
+			console.log('[TrackingPixelSDK] 🎯 Enabling automatic heuristic tracking');
+			this.domTrackingManager.enableAutomaticTracking();
+		} else {
+			console.log('[TrackingPixelSDK] Enabling legacy DOM tracking');
+			this.domTrackingManager.enableDOMTracking();
+		}
+	}
+
+	/**
+	 * Enable automatic heuristic tracking (new preferred method)
+	 */
+	public enableAutomaticTracking(): void {
+		if (this.domTrackingManager instanceof EnhancedDomTrackingManager) {
+			this.domTrackingManager.enableAutomaticTracking();
+		} else {
+			console.warn('[TrackingPixelSDK] Heuristic detection not available. Use enableDOMTracking() instead.');
+			this.domTrackingManager.enableDOMTracking();
+		}
+	}
+
+	/**
+	 * Get heuristic detection configuration (if available)
+	 */
+	public getHeuristicConfig(): HeuristicDetectionConfig | null {
+		if (this.domTrackingManager instanceof EnhancedDomTrackingManager) {
+			return this.domTrackingManager.getHeuristicConfig();
+		}
+		return null;
+	}
+
+	/**
+	 * Update heuristic detection configuration (if available)
+	 */
+	public updateHeuristicConfig(config: Partial<HeuristicDetectionConfig>): void {
+		if (this.domTrackingManager instanceof EnhancedDomTrackingManager) {
+			this.domTrackingManager.updateHeuristicConfig(config);
+		} else {
+			console.warn('[TrackingPixelSDK] Heuristic detection not available.');
+		}
+	}
+
+	/**
+	 * Enable or disable heuristic detection (if available)
+	 */
+	public setHeuristicEnabled(enabled: boolean): void {
+		if (this.domTrackingManager instanceof EnhancedDomTrackingManager) {
+			this.domTrackingManager.setHeuristicEnabled(enabled);
+		} else {
+			console.warn('[TrackingPixelSDK] Heuristic detection not available.');
+		}
 	}
 
 	public setMetadata(event: string, metadata: Record<string, unknown>): void {

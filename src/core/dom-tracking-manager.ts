@@ -17,7 +17,7 @@ export class DefaultTrackDataExtractor implements TrackDataExtractor {
 }
 
 export class DomTrackingManager {
-    private domEventMap: Record<string, string> = {
+    protected domEventMap: Record<string, string> = {
         "view_product": "mouseenter",
         "add_to_cart": "click",
         "view_cart": "mouseenter",
@@ -71,8 +71,8 @@ export class DomTrackingManager {
         "chat_request_financing": "click",
         "chat_schedule_viewing": "click"
     };
-    private trackCallback: (params: Record<string, unknown>) => void;
-    private extractor: TrackDataExtractor;
+    protected trackCallback: (params: Record<string, unknown>) => void;
+    protected extractor: TrackDataExtractor;
 
     constructor(
         trackCallback: (params: Record<string, unknown>) => void,

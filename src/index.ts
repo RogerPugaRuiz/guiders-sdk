@@ -8,6 +8,10 @@ import { BotDetector } from "./core/bot-detector";
 export * from "./core/tracking-pixel-SDK";
 export * from "./core/token-manager";
 export * from "./core/bot-detector";
+export * from "./core/dom-tracking-manager";
+export * from "./core/enhanced-dom-tracking-manager";
+export * from "./core/heuristic-element-detector";
+export * from "./core/url-page-detector";
 export * from "./pipeline/pipeline-stage";
 export * from "./pipeline/stages/token-stage";
 export * from "./services/unread-messages-service";
@@ -41,6 +45,15 @@ if (typeof window !== "undefined") {
 			autoFlush: true,
 			flushInterval: 1000, // 1 second
 			maxRetries: 2,
+			// Enable heuristic detection by default
+			heuristicDetection: {
+				enabled: true,
+				config: {
+					enabled: true,
+					confidenceThreshold: 0.7,
+					fallbackToManual: true
+				}
+			}
 		};
 		if (!isDev) {
 			sdkOptions.endpoint = endpoint;
@@ -68,7 +81,8 @@ if (typeof window !== "undefined") {
 				unreadService.forceUpdate();
 				
 				await window.guiders.init();
-				window.guiders.enableDOMTracking();
+				// Use new automatic tracking method
+				window.guiders.enableAutomaticTracking();
 			})();
 		});
 	} catch (error) {
