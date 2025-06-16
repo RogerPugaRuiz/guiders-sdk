@@ -19,7 +19,7 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
 </header>
 
 <main class="main-content">
-    <div style="display:none" data-track-event="page_view" data-page="contact" data-page-title="Página de Contacto"></div>
+    <!-- Removed data-track-event attribute - page detection is now automatic via URL -->
     
     <!-- Hero Section -->
     <section class="hero-section">

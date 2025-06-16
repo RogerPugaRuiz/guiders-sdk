@@ -19,13 +19,14 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
 </header>
 
 <div class="container">
-  <div style="display:none" data-track-event="page_view" data-page="home" data-page-title="Página de Inicio"></div>
+  <!-- Removed data-track-event attribute - page detection is now automatic via URL -->
   
   <div class="hero-banner">
     <div class="hero-content">
       <h1>Solución integral de análisis web</h1>
-      <p class="hero-subtitle">Descubre el poder del seguimiento avanzado con Guiders SDK</p>
+      <p class="hero-subtitle">Descubre el poder del seguimiento automático con Guiders SDK</p>
       <div class="hero-buttons">
+        <!-- These links will be automatically detected by heuristics -->
         <a href="/ecommerce" class="btn-primary">Ver Demo</a>
         <a href="/about" class="btn-secondary">Más información</a>
       </div>
@@ -43,8 +44,8 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
       
       <div class="feature-item">
         <div class="feature-icon">🎯</div>
-        <h3>Seguimiento avanzado</h3>
-        <p>Rastrea eventos específicos con alta precisión</p>
+        <h3>Detección automática</h3>
+        <p>Nuestro SDK detecta automáticamente eventos sin modificar tu HTML</p>
       </div>
       
       <div class="feature-item">
@@ -58,6 +59,47 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
         <h3>Seguro y privado</h3>
         <p>Cumplimiento total de normativas de privacidad</p>
       </div>
+    </div>
+  </section>
+
+  <!-- Demo section to showcase automatic detection -->
+  <section class="content-section demo-section">
+    <h2>🚀 Demo de Detección Automática</h2>
+    <p class="demo-description">
+      Este SDK ya no requiere atributos HTML especiales. Los siguientes elementos son detectados automáticamente:
+    </p>
+    
+    <div class="demo-grid">
+      <div class="demo-item">
+        <h4>Búsqueda Inteligente</h4>
+        <div class="search-demo">
+          <input type="text" placeholder="Buscar productos..." class="search-input">
+          <button type="submit" class="search-btn">Buscar</button>
+        </div>
+        <small>✨ Detectado automáticamente como evento de búsqueda</small>
+      </div>
+      
+      <div class="demo-item">
+        <h4>Botón de Contacto</h4>
+        <button class="contact-btn">Contactar con nosotros</button>
+        <small>✨ Detectado automáticamente como evento de contacto</small>
+      </div>
+      
+      <div class="demo-item">
+        <h4>Enlace de Producto</h4>
+        <a href="/ecommerce" class="product-link">Ver productos disponibles</a>
+        <small>✨ Detectado automáticamente como evento de visualización</small>
+      </div>
+    </div>
+    
+    <div class="detection-info">
+      <h4>🧠 Cómo funciona la detección:</h4>
+      <ul>
+        <li><strong>Detecta por URL:</strong> Las páginas se identifican automáticamente por su URL, no por elementos HTML</li>
+        <li><strong>Heurística inteligente:</strong> Analiza texto, clases CSS, y contexto para identificar elementos relevantes</li>
+        <li><strong>Sin modificaciones:</strong> No necesitas añadir atributos data-* a tu HTML</li>
+        <li><strong>Puntuación de confianza:</strong> Cada detección tiene una puntuación que indica su precisión</li>
+      </ul>
     </div>
   </section>
 
@@ -179,6 +221,123 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
 .benefit-item h4 {
   color: #1e3a8a;
   margin-bottom: 0.5rem;
+}
+
+/* Demo section styles */
+.demo-section {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  padding: 3rem 2rem;
+  border-radius: 12px;
+  margin: 3rem 0;
+  border: 1px solid #cbd5e1;
+}
+
+.demo-description {
+  font-size: 1.1rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  color: #475569;
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin: 2rem 0;
+}
+
+.demo-item {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+.demo-item h4 {
+  color: #1e3a8a;
+  margin-bottom: 1rem;
+}
+
+.search-demo {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.search-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.search-btn, .contact-btn {
+  background: #1e3a8a;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.search-btn:hover, .contact-btn:hover {
+  background: #1e40af;
+}
+
+.product-link {
+  display: inline-block;
+  background: #059669;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.product-link:hover {
+  background: #047857;
+}
+
+.demo-item small {
+  display: block;
+  margin-top: 1rem;
+  color: #059669;
+  font-weight: 600;
+}
+
+.detection-info {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  margin-top: 2rem;
+  border-left: 4px solid #1e3a8a;
+}
+
+.detection-info h4 {
+  color: #1e3a8a;
+  margin-bottom: 1rem;
+}
+
+.detection-info ul {
+  list-style: none;
+  padding: 0;
+}
+
+.detection-info li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.detection-info li:last-child {
+  border-bottom: none;
+}
+
+.detection-info strong {
+  color: #1e3a8a;
 }
 
 @media (max-width: 768px) {

@@ -16,6 +16,7 @@ import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
 import { v4 as uuidv4 } from "uuid";
 import { DomTrackingManager } from "./dom-tracking-manager";
+import { EnhancedDomTrackingManager, AutoDetectionConfig } from "./enhanced-dom-tracking-manager";
 import { UnreadMessagesService } from "../services/unread-messages-service";
 
 
@@ -26,6 +27,7 @@ interface SDKOptions {
 	autoFlush?: boolean;
 	flushInterval?: number;
 	maxRetries?: number;
+	autoDetection?: Partial<AutoDetectionConfig>;
 }
 
 
@@ -90,6 +92,7 @@ export class TrackingPixelSDK {
 	private maxRetries = 3;
 	private listeners = new Map<string, Set<(msg: PixelEvent) => void>>();
 	private domTrackingManager: DomTrackingManager;
+	private enhancedDomTrackingManager: EnhancedDomTrackingManager;
 
 	constructor(options: SDKOptions) {
 		const endpoint = options.endpoint || "http://localhost:3000";
@@ -115,6 +118,11 @@ export class TrackingPixelSDK {
 
 		this.webSocket = WebSocketClient.getInstance(this.webSocketEndpoint);
 		this.domTrackingManager = new DomTrackingManager((params) => this.track(params));
+		this.enhancedDomTrackingManager = new EnhancedDomTrackingManager(
+			(params) => this.track(params),
+			undefined,
+			options.autoDetection
+		);
 	}
 
 	public async init(): Promise<void> {
@@ -340,10 +348,40 @@ export class TrackingPixelSDK {
 	}
 
 	/**
-	 * Habilita el tracking de eventos del DOM usando DomTrackingManager.
+	 * Habilita el tracking automático de eventos del DOM usando detección heurística inteligente.
+	 * Este método reemplaza el sistema anterior basado en data-track-event con detección automática.
 	 */
 	public enableDOMTracking(): void {
+		this.enhancedDomTrackingManager.enableAutomaticTracking();
+	}
+
+	/**
+	 * Método legacy para compatibilidad (si se necesita en el futuro)
+	 */
+	public enableLegacyDOMTracking(): void {
+		console.warn('[TrackingPixelSDK] Enabling legacy DOM tracking - consider migrating to automatic detection');
 		this.domTrackingManager.enableDOMTracking();
+	}
+
+	/**
+	 * Actualiza la configuración de detección automática
+	 */
+	public updateAutoDetectionConfig(config: Partial<AutoDetectionConfig>): void {
+		this.enhancedDomTrackingManager.updateConfig(config);
+	}
+
+	/**
+	 * Obtiene la configuración actual de detección automática
+	 */
+	public getAutoDetectionConfig(): AutoDetectionConfig {
+		return this.enhancedDomTrackingManager.getConfig();
+	}
+
+	/**
+	 * Re-ejecuta la detección de elementos (útil para SPAs)
+	 */
+	public redetectElements(): void {
+		this.enhancedDomTrackingManager.redetectElements();
 	}
 
 	public setMetadata(event: string, metadata: Record<string, unknown>): void {

@@ -8,6 +8,8 @@ import { BotDetector } from "./core/bot-detector";
 export * from "./core/tracking-pixel-SDK";
 export * from "./core/token-manager";
 export * from "./core/bot-detector";
+export * from "./core/enhanced-dom-tracking-manager";
+export * from "./core/heuristic-element-detector";
 export * from "./pipeline/pipeline-stage";
 export * from "./pipeline/stages/token-stage";
 export * from "./services/unread-messages-service";
@@ -41,6 +43,12 @@ if (typeof window !== "undefined") {
 			autoFlush: true,
 			flushInterval: 1000, // 1 second
 			maxRetries: 2,
+			autoDetection: {
+				enabled: true,
+				confidenceThreshold: 0.6,
+				urlBasedPageDetection: true,
+				fallbackToManual: false
+			}
 		};
 		if (!isDev) {
 			sdkOptions.endpoint = endpoint;
@@ -69,6 +77,8 @@ if (typeof window !== "undefined") {
 				
 				await window.guiders.init();
 				window.guiders.enableDOMTracking();
+				console.log("🚀 Guiders SDK initialized with automatic detection enabled");
+				console.log("🎯 Heuristic detection config:", window.guiders.getAutoDetectionConfig());
 			})();
 		});
 	} catch (error) {

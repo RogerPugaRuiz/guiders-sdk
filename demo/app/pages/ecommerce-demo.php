@@ -30,18 +30,35 @@ foreach ($xml->producto as $p) {
   </div>
 </header>
 <main class="main-content">
-  <div style="display:none" data-track-event="page_view" data-page="ecommerce"></div>
+  <!-- Removed data-track-event attribute - page detection is now automatic via URL -->
   
   <!-- Hero Section -->
   <section class="hero-section">
     <div class="container">
       <div class="hero-content">
         <h1>🛍️ GuiderShop</h1>
-        <p class="hero-subtitle">Descubre nuestra selección premium de productos con seguimiento avanzado</p>
+        <p class="hero-subtitle">Descubre nuestra selección premium con detección automática de eventos</p>
         <div class="hero-actions">
           <a href="#products" class="btn btn-primary">Ver Productos</a>
           <a href="#cart" id="cart-link" class="btn btn-secondary">🛒 Carrito (<span id="cart-count">0</span>)</a>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Automatic Detection Info -->
+  <section class="detection-info-section">
+    <div class="container">
+      <div class="detection-info-card">
+        <h3>🧠 Detección Automática Activada</h3>
+        <p>Esta tienda demo utiliza la nueva tecnología de detección heurística de Guiders SDK:</p>
+        <ul class="detection-features">
+          <li>✨ <strong>Enlaces de productos</strong> detectados automáticamente</li>
+          <li>🛒 <strong>Botones "Añadir al carrito"</strong> identificados por texto y contexto</li>
+          <li>💳 <strong>Botón de compra</strong> reconocido automáticamente</li>
+          <li>📄 <strong>Página</strong> detectada por URL (/ecommerce)</li>
+        </ul>
+        <small>No se requieren atributos data-track-event en el HTML</small>
       </div>
     </div>
   </section>
@@ -57,7 +74,6 @@ foreach ($xml->producto as $p) {
       <div class="product-grid">
         <?php foreach ($productos as $prod): ?>
         <div class="product-card"
-             data-track-event="view_product"
              data-product-id="<?= $prod['id'] ?>"
              data-product-name="<?= htmlspecialchars($prod['nombre']) ?>"
              data-product-price="<?= $prod['precio'] ?>">
@@ -76,7 +92,6 @@ foreach ($xml->producto as $p) {
             <div class="product-footer">
               <span class="product-price"><?= number_format($prod['precio'], 2, ',', '.') ?> €</span>
               <button class="add-to-cart-btn"
-                      data-track-event="add_to_cart"
                       data-product-id="<?= $prod['id'] ?>"
                       data-product-name="<?= htmlspecialchars($prod['nombre']) ?>"
                       data-product-price="<?= $prod['precio'] ?>">
@@ -91,7 +106,7 @@ foreach ($xml->producto as $p) {
   </section>
 
   <!-- Cart Section -->
-  <aside id="cart" class="cart-section" data-track-event="view_cart">
+  <aside id="cart" class="cart-section">
     <div class="container">
       <div class="cart-container">
         <div class="cart-header">
@@ -104,10 +119,10 @@ foreach ($xml->producto as $p) {
             <p id="cart-total" class="cart-total">Total: 0 €</p>
           </div>
           <div class="cart-actions">
-            <button class="btn btn-primary checkout-btn" data-track-event="purchase">
+            <button class="btn btn-primary checkout-btn">
               💳 Comprar Ahora
             </button>
-            <button class="btn btn-danger clear-cart-btn" data-track-event="clear_cart">
+            <button class="btn btn-danger clear-cart-btn">
               🗑️ Vaciar Carrito
             </button>
           </div>
@@ -184,6 +199,55 @@ foreach ($xml->producto as $p) {
 .btn-secondary:hover {
   background-color: white;
   color: #1e3a8a;
+}
+
+/* Detection Info Section */
+.detection-info-section {
+  background: #f8fafc;
+  padding: 2rem 0;
+  margin-bottom: 3rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.detection-info-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+  border-left: 4px solid #059669;
+}
+
+.detection-info-card h3 {
+  color: #1e3a8a;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.detection-features {
+  list-style: none;
+  padding: 0;
+  text-align: left;
+  margin: 1.5rem 0;
+}
+
+.detection-features li {
+  padding: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.detection-features strong {
+  color: #1e3a8a;
+}
+
+.detection-info-card small {
+  display: block;
+  margin-top: 1rem;
+  color: #059669;
+  font-weight: 600;
+  font-style: italic;
 }
 
 .btn-danger {
