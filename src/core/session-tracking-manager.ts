@@ -73,28 +73,41 @@ export class SessionTrackingManager {
 	public startSessionTracking(): void {
 		if (!this.config.enabled) return;
 
-		const sessionId = this.generateSessionId();
+		// Try to restore existing session from sessionStorage (tab-specific)
+		const existingSession = this.getOrCreateTabSession();
 		const now = Date.now();
 		
 		this.sessionData = {
-			sessionId,
-			startTime: now,
+			sessionId: existingSession.sessionId,
+			startTime: existingSession.startTime,
 			lastActiveTime: now,
-			totalActiveTime: 0,
+			totalActiveTime: existingSession.totalActiveTime || 0,
 			isActive: this.isTabVisible,
-			tabId: this.generateTabId()
+			tabId: existingSession.tabId
 		};
 
-		this.sessionStartTime = now;
+		this.sessionStartTime = existingSession.startTime;
 
-		// Track session start event
-		this.trackCallback({
-			event: 'session_start',
-			sessionId,
-			tabId: this.sessionData.tabId,
-			timestamp: now,
-			isVisible: this.isTabVisible
-		});
+		// Only track session_start if this is a new session
+		if (existingSession.isNew) {
+			this.trackCallback({
+				event: 'session_start',
+				sessionId: this.sessionData.sessionId,
+				tabId: this.sessionData.tabId,
+				timestamp: this.sessionData.startTime,
+				isVisible: this.isTabVisible
+			});
+		} else {
+			// Track session continuation for existing session
+			this.trackCallback({
+				event: 'session_continue',
+				sessionId: this.sessionData.sessionId,
+				tabId: this.sessionData.tabId,
+				timestamp: now,
+				isVisible: this.isTabVisible,
+				totalActiveTime: this.sessionData.totalActiveTime
+			});
+		}
 
 		// Start heartbeat if tab is visible
 		if (this.isTabVisible) {
@@ -125,6 +138,9 @@ export class SessionTrackingManager {
 			totalActiveTime: this.sessionData.totalActiveTime,
 			timestamp: sessionEndTime
 		});
+
+		// Clear session from sessionStorage on tab close
+		this.clearTabSession();
 
 		this.sessionData = null;
 	}
@@ -200,6 +216,9 @@ export class SessionTrackingManager {
 		const timeSinceLastActive = now - this.sessionData.lastActiveTime;
 		this.sessionData.totalActiveTime += timeSinceLastActive;
 		this.sessionData.lastActiveTime = now;
+
+		// Persist updated session data to sessionStorage
+		this.persistTabSession();
 	}
 
 	/**
@@ -280,6 +299,86 @@ export class SessionTrackingManager {
 			if (this.isTabVisible && this.sessionData) {
 				this.startHeartbeat();
 			}
+		}
+	}
+
+	/**
+	 * Get or create tab-specific session using sessionStorage
+	 * sessionStorage persists across page navigation within the same tab
+	 * but is cleared when the tab is closed
+	 */
+	private getOrCreateTabSession(): { sessionId: string; tabId: string; startTime: number; totalActiveTime: number; isNew: boolean } {
+		const STORAGE_KEY = 'guiders_tab_session';
+		
+		try {
+			const existingData = sessionStorage.getItem(STORAGE_KEY);
+			if (existingData) {
+				const sessionInfo = JSON.parse(existingData);
+				// Validate the session data
+				if (sessionInfo.sessionId && sessionInfo.tabId && sessionInfo.startTime) {
+					return {
+						sessionId: sessionInfo.sessionId,
+						tabId: sessionInfo.tabId,
+						startTime: sessionInfo.startTime,
+						totalActiveTime: sessionInfo.totalActiveTime || 0,
+						isNew: false
+					};
+				}
+			}
+		} catch (error) {
+			console.warn('[SessionTrackingManager] Error reading session from storage:', error);
+		}
+
+		// Create new session if none exists or is invalid
+		const now = Date.now();
+		const newSession = {
+			sessionId: this.generateSessionId(),
+			tabId: this.generateTabId(),
+			startTime: now,
+			totalActiveTime: 0,
+			isNew: true
+		};
+
+		// Persist the new session
+		try {
+			sessionStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
+		} catch (error) {
+			console.warn('[SessionTrackingManager] Error saving session to storage:', error);
+		}
+
+		return newSession;
+	}
+
+	/**
+	 * Persist current session data to sessionStorage
+	 */
+	private persistTabSession(): void {
+		if (!this.sessionData) return;
+
+		const STORAGE_KEY = 'guiders_tab_session';
+		const sessionInfo = {
+			sessionId: this.sessionData.sessionId,
+			tabId: this.sessionData.tabId,
+			startTime: this.sessionData.startTime,
+			totalActiveTime: this.sessionData.totalActiveTime
+		};
+
+		try {
+			sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sessionInfo));
+		} catch (error) {
+			console.warn('[SessionTrackingManager] Error persisting session:', error);
+		}
+	}
+
+	/**
+	 * Clear session data from sessionStorage
+	 */
+	private clearTabSession(): void {
+		const STORAGE_KEY = 'guiders_tab_session';
+		try {
+			sessionStorage.removeItem(STORAGE_KEY);
+		} catch (error) {
+			console.warn('[SessionTrackingManager] Error clearing session:', error);
 		}
 	}
 

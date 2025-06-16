@@ -85,12 +85,22 @@
     <div class="test-section">
         <h2>Instructions</h2>
         <ol>
-            <li><strong>Session Start:</strong> Should trigger automatically when page loads</li>
+            <li><strong>New Tab Session:</strong> First time opening this page triggers 'session_start'</li>
+            <li><strong>Page Reload/Navigation:</strong> Refresh this page to see 'session_continue' event with same session ID</li>
             <li><strong>Visibility Changes:</strong> Switch to another tab and back to see visibility change events</li>
             <li><strong>Heartbeat:</strong> Events sent every 30 seconds while tab is active</li>
             <li><strong>Session End:</strong> Triggered when closing the tab/window</li>
         </ol>
-        <p><strong>Note:</strong> Only active tab time is counted. Background tabs don't contribute to session time.</p>
+        <p><strong>Note:</strong> Session IDs now persist across page navigation within the same browser tab using sessionStorage.</p>
+        <p><strong>Test:</strong> Refresh this page and notice the session ID remains the same!</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Tab Session Persistence Test</h2>
+        <button onclick="refreshPage()">Refresh Page (Test Session Continuity)</button>
+        <button onclick="openNewTab()">Open New Tab (New Session)</button>
+        <button onclick="checkSessionStorage()">Check sessionStorage</button>
+        <div id="storage-info" style="margin-top: 10px; font-family: monospace; background: #f0f0f0; padding: 10px;"></div>
     </div>
 
     <!-- Load the Guiders SDK -->
@@ -202,6 +212,35 @@
 
         function clearLog() {
             document.getElementById('event-log').innerHTML = '';
+        }
+
+        function refreshPage() {
+            logEvent('🔄 Page refresh requested - testing session continuity', 'refresh');
+            window.location.reload();
+        }
+
+        function openNewTab() {
+            logEvent('🔗 Opening new tab - should create new session', 'new-tab');
+            window.open(window.location.href, '_blank');
+        }
+
+        function checkSessionStorage() {
+            const storageKey = 'guiders_tab_session';
+            const sessionData = sessionStorage.getItem(storageKey);
+            const storageInfo = document.getElementById('storage-info');
+            
+            if (sessionData) {
+                try {
+                    const parsed = JSON.parse(sessionData);
+                    storageInfo.textContent = `Session Storage: ${JSON.stringify(parsed, null, 2)}`;
+                } catch (e) {
+                    storageInfo.textContent = `Session Storage (raw): ${sessionData}`;
+                }
+            } else {
+                storageInfo.textContent = 'No session data found in sessionStorage';
+            }
+            
+            logEvent('📦 Session storage checked', 'storage');
         }
 
         // Update session info every 5 seconds

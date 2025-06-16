@@ -7,8 +7,9 @@ The session tracking functionality has been successfully implemented in the Guid
 ## Features Implemented
 
 ### Core Session Events
-- **`session_start`** - Triggered when a tab/page opens
-- **`session_end`** - Triggered when a tab/page closes
+- **`session_start`** - Triggered when a new browser tab session begins
+- **`session_continue`** - Triggered when the SDK loads in an existing tab session (page navigation)
+- **`session_end`** - Triggered when a browser tab closes
 - **`page_visibility_change`** - Triggered when switching between tabs (focus changes)
 - **`session_heartbeat`** - Periodic pulse (default 30 seconds) sent only for active tabs
 
@@ -19,10 +20,12 @@ The session tracking functionality has been successfully implemented in the Guid
 
 ### Key Characteristics
 - ✅ Only tracks active tab time (background tabs don't count)
-- ✅ Handles multiple tabs correctly
+- ✅ Session persists across page navigation within the same browser tab
+- ✅ Uses sessionStorage to maintain tab-specific session continuity
+- ✅ Each browser tab has its own unique session ID
 - ✅ Configurable heartbeat interval
-- ✅ Automatic session start on SDK initialization
-- ✅ Proper cleanup on page unload
+- ✅ Automatic session start on new tab, continuation on page navigation
+- ✅ Proper cleanup on tab close
 - ✅ Integration with existing tracking pipeline
 
 ## Configuration
@@ -76,6 +79,18 @@ const sdkOptions = {
 }
 ```
 
+### Session Continue Event (Page Navigation)
+```javascript
+{
+    event: 'session_continue',
+    sessionId: 'session_1634567890_abc123def', // Same session ID persists
+    tabId: 'tab_1634567890_xyz789', // Same tab ID persists
+    timestamp: 1634567920456,
+    isVisible: true,
+    totalActiveTime: 30333 // Previously accumulated time
+}
+```
+
 ### Page Visibility Change Event
 ```javascript
 {
@@ -118,9 +133,16 @@ const sdkOptions = {
 ## Implementation Details
 
 ### Files Modified/Added
-- **`src/core/session-tracking-manager.ts`** - New core session tracking logic
+- **`src/core/session-tracking-manager.ts`** - Enhanced core session tracking logic with tab persistence
 - **`src/core/tracking-pixel-SDK.ts`** - Integration with main SDK
 - **`src/index.ts`** - Export new classes and enable by default
+
+### Session Persistence
+- Sessions are now **browser tab-specific** rather than page-specific
+- Uses **sessionStorage** to maintain session continuity across page navigation
+- Session ID and tab ID persist for the entire lifetime of a browser tab
+- New `session_continue` event for page navigation within existing sessions
+- Accumulated active time persists across page changes
 
 ### Integration Points
 - Session tracking integrates with the existing event pipeline
