@@ -45,6 +45,24 @@ export class SessionTrackingManager {
 			...config
 		};
 
+		// Validate browser API availability
+		if (typeof document === 'undefined') {
+			console.warn('[SessionTrackingManager] Document not available - session tracking disabled');
+			this.config.enabled = false;
+			return;
+		}
+
+		if (typeof window === 'undefined') {
+			console.warn('[SessionTrackingManager] Window not available - session tracking disabled');
+			this.config.enabled = false;
+			return;
+		}
+
+		// Check Page Visibility API support
+		if (typeof document.hidden === 'undefined') {
+			console.warn('[SessionTrackingManager] Page Visibility API not supported');
+		}
+
 		this.isTabVisible = !document.hidden;
 		this.bindEventListeners();
 	}

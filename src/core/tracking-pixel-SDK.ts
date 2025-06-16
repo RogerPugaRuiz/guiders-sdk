@@ -667,7 +667,7 @@ export class TrackingPixelSDK {
 
 		// Close WebSocket connection
 		if (this.webSocket) {
-			this.webSocket.close();
+			this.webSocket.disconnect();
 		}
 
 		console.log('[TrackingPixelSDK] Cleanup completed');
