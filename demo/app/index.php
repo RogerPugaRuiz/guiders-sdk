@@ -27,6 +27,10 @@ switch ($page) {
         require 'pages/vehicle-comparison.php';
         break;
 
+    case 'heuristic-demo':
+        require 'pages/heuristic-demo.php';
+        break;
+
     case 'ecommerce/pages/product-detail.php':
         require 'pages/product-detail.php';
         break;

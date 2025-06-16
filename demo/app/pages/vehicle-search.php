@@ -19,7 +19,7 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
 </header>
 
 <main class="main-content">
-  <div style="display:none" data-track-event="page_view" data-page="vehicle_search"></div>
+  <!-- Page will be automatically detected via URL as 'vehicle_search' -->
   
   <!-- Hero Section -->
   <section class="hero-section">
@@ -42,9 +42,7 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
           <div class="search-row">
             <div class="form-group">
               <label for="vehicleType">Tipo de vehículo</label>
-              <select id="vehicleType" name="vehicleType" 
-                      data-track-event="search_vehicle_type"
-                      data-search-type="vehicle_type">
+              <select id="vehicleType" name="vehicleType" class="search-filter">
                 <option value="">Seleccionar tipo</option>
                 <option value="nuevo">🚗 Vehículo nuevo</option>
                 <option value="ocasion">🔄 Vehículo de ocasión</option>
@@ -56,9 +54,7 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
 
             <div class="form-group">
               <label for="brand">Marca</label>
-              <select id="brand" name="brand" 
-                      data-track-event="search_brand"
-                      data-search-type="brand">
+              <select id="brand" name="brand" class="search-filter">
                 <option value="">Seleccionar marca</option>
                 <option value="audi">Audi</option>
                 <option value="bmw">BMW</option>
@@ -74,9 +70,7 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
 
             <div class="form-group">
               <label for="model">Modelo</label>
-              <select id="model" name="model" 
-                      data-track-event="search_model"
-                      data-search-type="model">
+              <select id="model" name="model" class="search-filter">
                 <option value="">Seleccionar modelo</option>
                 <option value="a3">A3</option>
                 <option value="serie3">Serie 3</option>
@@ -260,9 +254,7 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
           </div>
 
           <div class="search-actions">
-            <button type="submit" class="btn btn-primary"
-                    data-track-event="search_submit"
-                    data-search-action="submit">
+            <button type="submit" class="btn btn-primary search-submit-btn">
               🔍 Buscar Vehículos
             </button>
             <button type="reset" class="btn btn-secondary">

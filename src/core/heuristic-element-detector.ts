@@ -190,7 +190,10 @@ export class HeuristicElementDetector {
      * Find all elements matching a specific rule
      */
     private findElementsByRule(rule: HeuristicRule): HTMLElement[] {
+        // Get all elements matching the base selector
         const elements = Array.from(document.querySelectorAll(rule.selector)) as HTMLElement[];
+        
+        // Filter elements that match all conditions of the rule
         return elements.filter(element => this.elementMatchesRule(element, rule));
     }
 
