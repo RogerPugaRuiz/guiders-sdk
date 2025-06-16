@@ -1,4 +1,5 @@
 // src/types/index.ts
+export { ConfidenceLevel } from './confidence';
 
 export interface PixelEvent<T = Record<string, unknown>> {
 	type: string;

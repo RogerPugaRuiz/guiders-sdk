@@ -1,3 +1,5 @@
+import { ConfidenceLevel } from '../types/confidence';
+
 // Page detection result interface
 export interface PageDetectionResult {
     pageType: string;
@@ -25,13 +27,13 @@ export class URLPageDetector {
         {
             pattern: /^\/?(index\.(php|html?)?)?$/i,
             pageType: 'home',
-            confidence: 0.9,
+            confidence: ConfidenceLevel.HIGH,
             metadata: { pageCategory: 'main' }
         },
         {
             pattern: /^\/?(home|inicio)$/i,
             pageType: 'home',
-            confidence: 0.9,
+            confidence: ConfidenceLevel.HIGH,
             metadata: { pageCategory: 'main' }
         },
 
@@ -39,25 +41,25 @@ export class URLPageDetector {
         {
             pattern: /\/?(shop|tienda|ecommerce|store)/i,
             pageType: 'ecommerce',
-            confidence: 0.9,
+            confidence: ConfidenceLevel.HIGH,
             metadata: { pageCategory: 'ecommerce' }
         },
         {
             pattern: /\/?(product|producto)[\/-]?(\d+|[^\/]+)?/i,
             pageType: 'product_detail',
-            confidence: 0.95,
+            confidence: ConfidenceLevel.EXACT_MATCH,
             metadata: { pageCategory: 'ecommerce' }
         },
         {
             pattern: /\/?(cart|carrito|basket)/i,
             pageType: 'cart',
-            confidence: 0.9,
+            confidence: ConfidenceLevel.HIGH,
             metadata: { pageCategory: 'ecommerce' }
         },
         {
             pattern: /\/?(checkout|pago|payment)/i,
             pageType: 'checkout',
-            confidence: 0.95,
+            confidence: ConfidenceLevel.EXACT_MATCH,
             metadata: { pageCategory: 'ecommerce' }
         },
 
@@ -65,7 +67,7 @@ export class URLPageDetector {
         {
             pattern: /\/?(vehicle|vehiculo|car|auto)[\/-]?(search|busqueda|buscar)?/i,
             pageType: 'vehicle_search',
-            confidence: 0.9,
+            confidence: ConfidenceLevel.HIGH,
             metadata: { pageCategory: 'automotive' }
         },
         
@@ -73,44 +75,44 @@ export class URLPageDetector {
         {
             pattern: /\/?(vehiculos-ocasion|coches-ocasion|vehiculos-segunda-mano|coches-usados)/i,
             pageType: 'used_vehicles',
-            confidence: 0.95,
+            confidence: ConfidenceLevel.EXACT_MATCH,
             metadata: { pageCategory: 'automotive', vehicleType: 'used' }
         },
         {
             pattern: /\/?(vehiculos-nuevos|coches-nuevos)/i,
             pageType: 'new_vehicles',
-            confidence: 0.95,
+            confidence: ConfidenceLevel.EXACT_MATCH,
             metadata: { pageCategory: 'automotive', vehicleType: 'new' }
         },
         {
             pattern: /\/?(coches-km0|vehiculos-km0|km-0)/i,
             pageType: 'km0_vehicles',
-            confidence: 0.95,
+            confidence: ConfidenceLevel.EXACT_MATCH,
             metadata: { pageCategory: 'automotive', vehicleType: 'km0' }
         },
         {
             pattern: /\/?(ofertas-vehiculos|ofertas-coches|promociones-coches)/i,
             pageType: 'vehicle_offers',
-            confidence: 0.9,
+            confidence: ConfidenceLevel.HIGH,
             metadata: { pageCategory: 'automotive', vehicleType: 'offers' }
         },
         
         {
             pattern: /\/?(vehicle|vehiculo|car|auto)[\/-]?(detail|detalle)[\/-]?(\d+|[^\/]+)?/i,
             pageType: 'vehicle_detail',
-            confidence: 0.95,
+            confidence: ConfidenceLevel.EXACT_MATCH,
             metadata: { pageCategory: 'automotive' }
         },
         {
             pattern: /\/?(comparison|comparar|compare)/i,
             pageType: 'vehicle_comparison',
-            confidence: 0.9,
+            confidence: ConfidenceLevel.HIGH,
             metadata: { pageCategory: 'automotive' }
         },
         {
             pattern: /\/?(financing|financiacion|finance)/i,
             pageType: 'financing',
-            confidence: 0.9,
+            confidence: ConfidenceLevel.HIGH,
             metadata: { pageCategory: 'automotive' }
         },
 
@@ -118,13 +120,13 @@ export class URLPageDetector {
         {
             pattern: /\/?(contact|contacto|contact-us)/i,
             pageType: 'contact',
-            confidence: 0.9,
+            confidence: ConfidenceLevel.HIGH,
             metadata: { pageCategory: 'information' }
         },
         {
             pattern: /\/?(about|nosotros|acerca|about-us)/i,
             pageType: 'about',
-            confidence: 0.9,
+            confidence: ConfidenceLevel.HIGH,
             metadata: { pageCategory: 'information' }
         },
 
@@ -132,7 +134,7 @@ export class URLPageDetector {
         {
             pattern: /\/?(analytics|dashboard|admin)/i,
             pageType: 'analytics_dashboard',
-            confidence: 0.9,
+            confidence: ConfidenceLevel.HIGH,
             metadata: { pageCategory: 'analytics' }
         },
 
@@ -140,7 +142,7 @@ export class URLPageDetector {
         {
             pattern: /\/?(search|buscar|busqueda)/i,
             pageType: 'search_results',
-            confidence: 0.85,
+            confidence: ConfidenceLevel.MEDIUM,
             metadata: { pageCategory: 'search' }
         },
 
@@ -148,7 +150,7 @@ export class URLPageDetector {
         {
             pattern: /.*/,
             pageType: 'other',
-            confidence: 0.1,
+            confidence: ConfidenceLevel.FALLBACK,
             metadata: { pageCategory: 'unknown' }
         }
     ];
@@ -184,7 +186,7 @@ export class URLPageDetector {
         // Fallback to generic "other" page type
         return {
             pageType: 'other',
-            confidence: 0.1,
+            confidence: ConfidenceLevel.FALLBACK,
             url,
             path,
             metadata: {

@@ -1,3 +1,5 @@
+import { ConfidenceLevel } from '../types/confidence';
+
 // Heuristic rule interface for element detection
 export interface HeuristicRule {
     selector: string;
@@ -32,7 +34,7 @@ export class HeuristicElementDetector {
         "add_to_cart": [
             {
                 selector: 'button, input[type="submit"], a',
-                confidence: 0.9,
+                confidence: ConfidenceLevel.HIGH,
                 textPatterns: ['añadir', 'agregar', 'add to cart', 'add cart', 'comprar', 'buy'],
                 attributePatterns: {
                     'class': 'cart',
@@ -42,46 +44,46 @@ export class HeuristicElementDetector {
             },
             {
                 selector: 'input[type="submit"]',
-                confidence: 0.8,
+                confidence: ConfidenceLevel.MEDIUM,
                 attributePatterns: {
                     'value': 'carrito'
                 }
             },
             {
                 selector: 'a[href*="cart"]',
-                confidence: 0.7,
+                confidence: ConfidenceLevel.MEDIUM,
                 textPatterns: ['add', 'añadir']
             }
         ],
         "contact_dealer": [
             {
                 selector: 'button, a, input[type="submit"]',
-                confidence: 0.85,
+                confidence: ConfidenceLevel.HIGH,
                 textPatterns: ['contactar', 'contact', 'concesionario', 'dealer'],
                 contextSelectors: ['[class*="dealer"]', '[class*="contact"]', 'form[class*="contact"]']
             },
             {
                 selector: 'form input[type="submit"]',
-                confidence: 0.8,
+                confidence: ConfidenceLevel.MEDIUM,
                 contextSelectors: ['form[class*="contact"]', 'form[id*="contact"]']
             }
         ],
         "search_submit": [
             {
                 selector: 'button[type="submit"], input[type="submit"]',
-                confidence: 0.9,
+                confidence: ConfidenceLevel.HIGH,
                 contextSelectors: ['form[class*="search"]', '[class*="filter"]', '[class*="search"]']
             },
             {
                 selector: 'button, input[type="submit"]',
-                confidence: 0.8,
+                confidence: ConfidenceLevel.MEDIUM,
                 textPatterns: ['buscar', 'search', 'filtrar', 'filter']
             }
         ],
         "schedule_test_drive": [
             {
                 selector: 'button, a, input[type="submit"]',
-                confidence: 0.9,
+                confidence: ConfidenceLevel.HIGH,
                 textPatterns: ['test drive', 'prueba', 'conducir', 'probar', 'cita'],
                 contextSelectors: ['[class*="vehicle"]', '[class*="car"]', '[class*="auto"]']
             }
@@ -89,7 +91,7 @@ export class HeuristicElementDetector {
         "request_quote": [
             {
                 selector: 'button, a, input[type="submit"]',
-                confidence: 0.85,
+                confidence: ConfidenceLevel.HIGH,
                 textPatterns: ['cotizar', 'quote', 'presupuesto', 'precio', 'solicitar'],
                 contextSelectors: ['[class*="vehicle"]', '[class*="product"]', '[class*="price"]']
             }
@@ -97,7 +99,7 @@ export class HeuristicElementDetector {
         "view_product": [
             {
                 selector: 'a, div, article',
-                confidence: 0.7,
+                confidence: ConfidenceLevel.MEDIUM,
                 contextSelectors: ['[class*="product"]', '[class*="item"]', '[class*="card"]'],
                 attributePatterns: {
                     'href': 'product'
@@ -107,7 +109,7 @@ export class HeuristicElementDetector {
         "purchase": [
             {
                 selector: 'button, input[type="submit"]',
-                confidence: 0.9,
+                confidence: ConfidenceLevel.HIGH,
                 textPatterns: ['comprar', 'buy', 'purchase', 'pagar', 'pay', 'checkout'],
                 contextSelectors: ['[class*="checkout"]', '[class*="payment"]', '[class*="buy"]']
             }
@@ -115,7 +117,7 @@ export class HeuristicElementDetector {
         "view_cart": [
             {
                 selector: 'a, button, div',
-                confidence: 0.8,
+                confidence: ConfidenceLevel.MEDIUM,
                 textPatterns: ['carrito', 'cart', 'basket'],
                 attributePatterns: {
                     'href': 'cart',
@@ -126,7 +128,7 @@ export class HeuristicElementDetector {
         "download_brochure": [
             {
                 selector: 'a, button',
-                confidence: 0.9,
+                confidence: ConfidenceLevel.HIGH,
                 textPatterns: ['descargar', 'download', 'brochure', 'folleto', 'catálogo', 'pdf'],
                 attributePatterns: {
                     'href': '.pdf'
@@ -140,7 +142,7 @@ export class HeuristicElementDetector {
     constructor(config: Partial<HeuristicDetectionConfig> = {}) {
         this.config = {
             enabled: true,
-            confidenceThreshold: 0.7,
+            confidenceThreshold: ConfidenceLevel.MEDIUM,
             fallbackToManual: true,
             ...config
         };
