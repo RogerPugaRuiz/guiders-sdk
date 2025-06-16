@@ -19,7 +19,6 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
 </header>
 
 <main class="main-content">
-  <div style="display:none" data-track-event="page_view" data-page="vehicle_comparison" data-page-title="Comparación de Vehículos"></div>
   
   <!-- Hero Section -->
   <section class="hero-section">
