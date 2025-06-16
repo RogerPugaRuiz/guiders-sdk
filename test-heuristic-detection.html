@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Heuristic Detection - Guiders SDK</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-item {
+            margin: 15px 0;
+            padding: 10px;
+            border-left: 4px solid #3b82f6;
+            background: #f8fafc;
+        }
+        .detected {
+            border-left-color: #059669;
+            background: #f0fdf4;
+        }
+        button, .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .add-to-cart-btn, .btn-cart {
+            background: #1e3a8a;
+            color: white;
+        }
+        .contact-btn {
+            background: #059669;
+            color: white;
+        }
+        .search-btn {
+            background: #7c3aed;
+            color: white;
+        }
+        .product-link {
+            color: #1e3a8a;
+            text-decoration: underline;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e0f2fe;
+            border-radius: 8px;
+        }
+        .console-log {
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧠 Test de Detección Heurística - Guiders SDK</h1>
+    <p>Esta página prueba la detección automática de elementos sin usar atributos data-track-event.</p>
+
+    <div class="test-section">
+        <h2>🛒 Elementos de E-commerce</h2>
+        <div class="test-item">
+            <h4>Botones "Añadir al carrito"</h4>
+            <button class="add-to-cart-btn">Añadir al carrito</button>
+            <button class="btn-cart">Agregar producto</button>
+            <a href="#" class="btn add-cart">Añadir a la cesta</a>
+        </div>
+        
+        <div class="test-item">
+            <h4>Enlaces de productos</h4>
+            <a href="/product/123" class="product-link">Ver detalles del producto</a>
+            <a href="/ecommerce" class="product-link">Ir a la tienda</a>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📞 Elementos de Contacto</h2>
+        <div class="test-item">
+            <h4>Botones de contacto</h4>
+            <button class="contact-btn">Contactar con nosotros</button>
+            <button class="contact-btn">Contactar dealer</button>
+            <a href="/contact" class="btn contact-btn">Página de contacto</a>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 Elementos de Búsqueda</h2>
+        <div class="test-item">
+            <h4>Formulario de búsqueda</h4>
+            <input type="text" placeholder="Buscar productos..." style="padding: 8px; margin-right: 10px;">
+            <button type="submit" class="search-btn">Buscar</button>
+        </div>
+        
+        <div class="test-item">
+            <h4>Filtros</h4>
+            <label>Precio: <input type="range" name="price" min="0" max="1000"></label>
+            <select name="price_range">
+                <option>Seleccionar rango de precio</option>
+                <option>0-100€</option>
+                <option>100-500€</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Resultados de Detección</h2>
+        <button onclick="runHeuristicTest()" style="background: #1e3a8a; color: white; padding: 10px 20px;">
+            🧪 Ejecutar Test de Detección
+        </button>
+        <div id="results" class="results" style="display: none;">
+            <h4>Elementos detectados automáticamente:</h4>
+            <div id="detection-results"></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Console Log</h2>
+        <div id="console" class="console-log">
+            Los logs del SDK aparecerán aquí...
+        </div>
+    </div>
+
+    <!-- Guiders SDK -->
+    <script src="http://127.0.0.1:8081/index.js?apiKey=test-heuristic-detection-key"></script>
+    
+    <script>
+        let consoleDiv = document.getElementById('console');
+        let originalConsoleLog = console.log;
+        
+        // Capture console logs and display them
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            consoleDiv.textContent += args.join(' ') + '\n';
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        };
+
+        // Function to test heuristic detection manually
+        function runHeuristicTest() {
+            console.log('\n🧪 === INICIANDO TEST DE DETECCIÓN HEURÍSTICA ===');
+            
+            if (window.guiders && window.guiders.getAutoDetectionConfig) {
+                const config = window.guiders.getAutoDetectionConfig();
+                console.log('📋 Configuración actual:', JSON.stringify(config, null, 2));
+                
+                // Re-run detection to see what elements are found
+                window.guiders.redetectElements();
+                
+                console.log('🔍 Detección ejecutada. Revisa los logs anteriores para ver elementos detectados.');
+                
+                // Show results section
+                document.getElementById('results').style.display = 'block';
+                
+                // Simulate some interactions to test tracking
+                console.log('\n🎯 Simulando eventos...');
+                
+                setTimeout(() => {
+                    console.log('💫 Test completado. Los elementos deberían estar siendo detectados automáticamente.');
+                    console.log('👁️ Abre las herramientas de desarrollador para ver más detalles.');
+                }, 1000);
+                
+            } else {
+                console.log('❌ Error: SDK no está completamente inicializado o no tiene detección heurística');
+            }
+        }
+
+        // Wait for SDK to load and then show initial status
+        setTimeout(() => {
+            console.log('\n🚀 === SDK CARGADO ===');
+            if (window.guiders) {
+                console.log('✅ Guiders SDK detectado');
+                if (window.guiders.getAutoDetectionConfig) {
+                    const config = window.guiders.getAutoDetectionConfig();
+                    console.log('⚙️ Configuración de detección automática:', JSON.stringify(config, null, 2));
+                    
+                    if (config.enabled) {
+                        console.log('🎯 Detección heurística: ACTIVADA');
+                        console.log('📊 Umbral de confianza:', config.confidenceThreshold);
+                        console.log('🌐 Detección por URL:', config.urlBasedPageDetection);
+                    } else {
+                        console.log('⚠️ Detección heurística: DESACTIVADA');
+                    }
+                }
+            } else {
+                console.log('❌ SDK no encontrado');
+            }
+        }, 2000);
+
+        // Test URL-based page detection
+        console.log('🌐 Página actual:', window.location.pathname);
+        console.log('📄 Esto debería activar detección de page_view automáticamente');
+    </script>
+</body>
+</html>

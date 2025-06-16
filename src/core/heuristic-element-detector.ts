@@ -83,6 +83,37 @@ export class HeuristicElementDetector {
                 confidence: 0.85,
                 textPatterns: ['cotizar', 'quote', 'presupuesto']
             }
+        ],
+        "search_vehicle_type": [
+            {
+                selector: 'select[name*="type"], select[name*="vehicle"], input[name*="vehicle_type"]',
+                confidence: 0.9,
+                contextSelectors: ['form', '[class*="search"]', '[class*="filter"]'],
+                textPatterns: ['tipo', 'type', 'vehiculo', 'vehicle']
+            }
+        ],
+        "search_brand": [
+            {
+                selector: 'select[name*="brand"], select[name*="marca"], input[name*="brand"]',
+                confidence: 0.9,
+                contextSelectors: ['form', '[class*="search"]', '[class*="filter"]'],
+                textPatterns: ['marca', 'brand']
+            }
+        ],
+        "search_model": [
+            {
+                selector: 'select[name*="model"], select[name*="modelo"], input[name*="model"]',
+                confidence: 0.9,
+                contextSelectors: ['form', '[class*="search"]', '[class*="filter"]'],
+                textPatterns: ['modelo', 'model']
+            }
+        ],
+        "calculate_financing": [
+            {
+                selector: 'button:contains("financiar"), button:contains("calcular"), .financing-btn',
+                confidence: 0.85,
+                textPatterns: ['financiar', 'financing', 'calcular', 'calculate']
+            }
         ]
     };
 

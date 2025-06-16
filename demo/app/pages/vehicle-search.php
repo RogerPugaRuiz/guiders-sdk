@@ -19,14 +19,14 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
 </header>
 
 <main class="main-content">
-  <div style="display:none" data-track-event="page_view" data-page="vehicle_search"></div>
+  <!-- Removed data-track-event attribute - page detection is now automatic via URL -->
   
   <!-- Hero Section -->
   <section class="hero-section">
     <div class="container">
       <div class="hero-content">
         <h1>🚗 Encuentra tu vehículo ideal</h1>
-        <p class="hero-subtitle">Explora nuestra amplia gama de vehículos nuevos, de ocasión, km0, comerciales y renting</p>
+        <p class="hero-subtitle">Explora nuestra amplia gama de vehículos con detección automática de eventos</p>
       </div>
     </div>
   </section>

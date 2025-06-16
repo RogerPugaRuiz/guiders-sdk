@@ -70,7 +70,8 @@ export class EnhancedDomTrackingManager {
         'vehicle-search': /\/vehicle-search/,
         'vehicle-comparison': /\/vehicle-comparison/,
         'product': /\/product/,
-        'category': /\/category/
+        'category': /\/category/,
+        'vehicle-detail': /\/vehicle-detail/
     };
 
     constructor(
