@@ -6,6 +6,14 @@
  * - Monitor page visibility changes (tab switching)
  * - Periodic heartbeat for active sessions
  * - Only count active tab time (not background tabs)
+ * - Automatic session timeout after inactivity
+ * - Debug mode for development
+ * - Cross-URL session persistence within same browser tab
+ * - Force session termination for logout scenarios
+ * 
+ * New Events:
+ * - session_timeout: When session ends due to inactivity
+ * - session_force_end: When session is manually terminated
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -14,6 +22,10 @@ export interface SessionTrackingConfig {
 	enabled: boolean;
 	heartbeatInterval: number; // milliseconds, default 30000 (30 seconds)
 	trackBackgroundTime: boolean; // default false - only count active tab time
+	maxInactivityTime: number; // milliseconds, default 30 minutes - auto-end session after inactivity
+	enableAutoTimeout: boolean; // default false - enable automatic session timeout
+	enableCrossTabSync: boolean; // default false - sync sessions across tabs (future feature)
+	debugMode: boolean; // default false - enable debug logging
 }
 
 export interface SessionData {
@@ -30,8 +42,10 @@ export class SessionTrackingManager {
 	private trackCallback: (params: Record<string, unknown>) => void;
 	private sessionData: SessionData | null = null;
 	private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+	private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
 	private isTabVisible: boolean = true;
 	private sessionStartTime: number = 0;
+	private lastActivityTime: number = 0;
 
 	constructor(
 		trackCallback: (params: Record<string, unknown>) => void,
@@ -42,8 +56,14 @@ export class SessionTrackingManager {
 			enabled: true,
 			heartbeatInterval: 30000, // 30 seconds
 			trackBackgroundTime: false,
+			maxInactivityTime: 30 * 60 * 1000, // 30 minutes
+			enableAutoTimeout: false,
+			enableCrossTabSync: false,
+			debugMode: false,
 			...config
 		};
+
+		this.lastActivityTime = Date.now();
 
 		// Validate browser API availability
 		if (typeof document === 'undefined') {
@@ -87,9 +107,12 @@ export class SessionTrackingManager {
 		};
 
 		this.sessionStartTime = existingSession.startTime;
+		this.updateLastActivity();
 
 		// Only track session_start if this is a new session
 		if (existingSession.isNew) {
+			this.debugLog('Starting new session', { sessionId: this.sessionData.sessionId, tabId: this.sessionData.tabId });
+			
 			this.trackCallback({
 				event: 'session_start',
 				sessionId: this.sessionData.sessionId,
@@ -98,6 +121,12 @@ export class SessionTrackingManager {
 				isVisible: this.isTabVisible
 			});
 		} else {
+			this.debugLog('Continuing existing session', { 
+				sessionId: this.sessionData.sessionId, 
+				tabId: this.sessionData.tabId,
+				existingActiveTime: this.sessionData.totalActiveTime
+			});
+			
 			// Track session continuation for existing session
 			this.trackCallback({
 				event: 'session_continue',
@@ -113,6 +142,9 @@ export class SessionTrackingManager {
 		if (this.isTabVisible) {
 			this.startHeartbeat();
 		}
+
+		// Start inactivity timer
+		this.startInactivityTimer();
 	}
 
 	/**
@@ -122,6 +154,7 @@ export class SessionTrackingManager {
 		if (!this.sessionData) return;
 
 		this.stopHeartbeat();
+		this.stopInactivityTimer();
 		this.updateActiveTime();
 
 		const sessionEndTime = Date.now();
@@ -159,12 +192,14 @@ export class SessionTrackingManager {
 		if (wasVisible && !this.isTabVisible) {
 			this.updateActiveTime();
 			this.stopHeartbeat();
+			this.stopInactivityTimer();
 		}
 
-		// Start heartbeat when becoming visible
+		// Start heartbeat and inactivity timer when becoming visible
 		if (!wasVisible && this.isTabVisible) {
 			this.sessionData.lastActiveTime = now;
 			this.startHeartbeat();
+			this.startInactivityTimer();
 		}
 
 		// Track visibility change event
@@ -217,6 +252,9 @@ export class SessionTrackingManager {
 		this.sessionData.totalActiveTime += timeSinceLastActive;
 		this.sessionData.lastActiveTime = now;
 
+		// Update last activity time for inactivity tracking
+		this.updateLastActivity();
+
 		// Persist updated session data to sessionStorage
 		this.persistTabSession();
 	}
@@ -237,6 +275,80 @@ export class SessionTrackingManager {
 		if (this.heartbeatTimer) {
 			clearInterval(this.heartbeatTimer);
 			this.heartbeatTimer = null;
+		}
+	}
+
+	/**
+	 * Start inactivity timer
+	 */
+	private startInactivityTimer(): void {
+		if (!this.config.enableAutoTimeout) return;
+		
+		this.stopInactivityTimer();
+		this.inactivityTimer = setTimeout(() => {
+			this.handleInactivityTimeout();
+		}, this.config.maxInactivityTime);
+		
+		if (this.config.debugMode) {
+			console.log(`[SessionTrackingManager] Inactivity timer started: ${this.config.maxInactivityTime}ms`);
+		}
+	}
+
+	/**
+	 * Stop inactivity timer
+	 */
+	private stopInactivityTimer(): void {
+		if (this.inactivityTimer) {
+			clearTimeout(this.inactivityTimer);
+			this.inactivityTimer = null;
+			
+			if (this.config.debugMode) {
+				console.log('[SessionTrackingManager] Inactivity timer stopped');
+			}
+		}
+	}
+
+	/**
+	 * Handle inactivity timeout
+	 */
+	private handleInactivityTimeout(): void {
+		if (!this.sessionData) return;
+
+		if (this.config.debugMode) {
+			console.log('[SessionTrackingManager] Session ended due to inactivity timeout');
+		}
+
+		// Track session timeout event
+		this.trackCallback({
+			event: 'session_timeout',
+			sessionId: this.sessionData.sessionId,
+			tabId: this.sessionData.tabId,
+			reason: 'inactivity',
+			inactivityDuration: this.config.maxInactivityTime,
+			lastActivityTime: this.lastActivityTime,
+			timestamp: Date.now()
+		});
+
+		this.endSessionTracking();
+	}
+
+	/**
+	 * Update last activity time and reset inactivity timer
+	 */
+	private updateLastActivity(): void {
+		this.lastActivityTime = Date.now();
+		
+		if (this.config.enableAutoTimeout) {
+			this.startInactivityTimer();
+		}
+	}
+
+	/**
+	 * Log debug information if debug mode is enabled
+	 */
+	private debugLog(message: string, data?: any): void {
+		if (this.config.debugMode) {
+			console.log(`[SessionTrackingManager] ${message}`, data || '');
 		}
 	}
 
@@ -274,6 +386,7 @@ export class SessionTrackingManager {
 		window.removeEventListener('blur', this.handleVisibilityChange);
 		
 		this.stopHeartbeat();
+		this.stopInactivityTimer();
 		
 		if (this.sessionData) {
 			this.endSessionTracking();
@@ -300,6 +413,64 @@ export class SessionTrackingManager {
 				this.startHeartbeat();
 			}
 		}
+
+		// Restart inactivity timer if settings changed
+		if (newConfig.enableAutoTimeout !== undefined || newConfig.maxInactivityTime) {
+			this.stopInactivityTimer();
+			if (this.config.enableAutoTimeout && this.sessionData) {
+				this.startInactivityTimer();
+			}
+		}
+
+		this.debugLog('Configuration updated', newConfig);
+	}
+
+	/**
+	 * Get session statistics
+	 */
+	public getSessionStats(): any {
+		if (!this.sessionData) return null;
+
+		const now = Date.now();
+		const currentActiveTime = this.isTabVisible ? 
+			this.sessionData.totalActiveTime + (now - this.sessionData.lastActiveTime) : 
+			this.sessionData.totalActiveTime;
+
+		return {
+			sessionId: this.sessionData.sessionId,
+			tabId: this.sessionData.tabId,
+			startTime: this.sessionData.startTime,
+			currentTime: now,
+			totalSessionTime: now - this.sessionData.startTime,
+			totalActiveTime: currentActiveTime,
+			isActive: this.sessionData.isActive,
+			isVisible: this.isTabVisible,
+			lastActivityTime: this.lastActivityTime,
+			inactivityTime: this.config.enableAutoTimeout ? now - this.lastActivityTime : null,
+			timeUntilTimeout: this.config.enableAutoTimeout ? 
+				Math.max(0, this.config.maxInactivityTime - (now - this.lastActivityTime)) : null
+		};
+	}
+
+	/**
+	 * Force session end (for explicit logout or user action)
+	 */
+	public forceSessionEnd(reason: string = 'user_action'): void {
+		if (!this.sessionData) return;
+
+		this.debugLog('Force ending session', { reason });
+
+		// Track forced session end event
+		this.trackCallback({
+			event: 'session_force_end',
+			sessionId: this.sessionData.sessionId,
+			tabId: this.sessionData.tabId,
+			reason: reason,
+			timestamp: Date.now(),
+			totalActiveTime: this.sessionData.totalActiveTime
+		});
+
+		this.endSessionTracking();
 	}
 
 	/**

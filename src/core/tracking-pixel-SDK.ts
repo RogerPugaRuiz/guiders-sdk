@@ -481,6 +481,24 @@ export class TrackingPixelSDK {
 		}
 	}
 
+	/**
+	 * Get detailed session statistics
+	 */
+	public getSessionStats(): any {
+		return this.sessionTrackingManager?.getSessionStats() || null;
+	}
+
+	/**
+	 * Force end current session (for logout, user action, etc.)
+	 */
+	public forceEndSession(reason: string = 'user_action'): void {
+		if (this.sessionTrackingManager) {
+			this.sessionTrackingManager.forceSessionEnd(reason);
+		} else {
+			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
+		}
+	}
+
 	public setMetadata(event: string, metadata: Record<string, unknown>): void {
 		const eventIndex = this.eventQueue.findIndex((e) => e.type === event);
 		if (eventIndex === -1) {
