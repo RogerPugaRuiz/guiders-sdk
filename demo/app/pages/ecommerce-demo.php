@@ -26,18 +26,19 @@ foreach ($xml->producto as $p) {
       <a href="/ecommerce">Demo Tienda</a>
       <a href="/vehicle-search">Búsqueda Vehículos</a>
       <a href="/vehicle-comparison">Comparar Vehículos</a>
+      <a href="/heuristic-demo">🎯 Demo Heurístico</a>
     </nav>
   </div>
 </header>
 <main class="main-content">
-  <div style="display:none" data-track-event="page_view" data-page="ecommerce"></div>
+  <!-- Page will be automatically detected via URL -->
   
   <!-- Hero Section -->
   <section class="hero-section">
     <div class="container">
       <div class="hero-content">
         <h1>🛍️ GuiderShop</h1>
-        <p class="hero-subtitle">Descubre nuestra selección premium de productos con seguimiento avanzado</p>
+        <p class="hero-subtitle">Descubre nuestra selección premium de productos con seguimiento avanzado heurístico</p>
         <div class="hero-actions">
           <a href="#products" class="btn btn-primary">Ver Productos</a>
           <a href="#cart" id="cart-link" class="btn btn-secondary">🛒 Carrito (<span id="cart-count">0</span>)</a>
@@ -57,10 +58,7 @@ foreach ($xml->producto as $p) {
       <div class="product-grid">
         <?php foreach ($productos as $prod): ?>
         <div class="product-card"
-             data-track-event="view_product"
-             data-product-id="<?= $prod['id'] ?>"
-             data-product-name="<?= htmlspecialchars($prod['nombre']) ?>"
-             data-product-price="<?= $prod['precio'] ?>">
+             class="product-item">
           <div class="product-image">
             <a href="/ecommerce/pages/product-detail.php?id=<?= $prod['id'] ?>" class="product-link">
               <img src="https://dummyimage.com/250x250/1e3a8a/fff&text=<?= urlencode($prod['nombre']) ?>" alt="<?= htmlspecialchars($prod['nombre']) ?>">
@@ -75,11 +73,7 @@ foreach ($xml->producto as $p) {
             <p class="product-description"><?= htmlspecialchars($prod['descripcion']) ?></p>
             <div class="product-footer">
               <span class="product-price"><?= number_format($prod['precio'], 2, ',', '.') ?> €</span>
-              <button class="add-to-cart-btn"
-                      data-track-event="add_to_cart"
-                      data-product-id="<?= $prod['id'] ?>"
-                      data-product-name="<?= htmlspecialchars($prod['nombre']) ?>"
-                      data-product-price="<?= $prod['precio'] ?>">
+              <button class="add-to-cart-btn">
                 Añadir al carrito
               </button>
             </div>
@@ -91,7 +85,7 @@ foreach ($xml->producto as $p) {
   </section>
 
   <!-- Cart Section -->
-  <aside id="cart" class="cart-section" data-track-event="view_cart">
+  <aside id="cart" class="cart-section">
     <div class="container">
       <div class="cart-container">
         <div class="cart-header">
@@ -104,10 +98,10 @@ foreach ($xml->producto as $p) {
             <p id="cart-total" class="cart-total">Total: 0 €</p>
           </div>
           <div class="cart-actions">
-            <button class="btn btn-primary checkout-btn" data-track-event="purchase">
+            <button class="btn btn-primary checkout-btn">
               💳 Comprar Ahora
             </button>
-            <button class="btn btn-danger clear-cart-btn" data-track-event="clear_cart">
+            <button class="btn btn-danger clear-cart-btn">
               🗑️ Vaciar Carrito
             </button>
           </div>

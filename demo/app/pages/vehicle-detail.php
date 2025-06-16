@@ -21,9 +21,7 @@ $vehicleId = $_GET['id'] ?? 'v001';
   </div>
 </header>
 
-<main class="main-content">
-  <div style="display:none" data-track-event="page_view" data-page="vehicle_detail" data-vehicle-id="<?php echo $vehicleId; ?>"></div>
-  
+<main class="main-content">  
   <!-- Breadcrumb -->
   <section class="breadcrumb-section">
     <div class="container">

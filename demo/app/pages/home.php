@@ -14,12 +14,13 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
       <a href="/ecommerce">Demo Tienda</a>
       <a href="/vehicle-search">Búsqueda Vehículos</a>
       <a href="/vehicle-comparison">Comparar Vehículos</a>
+      <a href="/heuristic-demo">🎯 Demo Heurístico</a>
     </nav>
   </div>
 </header>
 
 <div class="container">
-  <div style="display:none" data-track-event="page_view" data-page="home" data-page-title="Página de Inicio"></div>
+  <!-- Page will be automatically detected via URL as 'home' page -->
   
   <div class="hero-banner">
     <div class="hero-content">
