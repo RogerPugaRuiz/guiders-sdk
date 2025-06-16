@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Tracking Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a8c;
+        }
+        #session-info {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .log-container {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .session-start { color: #28a745; }
+        .session-end { color: #dc3545; }
+        .visibility-change { color: #fd7e14; }
+        .heartbeat { color: #6f42c1; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Session Tracking Demo</h1>
+    
+    <div class="test-section">
+        <h2>Session Information</h2>
+        <div id="session-info">No session data available yet...</div>
+        <button onclick="updateSessionInfo()">Update Session Info</button>
+        <button onclick="simulateVisibilityChange()">Simulate Tab Switch</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Session Controls</h2>
+        <button onclick="startSession()">Start Session Tracking</button>
+        <button onclick="endSession()">End Session Tracking</button>
+        <button onclick="updateHeartbeat()">Update Heartbeat Interval</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Event Log</h2>
+        <button onclick="clearLog()">Clear Log</button>
+        <div id="event-log" class="log-container"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Instructions</h2>
+        <ol>
+            <li><strong>New Tab Session:</strong> First time opening this page triggers 'session_start'</li>
+            <li><strong>Page Reload/Navigation:</strong> Refresh this page to see 'session_continue' event with same session ID</li>
+            <li><strong>Visibility Changes:</strong> Switch to another tab and back to see visibility change events</li>
+            <li><strong>Heartbeat:</strong> Events sent every 30 seconds while tab is active</li>
+            <li><strong>Session End:</strong> Triggered when closing the tab/window</li>
+        </ol>
+        <p><strong>Note:</strong> Session IDs now persist across page navigation within the same browser tab using sessionStorage.</p>
+        <p><strong>Test:</strong> Refresh this page and notice the session ID remains the same!</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Tab Session Persistence Test</h2>
+        <button onclick="refreshPage()">Refresh Page (Test Session Continuity)</button>
+        <button onclick="openNewTab()">Open New Tab (New Session)</button>
+        <button onclick="checkSessionStorage()">Check sessionStorage</button>
+        <div id="storage-info" style="margin-top: 10px; font-family: monospace; background: #f0f0f0; padding: 10px;"></div>
+    </div>
+
+    <!-- Load the Guiders SDK -->
+    <script src="http://localhost:8080/index.js?apiKey=49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d9763"></script>
+    
+    <script>
+        // Wait for SDK to initialize
+        let sdkReady = false;
+        
+        // Override console.log to capture session tracking events
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            
+            // Check if this is a session tracking related log
+            const message = args.join(' ');
+            if (message.includes('session_') || message.includes('Session') || message.includes('visibility')) {
+                logEvent(message, getEventType(message));
+            }
+        };
+
+        // Log session tracking events
+        function logEvent(message, type = '') {
+            const logContainer = document.getElementById('event-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function getEventType(message) {
+            if (message.includes('session_start')) return 'session-start';
+            if (message.includes('session_end')) return 'session-end';
+            if (message.includes('visibility_change')) return 'visibility-change';
+            if (message.includes('heartbeat')) return 'heartbeat';
+            return '';
+        }
+
+        // Wait for SDK to be ready
+        function waitForSDK() {
+            if (window.guiders && window.guiders.getCurrentSession) {
+                sdkReady = true;
+                logEvent('✅ Guiders SDK initialized with session tracking', 'session-start');
+                updateSessionInfo();
+                
+                // Override the track method to log session events
+                const originalTrack = window.guiders.track;
+                window.guiders.track = function(params) {
+                    if (params.event && params.event.startsWith('session_')) {
+                        logEvent(`📊 Session Event: ${params.event}`, getEventType(params.event));
+                        logEvent(`   Data: ${JSON.stringify(params, null, 2)}`);
+                    }
+                    return originalTrack.call(this, params);
+                };
+                
+            } else {
+                setTimeout(waitForSDK, 100);
+            }
+        }
+
+        // Start checking for SDK
+        waitForSDK();
+
+        function updateSessionInfo() {
+            if (!sdkReady) {
+                document.getElementById('session-info').textContent = 'SDK not ready yet...';
+                return;
+            }
+
+            const sessionData = window.guiders.getCurrentSession();
+            const info = sessionData ? 
+                JSON.stringify(sessionData, null, 2) : 
+                'No active session';
+            
+            document.getElementById('session-info').textContent = info;
+        }
+
+        function simulateVisibilityChange() {
+            logEvent('🔄 Simulating tab visibility change...', 'visibility-change');
+            // Create and dispatch visibility change event
+            document.dispatchEvent(new Event('visibilitychange'));
+        }
+
+        function startSession() {
+            if (!sdkReady) return;
+            window.guiders.enableSessionTracking();
+            logEvent('▶️ Session tracking enabled manually', 'session-start');
+            updateSessionInfo();
+        }
+
+        function endSession() {
+            if (!sdkReady) return;
+            window.guiders.disableSessionTracking();
+            logEvent('⏹️ Session tracking disabled manually', 'session-end');
+            updateSessionInfo();
+        }
+
+        function updateHeartbeat() {
+            if (!sdkReady) return;
+            const newInterval = prompt('Enter heartbeat interval in milliseconds:', '15000');
+            if (newInterval && !isNaN(newInterval)) {
+                window.guiders.updateSessionConfig({
+                    heartbeatInterval: parseInt(newInterval)
+                });
+                logEvent(`💓 Heartbeat interval updated to ${newInterval}ms`, 'heartbeat');
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('event-log').innerHTML = '';
+        }
+
+        function refreshPage() {
+            logEvent('🔄 Page refresh requested - testing session continuity', 'refresh');
+            window.location.reload();
+        }
+
+        function openNewTab() {
+            logEvent('🔗 Opening new tab - should create new session', 'new-tab');
+            window.open(window.location.href, '_blank');
+        }
+
+        function checkSessionStorage() {
+            const storageKey = 'guiders_tab_session';
+            const sessionData = sessionStorage.getItem(storageKey);
+            const storageInfo = document.getElementById('storage-info');
+            
+            if (sessionData) {
+                try {
+                    const parsed = JSON.parse(sessionData);
+                    storageInfo.textContent = `Session Storage: ${JSON.stringify(parsed, null, 2)}`;
+                } catch (e) {
+                    storageInfo.textContent = `Session Storage (raw): ${sessionData}`;
+                }
+            } else {
+                storageInfo.textContent = 'No session data found in sessionStorage';
+            }
+            
+            logEvent('📦 Session storage checked', 'storage');
+        }
+
+        // Update session info every 5 seconds
+        setInterval(updateSessionInfo, 5000);
+        
+        // Log page load
+        window.addEventListener('load', () => {
+            logEvent('🚀 Page loaded', 'session-start');
+        });
+
+        // Log page unload
+        window.addEventListener('beforeunload', () => {
+            logEvent('👋 Page unloading', 'session-end');
+        });
+    </script>
+</body>
+</html>

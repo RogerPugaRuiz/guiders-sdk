@@ -19,6 +19,7 @@ import { DomTrackingManager, DefaultTrackDataExtractor } from "./dom-tracking-ma
 import { EnhancedDomTrackingManager } from "./enhanced-dom-tracking-manager";
 import { HeuristicDetectionConfig } from "./heuristic-element-detector";
 import { UnreadMessagesService } from "../services/unread-messages-service";
+import { SessionTrackingManager, SessionTrackingConfig } from "./session-tracking-manager";
 
 
 interface SDKOptions {
@@ -32,6 +33,11 @@ interface SDKOptions {
 	heuristicDetection?: {
 		enabled?: boolean;
 		config?: Partial<HeuristicDetectionConfig>;
+	};
+	// Session tracking options
+	sessionTracking?: {
+		enabled?: boolean;
+		config?: Partial<SessionTrackingConfig>;
 	};
 }
 
@@ -97,6 +103,7 @@ export class TrackingPixelSDK {
 	private maxRetries = 3;
 	private listeners = new Map<string, Set<(msg: PixelEvent) => void>>();
 	private domTrackingManager: DomTrackingManager | EnhancedDomTrackingManager;
+	private sessionTrackingManager: SessionTrackingManager | null = null;
 	private heuristicEnabled: boolean;
 
 	constructor(options: SDKOptions) {
@@ -137,6 +144,16 @@ export class TrackingPixelSDK {
 		} else {
 			console.log('[TrackingPixelSDK] Initializing with legacy DOM tracking');
 			this.domTrackingManager = new DomTrackingManager((params) => this.track(params));
+		}
+
+		// Initialize session tracking if enabled
+		const sessionTrackingEnabled = options.sessionTracking?.enabled ?? true;
+		if (sessionTrackingEnabled) {
+			console.log('[TrackingPixelSDK] 📊 Initializing session tracking');
+			this.sessionTrackingManager = new SessionTrackingManager(
+				(params) => this.track(params),
+				options.sessionTracking?.config || {}
+			);
 		}
 	}
 
@@ -316,6 +333,12 @@ export class TrackingPixelSDK {
 			console.log("El DOM ya está completamente cargado.");
 			initializeChatComponents();
 		}
+
+		// Start session tracking if enabled
+		if (this.sessionTrackingManager) {
+			console.log("🎯 Starting session tracking...");
+			this.sessionTrackingManager.startSessionTracking();
+		}
 	}
 
 	private configureTypingIndicators(chat: ChatUI): void {
@@ -417,6 +440,62 @@ export class TrackingPixelSDK {
 			this.domTrackingManager.setHeuristicEnabled(enabled);
 		} else {
 			console.warn('[TrackingPixelSDK] Heuristic detection not available.');
+		}
+	}
+
+	/**
+	 * Enable session tracking
+	 */
+	public enableSessionTracking(): void {
+		if (this.sessionTrackingManager) {
+			this.sessionTrackingManager.startSessionTracking();
+		} else {
+			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
+		}
+	}
+
+	/**
+	 * Disable session tracking
+	 */
+	public disableSessionTracking(): void {
+		if (this.sessionTrackingManager) {
+			this.sessionTrackingManager.endSessionTracking();
+		}
+	}
+
+	/**
+	 * Get current session data
+	 */
+	public getCurrentSession(): any {
+		return this.sessionTrackingManager?.getCurrentSession() || null;
+	}
+
+	/**
+	 * Update session tracking configuration
+	 */
+	public updateSessionConfig(config: Partial<SessionTrackingConfig>): void {
+		if (this.sessionTrackingManager) {
+			this.sessionTrackingManager.updateConfig(config);
+		} else {
+			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
+		}
+	}
+
+	/**
+	 * Get detailed session statistics
+	 */
+	public getSessionStats(): any {
+		return this.sessionTrackingManager?.getSessionStats() || null;
+	}
+
+	/**
+	 * Force end current session (for logout, user action, etc.)
+	 */
+	public forceEndSession(reason: string = 'user_action'): void {
+		if (this.sessionTrackingManager) {
+			this.sessionTrackingManager.forceSessionEnd(reason);
+		} else {
+			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
 		}
 	}
 
@@ -583,5 +662,32 @@ export class TrackingPixelSDK {
 				console.error("Error al ejecutar listener:", error);
 			}
 		});
+	}
+
+	/**
+	 * Cleanup all resources and event listeners
+	 */
+	public cleanup(): void {
+		// Cleanup session tracking
+		if (this.sessionTrackingManager) {
+			this.sessionTrackingManager.cleanup();
+			this.sessionTrackingManager = null;
+		}
+
+		// Stop auto flush
+		this.stopAutoFlush();
+
+		// Clear event queue
+		this.eventQueue = [];
+
+		// Clear listeners
+		this.listeners.clear();
+
+		// Close WebSocket connection
+		if (this.webSocket) {
+			this.webSocket.disconnect();
+		}
+
+		console.log('[TrackingPixelSDK] Cleanup completed');
 	}
 }
