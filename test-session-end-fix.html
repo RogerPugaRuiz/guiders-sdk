@@ -152,9 +152,9 @@
             if (unloadTimestamp) {
                 const timestamp = parseInt(unloadTimestamp, 10);
                 const timeSince = Date.now() - timestamp;
-                output += `Unload Timestamp: ${timestamp} (${timeSince}ms ago)`;
+                output += `Unload Timestamp: ${timestamp} (${timeSince}ms ago)\nThis indicates a recent page unload for refresh detection.`;
             } else {
-                output += 'No unload timestamp found';
+                output += 'No unload timestamp found - this is normal for new sessions.';
             }
             
             storageInfo.textContent = output;
