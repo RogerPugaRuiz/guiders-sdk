@@ -38,6 +38,16 @@ interface SDKOptions {
 	sessionTracking?: {
 		enabled?: boolean;
 		config?: Partial<SessionTrackingConfig>;
+		// Advanced options for Intercom-like behavior
+		activityDetection?: {
+			enabled?: boolean;
+			inactivityThreshold?: number; // ms before considering user inactive
+			debounceDelay?: number; // ms to debounce activity events
+		};
+		multiTabSupport?: {
+			enabled?: boolean;
+			crossTabSync?: boolean;
+		};
 	};
 }
 
@@ -149,11 +159,40 @@ export class TrackingPixelSDK {
 		// Initialize session tracking if enabled
 		const sessionTrackingEnabled = options.sessionTracking?.enabled ?? true;
 		if (sessionTrackingEnabled) {
-			console.log('[TrackingPixelSDK] 📊 Initializing session tracking');
+			console.log('[TrackingPixelSDK] 📊 Initializing advanced session tracking with Intercom-like features');
+			
+			// Build enhanced session tracking config
+			const baseConfig = options.sessionTracking?.config || {};
+			const activityOptions = options.sessionTracking?.activityDetection || {};
+			const multiTabOptions = options.sessionTracking?.multiTabSupport || {};
+			
+			const enhancedConfig: Partial<SessionTrackingConfig> = {
+				...baseConfig,
+				// Enable advanced features by default
+				enableRealActivityDetection: activityOptions.enabled ?? true,
+				maxInactivityTime: activityOptions.inactivityThreshold ?? 60000, // 1 minute
+				activityDebounceTime: activityOptions.debounceDelay ?? 1000, // 1 second
+				enableCrossTabSync: multiTabOptions.enabled ?? true,
+				// Set reasonable defaults for Intercom-like behavior
+				heartbeatInterval: baseConfig.heartbeatInterval ?? 30000, // 30 seconds
+				heartbeatActivityWindow: baseConfig.heartbeatActivityWindow ?? (2 * 60 * 1000), // 2 minutes
+				enableAutoTimeout: baseConfig.enableAutoTimeout ?? true,
+				beaconEndpoint: baseConfig.beaconEndpoint ?? '/api/session-tracking',
+				debugMode: baseConfig.debugMode ?? false
+			};
+			
 			this.sessionTrackingManager = new SessionTrackingManager(
 				(params) => this.track(params),
-				options.sessionTracking?.config || {}
+				enhancedConfig
 			);
+			
+			console.log('[TrackingPixelSDK] Session tracking configured with enhanced features:', {
+				realActivityDetection: enhancedConfig.enableRealActivityDetection,
+				crossTabSync: enhancedConfig.enableCrossTabSync,
+				heartbeatInterval: enhancedConfig.heartbeatInterval,
+				inactivityThreshold: enhancedConfig.maxInactivityTime,
+				activityDebounce: enhancedConfig.activityDebounceTime
+			});
 		}
 	}
 
@@ -519,6 +558,49 @@ export class TrackingPixelSDK {
 		} else {
 			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
 			return null;
+		}
+	}
+
+	/**
+	 * Get enhanced session statistics with activity information
+	 */
+	public getEnhancedSessionStats(): any {
+		return this.sessionTrackingManager?.getSessionStats() || null;
+	}
+
+	/**
+	 * Check if session tracking is currently enabled
+	 */
+	public isSessionTrackingEnabled(): boolean {
+		return this.sessionTrackingManager !== null;
+	}
+
+	/**
+	 * Restart session tracking with new configuration
+	 */
+	public restartSessionTracking(config?: Partial<SessionTrackingConfig>): void {
+		if (this.sessionTrackingManager) {
+			this.sessionTrackingManager.endSessionTracking();
+			if (config) {
+				this.sessionTrackingManager.updateConfig(config);
+			}
+			this.sessionTrackingManager.startSessionTracking();
+		} else {
+			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
+		}
+	}
+
+	/**
+	 * Toggle debug mode for session tracking
+	 */
+	public toggleSessionDebugMode(): void {
+		if (this.sessionTrackingManager) {
+			const currentStats = this.sessionTrackingManager.getSessionStats();
+			const newDebugMode = !currentStats?.debugMode;
+			this.sessionTrackingManager.updateConfig({ debugMode: newDebugMode });
+			console.log(`[TrackingPixelSDK] Session debug mode ${newDebugMode ? 'enabled' : 'disabled'}`);
+		} else {
+			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
 		}
 	}
 
