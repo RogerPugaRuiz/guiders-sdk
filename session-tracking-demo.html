@@ -225,21 +225,32 @@
         }
 
         function checkSessionStorage() {
-            const storageKey = 'guiders_tab_session';
-            const sessionData = sessionStorage.getItem(storageKey);
+            const sessionDataKey = 'guiders_session';
+            const globalSessionKey = 'guiders_global_session_id';
+            const sessionData = sessionStorage.getItem(sessionDataKey);
+            const globalSessionId = sessionStorage.getItem(globalSessionKey);
             const storageInfo = document.getElementById('storage-info');
+            
+            let output = '';
+            
+            if (globalSessionId) {
+                output += `Global Session ID: ${globalSessionId}\n\n`;
+            } else {
+                output += 'No global session ID found\n\n';
+            }
             
             if (sessionData) {
                 try {
                     const parsed = JSON.parse(sessionData);
-                    storageInfo.textContent = `Session Storage: ${JSON.stringify(parsed, null, 2)}`;
+                    output += `Session Data: ${JSON.stringify(parsed, null, 2)}`;
                 } catch (e) {
-                    storageInfo.textContent = `Session Storage (raw): ${sessionData}`;
+                    output += `Session Data (raw): ${sessionData}`;
                 }
             } else {
-                storageInfo.textContent = 'No session data found in sessionStorage';
+                output += 'No session data found in sessionStorage';
             }
             
+            storageInfo.textContent = output;
             logEvent('📦 Session storage checked', 'storage');
         }
 

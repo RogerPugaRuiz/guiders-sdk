@@ -483,6 +483,33 @@ export class SessionTrackingManager {
 	}
 
 	/**
+	 * Get or create global session ID that persists across page reloads
+	 */
+	private getOrCreateGlobalSessionId(): string {
+		const GLOBAL_SESSION_KEY = 'guiders_global_session_id';
+		
+		try {
+			const existingSessionId = sessionStorage.getItem(GLOBAL_SESSION_KEY);
+			if (existingSessionId) {
+				return existingSessionId;
+			}
+		} catch (error) {
+			console.warn('[SessionTrackingManager] Error reading global session ID:', error);
+		}
+
+		// Create new global session ID if none exists
+		const newSessionId = this.generateGlobalSessionId();
+		
+		try {
+			sessionStorage.setItem(GLOBAL_SESSION_KEY, newSessionId);
+		} catch (error) {
+			console.warn('[SessionTrackingManager] Error saving global session ID:', error);
+		}
+
+		return newSessionId;
+	}
+
+	/**
 	 * Get or create session using sessionStorage
 	 */
 	private getOrCreateSession(): { 
@@ -494,14 +521,17 @@ export class SessionTrackingManager {
 	} {
 		const STORAGE_KEY = 'guiders_session';
 		
+		// Get or create persistent global session ID
+		const globalSessionId = this.getOrCreateGlobalSessionId();
+		
 		try {
 			const existingData = sessionStorage.getItem(STORAGE_KEY);
 			if (existingData) {
 				const sessionInfo = JSON.parse(existingData);
 				// Validate the session data
-				if (sessionInfo.sessionId && sessionInfo.tabId && sessionInfo.startTime) {
+				if (sessionInfo.tabId && sessionInfo.startTime) {
 					return {
-						sessionId: sessionInfo.sessionId,
+						sessionId: globalSessionId, // Always use the persistent global session ID
 						tabId: sessionInfo.tabId,
 						startTime: sessionInfo.startTime,
 						totalActiveTime: sessionInfo.totalActiveTime || 0,
@@ -516,16 +546,21 @@ export class SessionTrackingManager {
 		// Create new session if none exists or is invalid
 		const now = Date.now();
 		const newSession = {
-			sessionId: this.generateGlobalSessionId(),
+			sessionId: globalSessionId, // Use the persistent global session ID
 			tabId: this.generateTabId(),
 			startTime: now,
 			totalActiveTime: 0,
 			isNew: true
 		};
 
-		// Persist the new session
+		// Persist the new session (without sessionId since it's stored separately)
 		try {
-			sessionStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
+			const sessionDataToStore = {
+				tabId: newSession.tabId,
+				startTime: newSession.startTime,
+				totalActiveTime: newSession.totalActiveTime
+			};
+			sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sessionDataToStore));
 		} catch (error) {
 			console.warn('[SessionTrackingManager] Error saving session to storage:', error);
 		}
@@ -540,8 +575,8 @@ export class SessionTrackingManager {
 		if (!this.sessionData) return;
 
 		const STORAGE_KEY = 'guiders_session';
+		// Store session data without sessionId (sessionId is stored separately)
 		const sessionInfo = {
-			sessionId: this.sessionData.sessionId,
 			tabId: this.sessionData.tabId,
 			startTime: this.sessionData.startTime,
 			totalActiveTime: this.sessionData.totalActiveTime
@@ -559,8 +594,10 @@ export class SessionTrackingManager {
 	 */
 	private clearSession(): void {
 		const STORAGE_KEY = 'guiders_session';
+		const GLOBAL_SESSION_KEY = 'guiders_global_session_id';
 		try {
 			sessionStorage.removeItem(STORAGE_KEY);
+			sessionStorage.removeItem(GLOBAL_SESSION_KEY);
 		} catch (error) {
 			console.warn('[SessionTrackingManager] Error clearing session:', error);
 		}
@@ -571,23 +608,20 @@ export class SessionTrackingManager {
 	 */
 	public clearGlobalSession(): void {
 		this.clearSession();
-		this.debugLog('Session cleared from sessionStorage');
+		this.debugLog('Global session cleared from sessionStorage');
 	}
 
 	/**
 	 * Get current global session ID
 	 */
 	public getGlobalSessionId(): string | null {
+		const GLOBAL_SESSION_KEY = 'guiders_global_session_id';
 		try {
-			const existingData = sessionStorage.getItem('guiders_session');
-			if (existingData) {
-				const sessionInfo = JSON.parse(existingData);
-				return sessionInfo.sessionId || null;
-			}
+			return sessionStorage.getItem(GLOBAL_SESSION_KEY);
 		} catch (error) {
-			console.warn('[SessionTrackingManager] Error reading session:', error);
+			console.warn('[SessionTrackingManager] Error reading global session ID:', error);
+			return null;
 		}
-		return null;
 	}
 
 	/**
