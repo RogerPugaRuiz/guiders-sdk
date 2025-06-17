@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Session End Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .pass { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .fail { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { background: #007cba; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Session End Fix - Quick Test</h1>
+    
+    <div class="info">
+        <h3>Test Instructions:</h3>
+        <ol>
+            <li>Open browser developer tools and watch the console</li>
+            <li>Click "Test Refresh" - should NOT log session_end</li>
+            <li>Close this tab - SHOULD log session_end via beacon</li>
+        </ol>
+    </div>
+
+    <div>
+        <button onclick="testRefresh()">🔄 Test Refresh (No session_end expected)</button>
+        <button onclick="testNavigation()">🌐 Test Navigation (No session_end expected)</button>
+        <button onclick="showStatus()">📊 Show Current Status</button>
+    </div>
+
+    <div id="status"></div>
+
+    <script src="dist/index.js"></script>
+    <script>
+        let sdk = null;
+        let events = [];
+
+        // Initialize SDK when ready
+        function initTest() {
+            if (window.guiders) {
+                sdk = window.guiders;
+                console.log('✅ SDK ready, enabling session tracking with debug mode');
+                
+                // Enable session tracking with debug mode
+                sdk.enableSessionTracking({
+                    debugMode: true,
+                    heartbeatInterval: 5000, // 5 second heartbeat for testing
+                    beaconEndpoint: '/test-endpoint' // Mock endpoint
+                });
+
+                // Override track method to capture events
+                const originalTrack = sdk.track;
+                sdk.track = function(params) {
+                    console.log('📊 SDK Event:', params);
+                    events.push(params);
+                    
+                    if (params.event === 'session_end') {
+                        console.error('🚨 session_end event detected!', params);
+                        alert('⚠️ session_end event was triggered! Check console for details.');
+                    }
+                    
+                    return originalTrack.call(this, params);
+                };
+
+                showStatus();
+            } else {
+                setTimeout(initTest, 100);
+            }
+        }
+
+        function testRefresh() {
+            console.log('🔄 Testing page refresh...');
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = '<div class="info">🔄 Refreshing page to test session continuity...</div>';
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        }
+
+        function testNavigation() {
+            console.log('🌐 Testing navigation...');
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = '<div class="info">🌐 Navigating to test session continuity...</div>';
+            
+            setTimeout(() => {
+                window.location.href = 'https://www.google.com';
+            }, 500);
+        }
+
+        function showStatus() {
+            const statusDiv = document.getElementById('status');
+            const sessionData = sessionStorage.getItem('guiders_session');
+            const globalSession = sessionStorage.getItem('guiders_global_session_id');
+            const unloadTimestamp = sessionStorage.getItem('guiders_unload_timestamp');
+            
+            const sessionEndEvents = events.filter(e => e.event === 'session_end');
+            const sessionStartEvents = events.filter(e => e.event === 'session_start');
+            const sessionContinueEvents = events.filter(e => e.event === 'session_continue');
+
+            statusDiv.innerHTML = `
+                <div class="status ${sessionEndEvents.length === 0 ? 'pass' : 'fail'}">
+                    <h3>Session End Events: ${sessionEndEvents.length}</h3>
+                    ${sessionEndEvents.length === 0 ? 
+                        '<p>✅ Good! No session_end events triggered during page lifecycle.</p>' :
+                        '<p>❌ Unexpected session_end events detected!</p>'
+                    }
+                </div>
+                
+                <div class="status info">
+                    <h3>Event Summary:</h3>
+                    <ul>
+                        <li>session_start: ${sessionStartEvents.length}</li>
+                        <li>session_continue: ${sessionContinueEvents.length}</li>
+                        <li>session_end: ${sessionEndEvents.length}</li>
+                    </ul>
+                </div>
+
+                <div class="status info">
+                    <h3>Session Storage:</h3>
+                    <pre>Global Session: ${globalSession || 'None'}
+Session Data: ${sessionData || 'None'}
+Unload Timestamp: ${unloadTimestamp || 'None'}</pre>
+                </div>
+
+                <div class="status info">
+                    <h3>Recent Events:</h3>
+                    <pre>${JSON.stringify(events.slice(-3), null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        // Start the test
+        initTest();
+
+        // Update status every 2 seconds
+        setInterval(showStatus, 2000);
+
+        // Log page lifecycle events
+        window.addEventListener('load', () => {
+            console.log('📄 Page loaded');
+        });
+
+        window.addEventListener('beforeunload', () => {
+            console.log('📄 Page beforeunload event');
+        });
+
+        window.addEventListener('pagehide', (e) => {
+            console.log('📄 Page pagehide event, persisted:', e.persisted);
+        });
+    </script>
+</body>
+</html>

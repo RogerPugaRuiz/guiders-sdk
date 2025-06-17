@@ -57,7 +57,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export interface SessionTrackingConfig {
 	enabled: boolean;
-	heartbeatInterval: number; // milliseconds, default 30000 (30 seconds)
+	heartbeatInterval: number; // milliseconds, default 10000 (10 seconds)
 	trackBackgroundTime: boolean; // default false - only count active tab time
 	maxInactivityTime: number; // milliseconds, default 60000 (1 minute) - max time without user activity
 	enableAutoTimeout: boolean; // default true - enable automatic session timeout
@@ -101,7 +101,7 @@ export class SessionTrackingManager {
 		this.trackCallback = trackCallback;
 		this.config = {
 			enabled: true,
-			heartbeatInterval: 30000, // 30 seconds
+			heartbeatInterval: 10000, // 10 seconds
 			trackBackgroundTime: false,
 			maxInactivityTime: 60000, // 1 minute (más agresivo como Intercom)
 			enableAutoTimeout: true, // Habilitado por defecto
@@ -158,6 +158,9 @@ export class SessionTrackingManager {
 			return;
 		}
 
+		// Check if this page load was likely a refresh
+		const wasRefresh = this.wasLikelyRefresh();
+
 		// Try to restore existing session from sessionStorage
 		console.debug('[SessionTrackingManager] Starting session tracking...');
 		const sessionInfo = this.getOrCreateSession();
@@ -175,8 +178,8 @@ export class SessionTrackingManager {
 		this.sessionStartTime = sessionInfo.startTime;
 		this.updateLastActivity();
 
-		// Only track session_start if this is a new session
-		if (sessionInfo.isNew) {
+		// Only track session_start if this is a new session (not a refresh or existing session)
+		if (sessionInfo.isNew && !wasRefresh) {
 			this.debugLog('Starting new session', { 
 				sessionId: this.sessionData.sessionId, 
 				tabId: this.sessionData.tabId 
@@ -193,17 +196,19 @@ export class SessionTrackingManager {
 			this.debugLog('Continuing existing session', { 
 				sessionId: this.sessionData.sessionId,
 				tabId: this.sessionData.tabId,
-				existingActiveTime: this.sessionData.totalActiveTime
+				existingActiveTime: this.sessionData.totalActiveTime,
+				wasRefresh
 			});
 			
-			// Track session continuation for existing session
+			// Track session continuation for existing session or refresh
 			this.trackCallback({
 				event: 'session_continue',
 				sessionId: this.sessionData.sessionId,
 				tabId: this.sessionData.tabId,
 				timestamp: now,
 				isVisible: this.isTabVisible,
-				totalActiveTime: this.sessionData.totalActiveTime
+				totalActiveTime: this.sessionData.totalActiveTime,
+				reason: wasRefresh ? 'page_refresh' : 'existing_session'
 			});
 		}
 
@@ -340,17 +345,34 @@ export class SessionTrackingManager {
 	}
 
 	/**
-	 * Handle before unload (page/tab closing) - Intercom-like approach
+	 * Handle page hide (replaces beforeunload for better tab close detection)
 	 */
-	private handleBeforeUnload = (): void => {
+	private handlePageHide = (event: PageTransitionEvent): void => {
 		if (!this.sessionData) return;
+
+		const now = Date.now();
+		
+		// Store unload timestamp for refresh detection
+		this.storeUnloadTimestamp(now);
+
+		// Check if this is likely a refresh/navigation vs actual tab close
+		const isLikelyRefresh = this.isLikelyPageRefresh(event);
+		
+		if (isLikelyRefresh) {
+			this.debugLog('Page hide detected as likely refresh/navigation, not sending session_end');
+			// Don't send session_end for refresh/navigation
+			return;
+		}
+
+		// This appears to be an actual tab close
+		this.debugLog('Page hide detected as likely tab close, sending session_end');
 
 		// Notify other tabs about this tab closing
 		if (this.broadcastChannel) {
 			this.broadcastMessage({
 				type: 'tab_closed',
 				tabId: this.sessionData.tabId,
-				timestamp: Date.now(),
+				timestamp: now,
 				isMainTab: this.isMainTab
 			});
 
@@ -358,7 +380,7 @@ export class SessionTrackingManager {
 			if (this.isMainTab) {
 				this.broadcastMessage({
 					type: 'main_tab_closed',
-					timestamp: Date.now()
+					timestamp: now
 				});
 				sessionStorage.removeItem('guiders_main_tab');
 			}
@@ -369,8 +391,8 @@ export class SessionTrackingManager {
 			event: 'session_end',
 			sessionId: this.sessionData.sessionId,
 			tabId: this.sessionData.tabId,
-			timestamp: Date.now(),
-			reason: 'beforeunload',
+			timestamp: now,
+			reason: 'tab_close',
 			totalActiveTime: this.sessionData.totalActiveTime,
 			startTime: this.sessionData.startTime,
 			isMainTab: this.isMainTab
@@ -379,8 +401,24 @@ export class SessionTrackingManager {
 		// Use sendBeacon for reliable data transmission during page unload
 		this.sendBeaconData(sessionEndData);
 
-		// No borrar global session en refresh, solo la sesión del tab
+		// Don't clear global session on tab close, only tab session
 		this.endSessionTracking(false);
+	};
+
+	/**
+	 * Handle before unload (fallback for browsers that don't support pagehide well)
+	 */
+	private handleBeforeUnload = (): void => {
+		if (!this.sessionData) return;
+
+		const now = Date.now();
+		
+		// Store unload timestamp for refresh detection
+		this.storeUnloadTimestamp(now);
+
+		// For beforeunload, we're more conservative and assume it's a refresh
+		// The pagehide handler will handle actual tab closes
+		this.debugLog('Before unload triggered, storing timestamp for refresh detection');
 	};
 
 	/**
@@ -574,7 +612,10 @@ export class SessionTrackingManager {
 		// Page Visibility API
 		document.addEventListener('visibilitychange', this.handleVisibilityChange);
 		
-		// Handle page unload
+		// Handle page unload - use pagehide for better tab close detection
+		window.addEventListener('pagehide', this.handlePageHide);
+		
+		// Keep beforeunload as fallback for browsers with poor pagehide support
 		window.addEventListener('beforeunload', this.handleBeforeUnload);
 		
 		// Additional focus/blur events for edge cases where visibilitychange might not fire
@@ -588,6 +629,7 @@ export class SessionTrackingManager {
 	public cleanup(): void {
 		// Remove visibility and unload event listeners
 		document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+		window.removeEventListener('pagehide', this.handlePageHide);
 		window.removeEventListener('beforeunload', this.handleBeforeUnload);
 		window.removeEventListener('focus', this.handleFocus);
 		window.removeEventListener('blur', this.handleBlur);
@@ -1126,5 +1168,68 @@ export class SessionTrackingManager {
 		};
 
 		this.sendBeaconData(sessionEndData);
+	}
+
+	/**
+	 * Store unload timestamp for refresh detection
+	 */
+	private storeUnloadTimestamp(timestamp: number): void {
+		try {
+			sessionStorage.setItem('guiders_unload_timestamp', timestamp.toString());
+		} catch (error) {
+			this.debugLog('Error storing unload timestamp', { error });
+		}
+	}
+
+	/**
+	 * Check if the current page load was likely a refresh based on timing
+	 */
+	private wasLikelyRefresh(): boolean {
+		try {
+			const unloadTimestamp = sessionStorage.getItem('guiders_unload_timestamp');
+			if (!unloadTimestamp) return false;
+
+			const now = Date.now();
+			const timeSinceUnload = now - parseInt(unloadTimestamp, 10);
+			
+			// If less than 2 seconds since unload, it's likely a refresh
+			const isRefresh = timeSinceUnload < 2000;
+			
+			this.debugLog('Refresh detection', { 
+				unloadTimestamp: parseInt(unloadTimestamp, 10),
+				currentTime: now,
+				timeSinceUnload,
+				isRefresh
+			});
+
+			// Clean up the timestamp after checking
+			sessionStorage.removeItem('guiders_unload_timestamp');
+			
+			return isRefresh;
+		} catch (error) {
+			this.debugLog('Error checking refresh status', { error });
+			return false;
+		}
+	}
+
+	/**
+	 * Determine if page hide event is likely a refresh/navigation vs tab close
+	 */
+	private isLikelyPageRefresh(event: PageTransitionEvent): boolean {
+		// Check if page is being persisted (back/forward cache)
+		if (event.persisted) {
+			this.debugLog('Page hide with persisted=true, likely navigation');
+			return true;
+		}
+
+		// Additional heuristics could be added here:
+		// - Check if navigation API indicates a reload
+		// - Check performance.navigation.type (though deprecated)
+		// - Use timing analysis
+		
+		// For now, we rely primarily on the timing check during startup
+		// and the persisted property. If neither indicates a refresh,
+		// we assume it's a tab close.
+		return false;
 	}
 }
