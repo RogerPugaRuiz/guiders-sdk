@@ -29,12 +29,12 @@ export interface SessionTrackingConfig {
 }
 
 export interface SessionData {
-	sessionId: string;
+	sessionId: string; // Session ID (único por sesión)
 	startTime: number;
 	lastActiveTime: number;
 	totalActiveTime: number;
 	isActive: boolean;
-	tabId: string;
+	tabId: string; // Tab ID (único por tab)
 }
 
 export class SessionTrackingManager {
@@ -92,26 +92,35 @@ export class SessionTrackingManager {
 	 */
 	public startSessionTracking(): void {
 		if (!this.config.enabled) return;
+		
+		// Check if session tracking is already active
+		if (this.sessionData) {
+			this.debugLog('Session tracking already active', { sessionId: this.sessionData.sessionId });
+			return;
+		}
 
-		// Try to restore existing session from sessionStorage (tab-specific)
-		const existingSession = this.getOrCreateTabSession();
+		// Try to restore existing session from sessionStorage
+		const sessionInfo = this.getOrCreateSession();
 		const now = Date.now();
 		
 		this.sessionData = {
-			sessionId: existingSession.sessionId,
-			startTime: existingSession.startTime,
+			sessionId: sessionInfo.sessionId,
+			startTime: sessionInfo.startTime,
 			lastActiveTime: now,
-			totalActiveTime: existingSession.totalActiveTime || 0,
+			totalActiveTime: sessionInfo.totalActiveTime || 0,
 			isActive: this.isTabVisible,
-			tabId: existingSession.tabId
+			tabId: sessionInfo.tabId
 		};
 
-		this.sessionStartTime = existingSession.startTime;
+		this.sessionStartTime = sessionInfo.startTime;
 		this.updateLastActivity();
 
 		// Only track session_start if this is a new session
-		if (existingSession.isNew) {
-			this.debugLog('Starting new session', { sessionId: this.sessionData.sessionId, tabId: this.sessionData.tabId });
+		if (sessionInfo.isNew) {
+			this.debugLog('Starting new session', { 
+				sessionId: this.sessionData.sessionId, 
+				tabId: this.sessionData.tabId 
+			});
 			
 			this.trackCallback({
 				event: 'session_start',
@@ -122,7 +131,7 @@ export class SessionTrackingManager {
 			});
 		} else {
 			this.debugLog('Continuing existing session', { 
-				sessionId: this.sessionData.sessionId, 
+				sessionId: this.sessionData.sessionId,
 				tabId: this.sessionData.tabId,
 				existingActiveTime: this.sessionData.totalActiveTime
 			});
@@ -172,8 +181,8 @@ export class SessionTrackingManager {
 			timestamp: sessionEndTime
 		});
 
-		// Clear session from sessionStorage on tab close
-		this.clearTabSession();
+		// Clear session from sessionStorage on session end
+		this.clearSession();
 
 		this.sessionData = null;
 	}
@@ -256,7 +265,7 @@ export class SessionTrackingManager {
 		this.updateLastActivity();
 
 		// Persist updated session data to sessionStorage
-		this.persistTabSession();
+		this.persistSession();
 	}
 
 	/**
@@ -474,12 +483,16 @@ export class SessionTrackingManager {
 	}
 
 	/**
-	 * Get or create tab-specific session using sessionStorage
-	 * sessionStorage persists across page navigation within the same tab
-	 * but is cleared when the tab is closed
+	 * Get or create session using sessionStorage
 	 */
-	private getOrCreateTabSession(): { sessionId: string; tabId: string; startTime: number; totalActiveTime: number; isNew: boolean } {
-		const STORAGE_KEY = 'guiders_tab_session';
+	private getOrCreateSession(): { 
+		sessionId: string; 
+		tabId: string; 
+		startTime: number; 
+		totalActiveTime: number; 
+		isNew: boolean 
+	} {
+		const STORAGE_KEY = 'guiders_session';
 		
 		try {
 			const existingData = sessionStorage.getItem(STORAGE_KEY);
@@ -503,7 +516,7 @@ export class SessionTrackingManager {
 		// Create new session if none exists or is invalid
 		const now = Date.now();
 		const newSession = {
-			sessionId: this.generateSessionId(),
+			sessionId: this.generateGlobalSessionId(),
 			tabId: this.generateTabId(),
 			startTime: now,
 			totalActiveTime: 0,
@@ -523,10 +536,10 @@ export class SessionTrackingManager {
 	/**
 	 * Persist current session data to sessionStorage
 	 */
-	private persistTabSession(): void {
+	private persistSession(): void {
 		if (!this.sessionData) return;
 
-		const STORAGE_KEY = 'guiders_tab_session';
+		const STORAGE_KEY = 'guiders_session';
 		const sessionInfo = {
 			sessionId: this.sessionData.sessionId,
 			tabId: this.sessionData.tabId,
@@ -544,8 +557,8 @@ export class SessionTrackingManager {
 	/**
 	 * Clear session data from sessionStorage
 	 */
-	private clearTabSession(): void {
-		const STORAGE_KEY = 'guiders_tab_session';
+	private clearSession(): void {
+		const STORAGE_KEY = 'guiders_session';
 		try {
 			sessionStorage.removeItem(STORAGE_KEY);
 		} catch (error) {
@@ -554,14 +567,38 @@ export class SessionTrackingManager {
 	}
 
 	/**
-	 * Generate unique session ID
+	 * Clear global session data from sessionStorage (useful for logout)
 	 */
-	private generateSessionId(): string {
+	public clearGlobalSession(): void {
+		this.clearSession();
+		this.debugLog('Session cleared from sessionStorage');
+	}
+
+	/**
+	 * Get current global session ID
+	 */
+	public getGlobalSessionId(): string | null {
+		try {
+			const existingData = sessionStorage.getItem('guiders_session');
+			if (existingData) {
+				const sessionInfo = JSON.parse(existingData);
+				return sessionInfo.sessionId || null;
+			}
+		} catch (error) {
+			console.warn('[SessionTrackingManager] Error reading session:', error);
+		}
+		return null;
+	}
+
+	/**
+	 * Generate unique global session ID (persists across tabs)
+	 */
+	private generateGlobalSessionId(): string {
 		return `session_${Date.now()}_${uuidv4().substr(0, 8)}`;
 	}
 
 	/**
-	 * Generate unique tab ID
+	 * Generate unique tab ID (specific to each tab)
 	 */
 	private generateTabId(): string {
 		return `tab_${Date.now()}_${uuidv4().substr(0, 8)}`;
