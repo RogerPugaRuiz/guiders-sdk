@@ -174,7 +174,7 @@ export class TrackingPixelSDK {
 				activityDebounceTime: activityOptions.debounceDelay ?? 1000, // 1 second
 				enableCrossTabSync: multiTabOptions.enabled ?? true,
 				// Set reasonable defaults for Intercom-like behavior
-				heartbeatInterval: baseConfig.heartbeatInterval ?? 30000, // 30 seconds
+				heartbeatInterval: baseConfig.heartbeatInterval ?? 10000, // 10 seconds
 				heartbeatActivityWindow: baseConfig.heartbeatActivityWindow ?? (2 * 60 * 1000), // 2 minutes
 				enableAutoTimeout: baseConfig.enableAutoTimeout ?? true,
 				beaconEndpoint: baseConfig.beaconEndpoint ?? '/api/session-tracking',

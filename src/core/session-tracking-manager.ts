@@ -57,7 +57,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export interface SessionTrackingConfig {
 	enabled: boolean;
-	heartbeatInterval: number; // milliseconds, default 30000 (30 seconds)
+	heartbeatInterval: number; // milliseconds, default 10000 (10 seconds)
 	trackBackgroundTime: boolean; // default false - only count active tab time
 	maxInactivityTime: number; // milliseconds, default 60000 (1 minute) - max time without user activity
 	enableAutoTimeout: boolean; // default true - enable automatic session timeout
@@ -101,7 +101,7 @@ export class SessionTrackingManager {
 		this.trackCallback = trackCallback;
 		this.config = {
 			enabled: true,
-			heartbeatInterval: 30000, // 30 seconds
+			heartbeatInterval: 10000, // 10 seconds
 			trackBackgroundTime: false,
 			maxInactivityTime: 60000, // 1 minute (más agresivo como Intercom)
 			enableAutoTimeout: true, // Habilitado por defecto
