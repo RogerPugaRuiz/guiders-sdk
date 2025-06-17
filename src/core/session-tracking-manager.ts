@@ -92,6 +92,12 @@ export class SessionTrackingManager {
 	 */
 	public startSessionTracking(): void {
 		if (!this.config.enabled) return;
+		
+		// Check if session tracking is already active
+		if (this.sessionData) {
+			this.debugLog('Session tracking already active', { sessionId: this.sessionData.sessionId });
+			return;
+		}
 
 		// Try to restore existing session from sessionStorage (tab-specific)
 		const existingSession = this.getOrCreateTabSession();
