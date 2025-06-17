@@ -100,6 +100,7 @@ export class SessionTrackingManager {
 		}
 
 		// Try to restore existing session from sessionStorage
+		console.debug('[SessionTrackingManager] Starting session tracking...');
 		const sessionInfo = this.getOrCreateSession();
 		const now = Date.now();
 		
@@ -159,7 +160,7 @@ export class SessionTrackingManager {
 	/**
 	 * End session tracking
 	 */
-	public endSessionTracking(): void {
+	public endSessionTracking(clearGlobalSession: boolean = false): void {
 		if (!this.sessionData) return;
 
 		this.stopHeartbeat();
@@ -180,9 +181,6 @@ export class SessionTrackingManager {
 			totalActiveTime: this.sessionData.totalActiveTime,
 			timestamp: sessionEndTime
 		});
-
-		// Clear session from sessionStorage on session end
-		this.clearSession();
 
 		this.sessionData = null;
 	}
@@ -229,7 +227,8 @@ export class SessionTrackingManager {
 	 * Handle before unload (page/tab closing)
 	 */
 	private handleBeforeUnload = (): void => {
-		this.endSessionTracking();
+		// No borrar global session en refresh, solo la sesión del tab
+		this.endSessionTracking(false);
 	};
 
 	/**
@@ -299,7 +298,9 @@ export class SessionTrackingManager {
 		}, this.config.maxInactivityTime);
 		
 		if (this.config.debugMode) {
-			console.log(`[SessionTrackingManager] Inactivity timer started: ${this.config.maxInactivityTime}ms`);
+			this.debugLog('Inactivity timer started', {
+				maxInactivityTime: this.config.maxInactivityTime
+			});
 		}
 	}
 
@@ -312,7 +313,7 @@ export class SessionTrackingManager {
 			this.inactivityTimer = null;
 			
 			if (this.config.debugMode) {
-				console.log('[SessionTrackingManager] Inactivity timer stopped');
+				this.debugLog('Inactivity timer stopped');
 			}
 		}
 	}
@@ -324,7 +325,12 @@ export class SessionTrackingManager {
 		if (!this.sessionData) return;
 
 		if (this.config.debugMode) {
-			console.log('[SessionTrackingManager] Session ended due to inactivity timeout');
+			this.debugLog('Session inactivity timeout reached', {
+				sessionId: this.sessionData.sessionId,
+				tabId: this.sessionData.tabId,
+				inactivityDuration: this.config.maxInactivityTime,
+				lastActivityTime: this.lastActivityTime
+			});
 		}
 
 		// Track session timeout event
@@ -362,6 +368,26 @@ export class SessionTrackingManager {
 	}
 
 	/**
+	 * Handle window focus events
+	 */
+	private handleFocus = (): void => {
+		// Only handle focus if visibilitychange didn't already handle it
+		if (!document.hidden && !this.isTabVisible) {
+			this.handleVisibilityChange();
+		}
+	};
+
+	/**
+	 * Handle window blur events
+	 */
+	private handleBlur = (): void => {
+		// Only handle blur if visibilitychange didn't already handle it  
+		if (document.hidden && this.isTabVisible) {
+			this.handleVisibilityChange();
+		}
+	};
+
+	/**
 	 * Bind browser event listeners
 	 */
 	private bindEventListeners(): void {
@@ -371,18 +397,9 @@ export class SessionTrackingManager {
 		// Handle page unload
 		window.addEventListener('beforeunload', this.handleBeforeUnload);
 		
-		// Additional focus/blur events for better coverage
-		window.addEventListener('focus', () => {
-			if (!document.hidden) {
-				this.handleVisibilityChange();
-			}
-		});
-		
-		window.addEventListener('blur', () => {
-			if (document.hidden) {
-				this.handleVisibilityChange();
-			}
-		});
+		// Additional focus/blur events for edge cases where visibilitychange might not fire
+		window.addEventListener('focus', this.handleFocus);
+		window.addEventListener('blur', this.handleBlur);
 	}
 
 	/**
@@ -391,8 +408,8 @@ export class SessionTrackingManager {
 	public cleanup(): void {
 		document.removeEventListener('visibilitychange', this.handleVisibilityChange);
 		window.removeEventListener('beforeunload', this.handleBeforeUnload);
-		window.removeEventListener('focus', this.handleVisibilityChange);
-		window.removeEventListener('blur', this.handleVisibilityChange);
+		window.removeEventListener('focus', this.handleFocus);
+		window.removeEventListener('blur', this.handleBlur);
 		
 		this.stopHeartbeat();
 		this.stopInactivityTimer();
@@ -479,34 +496,8 @@ export class SessionTrackingManager {
 			totalActiveTime: this.sessionData.totalActiveTime
 		});
 
-		this.endSessionTracking();
-	}
-
-	/**
-	 * Get or create global session ID that persists across page reloads
-	 */
-	private getOrCreateGlobalSessionId(): string {
-		const GLOBAL_SESSION_KEY = 'guiders_global_session_id';
-		
-		try {
-			const existingSessionId = sessionStorage.getItem(GLOBAL_SESSION_KEY);
-			if (existingSessionId) {
-				return existingSessionId;
-			}
-		} catch (error) {
-			console.warn('[SessionTrackingManager] Error reading global session ID:', error);
-		}
-
-		// Create new global session ID if none exists
-		const newSessionId = this.generateGlobalSessionId();
-		
-		try {
-			sessionStorage.setItem(GLOBAL_SESSION_KEY, newSessionId);
-		} catch (error) {
-			console.warn('[SessionTrackingManager] Error saving global session ID:', error);
-		}
-
-		return newSessionId;
+		// En logout sí borrar la sesión global
+		this.endSessionTracking(true);
 	}
 
 	/**
@@ -521,8 +512,29 @@ export class SessionTrackingManager {
 	} {
 		const STORAGE_KEY = 'guiders_session';
 		
-		// Get or create persistent global session ID
-		const globalSessionId = this.getOrCreateGlobalSessionId();
+		// Check if global session already exists first
+		console.log('[SessionTrackingManager] Retrieving or creating global session ID...');
+		const GLOBAL_SESSION_KEY = 'guiders_global_session_id';
+		let globalSessionId: string;
+		let isNewGlobalSession = false;
+		
+		try {
+			const existingGlobalSessionId = sessionStorage.getItem(GLOBAL_SESSION_KEY);
+			if (existingGlobalSessionId) {
+				console.log('[SessionTrackingManager] Found existing global session ID:', existingGlobalSessionId);
+				globalSessionId = existingGlobalSessionId;
+				isNewGlobalSession = false;
+			} else {
+				console.log('[SessionTrackingManager] No existing global session ID found, creating a new one...');
+				globalSessionId = this.generateGlobalSessionId();
+				sessionStorage.setItem(GLOBAL_SESSION_KEY, globalSessionId);
+				isNewGlobalSession = true;
+			}
+		} catch (error) {
+			console.warn('[SessionTrackingManager] Error handling global session ID:', error);
+			globalSessionId = this.generateGlobalSessionId();
+			isNewGlobalSession = true;
+		}
 		
 		try {
 			const existingData = sessionStorage.getItem(STORAGE_KEY);
@@ -531,11 +543,11 @@ export class SessionTrackingManager {
 				// Validate the session data
 				if (sessionInfo.tabId && sessionInfo.startTime) {
 					return {
-						sessionId: globalSessionId, // Always use the persistent global session ID
+						sessionId: globalSessionId,
 						tabId: sessionInfo.tabId,
 						startTime: sessionInfo.startTime,
 						totalActiveTime: sessionInfo.totalActiveTime || 0,
-						isNew: false
+						isNew: isNewGlobalSession // Only new if global session is new
 					};
 				}
 			}
@@ -546,11 +558,11 @@ export class SessionTrackingManager {
 		// Create new session if none exists or is invalid
 		const now = Date.now();
 		const newSession = {
-			sessionId: globalSessionId, // Use the persistent global session ID
+			sessionId: globalSessionId,
 			tabId: this.generateTabId(),
 			startTime: now,
 			totalActiveTime: 0,
-			isNew: true
+			isNew: isNewGlobalSession // Only new if global session is new
 		};
 
 		// Persist the new session (without sessionId since it's stored separately)
@@ -600,6 +612,18 @@ export class SessionTrackingManager {
 			sessionStorage.removeItem(GLOBAL_SESSION_KEY);
 		} catch (error) {
 			console.warn('[SessionTrackingManager] Error clearing session:', error);
+		}
+	}
+
+	/**
+	 * Clear only tab session data (preserves global session ID)
+	 */
+	private clearTabSession(): void {
+		const STORAGE_KEY = 'guiders_session';
+		try {
+			sessionStorage.removeItem(STORAGE_KEY);
+		} catch (error) {
+			console.warn('[SessionTrackingManager] Error clearing tab session:', error);
 		}
 	}
 
