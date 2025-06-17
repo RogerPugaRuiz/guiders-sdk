@@ -499,6 +499,29 @@ export class TrackingPixelSDK {
 		}
 	}
 
+	/**
+	 * Clear global session data from sessionStorage (useful for logout)
+	 */
+	public clearGlobalSession(): void {
+		if (this.sessionTrackingManager) {
+			this.sessionTrackingManager.clearGlobalSession();
+		} else {
+			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
+		}
+	}
+
+	/**
+	 * Get current global session ID
+	 */
+	public getGlobalSessionId(): string | null {
+		if (this.sessionTrackingManager) {
+			return this.sessionTrackingManager.getGlobalSessionId();
+		} else {
+			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
+			return null;
+		}
+	}
+
 	public setMetadata(event: string, metadata: Record<string, unknown>): void {
 		const eventIndex = this.eventQueue.findIndex((e) => e.type === event);
 		if (eventIndex === -1) {
