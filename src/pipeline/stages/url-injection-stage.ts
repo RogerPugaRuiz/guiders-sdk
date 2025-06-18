@@ -1,6 +1,22 @@
 import { PixelEvent } from "../../types";
 import { PipelineStage } from "../pipeline-stage";
 
+/**
+ * URLInjectionStage
+ * 
+ * Esta etapa de pipeline añade automáticamente información de URL a los eventos de tipo page_view,
+ * organizándola en un objeto semántico dentro de event.metadata.
+ * 
+ * La información se agrupa en un objeto 'page' que contiene:
+ * - url: URL completa de la página
+ * - path: Ruta de la página
+ * - search: Parámetros de búsqueda (query string)
+ * - host: Dominio del sitio
+ * - protocol: Protocolo utilizado (http/https)
+ * - hash: Fragmento de la URL (después de #)
+ * - referrer: URL de referencia
+ * - timestamp: Momento de la captura de la URL
+ */
 export class URLInjectionStage implements PipelineStage<PixelEvent, PixelEvent> {
 	process(event: PixelEvent): PixelEvent {
 		// Solo procesar eventos de tipo 'tracking:tracking-event' que contengan page_view
@@ -10,30 +26,48 @@ export class URLInjectionStage implements PipelineStage<PixelEvent, PixelEvent> 
 			'eventType' in event.data && 
 			event.data.eventType === 'page_view') {
 
-			// Verificar si ya existe información de URL en metadata
-			const metadata = event.data.metadata as Record<string, any>;
-			if (!metadata || !metadata.page_url) {
+			// Verificar si ya existe información de URL en event.metadata
+			const hasExistingPageUrl = event.metadata && 
+				typeof event.metadata === 'object' && 
+				'page' in event.metadata && 
+				typeof event.metadata.page === 'object' &&
+				event.metadata.page && 
+				'url' in event.metadata.page;
+			
+			if (!hasExistingPageUrl) {
 				// Solo agregar URL automáticamente si estamos en un entorno de navegador
 				if (typeof window !== 'undefined' && window.location) {
 					// Asegurar que metadata existe
-					if (!event.data.metadata) {
-						event.data.metadata = {};
+					if (!event.metadata) {
+						event.metadata = {};
 					}
 
-					// Agregar información de URL completa automáticamente
-					(event.data.metadata as Record<string, any>).page_url = window.location.href;
-					(event.data.metadata as Record<string, any>).page_path = window.location.pathname;
-					(event.data.metadata as Record<string, any>).page_search = window.location.search;
-					(event.data.metadata as Record<string, any>).page_host = window.location.host;
-					(event.data.metadata as Record<string, any>).page_protocol = window.location.protocol;
-					(event.data.metadata as Record<string, any>).page_hash = window.location.hash;
-					(event.data.metadata as Record<string, any>).referrer = document.referrer || '';
-					(event.data.metadata as Record<string, any>).timestamp_url_injection = Date.now();
+					// Crear objeto semántico para información de página
+					const pageInfo = {
+						url: window.location.href,
+						path: window.location.pathname,
+						search: window.location.search,
+						host: window.location.host,
+						protocol: window.location.protocol,
+						hash: window.location.hash,
+						referrer: document.referrer || '',
+						timestamp: Date.now()
+					};
+					
+					// Asignar al metadata
+					event.metadata.page = pageInfo;
+
+					// También añadir una versión simplificada al data del evento
+					// para mantener compatibilidad con código existente
+					if (event.data) {
+						(event.data as Record<string, any>).pageUrl = window.location.href;
+						(event.data as Record<string, any>).pagePath = window.location.pathname;
+					}
 
 					console.log(`[URLInjectionStage] 🌐 URL generada automáticamente para page_view:`, {
-						page_url: (event.data.metadata as Record<string, any>).page_url,
-						page_path: (event.data.metadata as Record<string, any>).page_path,
-						page_search: (event.data.metadata as Record<string, any>).page_search
+						url: pageInfo.url,
+						path: pageInfo.path,
+						search: pageInfo.search
 					});
 				} else {
 					console.warn('[URLInjectionStage] ⚠️ No se puede acceder a window.location - entorno no es navegador');
@@ -42,7 +76,7 @@ export class URLInjectionStage implements PipelineStage<PixelEvent, PixelEvent> 
 				console.log(`[URLInjectionStage] ✅ URL ya presente en metadata, omitiendo inyección automática`);
 			}
 		}
-
+		console.log(`[URLInjectionStage] 📦 Evento procesado:`, event);
 		return event;
 	}
 }

@@ -11,6 +11,7 @@ import { TokenInjectionStage } from "../pipeline/stages/token-stage";
 import { ValidationStage } from "../pipeline/stages/validation-stage";
 import { MetadataInjectionStage } from "../pipeline/stages/metadata-stage";
 import { URLInjectionStage } from "../pipeline/stages/url-injection-stage";
+import { SessionInjectionStage } from "../pipeline/stages/session-injection-stage";
 import { ChatUI } from "../presentation/chat";
 import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
@@ -98,6 +99,7 @@ export class EndpointManager {
 export class TrackingPixelSDK {
 	private readonly pipelineBuilder = new PipelineProcessorBuilder();
 	private eventPipeline: PipelineProcessor<any, PixelEvent>;
+	private sessionInjectionStage: SessionInjectionStage;
 
 	private eventQueue: PixelEvent[] = [];
 	private endpoint: string;
@@ -130,10 +132,14 @@ export class TrackingPixelSDK {
 
 		localStorage.setItem("pixelEndpoint", this.endpoint);
 
+		// Crear la instancia de SessionInjectionStage
+		this.sessionInjectionStage = new SessionInjectionStage();
+
 		this.eventPipeline = this.pipelineBuilder
 			.addStage(new TimeStampStage())
 			.addStage(new TokenInjectionStage())
 			.addStage(new URLInjectionStage())
+			.addStage(this.sessionInjectionStage)
 			.addStage(new MetadataInjectionStage())
 			.addStage(new ValidationStage())
 			.build();
@@ -168,17 +174,9 @@ export class TrackingPixelSDK {
 			
 			const enhancedConfig: Partial<SessionTrackingConfig> = {
 				...baseConfig,
-				// Enable advanced features by default
-				enableRealActivityDetection: activityOptions.enabled ?? true,
 				maxInactivityTime: activityOptions.inactivityThreshold ?? 60000, // 1 minute
-				activityDebounceTime: activityOptions.debounceDelay ?? 1000, // 1 second
-				enableCrossTabSync: multiTabOptions.enabled ?? true,
 				// Set reasonable defaults for Intercom-like behavior
 				heartbeatInterval: baseConfig.heartbeatInterval ?? 10000, // 10 seconds
-				heartbeatActivityWindow: baseConfig.heartbeatActivityWindow ?? (2 * 60 * 1000), // 2 minutes
-				enableAutoTimeout: baseConfig.enableAutoTimeout ?? true,
-				beaconEndpoint: baseConfig.beaconEndpoint ?? '/api/session-tracking',
-				debugMode: baseConfig.debugMode ?? false
 			};
 			
 			this.sessionTrackingManager = new SessionTrackingManager(
@@ -186,12 +184,12 @@ export class TrackingPixelSDK {
 				enhancedConfig
 			);
 			
+			// Conectar el SessionTrackingManager con la pipeline stage
+			this.sessionInjectionStage.setSessionManager(this.sessionTrackingManager);
+			
 			console.log('[TrackingPixelSDK] Session tracking configured with enhanced features:', {
-				realActivityDetection: enhancedConfig.enableRealActivityDetection,
-				crossTabSync: enhancedConfig.enableCrossTabSync,
 				heartbeatInterval: enhancedConfig.heartbeatInterval,
 				inactivityThreshold: enhancedConfig.maxInactivityTime,
-				activityDebounce: enhancedConfig.activityDebounceTime
 			});
 		}
 	}
@@ -376,7 +374,8 @@ export class TrackingPixelSDK {
 		// Start session tracking if enabled
 		if (this.sessionTrackingManager) {
 			console.log("🎯 Starting session tracking...");
-			this.sessionTrackingManager.startSessionTracking();
+			// Session tracking will auto-initialize if enabled in config
+			// The manager is already set up to track events automatically
 		}
 	}
 
@@ -487,118 +486,7 @@ export class TrackingPixelSDK {
 	 */
 	public enableSessionTracking(): void {
 		if (this.sessionTrackingManager) {
-			this.sessionTrackingManager.startSessionTracking();
-		} else {
-			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
-		}
-	}
-
-	/**
-	 * Disable session tracking
-	 */
-	public disableSessionTracking(): void {
-		if (this.sessionTrackingManager) {
-			this.sessionTrackingManager.endSessionTracking();
-		}
-	}
-
-	/**
-	 * Get current session data
-	 */
-	public getCurrentSession(): any {
-		return this.sessionTrackingManager?.getCurrentSession() || null;
-	}
-
-	/**
-	 * Update session tracking configuration
-	 */
-	public updateSessionConfig(config: Partial<SessionTrackingConfig>): void {
-		if (this.sessionTrackingManager) {
-			this.sessionTrackingManager.updateConfig(config);
-		} else {
-			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
-		}
-	}
-
-	/**
-	 * Get detailed session statistics
-	 */
-	public getSessionStats(): any {
-		return this.sessionTrackingManager?.getSessionStats() || null;
-	}
-
-	/**
-	 * Force end current session (for logout, user action, etc.)
-	 */
-	public forceEndSession(reason: string = 'user_action'): void {
-		if (this.sessionTrackingManager) {
-			this.sessionTrackingManager.forceSessionEnd(reason);
-		} else {
-			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
-		}
-	}
-
-	/**
-	 * Clear global session data from sessionStorage (useful for logout)
-	 */
-	public clearGlobalSession(): void {
-		if (this.sessionTrackingManager) {
-			this.sessionTrackingManager.clearGlobalSession();
-		} else {
-			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
-		}
-	}
-
-	/**
-	 * Get current global session ID
-	 */
-	public getGlobalSessionId(): string | null {
-		if (this.sessionTrackingManager) {
-			return this.sessionTrackingManager.getGlobalSessionId();
-		} else {
-			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
-			return null;
-		}
-	}
-
-	/**
-	 * Get enhanced session statistics with activity information
-	 */
-	public getEnhancedSessionStats(): any {
-		return this.sessionTrackingManager?.getSessionStats() || null;
-	}
-
-	/**
-	 * Check if session tracking is currently enabled
-	 */
-	public isSessionTrackingEnabled(): boolean {
-		return this.sessionTrackingManager !== null;
-	}
-
-	/**
-	 * Restart session tracking with new configuration
-	 */
-	public restartSessionTracking(config?: Partial<SessionTrackingConfig>): void {
-		if (this.sessionTrackingManager) {
-			this.sessionTrackingManager.endSessionTracking();
-			if (config) {
-				this.sessionTrackingManager.updateConfig(config);
-			}
-			this.sessionTrackingManager.startSessionTracking();
-		} else {
-			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
-		}
-	}
-
-	/**
-	 * Toggle debug mode for session tracking
-	 */
-	public toggleSessionDebugMode(): void {
-		if (this.sessionTrackingManager) {
-			const currentStats = this.sessionTrackingManager.getSessionStats();
-			const newDebugMode = !currentStats?.debugMode;
-			this.sessionTrackingManager.updateConfig({ debugMode: newDebugMode });
-			console.log(`[TrackingPixelSDK] Session debug mode ${newDebugMode ? 'enabled' : 'disabled'}`);
+			console.log('[TrackingPixelSDK] 🎯 Session tracking already enabled and initialized');
 		} else {
 			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
 		}
@@ -774,10 +662,6 @@ export class TrackingPixelSDK {
 	 */
 	public cleanup(): void {
 		// Cleanup session tracking
-		if (this.sessionTrackingManager) {
-			this.sessionTrackingManager.cleanup();
-			this.sessionTrackingManager = null;
-		}
 
 		// Stop auto flush
 		this.stopAutoFlush();

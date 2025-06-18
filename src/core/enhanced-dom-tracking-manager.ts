@@ -55,11 +55,6 @@ export class EnhancedDomTrackingManager extends DomTrackingManager {
             // Create page_view event data
             const eventData = {
                 event: 'page_view',
-                page_type: pageData.pageType,
-                page_confidence: pageData.confidence,
-                page_url: pageData.url,
-                page_path: pageData.path,
-                ...pageData.metadata
             };
 
             this.trackCallback(eventData);
