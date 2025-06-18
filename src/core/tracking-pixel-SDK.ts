@@ -180,7 +180,11 @@ export class TrackingPixelSDK {
 			};
 			
 			this.sessionTrackingManager = new SessionTrackingManager(
-				(params) => this.track(params),
+				(params) => {
+					setTimeout(() => {
+						this.track(params)
+					}, 500); // Delay to ensure session data is ready
+				},
 				enhancedConfig
 			);
 			

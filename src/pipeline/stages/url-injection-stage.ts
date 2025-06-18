@@ -19,13 +19,6 @@ import { PipelineStage } from "../pipeline-stage";
  */
 export class URLInjectionStage implements PipelineStage<PixelEvent, PixelEvent> {
 	process(event: PixelEvent): PixelEvent {
-		// Solo procesar eventos de tipo 'tracking:tracking-event' que contengan page_view
-		if (event.type === 'tracking:tracking-event' && 
-			event.data && 
-			typeof event.data === 'object' && 
-			'eventType' in event.data && 
-			event.data.eventType === 'page_view') {
-
 			// Verificar si ya existe información de URL en event.metadata
 			const hasExistingPageUrl = event.metadata && 
 				typeof event.metadata === 'object' && 
@@ -75,8 +68,6 @@ export class URLInjectionStage implements PipelineStage<PixelEvent, PixelEvent> 
 			} else {
 				console.log(`[URLInjectionStage] ✅ URL ya presente en metadata, omitiendo inyección automática`);
 			}
-		}
-		console.log(`[URLInjectionStage] 📦 Evento procesado:`, event);
 		return event;
 	}
 }
