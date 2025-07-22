@@ -292,6 +292,9 @@ export class TrackingPixelSDK {
 
 			// Verificar disponibilidad de comerciales después de inicializar el chat
 			this.checkCommercialAvailability(chat, chatToggleButton);
+
+			// Escuchar eventos de cambio de estado online de participantes
+			this.setupParticipantEventsListener(chat, chatToggleButton);
 		
 			chat.onOpen(() => {
 				this.captureEvent("visitor:open-chat", {
@@ -691,6 +694,188 @@ export class TrackingPixelSDK {
 	}
 
 	/**
+	 * Configura los listeners para eventos de participantes (estado online y nuevos participantes)
+	 * @param chat Instancia del ChatUI
+	 * @param chatToggleButton Instancia del ChatToggleButtonUI
+	 */
+	private setupParticipantEventsListener(chat: ChatUI, chatToggleButton: ChatToggleButtonUI): void {
+		if (!this.webSocket) {
+			console.warn("WebSocket no está disponible para escuchar eventos de participantes");
+			return;
+		}
+
+		console.log("Configurando listeners para eventos de participantes");
+
+		// LISTENER 1: Cambio de estado online de participantes
+		this.webSocket.addListener("participant:online-status-updated", async (eventData: any) => {
+			try {
+				console.log("📡 Evento participant:online-status-updated recibido:", eventData);
+				console.log("📡 Estructura del evento data:", Object.keys(eventData.data || {}));
+				console.log("📡 Contenido completo de data:", eventData.data);
+				
+				// Extraer información del participante de la estructura del evento
+				const isOnline = eventData.data?.isOnline || eventData.isOnline;
+				const participantId = eventData.data?.participantId || eventData.participantId;
+				const chatId = chat.getChatId();
+
+				if (!chatId) {
+					console.warn("⚠️ No hay chat ID disponible para verificar participantes");
+					return;
+				}
+
+				console.log(`📡 Participante ${participantId} cambió estado online: ${isOnline}`);
+
+				// Verificar comerciales online después del cambio de estado
+				await this.checkAndUpdateChatVisibility(chatId, chat, chatToggleButton);
+
+			} catch (error) {
+				console.error("❌ Error al procesar evento participant:online-status-updated:", error);
+			}
+		});
+
+		// LISTENER 2: Nuevo participante se une al chat
+		this.webSocket.addListener("chat:participant-joined", async (eventData: any) => {
+			try {
+				console.log("🎉 Evento chat:participant-joined recibido:", eventData);
+				console.log("🎉 Estructura del evento data:", Object.keys(eventData.data || {}));
+				console.log("🎉 Contenido completo de data:", eventData.data);
+				
+				// Extraer chatId - puede estar en diferentes lugares según la estructura del evento
+				let chatId = eventData.data?.chatId || eventData.chatId || eventData.data?.chat?.id;
+				let newParticipant = eventData.data?.newParticipant || eventData.data?.participant || eventData.data;
+				
+				const currentChatId = chat.getChatId();
+
+				console.log(`🔍 Comparando chat IDs - Actual: ${currentChatId}, Evento: ${chatId}`);
+				console.log(`👤 Estructura del participante:`, newParticipant);
+
+				if (!currentChatId) {
+					console.warn("⚠️ No hay chat ID actual disponible");
+					return;
+				}
+
+				if (!chatId) {
+					console.warn("⚠️ No se pudo extraer chatId del evento, asumiendo que es para el chat actual");
+					chatId = currentChatId; // Asumir que es para el chat actual
+				}
+
+				if (currentChatId !== chatId) {
+					console.warn(`⚠️ Evento para chat diferente. Actual: ${currentChatId}, Evento: ${chatId}`);
+					return;
+				}
+
+				console.log(`👤 Nuevo participante se unió:`, {
+					name: newParticipant?.name,
+					isCommercial: newParticipant?.isCommercial,
+					isOnline: newParticipant?.isOnline,
+					id: newParticipant?.id
+				});
+
+				// Si es comercial y está online, mostrar el botón inmediatamente
+				if (newParticipant?.isCommercial && newParticipant?.isOnline) {
+					console.log("✅ Nuevo comercial online se unió - Mostrando botón del chat");
+					console.log("🔄 Estado actual del botón antes de mostrar:", chatToggleButton.isButtonVisible());
+					
+					chatToggleButton.show();
+					
+					console.log("🔄 Estado actual del botón después de mostrar:", chatToggleButton.isButtonVisible());
+					
+					// Si el chat está abierto, mostrar mensaje de que se unió un asesor
+					if (chat.isVisible()) {
+						console.log("💬 Añadiendo mensaje del sistema al chat visible");
+						chat.addSystemMessage(`${newParticipant.name} se ha unido al chat y está disponible para ayudarte.`);
+					} else {
+						console.log("💬 Chat no está visible, no se añade mensaje del sistema");
+					}
+				} else if (newParticipant?.isCommercial && !newParticipant?.isOnline) {
+					console.log("⚠️ Comercial se unió pero está offline");
+					// Verificar el estado general de todos los comerciales
+					await this.checkAndUpdateChatVisibility(chatId, chat, chatToggleButton);
+				} else {
+					console.log("👥 Se unió un visitante o estructura de participante no válida, verificando estado general");
+					// Verificar el estado general de todos los comerciales
+					await this.checkAndUpdateChatVisibility(chatId, chat, chatToggleButton);
+				}
+
+			} catch (error) {
+				console.error("❌ Error al procesar evento chat:participant-joined:", error);
+			}
+		});
+	}
+
+	/**
+	 * Verifica el estado de los comerciales y actualiza la visibilidad del chat
+	 * @param chatId ID del chat
+	 * @param chat Instancia del ChatUI
+	 * @param chatToggleButton Instancia del ChatToggleButtonUI
+	 */
+	private async checkAndUpdateChatVisibility(chatId: string, chat: ChatUI, chatToggleButton: ChatToggleButtonUI): Promise<void> {
+		try {
+			console.log(`🔍 checkAndUpdateChatVisibility - Verificando chat ${chatId}`);
+			
+			// Obtener los detalles actualizados del chat
+			const chatDetail = await this.fetchChatDetail(chatId);
+			
+			console.log(`📋 Detalles del chat obtenidos:`, {
+				totalParticipants: chatDetail.participants.length,
+				participants: chatDetail.participants.map((p: ChatParticipant) => ({
+					name: p.name,
+					isCommercial: p.isCommercial,
+					isOnline: p.isOnline,
+					id: p.id
+				}))
+			});
+			
+			// Filtrar solo los comerciales
+			const commercials = chatDetail.participants.filter((p: ChatParticipant) => p.isCommercial);
+			
+			console.log(`🏪 Comerciales encontrados: ${commercials.length}`, 
+				commercials.map((c: ChatParticipant) => ({
+					name: c.name,
+					isOnline: c.isOnline,
+					id: c.id
+				}))
+			);
+			
+			// Verificar si hay al menos un comercial online
+			const hasOnlineCommercial = commercials.some((commercial: ChatParticipant) => commercial.isOnline);
+			const onlineCommercials = commercials.filter((c: ChatParticipant) => c.isOnline);
+			
+			console.log("📊 Resumen de comerciales:");
+			console.log(`  - Total comerciales: ${commercials.length}`);
+			console.log(`  - Comerciales online: ${onlineCommercials.length}`);
+			console.log(`  - ¿Hay al menos un comercial online? ${hasOnlineCommercial}`);
+			console.log(`  - Estado actual del botón: ${chatToggleButton.isButtonVisible()}`);
+
+			if (hasOnlineCommercial) {
+				console.log("✅ Hay comerciales online - Mostrando botón del chat");
+				console.log(`🔄 Botón antes de mostrar: ${chatToggleButton.isButtonVisible()}`);
+				chatToggleButton.show();
+				console.log(`🔄 Botón después de mostrar: ${chatToggleButton.isButtonVisible()}`);
+			} else {
+				console.log("❌ No hay comerciales online - Ocultando botón del chat");
+				console.log(`🔄 Botón antes de ocultar: ${chatToggleButton.isButtonVisible()}`);
+				chatToggleButton.hide();
+				console.log(`🔄 Botón después de ocultar: ${chatToggleButton.isButtonVisible()}`);
+				
+				// Si el chat está abierto cuando todos los comerciales se desconectan, cerrarlo
+				if (chat.isVisible()) {
+					console.log("💬 Chat abierto con todos los comerciales offline - Cerrando chat");
+					chat.hide();
+					// Mostrar mensaje del sistema en el chat
+					chat.addSystemMessage("Todos los asesores se han desconectado temporalmente. El chat se cerrará automáticamente.");
+				}
+			}
+
+		} catch (error) {
+			console.error("❌ Error al verificar y actualizar visibilidad del chat:", error);
+			if (error instanceof Error) {
+				console.error("❌ Stack trace:", error.stack);
+			}
+		}
+	}
+
+	/**
 	 * Verifica la disponibilidad de comerciales y muestra/oculta el botón del chat según corresponda
 	 * @param chat Instancia del ChatUI
 	 * @param chatToggleButton Instancia del ChatToggleButtonUI
@@ -722,22 +907,24 @@ export class TrackingPixelSDK {
 			// Obtener los detalles del chat
 			const chatDetail = await this.fetchChatDetail(chatId);
 			
-			// Verificar si hay al menos un comercial disponible
-			const hasCommercial = chatDetail.participants.some((participant: ChatParticipant) => participant.isCommercial);
+			// Filtrar solo los comerciales
+			const commercials = chatDetail.participants.filter((participant: ChatParticipant) => participant.isCommercial);
+			
+			// Verificar si hay al menos un comercial online (no solo presente, sino también online)
+			const hasOnlineCommercial = commercials.some((commercial: ChatParticipant) => commercial.isOnline);
 			
 			console.log("Participantes del chat:", chatDetail.participants);
-			console.log("¿Hay comerciales disponibles?", hasCommercial);
+			console.log("Comerciales en el chat:", commercials.length);
+			console.log("Comerciales online:", commercials.filter((c: ChatParticipant) => c.isOnline).length);
+			console.log("¿Hay comerciales online?", hasOnlineCommercial);
 			
-			if (hasCommercial) {
-				console.log("✅ Comercial disponible - Mostrando botón del chat");
+			if (hasOnlineCommercial) {
+				console.log("✅ Comercial online disponible - Mostrando botón del chat");
 				chatToggleButton.show();
 			} else {
-				console.log("❌ No hay comerciales disponibles - Ocultando botón del chat");
+				console.log("❌ No hay comerciales online disponibles - Ocultando botón del chat");
 				chatToggleButton.hide();
 			}
-
-			// Configurar listener para cambios en tiempo real de participantes
-			this.setupCommercialAvailabilityListener(chat, chatToggleButton);
 		} catch (error) {
 			console.error("Error al verificar disponibilidad de comerciales:", error);
 			// En caso de error, ocultamos el botón por seguridad
@@ -746,61 +933,22 @@ export class TrackingPixelSDK {
 	}
 
 	/**
-	 * Configura un listener para cambios en tiempo real de comerciales
-	 * @param chat Instancia del ChatUI
-	 * @param chatToggleButton Instancia del ChatToggleButtonUI
-	 */
-	private setupCommercialAvailabilityListener(chat: ChatUI, chatToggleButton: ChatToggleButtonUI): void {
-		// Obtener el cliente WebSocket
-		const webSocketEndpoint = localStorage.getItem('pixelWebSocketEndpoint') || 'wss://guiders.ancoradual.com';
-		const webSocketClient = WebSocketClient.getInstance(webSocketEndpoint);
-
-		if (!webSocketClient) {
-			console.warn("No se pudo obtener cliente WebSocket para listener de comerciales");
-			return;
-		}
-
-		// Escuchar eventos de actualización de participantes
-		webSocketClient.addListener("chat:participant-updated", async (payload) => {
-			console.log("Evento de actualización de participante recibido:", payload);
-			
-			try {
-				const data = payload.data as { chatId: string; participant: ChatParticipant };
-				const chatId = chat.getChatId();
-				
-				// Solo actualizar si es nuestro chat
-				if (chatId && data.chatId === chatId) {
-					console.log("Actualizando disponibilidad de comerciales por evento WebSocket");
-					await this.checkCommercialAvailability(chat, chatToggleButton);
-				}
-			} catch (error) {
-				console.error("Error procesando evento de actualización de participante:", error);
-			}
-		});
-
-		// También escuchar eventos de estado del chat que puedan afectar comerciales
-		webSocketClient.addListener("chat:status-updated", async (payload) => {
-			const data = payload.data as { chatId: string; status: string };
-			const chatId = chat.getChatId();
-			
-			if (chatId && data.chatId === chatId) {
-				console.log("Estado del chat actualizado, verificando comerciales nuevamente");
-				await this.checkCommercialAvailability(chat, chatToggleButton);
-			}
-		});
-	}
-
-	/**
 	 * Método auxiliar para obtener los detalles del chat
 	 * @param chatId ID del chat
 	 * @returns Detalles del chat con participantes
 	 */
-	private async fetchChatDetail(chatId: string): Promise<ChatDetail> {
+	private async fetchChatDetail(chatId: string): Promise<any> {
+		console.log(`🌐 fetchChatDetail - Obteniendo detalles para chat ${chatId}`);
+		
 		const accessToken = localStorage.getItem('accessToken');
 		const endpoints = EndpointManager.getInstance();
 		const baseEndpoint = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
 		
-		const response = await fetch(`${baseEndpoint}/chats/${chatId}`, {
+		const url = `${baseEndpoint}/chats/${chatId}`;
+		console.log(`🌐 fetchChatDetail - URL: ${url}`);
+		console.log(`🌐 fetchChatDetail - Access token existe: ${!!accessToken}`);
+		
+		const response = await fetch(url, {
 			method: 'GET',
 			headers: {
 				'Authorization': `Bearer ${accessToken || ''}`,
@@ -808,10 +956,18 @@ export class TrackingPixelSDK {
 			}
 		});
 
+		console.log(`🌐 fetchChatDetail - Response status: ${response.status}`);
+		console.log(`🌐 fetchChatDetail - Response ok: ${response.ok}`);
+
 		if (!response.ok) {
-			throw new Error(`Error al obtener detalles del chat (${response.status})`);
+			const errorText = await response.text();
+			console.error(`🌐 fetchChatDetail - Error response: ${errorText}`);
+			throw new Error(`Error al obtener detalles del chat (${response.status}): ${errorText}`);
 		}
 
-		return response.json();
+		const result = await response.json();
+		console.log(`🌐 fetchChatDetail - Resultado:`, result);
+		
+		return result;
 	}
 }
