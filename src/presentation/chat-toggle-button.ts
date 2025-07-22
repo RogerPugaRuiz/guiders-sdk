@@ -342,4 +342,29 @@ export class ChatToggleButtonUI {
 			});
 		}
 	}
+
+	/**
+	 * Muestra el botón del chat
+	 */
+	public show(): void {
+		if (this.button) {
+			this.button.style.display = 'flex';
+		}
+	}
+
+	/**
+	 * Oculta el botón del chat
+	 */
+	public hide(): void {
+		if (this.button) {
+			this.button.style.display = 'none';
+		}
+	}
+
+	/**
+	 * Verifica si el botón está visible
+	 */
+	public isButtonVisible(): boolean {
+		return this.button && this.button.style.display !== 'none';
+	}
 }

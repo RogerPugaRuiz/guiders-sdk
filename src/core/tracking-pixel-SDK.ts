@@ -15,6 +15,7 @@ import { SessionInjectionStage } from "../pipeline/stages/session-injection-stag
 import { ChatUI } from "../presentation/chat";
 import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
+import { ChatDetail, ChatParticipant } from "../services/chat-detail-service";
 import { v4 as uuidv4 } from "uuid";
 import { DomTrackingManager, DefaultTrackDataExtractor } from "./dom-tracking-manager";
 import { EnhancedDomTrackingManager } from "./enhanced-dom-tracking-manager";
@@ -275,6 +276,8 @@ export class TrackingPixelSDK {
 			// Inicializar los demás componentes después de ocultar el chat
 			chatInput.init();
 			chatToggleButton.init();
+			// Ocultar el botón inicialmente hasta verificar comerciales
+			chatToggleButton.hide();
 
 			// Añadir listener para mensajes de sistema
 			const chatEls = document.querySelectorAll('.chat-widget, .chat-widget-fixed');
@@ -286,6 +289,9 @@ export class TrackingPixelSDK {
 			});
 
 			console.log("Componentes del chat inicializados. Chat oculto por defecto.");
+
+			// Verificar disponibilidad de comerciales después de inicializar el chat
+			this.checkCommercialAvailability(chat, chatToggleButton);
 		
 			chat.onOpen(() => {
 				this.captureEvent("visitor:open-chat", {
@@ -682,5 +688,130 @@ export class TrackingPixelSDK {
 		}
 
 		console.log('[TrackingPixelSDK] Cleanup completed');
+	}
+
+	/**
+	 * Verifica la disponibilidad de comerciales y muestra/oculta el botón del chat según corresponda
+	 * @param chat Instancia del ChatUI
+	 * @param chatToggleButton Instancia del ChatToggleButtonUI
+	 */
+	private async checkCommercialAvailability(chat: ChatUI, chatToggleButton: ChatToggleButtonUI): Promise<void> {
+		try {
+			// Esperar a que el chat tenga un ID asignado
+			let chatId = chat.getChatId();
+			let attempts = 0;
+			const maxAttempts = 10;
+
+			// Esperar hasta que el chat tenga un ID o se agoten los intentos
+			while (!chatId && attempts < maxAttempts) {
+				await new Promise(resolve => setTimeout(resolve, 500)); // Esperar 500ms
+				chatId = chat.getChatId();
+				attempts++;
+				console.log(`Esperando chat ID... intento ${attempts}/${maxAttempts}`);
+			}
+
+			if (!chatId) {
+				console.error("No se pudo obtener el ID del chat después de varios intentos");
+				// Si no podemos obtener el ID, ocultamos el botón por seguridad
+				chatToggleButton.hide();
+				return;
+			}
+
+			console.log(`Verificando disponibilidad de comerciales para el chat ${chatId}...`);
+			
+			// Obtener los detalles del chat
+			const chatDetail = await this.fetchChatDetail(chatId);
+			
+			// Verificar si hay al menos un comercial disponible
+			const hasCommercial = chatDetail.participants.some((participant: ChatParticipant) => participant.isCommercial);
+			
+			console.log("Participantes del chat:", chatDetail.participants);
+			console.log("¿Hay comerciales disponibles?", hasCommercial);
+			
+			if (hasCommercial) {
+				console.log("✅ Comercial disponible - Mostrando botón del chat");
+				chatToggleButton.show();
+			} else {
+				console.log("❌ No hay comerciales disponibles - Ocultando botón del chat");
+				chatToggleButton.hide();
+			}
+
+			// Configurar listener para cambios en tiempo real de participantes
+			this.setupCommercialAvailabilityListener(chat, chatToggleButton);
+		} catch (error) {
+			console.error("Error al verificar disponibilidad de comerciales:", error);
+			// En caso de error, ocultamos el botón por seguridad
+			chatToggleButton.hide();
+		}
+	}
+
+	/**
+	 * Configura un listener para cambios en tiempo real de comerciales
+	 * @param chat Instancia del ChatUI
+	 * @param chatToggleButton Instancia del ChatToggleButtonUI
+	 */
+	private setupCommercialAvailabilityListener(chat: ChatUI, chatToggleButton: ChatToggleButtonUI): void {
+		// Obtener el cliente WebSocket
+		const webSocketEndpoint = localStorage.getItem('pixelWebSocketEndpoint') || 'wss://guiders.ancoradual.com';
+		const webSocketClient = WebSocketClient.getInstance(webSocketEndpoint);
+
+		if (!webSocketClient) {
+			console.warn("No se pudo obtener cliente WebSocket para listener de comerciales");
+			return;
+		}
+
+		// Escuchar eventos de actualización de participantes
+		webSocketClient.addListener("chat:participant-updated", async (payload) => {
+			console.log("Evento de actualización de participante recibido:", payload);
+			
+			try {
+				const data = payload.data as { chatId: string; participant: ChatParticipant };
+				const chatId = chat.getChatId();
+				
+				// Solo actualizar si es nuestro chat
+				if (chatId && data.chatId === chatId) {
+					console.log("Actualizando disponibilidad de comerciales por evento WebSocket");
+					await this.checkCommercialAvailability(chat, chatToggleButton);
+				}
+			} catch (error) {
+				console.error("Error procesando evento de actualización de participante:", error);
+			}
+		});
+
+		// También escuchar eventos de estado del chat que puedan afectar comerciales
+		webSocketClient.addListener("chat:status-updated", async (payload) => {
+			const data = payload.data as { chatId: string; status: string };
+			const chatId = chat.getChatId();
+			
+			if (chatId && data.chatId === chatId) {
+				console.log("Estado del chat actualizado, verificando comerciales nuevamente");
+				await this.checkCommercialAvailability(chat, chatToggleButton);
+			}
+		});
+	}
+
+	/**
+	 * Método auxiliar para obtener los detalles del chat
+	 * @param chatId ID del chat
+	 * @returns Detalles del chat con participantes
+	 */
+	private async fetchChatDetail(chatId: string): Promise<ChatDetail> {
+		const accessToken = localStorage.getItem('accessToken');
+		const endpoints = EndpointManager.getInstance();
+		const baseEndpoint = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
+		
+		const response = await fetch(`${baseEndpoint}/chats/${chatId}`, {
+			method: 'GET',
+			headers: {
+				'Authorization': `Bearer ${accessToken || ''}`,
+				'Content-Type': 'application/json'
+			}
+		});
+
+		if (!response.ok) {
+			throw new Error(`Error al obtener detalles del chat (${response.status})`);
+		}
+
+		return response.json();
 	}
 }

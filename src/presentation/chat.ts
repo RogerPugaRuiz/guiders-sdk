@@ -945,7 +945,7 @@ export class ChatUI {
 
 		const footerText = document.createElement('div');
 		footerText.className = 'chat-footer-text';
-		footerText.innerHTML = 'Equipo de atención al cliente de <strong>Guiders</strong>';
+		footerText.innerHTML = 'Equipo de atención al cliente';
 		footerEl.appendChild(footerText);
 
 		this.container.appendChild(footerEl);
