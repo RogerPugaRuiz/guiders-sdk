@@ -342,4 +342,48 @@ export class ChatToggleButtonUI {
 			});
 		}
 	}
+
+	/**
+	 * Muestra el botón del chat
+	 */
+	public show(): void {
+		console.log("🔘 ChatToggleButton.show() llamado");
+		console.log("🔘 Elemento botón existe:", !!this.button);
+		if (this.button) {
+			console.log("🔘 Estado antes de mostrar:", this.button.style.display);
+			this.button.style.display = 'flex';
+			console.log("🔘 Estado después de mostrar:", this.button.style.display);
+			console.log("🔘 Botón en DOM:", document.contains(this.button));
+		} else {
+			console.error("🔘 Error: Elemento botón no existe");
+		}
+	}
+
+	/**
+	 * Oculta el botón del chat
+	 */
+	public hide(): void {
+		console.log("🔘 ChatToggleButton.hide() llamado");
+		console.log("🔘 Elemento botón existe:", !!this.button);
+		if (this.button) {
+			console.log("🔘 Estado antes de ocultar:", this.button.style.display);
+			this.button.style.display = 'none';
+			console.log("🔘 Estado después de ocultar:", this.button.style.display);
+		} else {
+			console.error("🔘 Error: Elemento botón no existe");
+		}
+	}
+
+	/**
+	 * Verifica si el botón está visible
+	 */
+	public isButtonVisible(): boolean {
+		const isVisible = this.button && this.button.style.display !== 'none';
+		console.log("🔘 isButtonVisible() - Elemento existe:", !!this.button);
+		if (this.button) {
+			console.log("🔘 isButtonVisible() - Display style:", this.button.style.display);
+		}
+		console.log("🔘 isButtonVisible() - Resultado:", isVisible);
+		return isVisible;
+	}
 }
