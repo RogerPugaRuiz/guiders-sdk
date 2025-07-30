@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guiders SDK - Integración Básica con CDN</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a8b;
+        }
+        .product {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        .price {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #007cba;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Guiders SDK - Ejemplo Básico</h1>
+    
+    <div class="container">
+        <h2>✨ Detección Automática</h2>
+        <p>Estos elementos se detectan automáticamente sin necesidad de configuración adicional:</p>
+        
+        <!-- Estos botones se detectan automáticamente -->
+        <button>Añadir al carrito</button>
+        <button>Comprar ahora</button>
+        <a href="#contact" style="text-decoration: none;">
+            <button>Contactar</button>
+        </a>
+        <button onclick="downloadBrochure()">Descargar catálogo</button>
+    </div>
+
+    <div class="container">
+        <h2>🛍️ Ejemplo de Producto</h2>
+        <div class="product">
+            <h3>Smartphone Pro 2024</h3>
+            <p>El último smartphone con tecnología avanzada</p>
+            <div class="price">€699.99</div>
+            <br>
+            <!-- Estos botones también se detectan automáticamente -->
+            <button onclick="viewProduct()">Ver detalles</button>
+            <button onclick="addToCart()">Añadir al carrito</button>
+            <button onclick="buyNow()">Comprar ahora</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📝 Eventos Personalizados</h2>
+        <p>Ejemplos de tracking de eventos personalizados:</p>
+        
+        <button onclick="trackCustomEvent()">Evento Personalizado</button>
+        <button onclick="trackWithUserData()">Evento con Datos de Usuario</button>
+        <button onclick="trackConversion()">Evento de Conversión</button>
+        
+        <div id="success-message" class="success">
+            ✅ Evento enviado correctamente!
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>💬 Chat y Soporte</h2>
+        <p>El chat se inicializa automáticamente. Busca el widget en la esquina inferior derecha.</p>
+        
+        <button onclick="openChat()">Abrir Chat</button>
+        <button onclick="sendChatMessage()">Enviar Mensaje Automático</button>
+    </div>
+
+    <div class="container">
+        <h2>🔍 Debug y Verificación</h2>
+        <p>Herramientas para verificar que todo funciona correctamente:</p>
+        
+        <button onclick="checkSDKStatus()">Verificar Estado del SDK</button>
+        <button onclick="viewConfiguration()">Ver Configuración</button>
+        <button onclick="enableDebugMode()">Habilitar Modo Debug</button>
+        
+        <div id="debug-output" style="background: #f1f1f1; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; min-height: 50px;">
+            <!-- Aquí aparecerá información de debug -->
+        </div>
+    </div>
+
+    <!-- ================================ -->
+    <!-- CONFIGURACIÓN DE GUIDERS SDK -->
+    <!-- ================================ -->
+    
+    <!-- 1. Configuración opcional (antes de cargar el SDK) -->
+    <script>
+        // Configuración personalizada del SDK
+        window.guidersConfig = {
+            // 🔑 IMPORTANTE: Reemplaza con tu API Key real
+            apiKey: 'YOUR_API_KEY_HERE',
+            
+            // Configuración de detección heurística
+            heuristicDetection: {
+                enabled: true,
+                confidenceThreshold: 0.7, // Nivel de confianza (0-1)
+                fallbackToManual: true
+            },
+            
+            // Configuración de chat
+            chat: {
+                enabled: true,
+                position: 'bottom-right', // bottom-left, top-right, top-left
+                welcomeMessage: '¡Hola! ¿En qué podemos ayudarte?',
+                theme: 'light' // light, dark
+            },
+            
+            // Configuración de detección de bots
+            botDetection: {
+                enabled: true,
+                threshold: 0.6
+            },
+            
+            // Configuración de debug (solo para desarrollo)
+            debug: true,
+            
+            // Configuración de privacidad
+            privacy: {
+                respectDoNotTrack: true,
+                anonymizeIP: true
+            }
+        };
+    </script>
+    
+    <!-- 2. Cargar el SDK desde CDN -->
+    <script src="https://cdn.guiders.com/latest/guiders-sdk.js"></script>
+    
+    <!-- 3. JavaScript personalizado -->
+    <script>
+        // ================================
+        // FUNCIONES DE EJEMPLO
+        // ================================
+        
+        // Esperar a que el SDK esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar si el SDK se cargó correctamente
+            if (window.guiders) {
+                console.log('✅ Guiders SDK cargado correctamente');
+                
+                // Escuchar eventos del SDK
+                window.guiders.on('sdk:initialized', function() {
+                    console.log('🚀 SDK inicializado');
+                    showSuccess('SDK inicializado correctamente');
+                });
+                
+                window.guiders.on('heuristic:element-detected', function(data) {
+                    console.log('🎯 Elemento detectado:', data.element, 'Evento:', data.event);
+                });
+                
+                window.guiders.on('chat:opened', function() {
+                    console.log('💬 Chat abierto');
+                });
+                
+            } else {
+                console.error('❌ Error: Guiders SDK no se pudo cargar');
+            }
+        });
+        
+        // ================================
+        // FUNCIONES DE PRODUCTO
+        // ================================
+        
+        async function viewProduct() {
+            if (window.guiders) {
+                await window.guiders.track({
+                    event: 'view_item',
+                    data: {
+                        item_id: 'smartphone-pro-2024',
+                        item_name: 'Smartphone Pro 2024',
+                        category: 'Electronics',
+                        price: 699.99,
+                        currency: 'EUR'
+                    }
+                });
+                showSuccess('Producto visualizado - evento enviado');
+            }
+        }
+        
+        async function addToCart() {
+            if (window.guiders) {
+                await window.guiders.track({
+                    event: 'add_to_cart',
+                    data: {
+                        item_id: 'smartphone-pro-2024',
+                        item_name: 'Smartphone Pro 2024',
+                        category: 'Electronics',
+                        price: 699.99,
+                        currency: 'EUR',
+                        quantity: 1
+                    }
+                });
+                showSuccess('Producto añadido al carrito - evento enviado');
+            }
+        }
+        
+        async function buyNow() {
+            if (window.guiders) {
+                await window.guiders.track({
+                    event: 'purchase',
+                    data: {
+                        transaction_id: 'TXN-' + Date.now(),
+                        value: 699.99,
+                        currency: 'EUR',
+                        items: [{
+                            item_id: 'smartphone-pro-2024',
+                            item_name: 'Smartphone Pro 2024',
+                            category: 'Electronics',
+                            price: 699.99,
+                            quantity: 1
+                        }]
+                    }
+                });
+                showSuccess('Compra realizada - evento enviado');
+            }
+        }
+        
+        async function downloadBrochure() {
+            if (window.guiders) {
+                await window.guiders.track({
+                    event: 'download_brochure',
+                    data: {
+                        file_name: 'catalogo-2024.pdf',
+                        file_type: 'pdf',
+                        download_source: 'product_page'
+                    }
+                });
+                showSuccess('Descarga de catálogo - evento enviado');
+            }
+        }
+        
+        // ================================
+        // EVENTOS PERSONALIZADOS
+        // ================================
+        
+        async function trackCustomEvent() {
+            if (window.guiders) {
+                await window.guiders.track({
+                    event: 'custom_interaction',
+                    data: {
+                        interaction_type: 'button_click',
+                        page_section: 'examples',
+                        timestamp: new Date().toISOString(),
+                        user_engagement_score: 8.5
+                    }
+                });
+                showSuccess('Evento personalizado enviado');
+            }
+        }
+        
+        async function trackWithUserData() {
+            if (window.guiders) {
+                // Primero establecer datos del usuario
+                window.guiders.setUserId('user_12345');
+                window.guiders.setUserData({
+                    email: 'usuario@ejemplo.com',
+                    plan: 'premium',
+                    registration_date: '2023-01-15'
+                });
+                
+                // Luego enviar evento
+                await window.guiders.track({
+                    event: 'feature_used',
+                    data: {
+                        feature_name: 'advanced_tracking',
+                        usage_count: 1,
+                        satisfaction_score: 9
+                    }
+                });
+                showSuccess('Evento con datos de usuario enviado');
+            }
+        }
+        
+        async function trackConversion() {
+            if (window.guiders) {
+                await window.guiders.track({
+                    event: 'goal_conversion',
+                    isConversion: true, // Marcar como conversión
+                    data: {
+                        goal_name: 'newsletter_signup',
+                        conversion_value: 10,
+                        funnel_step: 'final',
+                        traffic_source: 'organic'
+                    }
+                });
+                showSuccess('Evento de conversión enviado');
+            }
+        }
+        
+        // ================================
+        // FUNCIONES DE CHAT
+        // ================================
+        
+        function openChat() {
+            if (window.guiders && window.guiders.openChat) {
+                window.guiders.openChat();
+                showSuccess('Chat abierto programáticamente');
+            } else {
+                showSuccess('Función de chat no disponible (puede estar deshabilitada)');
+            }
+        }
+        
+        function sendChatMessage() {
+            if (window.guiders && window.guiders.sendMessage) {
+                window.guiders.sendMessage('Hola, esto es un mensaje automático de prueba');
+                showSuccess('Mensaje automático enviado al chat');
+            } else {
+                showSuccess('Función de envío de mensajes no disponible');
+            }
+        }
+        
+        // ================================
+        // FUNCIONES DE DEBUG
+        // ================================
+        
+        function checkSDKStatus() {
+            const output = document.getElementById('debug-output');
+            let status = 'Estado del SDK:\n\n';
+            
+            if (window.guiders) {
+                status += '✅ SDK cargado: Sí\n';
+                status += `✅ Inicializado: ${window.guiders.isInitialized ? window.guiders.isInitialized() : 'Desconocido'}\n`;
+                status += `🔧 Versión: ${window.guiders.getVersion ? window.guiders.getVersion() : 'No disponible'}\n`;
+                status += `🎯 Detección heurística: ${window.guidersConfig?.heuristicDetection?.enabled ? 'Habilitada' : 'Deshabilitada'}\n`;
+                status += `💬 Chat: ${window.guidersConfig?.chat?.enabled ? 'Habilitado' : 'Deshabilitado'}\n`;
+            } else {
+                status += '❌ SDK cargado: No\n';
+                status += '💡 Verifica la configuración de la API Key\n';
+            }
+            
+            output.textContent = status;
+        }
+        
+        function viewConfiguration() {
+            const output = document.getElementById('debug-output');
+            const config = window.guidersConfig || {};
+            
+            output.textContent = 'Configuración actual:\n\n' + JSON.stringify(config, null, 2);
+        }
+        
+        function enableDebugMode() {
+            if (window.guiders) {
+                window.guiders.debug = true;
+                console.log('🐛 Modo debug habilitado');
+                showSuccess('Modo debug habilitado - revisa la consola del navegador');
+            } else {
+                showSuccess('SDK no disponible para habilitar debug');
+            }
+        }
+        
+        // ================================
+        // UTILIDADES
+        // ================================
+        
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success-message');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+        
+        // ================================
+        // INICIALIZACIÓN AUTOMÁTICA
+        // ================================
+        
+        // Trackear vista de página automáticamente
+        window.addEventListener('load', async function() {
+            // Esperar un poco para que el SDK esté completamente inicializado
+            setTimeout(async () => {
+                if (window.guiders) {
+                    await window.guiders.track({
+                        event: 'page_view',
+                        data: {
+                            page_title: document.title,
+                            page_url: window.location.href,
+                            page_type: 'example',
+                            example_type: 'basic_cdn_integration'
+                        }
+                    });
+                    console.log('📄 Vista de página trackeada automáticamente');
+                }
+            }, 1000);
+        });
+        
+        // Trackear tiempo en página
+        let pageStartTime = Date.now();
+        window.addEventListener('beforeunload', async function() {
+            if (window.guiders) {
+                const timeOnPage = Date.now() - pageStartTime;
+                await window.guiders.track({
+                    event: 'page_time',
+                    data: {
+                        time_on_page: timeOnPage,
+                        page_url: window.location.href
+                    }
+                });
+            }
+        });
+    </script>
+    
+    <!-- ================================ -->
+    <!-- INSTRUCCIONES -->
+    <!-- ================================ -->
+    
+    <div class="container" style="border-left: 4px solid #007cba; background: #f0f8ff;">
+        <h2>📋 Instrucciones de Uso</h2>
+        <ol>
+            <li><strong>Reemplaza la API Key</strong>: Cambia <code>YOUR_API_KEY_HERE</code> por tu API Key real</li>
+            <li><strong>Abre Developer Tools</strong> (F12) para ver los eventos en la consola</li>
+            <li><strong>Prueba los botones</strong> para ver la detección automática en acción</li>
+            <li><strong>Verifica el estado</strong> usando los botones de debug</li>
+            <li><strong>Busca el chat</strong> en la esquina inferior derecha</li>
+        </ol>
+        
+        <h3>🎯 Qué Esperar</h3>
+        <ul>
+            <li>Los botones se detectan automáticamente sin configuración adicional</li>
+            <li>Los eventos aparecen en la consola del navegador</li>
+            <li>El chat se inicializa automáticamente (si está habilitado)</li>
+            <li>Los eventos se envían a tu dashboard de Guiders en tiempo real</li>
+        </ul>
+        
+        <h3>⚠️ Notas Importantes</h3>
+        <ul>
+            <li>Asegúrate de tener una API Key válida</li>
+            <li>Este ejemplo usa modo debug - deshabilítalo en producción</li>
+            <li>La detección de bots puede prevenir la carga en algunos casos</li>
+            <li>Los datos aparecerán en tu dashboard de Guiders</li>
+        </ul>
+    </div>
+
+</body>
+</html>
