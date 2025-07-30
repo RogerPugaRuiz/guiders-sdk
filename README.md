@@ -52,12 +52,17 @@ sdk.enableAutomaticTracking(); // ✨ Nueva detección heurística
 
 | Documento | Descripción |
 |-----------|-------------|
-| [🚀 Guía de Inicio](./docs/GETTING_STARTED.md) | Instalación y configuración básica |
+| [📋 **Índice Completo**](./docs/INDEX.md) | **Navegación completa de toda la documentación** |
+| [🚀 Guía de Inicio](./docs/GETTING_STARTED.md) | Instalación y configuración básica - **¡Empieza aquí!** |
 | [📚 Documentación Completa (ES)](./docs/PIXEL_ES.md) | Documentación técnica detallada en español |
 | [📚 Full Documentation (EN)](./docs/PIXEL_EN.md) | Complete technical documentation in English |
-| [🔌 Plugin WordPress](./wordpress-plugin/README.md) | Integración específica para WordPress |
-| [🛠️ API Reference](./docs/API_REFERENCE.md) | Referencia completa de la API |
+| [🔗 Guía de Integraciones](./docs/INTEGRATIONS.md) | WordPress, Shopify, React, Vue, Angular y más |
+| [🔌 Plugin WordPress](./wordpress-plugin/README.md) | Integración específica para WordPress/WooCommerce |
+| [🛠️ API Reference](./docs/API_REFERENCE.md) | Referencia completa de la API y métodos |
 | [❓ FAQ & Troubleshooting](./docs/TROUBLESHOOTING.md) | Solución de problemas comunes |
+| [📊 Session Tracking](./SESSION_TRACKING.md) | Sistema de seguimiento de sesiones |
+| [👥 Participant Integration](./PARTICIPANT_INTEGRATION_COMPLETED.md) | Integración de sistema de participantes |
+| [💼 Ejemplos Prácticos](./examples/README.md) | Código de ejemplo para diferentes casos de uso |
 
 ## 💡 Ejemplos Rápidos
 
