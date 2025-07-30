@@ -1,268 +1,261 @@
 # Guiders SDK
 
-SDK para la integración del sistema de guías y chat en sitios web.
+[![npm version](https://badge.fury.io/js/guiders-pixel.svg)](https://badge.fury.io/js/guiders-pixel)
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
-## Instalación
+> SDK completo para integración de tracking inteligente, analytics y chat en vivo en sitios web.
+
+Guiders SDK es una solución integral que permite implementar tracking de eventos, analytics en tiempo real y chat en vivo en tu sitio web con **detección heurística inteligente** que funciona automáticamente sin modificar tu HTML existente.
+
+## ✨ Características Principales
+
+- 🎯 **Detección Heurística Inteligente** - Localiza automáticamente elementos sin modificar HTML
+- 💬 **Chat en Vivo** - Sistema de chat integrado con carga lazy optimizada  
+- 📊 **Analytics en Tiempo Real** - Seguimiento y métricas automáticas
+- 🛡️ **Detección de Bots** - Filtrado inteligente de tráfico no humano
+- 🏪 **E-commerce Ready** - Compatible con WooCommerce, Shopify y más
+- 🚀 **Fácil Integración** - Una línea de código para empezar
+- 🔧 **Altamente Configurable** - Personalización avanzada disponible
+
+## 🚀 Inicio Rápido
+
+### Instalación por NPM
 
 ```bash
 npm install guiders-pixel
 ```
 
-## Uso básico
+### Instalación por CDN
 
 ```html
-<script src="path/to/guiders-sdk.js" data-api-key="YOUR_API_KEY"></script>
+<!-- Opción 1: Usando atributo data-api-key -->
+<script src="https://cdn.guiders.com/latest/guiders-sdk.js" data-api-key="YOUR_API_KEY"></script>
+
+<!-- Opción 2: Usando parámetro URL -->
+<script src="https://cdn.guiders.com/latest/guiders-sdk.js?apiKey=YOUR_API_KEY"></script>
 ```
 
-O bien, pasando la API key como parámetro:
-
-```html
-<script src="path/to/guiders-sdk.js?apiKey=YOUR_API_KEY"></script>
-```
-
-## Características
-
-- **Detección heurística inteligente** - Localización automática de elementos sin modificar HTML
-- **Detección de página por URL** - Identificación automática del tipo de página basada en la URL  
-- Tracking de eventos
-- Chat en vivo con inicialización optimizada
-- Notificaciones
-- Tracking DOM
-
-## 🎯 Detección Heurística Inteligente (Nuevo)
-
-El SDK ahora incluye un sistema de **detección heurística inteligente** que localiza automáticamente elementos relevantes en las páginas sin necesidad de modificar el HTML del cliente. Esto facilita enormemente la integración en WordPress, Shopify y otros CMS.
-
-### Ventajas principales
-
-- ✅ **Sin modificaciones HTML** - No es necesario añadir atributos `data-track-event`
-- ✅ **Fácil integración** - Funciona automáticamente en WordPress, WooCommerce, Shopify
-- ✅ **Detección inteligente** - Usa patrones CSS, texto y contexto para identificar elementos
-- ✅ **Detección por URL** - El tipo de página se detecta automáticamente por la URL
-- ✅ **Altamente configurable** - Umbrales de confianza y reglas personalizables
-
-### Uso básico (automático)
-
-```html
-<!-- Simplemente incluye el SDK, sin necesidad de atributos especiales -->
-<script src="path/to/guiders-sdk.js" data-api-key="YOUR_API_KEY"></script>
-
-<!-- Elementos que se detectan automáticamente -->
-<button>Añadir al carrito</button>
-<button>Contactar concesionario</button>
-<button type="submit">Buscar</button>
-<a href="/cart">Ver carrito</a>
-```
-
-### Eventos detectados automáticamente
-
-El sistema detecta automáticamente estos tipos de eventos:
-
-| Evento | Detecta elementos que... |
-|--------|--------------------------|
-| `add_to_cart` | Contienen texto "añadir", "agregar", "add cart" o clases relacionadas con "cart" |
-| `contact_dealer` | Contienen texto "contactar", "concesionario", "dealer" o están en contexto de contacto |
-| `purchase` | Contienen texto "comprar", "buy", "checkout", "pagar" |
-| `search_submit` | Son botones de envío en formularios de búsqueda |
-| `schedule_test_drive` | Contienen texto "prueba", "test drive", "cita" en contexto automotriz |
-| `request_quote` | Contienen texto "cotizar", "presupuesto", "quote", "solicitar" |
-| `view_product` | Enlaces o elementos en contexto de productos |
-| `view_cart` | Enlaces o elementos relacionados con carrito |
-| `download_brochure` | Enlaces a PDFs o con texto "descargar", "brochure", "folleto" |
-
-### Detección de página por URL
-
-El sistema detecta automáticamente el tipo de página basándose en la URL:
-
-```javascript
-// Estas URLs se detectan automáticamente:
-'/' → 'home'
-'/ecommerce' → 'ecommerce'  
-'/product/123' → 'product_detail'
-'/vehicle-search' → 'vehicle_search'
-'/contact' → 'contact'
-// ... y muchas más
-```
-
-### Configuración avanzada
+### Uso Básico
 
 ```javascript
 import { TrackingPixelSDK } from 'guiders-pixel';
 
 const sdk = new TrackingPixelSDK({
-  apiKey: 'YOUR_API_KEY',
-  // Configuración de detección heurística
-  heuristicDetection: {
-    enabled: true,
-    config: {
-      enabled: true,
-      confidenceThreshold: 0.7, // Confianza mínima (0-1)
-      fallbackToManual: true     // Usar sistema manual si falla
-    }
-  }
+  apiKey: 'YOUR_API_KEY'
 });
 
 await sdk.init();
-sdk.enableAutomaticTracking(); // Usar el nuevo método
+sdk.enableAutomaticTracking(); // ✨ Nueva detección heurística
 ```
 
-### Personalización de reglas
+## 📖 Documentación
 
-```javascript
-// Añadir reglas personalizadas
-const heuristicDetector = sdk.getHeuristicDetector();
-heuristicDetector.addCustomRules('mi_evento_custom', [
-  {
-    selector: 'button',
-    confidence: 0.9,
-    textPatterns: ['mi_texto_especial'],
-    contextSelectors: ['.mi-contexto']
-  }
-]);
+| Documento | Descripción |
+|-----------|-------------|
+| [🚀 Guía de Inicio](./docs/GETTING_STARTED.md) | Instalación y configuración básica |
+| [📚 Documentación Completa (ES)](./docs/PIXEL_ES.md) | Documentación técnica detallada en español |
+| [📚 Full Documentation (EN)](./docs/PIXEL_EN.md) | Complete technical documentation in English |
+| [🔌 Plugin WordPress](./wordpress-plugin/README.md) | Integración específica para WordPress |
+| [🛠️ API Reference](./docs/API_REFERENCE.md) | Referencia completa de la API |
+| [❓ FAQ & Troubleshooting](./docs/TROUBLESHOOTING.md) | Solución de problemas comunes |
+
+## 💡 Ejemplos Rápidos
+
+### E-commerce Automático (Sin modificar HTML)
+
+```html
+<!-- ✅ Detección automática - NO necesitas atributos especiales -->
+<button>Añadir al carrito</button>
+<button>Contactar</button>
+<button>Comprar ahora</button>
+
+<!-- El SDK detecta automáticamente estos elementos -->
+<script src="https://cdn.guiders.com/latest/guiders-sdk.js" data-api-key="YOUR_API_KEY"></script>
 ```
 
-### Configuración de umbral de confianza
+### WordPress/WooCommerce
+
+```php
+// Solo instala el plugin y configura tu API Key
+// ¡Todo funciona automáticamente!
+```
+
+### Tracking Personalizado
 
 ```javascript
-// Ajustar configuración en tiempo real
-sdk.updateHeuristicConfig({
-  confidenceThreshold: 0.8, // Más estricto
-  enabled: true
+// Eventos personalizados
+await window.guiders.track({
+  event: 'newsletter_signup',
+  email: 'user@example.com',
+  source: 'footer'
 });
 ```
 
-### Migración desde el sistema anterior
+## 🎯 Detección Heurística Inteligente
 
-**Antes (sistema data-track-event):**
-```html
-<button data-track-event="add_to_cart" data-product-id="123">
-  Añadir al carrito
-</button>
+> **Nuevo en v2.0** - El SDK ahora detecta automáticamente elementos relevantes sin necesidad de modificar HTML
+
+### ¿Qué detecta automáticamente?
+
+| Evento | Detecta elementos que... | Ejemplo |
+|--------|--------------------------|---------|
+| `add_to_cart` | Contienen texto "añadir", "carrito", "cart" | `<button>Añadir al carrito</button>` |
+| `contact_dealer` | Contienen "contactar", "contact" | `<a href="/contact">Contactar</a>` |
+| `purchase` | Contienen "comprar", "buy", "checkout" | `<button>Comprar ahora</button>` |
+| `search_submit` | Botones en formularios de búsqueda | `<button type="submit">Buscar</button>` |
+| `view_product` | Enlaces en contexto de productos | Automático en páginas de producto |
+
+### Detección por URL
+
+```javascript
+// Estas URLs se detectan automáticamente:
+'/' → 'home'
+'/product/123' → 'product_detail'  
+'/cart' → 'cart'
+'/contact' → 'contact'
+'/search' → 'search'
+// Y muchas más...
 ```
 
-**Ahora (detección automática):**
-```html
-<!-- ¡No necesitas atributos especiales! -->
-<button>Añadir al carrito</button>
+### Configuración Avanzada
+
+```javascript
+const sdk = new TrackingPixelSDK({
+  apiKey: 'YOUR_API_KEY',
+  heuristicDetection: {
+    enabled: true,
+    confidenceThreshold: 0.7, // Confianza mínima (0-1)
+    fallbackToManual: true     // Usar sistema manual si falla
+  }
+});
 ```
 
-### Demo en vivo
+## 💬 Chat en Vivo
 
-Visita la página `/heuristic-demo` en la aplicación demo para ver la detección heurística en acción con ejemplos interactivos.
+Sistema de chat integrado con inicialización optimizada y sin parpadeo visual.
 
-## Chat en vivo
+### Características
 
-El chat utiliza un sistema de inicialización lazy que garantiza que permanezca completamente oculto hasta que el usuario haga clic en el botón toggle. 
-
-### Funcionamiento de la inicialización
-
-1. **Inicialización silenciosa**: El chat se inicializa en segundo plano sin mostrarse
-2. **Carga diferida**: El contenido del chat (mensajes de bienvenida e iniciales) solo se carga cuando el usuario abre el chat por primera vez
-3. **Sin parpadeo**: Elimina el problema donde el chat se mostraba brevemente antes de ocultarse
-
-### Personalización del chat
+- 🔄 **Inicialización Lazy** - Se carga solo cuando el usuario lo necesita
+- ⚡ **Sin Parpadeo** - Permanece oculto hasta activación manual
+- 🔌 **WebSocket en Tiempo Real** - Mensajes instantáneos
+- 📱 **Responsive** - Optimizado para móvil y desktop
+- 🤖 **Detección de Bots** - Evita cargas innecesarias
 
 ```javascript
 // El chat se inicializa automáticamente y permanece oculto
-// hasta que el usuario interactúe con el botón toggle
+// hasta que el usuario haga clic en el botón toggle
 ```
 
-## Detección de bots
+## 🤖 Detección de Bots
 
-El SDK incluye un sistema de detección de bots para evitar que se inicialice en visitantes que probablemente sean bots o crawlers. La detección se realiza automáticamente y, si se identifica un bot, el SDK no se iniciará.
+Sistema inteligente para filtrar tráfico no humano y mejorar la calidad de datos.
 
-### Cómo funciona la detección
+### Cómo Funciona
 
-La detección de bots realiza varias comprobaciones:
-
-1. **User Agent**: Comprueba si el User Agent contiene palabras clave típicas de bots (como "bot", "crawler", "spider", etc.)
-2. **Características del navegador**: Detecta anomalías en las características del navegador (como webdriver activo, falta de plugins, etc.)
-3. **Tiempos de carga**: Identifica cargas de página sospechosamente rápidas
-4. **Comportamiento**: Monitoriza interacciones del usuario durante el primer segundo
-
-El resultado se calcula como una probabilidad. Si la probabilidad es superior al 60%, se considera un bot y el SDK no se inicia. La detección se realiza rápidamente (en 1 segundo) para no retrasar la aparición del chat.
-
-### Personalización de la detección
-
-Si necesitas personalizar la detección de bots, puedes crear tu propia instancia del `BotDetector` y utilizarla antes de inicializar manualmente el SDK:
+1. **User Agent** - Identifica bots conocidos (Google, Bing, etc.)
+2. **Comportamiento** - Analiza patrones de interacción humana
+3. **Características del Navegador** - Detecta herramientas de automatización
+4. **Tiempos de Carga** - Identifica velocidades sospechosas
 
 ```javascript
-import { BotDetector, TrackingPixelSDK } from 'guiders-pixel';
+import { BotDetector } from 'guiders-pixel';
 
-// Opciones del SDK
-const options = {
-  apiKey: 'YOUR_API_KEY',
-  // Otras opciones...
-};
-
-// Comprobar si es un bot antes de inicializar
 const detector = new BotDetector();
-detector.detect().then(result => {
-  if (!result.isBot) {
-    // Solo inicializar para usuarios legítimos
-    const sdk = new TrackingPixelSDK(options);
-    sdk.init().then(() => {
-      // SDK inicializado correctamente
-    });
-  } else {
-    console.log('Bot detectado. No se inicializa el SDK.');
-  }
-});
+const result = await detector.detect();
+
+if (!result.isBot) {
+  // Inicializar solo para usuarios legítimos
+  initSDK();
+}
 ```
 
-## Cambios recientes
+## 🔄 Historial de Versiones
 
-### v2.0.0 - Detección Heurística Inteligente (BREAKING CHANGES)
+### v2.0.0 - Detección Heurística Inteligente ⚠️ BREAKING CHANGES
 
-- **🎯 Nueva funcionalidad**: Sistema de detección heurística inteligente
+- 🎯 **Nueva funcionalidad**: Sistema de detección heurística inteligente
   - Localización automática de elementos sin modificar HTML del cliente
   - Compatible con WordPress, WooCommerce, Shopify y otros CMS
   - Detección basada en patrones CSS, texto y contexto
-- **📄 Detección de página por URL**: Reemplaza la detección basada en elementos HTML
-  - Identificación automática del tipo de página por URL
-  - Metadatos enriquecidos automáticamente
-- **⚠️ BREAKING CHANGE**: Nuevo método `enableAutomaticTracking()` reemplaza `enableDOMTracking()`
-- **🔧 Configuración avanzada**: Umbrales de confianza y reglas personalizables
-- **👁️ Modo desarrollo**: Indicadores visuales para elementos detectados
-- **🚀 Habilitado por defecto**: La detección heurística está activa automáticamente
+- 📄 **Detección de página por URL**: Reemplaza la detección basada en elementos HTML
+- ⚠️ **BREAKING CHANGE**: Nuevo método `enableAutomaticTracking()` reemplaza `enableDOMTracking()`
+- 🔧 **Configuración avanzada**: Umbrales de confianza y reglas personalizables
+- 🚀 **Habilitado por defecto**: La detección heurística está activa automáticamente
 
-### Migración v1.x → v2.0
+#### Migración v1.x → v2.0
 
-1. **Método de activación (recomendado)**:
-   ```javascript
-   // Antes
-   sdk.enableDOMTracking();
-   
-   // Ahora (recomendado)
-   sdk.enableAutomaticTracking();
-   ```
+```javascript
+// ❌ Antes
+sdk.enableDOMTracking();
 
-2. **Eliminación de atributos data-track-event** (opcional):
-   ```html
-   <!-- Antes -->
-   <button data-track-event="add_to_cart">Añadir</button>
-   
-   <!-- Ahora (funciona automáticamente) -->
-   <button>Añadir al carrito</button>
-   ```
+// ✅ Ahora (recomendado)
+sdk.enableAutomaticTracking();
 
-3. **Los atributos data-track-event siguen funcionando** para compatibilidad, pero no son necesarios.
+// ℹ️ Los atributos data-track-event siguen funcionando para compatibilidad
+```
 
-### v1.1.0 - Mejoras en la inicialización del chat
+### v1.1.0 - Mejoras en Chat
 
 - **Solucionado**: El chat ya no se muestra brevemente durante la inicialización
-- **Optimización**: Implementado sistema de carga lazy para el contenido del chat
-- **Mejora UX**: El chat permanece completamente oculto hasta que el usuario lo active explícitamente
-- **Rendimiento**: Reducido el tiempo de inicialización al diferir la carga de mensajes hasta que sea necesario
+- **Optimización**: Sistema de carga lazy para el contenido del chat
+- **Mejora UX**: El chat permanece completamente oculto hasta activación explícita
+- **Rendimiento**: Tiempo de inicialización reducido
 
-### Detalles técnicos
+## 🛠️ Desarrollo y Contribución
 
-La solución implementa:
-1. Inicialización en dos fases: estructura del chat + contenido diferido
-2. Carga de mensajes solo cuando el chat se muestra por primera vez
-3. Eliminación del parpadeo visual durante la inicialización
-4. Mantiene la funcionalidad completa del chat sin afectar la experiencia del usuario
+### Requisitos
 
-## Licencia
+- Node.js 16+
+- TypeScript 4.5+
+- Webpack 5+
 
-ISC
+### Setup Local
+
+```bash
+git clone https://github.com/RogerPugaRuiz/guiders-sdk.git
+cd guiders-sdk
+npm install
+npm run build
+npm run start # Servidor de desarrollo
+```
+
+### Scripts Disponibles
+
+```bash
+npm run build      # Construir para producción
+npm run start      # Servidor de desarrollo
+npm run test       # Ejecutar tests (próximamente)
+```
+
+## 📞 Soporte
+
+### Recursos
+
+- 📖 [Documentación Completa](./docs/)
+- 💬 [Soporte por Chat](https://guiders.ancoradual.com/support)
+- 🐛 [Reportar Bug](https://github.com/RogerPugaRuiz/guiders-sdk/issues)
+- ✨ [Solicitar Feature](https://github.com/RogerPugaRuiz/guiders-sdk/issues/new)
+
+### FAQ Rápida
+
+**¿El SDK funciona con mi CMS?**  
+✅ Sí, funciona con WordPress, Shopify, WooCommerce, Drupal y sitios HTML estáticos.
+
+**¿Necesito modificar mi HTML existente?**  
+❌ No, la detección heurística funciona automáticamente sin modificaciones.
+
+**¿Es compatible con GDPR?**  
+✅ Sí, incluye configuraciones para cumplimiento de privacidad.
+
+---
+
+## 📄 Licencia
+
+[ISC License](LICENSE) - Ver archivo de licencia para más detalles.
+
+---
+
+<p align="center">
+  Desarrollado con ❤️ por el equipo de <a href="https://guiders.ancoradual.com">Guiders</a>
+</p>
