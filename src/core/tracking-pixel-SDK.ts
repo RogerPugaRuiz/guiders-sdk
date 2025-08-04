@@ -15,7 +15,8 @@ import { SessionInjectionStage } from "../pipeline/stages/session-injection-stag
 import { ChatUI } from "../presentation/chat";
 import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
-import { ChatDetail, ChatParticipant } from "../services/chat-detail-service";
+import { fetchChatDetail, fetchChatDetailV2, ChatDetail, ChatDetailV2, ChatParticipant } from "../services/chat-detail-service";
+import { VisitorInfoV2, ChatMetadataV2 } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { DomTrackingManager, DefaultTrackDataExtractor } from "./dom-tracking-manager";
 import { EnhancedDomTrackingManager } from "./enhanced-dom-tracking-manager";
@@ -933,41 +934,114 @@ export class TrackingPixelSDK {
 	}
 
 	/**
-	 * Método auxiliar para obtener los detalles del chat
+	 * Método auxiliar para obtener los detalles del chat usando la API V2
 	 * @param chatId ID del chat
 	 * @returns Detalles del chat con participantes
 	 */
-	private async fetchChatDetail(chatId: string): Promise<any> {
-		console.log(`🌐 fetchChatDetail - Obteniendo detalles para chat ${chatId}`);
+	private async fetchChatDetail(chatId: string): Promise<ChatDetail> {
+		console.log(`🌐 fetchChatDetail - Obteniendo detalles para chat ${chatId} (usando API V2)`);
 		
-		const accessToken = localStorage.getItem('accessToken');
-		const endpoints = EndpointManager.getInstance();
-		const baseEndpoint = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
+		try {
+			// Intentar primero con la API V2 (optimizada)
+			const chatDetailV2 = await fetchChatDetailV2(chatId);
+			console.log(`🌐 fetchChatDetail - Detalles V2 obtenidos:`, {
+				id: chatDetailV2.id,
+				status: chatDetailV2.status,
+				visitorId: chatDetailV2.visitorId,
+				assignedCommercialId: chatDetailV2.assignedCommercialId,
+				availableCommercialIds: chatDetailV2.availableCommercialIds,
+				isActive: chatDetailV2.isActive
+			});
+			
+			// Convertir al formato legacy para compatibilidad
+			const legacyDetail = this.convertV2ToLegacyDetail(chatDetailV2);
+			
+			console.log(`🌐 fetchChatDetail - Convertido a formato legacy:`, {
+				id: legacyDetail.id,
+				participantsCount: legacyDetail.participants.length,
+				participants: legacyDetail.participants.map(p => ({
+					id: p.id,
+					name: p.name,
+					isCommercial: p.isCommercial,
+					isOnline: p.isOnline
+				}))
+			});
+			
+			return legacyDetail;
+		} catch (error) {
+			console.warn('🌐 fetchChatDetail - Error con API V2, intentando API legacy:', error);
+			
+			// Fallback a la función legacy
+			return await fetchChatDetail(chatId);
+		}
+	}
+
+	/**
+	 * Convierte los detalles del chat V2 al formato legacy
+	 * @param chatDetailV2 Detalles del chat en formato V2
+	 * @returns Detalles del chat en formato legacy
+	 */
+	private convertV2ToLegacyDetail(chatDetailV2: ChatDetailV2): ChatDetail {
+		const participants: ChatParticipant[] = [];
 		
-		const url = `${baseEndpoint}/chats/${chatId}`;
-		console.log(`🌐 fetchChatDetail - URL: ${url}`);
-		console.log(`🌐 fetchChatDetail - Access token existe: ${!!accessToken}`);
-		
-		const response = await fetch(url, {
-			method: 'GET',
-			headers: {
-				'Authorization': `Bearer ${accessToken || ''}`,
-				'Content-Type': 'application/json'
-			}
+		// Añadir el visitante como participante
+		participants.push({
+			id: chatDetailV2.visitorInfo.id,
+			name: chatDetailV2.visitorInfo.name,
+			isCommercial: false,
+			isVisitor: true,
+			isOnline: true, // Asumimos que el visitante está online si el chat está activo
+			assignedAt: chatDetailV2.createdAt.toISOString(),
+			lastSeenAt: chatDetailV2.lastMessageDate?.toISOString() || null,
+			isViewing: chatDetailV2.isActive,
+			isTyping: false,
+			isAnonymous: false
 		});
 
-		console.log(`🌐 fetchChatDetail - Response status: ${response.status}`);
-		console.log(`🌐 fetchChatDetail - Response ok: ${response.ok}`);
-
-		if (!response.ok) {
-			const errorText = await response.text();
-			console.error(`🌐 fetchChatDetail - Error response: ${errorText}`);
-			throw new Error(`Error al obtener detalles del chat (${response.status}): ${errorText}`);
+		// Añadir comerciales asignados como participantes online
+		if (chatDetailV2.assignedCommercialId) {
+			participants.push({
+				id: chatDetailV2.assignedCommercialId,
+				name: `Comercial ${chatDetailV2.assignedCommercialId}`, // Nombre genérico
+				isCommercial: true,
+				isVisitor: false,
+				isOnline: chatDetailV2.isActive, // Si el chat está activo, asumimos que está online
+				assignedAt: chatDetailV2.assignedAt?.toISOString() || chatDetailV2.createdAt.toISOString(),
+				lastSeenAt: chatDetailV2.lastMessageDate?.toISOString() || null,
+				isViewing: chatDetailV2.isActive,
+				isTyping: false,
+				isAnonymous: false
+			});
 		}
 
-		const result = await response.json();
-		console.log(`🌐 fetchChatDetail - Resultado:`, result);
-		
-		return result;
+		// Añadir comerciales disponibles como participantes potencialmente online
+		if (chatDetailV2.availableCommercialIds && chatDetailV2.availableCommercialIds.length > 0) {
+			chatDetailV2.availableCommercialIds.forEach(commercialId => {
+				// Solo añadir si no está ya asignado
+				if (commercialId !== chatDetailV2.assignedCommercialId) {
+					participants.push({
+						id: commercialId,
+						name: `Comercial ${commercialId}`,
+						isCommercial: true,
+						isVisitor: false,
+						isOnline: true, // Los comerciales disponibles están considerados online
+						assignedAt: chatDetailV2.createdAt.toISOString(),
+						lastSeenAt: null,
+						isViewing: false,
+						isTyping: false,
+						isAnonymous: false
+					});
+				}
+			});
+		}
+
+		return {
+			id: chatDetailV2.id,
+			participants,
+			status: chatDetailV2.status,
+			lastMessage: null, // V2 no incluye el último mensaje directamente
+			lastMessageAt: chatDetailV2.lastMessageDate?.toISOString() || null,
+			createdAt: chatDetailV2.createdAt.toISOString()
+		};
 	}
 }

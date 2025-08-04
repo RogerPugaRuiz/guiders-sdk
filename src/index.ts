@@ -16,6 +16,8 @@ export * from "./core/session-tracking-manager";
 export * from "./pipeline/pipeline-stage";
 export * from "./pipeline/stages/token-stage";
 export * from "./services/unread-messages-service";
+export * from "./services/chat-detail-service";
+export * from "./services/chat-v2-service";
 export * from "./types";
 // Se pueden exportar más etapas o servicios según se vayan implementando.
 
