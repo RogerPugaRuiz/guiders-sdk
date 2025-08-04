@@ -1,0 +1,649 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start SDK Server (Port 8081)",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "start"],
+      "group": "build",
+      "isBackground": true,
+      "detail": "🚀 Servidor SDK en http://localhost:8081/ - Desarrollo con hot-reload",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Open SDK in Browser",
+      "type": "shell",
+      "command": "open",
+      "args": ["http://localhost:8081/"],
+      "group": "test",
+      "detail": "Abre el servidor de desarrollo del SDK en el navegador (puerto 8081)",
+      "dependsOn": "Start SDK Server (Port 8081)",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+    {
+      "label": "Build Production",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "detail": "Construye el SDK en modo producción con Webpack",
+      "problemMatcher": ["$tsc"],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Build Watch",
+      "type": "shell",
+      "command": "npx",
+      "args": ["webpack", "--mode=development", "--watch"],
+      "group": "build",
+      "isBackground": true,
+      "detail": "Construye el SDK en modo desarrollo con watch para cambios automáticos",
+      "problemMatcher": ["$tsc-watch"],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Analyze Bundle",
+      "type": "shell",
+      "command": "npx",
+      "args": ["webpack-bundle-analyzer", "dist/index.js"],
+      "group": "build",
+      "detail": "Analiza el tamaño del bundle generado",
+      "dependsOn": "Build Production",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Test Integration",
+      "type": "shell",
+      "command": "npx",
+      "args": ["http-server", "-p", "8080", "-o"],
+      "group": "test",
+      "detail": "Inicia servidor HTTP para probar los archivos HTML de integración",
+      "isBackground": true,
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Clean Build",
+      "type": "shell",
+      "command": "rm",
+      "args": ["-rf", "dist"],
+      "group": "build",
+      "detail": "Limpia la carpeta dist antes de construir",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+    {
+      "label": "Build WordPress Plugin",
+      "type": "shell",
+      "command": "./build-plugin.sh",
+      "args": [],
+      "group": "build",
+      "detail": "Construye el plugin de WordPress",
+      "options": {
+        "cwd": "${workspaceFolder}/wordpress-plugin"
+      },
+      "dependsOn": "Build Production",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "TypeScript Check",
+      "type": "shell",
+      "command": "npx",
+      "args": ["tsc", "--noEmit"],
+      "group": "build",
+      "detail": "Verifica tipos TypeScript sin generar archivos",
+      "problemMatcher": ["$tsc"],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Serve Test Files",
+      "type": "shell",
+      "command": "python3",
+      "args": ["-m", "http.server", "8000"],
+      "group": "test",
+      "detail": "Sirve archivos de test usando servidor HTTP de Python",
+      "isBackground": true,
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Open Test Demo",
+      "type": "shell",
+      "command": "open",
+      "args": ["http://localhost:8080/quick-test.html"],
+      "group": "test",
+      "detail": "Abre la demo de prueba rápida en el navegador",
+      "dependsOn": "Test Integration"
+    },
+    {
+      "label": "Install Dependencies",
+      "type": "shell",
+      "command": "npm",
+      "args": ["install"],
+      "group": "build",
+      "detail": "Instala todas las dependencias del proyecto",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Update Dependencies",
+      "type": "shell",
+      "command": "npm",
+      "args": ["update"],
+      "group": "build",
+      "detail": "Actualiza las dependencias del proyecto",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Audit Dependencies",
+      "type": "shell",
+      "command": "npm",
+      "args": ["audit"],
+      "group": "build",
+      "detail": "Audita las dependencias en busca de vulnerabilidades",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Fix Audit Issues",
+      "type": "shell",
+      "command": "npm",
+      "args": ["audit", "fix"],
+      "group": "build",
+      "detail": "Corrige automáticamente las vulnerabilidades encontradas",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Lint Code",
+      "type": "shell",
+      "command": "npx",
+      "args": ["eslint", "src/**/*.ts", "--fix"],
+      "group": "build",
+      "detail": "Ejecuta ESLint y corrige automáticamente los errores",
+      "problemMatcher": ["$eslint-stylish"],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Format Code",
+      "type": "shell",
+      "command": "npx",
+      "args": ["prettier", "--write", "src/**/*.{ts,js,json}"],
+      "group": "build",
+      "detail": "Formatea el código usando Prettier",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Generate Documentation",
+      "type": "shell",
+      "command": "npx",
+      "args": ["typedoc", "--out", "docs/api", "src"],
+      "group": "build",
+      "detail": "Genera documentación API usando TypeDoc",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Run Unit Tests",
+      "type": "shell",
+      "command": "npm",
+      "args": ["test"],
+      "group": "test",
+      "detail": "Ejecuta los tests unitarios del SDK",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Test Coverage",
+      "type": "shell",
+      "command": "npx",
+      "args": ["jest", "--coverage"],
+      "group": "test",
+      "detail": "Ejecuta tests con reporte de cobertura",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Watch Tests",
+      "type": "shell",
+      "command": "npx",
+      "args": ["jest", "--watch"],
+      "group": "test",
+      "isBackground": true,
+      "detail": "Ejecuta tests en modo watch",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "E2E Tests",
+      "type": "shell",
+      "command": "npx",
+      "args": ["playwright", "test"],
+      "group": "test",
+      "detail": "Ejecuta tests end-to-end con Playwright",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Package Library",
+      "type": "shell",
+      "command": "npm",
+      "args": ["pack"],
+      "group": "build",
+      "detail": "Empaqueta la librería para distribución",
+      "dependsOn": "Build Production",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Publish NPM",
+      "type": "shell",
+      "command": "npm",
+      "args": ["publish"],
+      "group": "build",
+      "detail": "Publica la librería en NPM",
+      "dependsOn": "Build Production",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Dry Run Publish",
+      "type": "shell",
+      "command": "npm",
+      "args": ["publish", "--dry-run"],
+      "group": "build",
+      "detail": "Simula la publicación en NPM sin publicar realmente",
+      "dependsOn": "Build Production",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Version Bump Patch",
+      "type": "shell",
+      "command": "npm",
+      "args": ["version", "patch"],
+      "group": "build",
+      "detail": "Incrementa la versión patch (1.0.0 -> 1.0.1)",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Version Bump Minor",
+      "type": "shell",
+      "command": "npm",
+      "args": ["version", "minor"],
+      "group": "build",
+      "detail": "Incrementa la versión minor (1.0.0 -> 1.1.0)",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Version Bump Major",
+      "type": "shell",
+      "command": "npm",
+      "args": ["version", "major"],
+      "group": "build",
+      "detail": "Incrementa la versión major (1.0.0 -> 2.0.0)",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Start HTTPS Dev Server",
+      "type": "shell",
+      "command": "npx",
+      "args": ["webpack", "serve", "--mode=development", "--https"],
+      "group": "build",
+      "isBackground": true,
+      "detail": "Inicia servidor de desarrollo con HTTPS para testing de APIs seguras",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Build with Source Maps",
+      "type": "shell",
+      "command": "npx",
+      "args": ["webpack", "--mode=development", "--devtool=source-map"],
+      "group": "build",
+      "detail": "Construye el SDK con source maps para debugging",
+      "problemMatcher": ["$tsc"],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Profile Build",
+      "type": "shell",
+      "command": "npx",
+      "args": ["webpack", "--mode=production", "--profile", "--json"],
+      "group": "build",
+      "detail": "Genera perfil de build para análisis de performance",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Check Bundle Size",
+      "type": "shell",
+      "command": "npx",
+      "args": ["bundlesize"],
+      "group": "test",
+      "detail": "Verifica que el tamaño del bundle esté dentro de límites",
+      "dependsOn": "Build Production",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Validate Types",
+      "type": "shell",
+      "command": "npx",
+      "args": ["tsc", "--noEmit", "--strict"],
+      "group": "test",
+      "detail": "Validación estricta de tipos TypeScript",
+      "problemMatcher": ["$tsc"],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Demo WordPress",
+      "type": "shell",
+      "command": "open",
+      "args": ["http://localhost/wordpress"],
+      "group": "test",
+      "detail": "Abre la demo de WordPress local",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+    {
+      "label": "Demo WooCommerce",
+      "type": "shell",
+      "command": "open",
+      "args": ["demo/app/index.php"],
+      "group": "test",
+      "detail": "Abre la demo de WooCommerce",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+    {
+      "label": "Security Audit",
+      "type": "shell",
+      "command": "npx",
+      "args": ["audit-ci", "--moderate"],
+      "group": "test",
+      "detail": "Ejecuta auditoría de seguridad completa",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Clean All",
+      "type": "shell",
+      "command": "rm",
+      "args": ["-rf", "dist", "node_modules", "coverage", "docs/api", "*.tgz"],
+      "group": "build",
+      "detail": "Limpia completamente el proyecto",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Fresh Install",
+      "type": "shell",
+      "command": "npm",
+      "args": ["ci"],
+      "group": "build",
+      "detail": "Instalación limpia desde package-lock.json",
+      "dependsOn": "Clean All",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Release Preparation",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "npm run build && npm run test && npm run lint && npm audit"],
+      "group": "build",
+      "detail": "Prepara el proyecto para release (build + test + lint + audit)",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    }
+  ]
+}
