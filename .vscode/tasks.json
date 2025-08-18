@@ -188,6 +188,43 @@
       "dependsOn": "Test Integration"
     },
     {
+      "label": "Start PHP Demo (Port 8083)",
+      "type": "shell",
+      "command": "php",
+      "args": ["-S", "127.0.0.1:8083", "-t", "demo/app"],
+      "group": "test",
+      "isBackground": true,
+      "detail": "Inicia la demo PHP (demo/app) con el servidor embebido de PHP",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Open PHP Demo",
+      "type": "shell",
+      "command": "open",
+      "args": ["http://127.0.0.1:8083/"],
+      "group": "test",
+      "detail": "Abre la demo PHP en el navegador",
+      "dependsOn": "Start PHP Demo (Port 8083)",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+    {
       "label": "Install Dependencies",
       "type": "shell",
       "command": "npm",
