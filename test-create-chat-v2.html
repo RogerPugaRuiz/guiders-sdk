@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test CreateChat V2 API</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .pass { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .fail { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { background: #007cba; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px; overflow-x: auto; }
+        .test-section { border: 1px solid #dee2e6; margin: 20px 0; padding: 15px; border-radius: 5px; }
+        .input-group { margin: 10px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ced4da; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test CreateChat V2 API</h1>
+    
+    <div class="info">
+        <h3>Test Instructions:</h3>
+        <ol>
+            <li>Open browser developer tools and watch the console</li>
+            <li>Fill in the chat data form below</li>
+            <li>Click "Create Chat" to test the new PUT endpoint</li>
+            <li>Try creating the same chat again to test idempotency</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>Chat Creation Form</h3>
+        
+        <div class="input-group">
+            <label for="chatId">Chat ID:</label>
+            <input type="text" id="chatId" placeholder="e.g., chat-12345" value="">
+        </div>
+
+        <div class="input-group">
+            <label for="visitorName">Visitor Name:</label>
+            <input type="text" id="visitorName" placeholder="e.g., Juan Pérez" value="Test Visitor">
+        </div>
+
+        <div class="input-group">
+            <label for="visitorEmail">Visitor Email:</label>
+            <input type="email" id="visitorEmail" placeholder="e.g., test@example.com" value="test@example.com">
+        </div>
+
+        <div class="input-group">
+            <label for="department">Department:</label>
+            <select id="department">
+                <option value="ventas">Ventas</option>
+                <option value="soporte">Soporte</option>
+                <option value="general">General</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label for="priority">Priority:</label>
+            <select id="priority">
+                <option value="NORMAL">Normal</option>
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+                <option value="URGENT">Urgent</option>
+            </select>
+        </div>
+
+        <button onclick="generateNewChatId()">🔄 Generate New Chat ID</button>
+        <button onclick="testCreateChat()" id="createBtn">🚀 Create Chat</button>
+        <button onclick="testCreateSameChat()" id="idempotentBtn">🔁 Test Idempotency (Same Chat)</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script src="dist/index.js"></script>
+    <script>
+        let chatService = null;
+        let testResults = [];
+
+        // Initialize when SDK is ready
+        function initTest() {
+            if (window.guiders && window.ChatV2Service) {
+                chatService = window.ChatV2Service.getInstance();
+                console.log('✅ ChatV2Service ready');
+                updateStatus('ChatV2Service initialized successfully', 'pass');
+                
+                // Generate initial chat ID
+                generateNewChatId();
+            } else {
+                console.log('⏳ Waiting for SDK...');
+                setTimeout(initTest, 1000);
+            }
+        }
+
+        function generateNewChatId() {
+            const timestamp = Date.now();
+            const randomId = Math.random().toString(36).substring(2, 8);
+            const chatId = `test-chat-${timestamp}-${randomId}`;
+            document.getElementById('chatId').value = chatId;
+            console.log(`🆔 Generated new chat ID: ${chatId}`);
+        }
+
+        function getChatData() {
+            const chatId = document.getElementById('chatId').value;
+            const visitorName = document.getElementById('visitorName').value;
+            const visitorEmail = document.getElementById('visitorEmail').value;
+            const department = document.getElementById('department').value;
+            const priority = document.getElementById('priority').value;
+
+            if (!chatId || !visitorName || !visitorEmail) {
+                alert('Please fill in all required fields');
+                return null;
+            }
+
+            // Generate a visitor ID
+            const visitorId = `visitor-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+            return {
+                chatId,
+                chatData: {
+                    visitorInfo: {
+                        id: visitorId,
+                        name: visitorName,
+                        email: visitorEmail,
+                        phone: '+1234567890',
+                        location: 'Test Location'
+                    },
+                    metadata: {
+                        department: department,
+                        source: 'test-page',
+                        initialUrl: window.location.href,
+                        userAgent: navigator.userAgent,
+                        referrer: document.referrer,
+                        tags: { testMode: true, timestamp: Date.now() }
+                    },
+                    priority: priority,
+                    department: department,
+                    tags: ['test', 'sdk-v2']
+                }
+            };
+        }
+
+        async function testCreateChat() {
+            if (!chatService) {
+                updateStatus('ChatV2Service not initialized', 'fail');
+                return;
+            }
+
+            const data = getChatData();
+            if (!data) return;
+
+            const { chatId, chatData } = data;
+            
+            updateStatus(`🚀 Creating chat with ID: ${chatId}`, 'info');
+            console.log('Creating chat with data:', { chatId, chatData });
+
+            try {
+                // Disable button during request
+                document.getElementById('createBtn').disabled = true;
+                
+                const result = await chatService.createChat(chatId, chatData);
+                
+                console.log('✅ Chat created successfully:', result);
+                updateStatus(`✅ Chat created successfully! ID: ${result.id}, Status: ${result.status}`, 'pass');
+                
+                // Store the result for idempotency test
+                testResults.push({
+                    chatId: chatId,
+                    result: result,
+                    timestamp: new Date().toISOString()
+                });
+
+                displayChatDetails(result);
+                
+            } catch (error) {
+                console.error('❌ Error creating chat:', error);
+                updateStatus(`❌ Error creating chat: ${error.message}`, 'fail');
+            } finally {
+                document.getElementById('createBtn').disabled = false;
+            }
+        }
+
+        async function testCreateSameChat() {
+            if (!chatService) {
+                updateStatus('ChatV2Service not initialized', 'fail');
+                return;
+            }
+
+            const data = getChatData();
+            if (!data) return;
+
+            const { chatId, chatData } = data;
+            
+            updateStatus(`🔁 Testing idempotency for chat ID: ${chatId}`, 'info');
+            console.log('Testing idempotency with same chat ID:', chatId);
+
+            try {
+                // Disable button during request
+                document.getElementById('idempotentBtn').disabled = true;
+                
+                const result = await chatService.createChat(chatId, chatData);
+                
+                console.log('✅ Idempotency test result:', result);
+                
+                // Check if we get the same chat back
+                const previousResult = testResults.find(r => r.chatId === chatId);
+                if (previousResult && previousResult.result.id === result.id) {
+                    updateStatus(`✅ Idempotency test PASSED! Same chat returned: ${result.id}`, 'pass');
+                } else {
+                    updateStatus(`⚠️ Idempotency test - Chat returned: ${result.id}`, 'info');
+                }
+                
+                displayChatDetails(result);
+                
+            } catch (error) {
+                console.error('❌ Error in idempotency test:', error);
+                updateStatus(`❌ Error in idempotency test: ${error.message}`, 'fail');
+            } finally {
+                document.getElementById('idempotentBtn').disabled = false;
+            }
+        }
+
+        function displayChatDetails(chat) {
+            const detailsHtml = `
+                <div class="test-section">
+                    <h4>📋 Chat Details:</h4>
+                    <pre>${JSON.stringify(chat, null, 2)}</pre>
+                </div>
+            `;
+            
+            const existingDetails = document.querySelector('.chat-details');
+            if (existingDetails) {
+                existingDetails.remove();
+            }
+            
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'chat-details';
+            detailsDiv.innerHTML = detailsHtml;
+            document.getElementById('results').appendChild(detailsDiv);
+        }
+
+        function updateStatus(message, type) {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            document.getElementById('results').appendChild(statusDiv);
+        }
+
+        // Initialize test when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStatus('Initializing test environment...', 'info');
+            initTest();
+        });
+    </script>
+</body>
+</html>

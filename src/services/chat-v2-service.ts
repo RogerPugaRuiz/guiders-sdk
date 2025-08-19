@@ -1,5 +1,5 @@
 import { EndpointManager } from '../core/tracking-pixel-SDK';
-import { ChatV2, ChatListV2 } from '../types';
+import { ChatV2, ChatListV2, CreateChatV2Request } from '../types';
 
 /**
  * Servicio para interactuar con la API V2 de chats
@@ -62,6 +62,38 @@ export class ChatV2Service {
 			status: chat.status,
 			assignedCommercialId: chat.assignedCommercialId,
 			isActive: chat.isActive
+		});
+		
+		return chat;
+	}
+
+	/**
+	 * Crea un nuevo chat en estado pendiente (idempotente)
+	 * @param chatId ID del chat a crear
+	 * @param chatData Datos del chat a crear
+	 * @returns Promise con el chat creado o existente
+	 */
+	async createChat(chatId: string, chatData: CreateChatV2Request): Promise<ChatV2> {
+		console.log(`[ChatV2Service] 🚀 Creando chat con ID: ${chatId}`);
+		
+		const response = await fetch(`${this.getBaseUrl()}/${chatId}`, {
+			method: 'PUT',
+			headers: this.getAuthHeaders(),
+			body: JSON.stringify(chatData)
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error(`[ChatV2Service] ❌ Error al crear chat ${chatId}:`, errorText);
+			throw new Error(`Error al crear chat (${response.status}): ${errorText}`);
+		}
+
+		const chat = await response.json() as ChatV2;
+		console.log(`[ChatV2Service] ✅ Chat creado/recuperado exitosamente:`, {
+			id: chat.id,
+			status: chat.status,
+			isNew: response.status === 201,
+			isExisting: response.status === 200
 		});
 		
 		return chat;

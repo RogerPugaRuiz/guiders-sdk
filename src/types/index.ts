@@ -105,3 +105,12 @@ export interface ChatListV2 {
 	hasMore: boolean;
 	nextCursor?: string | null;
 }
+
+// Interface for creating a new chat in V2 API
+export interface CreateChatV2Request {
+	visitorInfo: VisitorInfoV2;
+	metadata: ChatMetadataV2;
+	priority?: 'LOW' | 'MEDIUM' | 'NORMAL' | 'HIGH' | 'URGENT';
+	department?: string;
+	tags?: string[];
+}
