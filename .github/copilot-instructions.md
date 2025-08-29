@@ -105,7 +105,7 @@ initializeGuidersSDK();
 Gestión centralizada de endpoints con detección automática de entorno:
 
 ```typescript
-// Automático: desarrollo (localhost:3000) vs producción (guiders.ancoradual.com)
+// Automático: desarrollo (localhost:3000) vs producción (217.154.105.26)
 EndpointManager.setInstance(endpoint, webSocketEndpoint);
 ```
 
@@ -156,7 +156,7 @@ dist/index.js          # UMD build para navegadores
 ```typescript
 // NODE_ENV detecta automáticamente development vs production
 const isDev = process.env.NODE_ENV === 'development';
-const endpoint = isDev ? "http://localhost:3000" : "https://guiders.ancoradual.com/api";
+const endpoint = isDev ? "http://localhost:3000" : "http://217.154.105.26/api/";
 ```
 
 ## Integración y Compatibilidad

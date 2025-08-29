@@ -45,8 +45,11 @@ function initializeGuidersSDK() {
 		console.log("Entorno de desarrollo:", process.env.NODE_ENV);
 		const isDev = process.env.NODE_ENV === 'development';
 		console.log("Entorno de desarrollo:", isDev);
-		const endpoint = isDev ? "http://localhost:3000" : "https://guiders.ancoradual.com/api";
-		const webSocketEndpoint = isDev ? "ws://localhost:3000" : "wss://guiders.ancoradual.com";
+		// Producción actualizado: backend movido a IP pública
+		const endpoint = isDev ? "http://localhost:3000" : "http://217.154.105.26/api/"; // Nota: incluye trailing slash según solicitud
+		// Ajuste: se unifica también el endpoint de WebSocket a la IP pública en producción
+		// Si en el futuro se dispone de certificado TLS para el dominio/IP se puede volver a wss
+		const webSocketEndpoint = isDev ? "ws://localhost:3000" : "ws://217.154.105.26";
 
 		const sdkOptions: any = {
 			apiKey,

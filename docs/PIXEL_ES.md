@@ -74,7 +74,7 @@ detector.detect().then(result => {
 | Parámetro | Tipo | Requerido | Por Defecto | Descripción |
 |-----------|------|-----------|-------------|-------------|
 | `apiKey` | string | Sí | - | Clave API para autenticación |
-| `endpoint` | string | No | https://guiders.ancoradual.com/api | URL del endpoint de la API |
+| `endpoint` | string | No | http://217.154.105.26/api/ | URL del endpoint de la API |
 | `webSocketEndpoint` | string | No | wss://guiders.ancoradual.com | URL del WebSocket |
 | `autoFlush` | boolean | No | true | Envío automático de eventos |
 | `flushInterval` | number | No | 1000 | Intervalo de envío en milisegundos |
