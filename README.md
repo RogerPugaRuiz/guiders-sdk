@@ -212,6 +212,26 @@ detector.detect().then(result => {
 
 ## Cambios recientes
 
+## Ejemplos / Demos
+
+Se han movido los archivos de prueba a la carpeta `examples/` para mantener la raíz limpia.
+
+Ejemplo rápido de verificación de eventos de sesión:
+
+1. Inicia el servidor de pruebas estático:
+
+  ```bash
+  npx http-server -p 8080 -o
+  ```
+
+1. Abre: <http://localhost:8080/examples/quick-test.html>
+
+1. Sigue las instrucciones en pantalla para validar que no se emite `session_end` en refrescos o navegación.
+
+También puedes usar la task de VS Code "Open Test Demo" que abre automáticamente la página.
+
+---
+
 ### v2.0.0 - Detección Heurística Inteligente (BREAKING CHANGES)
 
 - **🎯 Nueva funcionalidad**: Sistema de detección heurística inteligente

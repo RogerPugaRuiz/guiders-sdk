@@ -182,7 +182,7 @@
       "label": "Open Test Demo",
       "type": "shell",
       "command": "open",
-      "args": ["http://localhost:8080/quick-test.html"],
+  "args": ["http://localhost:8080/examples/quick-test.html"],
       "group": "test",
       "detail": "Abre la demo de prueba rápida en el navegador",
       "dependsOn": "Test Integration"
