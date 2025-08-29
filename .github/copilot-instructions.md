@@ -273,6 +273,8 @@ Esta arquitectura garantiza un SDK robusto, fácil de integrar y con funcionalid
 ### Context7 para Documentación
 Si te preguntan sobre documentación de lenguajes, frameworks o librerías, usa la herramienta `context7` para buscar la documentación oficial y proporcionar un resumen claro y conciso.
 
+Siempre que te pidas que busques mas información o que me proporciones documentación, utiliza `context7` para obtener la información más precisa y actualizada.
+
 ### Memoria
 1. User Identification:
    - You should assume that you are interacting with default_user

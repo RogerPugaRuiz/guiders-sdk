@@ -158,16 +158,21 @@ export class ChatUI {
 			style.textContent = `
 				@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 				:host { all: initial; font-family: 'Inter', sans-serif; }
-				
-				/* Contenedor principal del chat */
-				.chat-widget { 
-					box-shadow: 0 5px 40px rgba(0,0,0,0.16); 
-					border-radius: 16px; 
-					overflow: hidden; 
-					background: #fff;
+
+				/* Fondo degradado premium para el área de mensajes */
+				.chat-widget {
+					box-shadow: 0 8px 48px 0 rgba(0,0,0,0.22), 0 1.5px 8px 0 rgba(0,0,0,0.10);
+					border-radius: 20px;
+					overflow: hidden;
+					background: linear-gradient(135deg, #f7faff 0%, #e3e9f6 100%);
 					font-family: 'Inter', sans-serif;
 					display: flex;
 					flex-direction: column;
+					transition: box-shadow 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+				}
+
+				.chat-widget:focus-within {
+					box-shadow: 0 12px 64px 0 rgba(0,0,0,0.28), 0 2px 12px 0 rgba(0,0,0,0.13);
 				}
 				
 				.chat-widget-fixed { 
@@ -184,23 +189,25 @@ export class ChatUI {
 				
 				/* Cabecera del chat */
 				.chat-header {
-					background: linear-gradient(145deg, #0084ff, #0062cc);
-					color: white;
-					padding: 16px;
+					background: linear-gradient(145deg, #0084ff 60%, #00c6fb 100%);
+					color: #fff;
+					padding: 18px 20px 14px 20px;
 					display: flex;
 					align-items: center;
 					justify-content: space-between;
-					border-top-left-radius: 16px;
-					border-top-right-radius: 16px;
+					border-top-left-radius: 20px;
+					border-top-right-radius: 20px;
+					box-shadow: 0 2px 8px rgba(0,132,255,0.08);
 				}
 				
 				.chat-header-title {
-					font-weight: 600;
-					font-size: 16px;
+					font-weight: 700;
+					font-size: 17px;
 					display: flex;
 					flex-direction: column;
 					align-items: flex-start;
 					gap: 4px;
+					letter-spacing: 0.01em;
 				}
 				
 				/* Indicador de estado online del comercial */
@@ -229,9 +236,11 @@ export class ChatUI {
 				}
 				
 				.chat-header-subtitle {
-					font-size: 12px;
+					font-size: 13px;
 					font-weight: 400;
-					opacity: 0.9;
+					opacity: 0.92;
+					margin-top: 2px;
+					color: #e3f2fd;
 				}
 				
 				.chat-header-actions {
@@ -269,14 +278,15 @@ export class ChatUI {
 				}
 				
 				/* Contenedor de mensajes */
-				.chat-messages { 
-					display: flex; 
-					flex-direction: column; 
-					flex: 1; 
-					overflow-y: auto; 
-					padding: 16px; 
-					background-color: #f7f9fc;
+				.chat-messages {
+					display: flex;
+					flex-direction: column;
+					flex: 1;
+					overflow-y: auto;
+					padding: 18px 16px 12px 16px;
+					background: linear-gradient(120deg, #f7faff 60%, #e3e9f6 100%);
 					scroll-behavior: smooth;
+					transition: background 0.3s;
 				}
 				
 				.chat-messages-bottom { 
@@ -314,10 +324,34 @@ export class ChatUI {
 					align-self: flex-end;
 				}
 				
-				.chat-message-user { 
-					background: linear-gradient(145deg, #0084ff, #0062cc);
-					color: #fff; 
-					border-bottom-right-radius: 4px;
+				.chat-message-user {
+					background: linear-gradient(145deg, #0084ff 70%, #00c6fb 100%);
+					color: #fff;
+					border-bottom-right-radius: 8px;
+					box-shadow: 0 2px 8px rgba(0,132,255,0.08);
+					position: relative;
+					overflow: hidden;
+				}
+
+				.chat-message-user:active::after {
+					content: '';
+					position: absolute;
+					top: 50%;
+					left: 50%;
+					width: 120%;
+					height: 120%;
+					background: rgba(255,255,255,0.18);
+					border-radius: 50%;
+					transform: translate(-50%, -50%) scale(0);
+					animation: ripple 0.5s linear;
+					pointer-events: none;
+				}
+
+				@keyframes ripple {
+					to {
+						transform: translate(-50%, -50%) scale(1);
+						opacity: 0;
+					}
 				}
 				
 				.chat-message-user + .chat-message-time {
@@ -363,52 +397,64 @@ export class ChatUI {
 					background: #fff; 
 					position: relative;
 					border-top: 1px solid #e1e9f1;
+					gap: 8px; /* Espacio consistente entre elementos */
 				}
 				
-				.chat-input-field { 
-					flex-shrink: 1;
-					padding: 10px 14px; 
-					border: 1px solid #e1e9f1; 
-					border-radius: 24px; 
-					font-size: 14px;
+				.chat-input-field {
+					flex: 1; /* Ocupa todo el espacio disponible */
+					padding: 10px 14px;
+					border: 1.5px solid #e1e9f1;
+					border-radius: 24px;
+					font-size: 15px;
 					outline: none;
-					transition: border-color 0.2s;
+					transition: border-color 0.2s, box-shadow 0.2s;
 					font-family: 'Inter', sans-serif;
+					background: #f7faff;
+					color: #222;
+					min-height: 20px; /* Altura mínima consistente */
+					box-sizing: border-box;
 				}
 				
 				.chat-input-field:focus {
 					border-color: #0084ff;
+					box-shadow: 0 0 0 2px #cce6ff;
 				}
 				
 				.chat-send-btn {
 					flex-shrink: 0;
-					width: 36px;
-					height: 36px;
+					width: 40px;
+					height: 40px;
 					border-radius: 50%;
-					background: linear-gradient(145deg, #0084ff, #0062cc);
-					color: white;
+					background: transparent;
+					color: #000;
 					border: none;
 					cursor: pointer;
-					margin-left: 8px;
 					display: flex;
 					align-items: center;
 					justify-content: center;
-					transition: transform 0.2s;
+					transition: transform 0.18s, box-shadow 0.18s;
 					box-sizing: border-box;
 					overflow: visible;
 					padding: 0;
+					box-shadow: none;
+					position: relative;
+				}
+				
+				.chat-send-btn:active {
+					transform: scale(0.96);
 				}
 				
 				.chat-send-btn:hover {
-					transform: scale(1.05);
+					transform: scale(1.07);
 				}
 				
 				.chat-send-btn::before {
 					content: '';
 					display: block;
-				 width: 24px;
-				 height: 24px;
-				 background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-send-icon lucide-send'%3E%3Cpath d='M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z'/%3E%3Cpath d='m21.854 2.147-10.94 10.939'/%3E%3C/svg%3E");
+					width: 24px;
+					height: 24px;
+					margin: auto;
+					background-image: url("data:image/svg+xml,%3Csvg width='24px' height='24px' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg' color='%23666666' stroke-width='1.5'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.29106 3.3088C3.00745 3.18938 2.67967 3.25533 2.4643 3.47514C2.24894 3.69495 2.1897 4.02401 2.31488 4.30512L5.40752 11.25H13C13.4142 11.25 13.75 11.5858 13.75 12C13.75 12.4142 13.4142 12.75 13 12.75H5.40754L2.31488 19.6949C2.1897 19.976 2.24894 20.3051 2.4643 20.5249C2.67967 20.7447 3.00745 20.8107 3.29106 20.6912L22.2911 12.6913C22.5692 12.5742 22.75 12.3018 22.75 12C22.75 11.6983 22.5692 11.4259 22.2911 11.3088L3.29106 3.3088Z' fill='%23666666'%3E%3C/path%3E%3C/svg%3E");
 					background-repeat: no-repeat;
 					background-position: center;
 				}
@@ -491,59 +537,68 @@ export class ChatUI {
 					
 				/* Footer del chat */
 				.chat-footer {
-					padding: 8px 16px;
-					background-color: #f7f9fc;
-					border-top: 1px solid #e1e9f1;
-					font-size: 12px;
+					padding: 10px 18px;
+					background: linear-gradient(90deg, #f7faff 80%, #e3e9f6 100%);
+					border-top: 1.5px solid #e1e9f1;
+					font-size: 13px;
 					color: #8a9aa9;
 					text-align: center;
 					display: flex;
 					align-items: center;
 					justify-content: center;
+					letter-spacing: 0.01em;
 				}
 				
-				.chat-footer-text {
-					opacity: 0.8;
-				}
-				
-				.chat-footer-text strong {
-					font-weight: 500;
-					color: #0084ff;
-				}
-				
-				/* Botones adicionales para el input */
-				.chat-input-actions {
-					display: flex;
-					align-items: center;
-					margin-right: 10px;
-				}
-				
-				.chat-attachment-btn {
-					flex-shrink: 0;
-					width: 30px;
-					height: 30px;
-					background: transparent;
-					border: none;
-					cursor: pointer;
-					opacity: 0.6;
-					transition: opacity 0.2s;
+				.chat-unread-badge {
+					position: fixed;
+					top: calc(100% - 90px);
+					right: 13px;
+					min-width: 22px;
+					height: 22px;
+					background: linear-gradient(145deg, #ff5146, #e53a30);
+					color: white;
+					border-radius: 12px;
+					font-size: 12px;
+					font-weight: bold;
 					display: flex;
 					align-items: center;
 					justify-content: center;
+					padding: 0 5px;
+					box-sizing: border-box;
+					border: 2px solid white;
+					z-index: 2147483647;
+					box-shadow: 0 2px 8px rgba(255,65,54,0.3);
+					pointer-events: none;
+					transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+					animation: bounceIn 0.5s;
 				}
-				
-				.chat-attachment-btn:hover {
-					opacity: 1;
+				.chat-unread-badge.hidden {
+					transform: scale(0);
+					opacity: 0;
+					display: flex !important;
+				}
+				@keyframes pulse {
+					0% { transform: scale(0.8); opacity: 0.7; }
+					50% { transform: scale(1.3); opacity: 1; }
+					80% { transform: scale(0.95); opacity: 1; }
+					100% { transform: scale(1); opacity: 1; }
+				}
+				@keyframes bounceIn {
+					0% { transform: scale(0.5); opacity: 0.5; }
+					60% { transform: scale(1.2); opacity: 1; }
+					80% { transform: scale(0.95); }
+					100% { transform: scale(1); }
 				}
 				
 				.chat-attachment-btn::before {
 					content: '';
-				 display: block;
-				 width: 18px;
-				 height: 18px;
-				 background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'/%3E%3C/svg%3E");
-				 background-repeat: no-repeat;
-				 background-position: center;
+					display: block;
+					width: 20px;
+					height: 20px;
+					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23666666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'/%3E%3C/svg%3E");
+					background-repeat: no-repeat;
+					background-position: center;
+					margin: auto;
 				}
 
 				/* Estilos para mensajes del sistema */
@@ -660,11 +715,11 @@ export class ChatUI {
 					background: #fff; 
 					position: relative;
 					border-top: 1px solid #e1e9f1;
+					gap: 8px; /* Espacio consistente entre elementos */
 				}
 				
 				.chat-input-field { 
-					flex-shrink: 0;
-					width: calc(100% - 120px); /* Ajustar el ancho para el botón de enviar */
+					flex: 1; /* Ocupa todo el espacio disponible */
 					padding: 10px 14px;
 					border: 1px solid #e1e9f1; 
 					border-radius: 24px; 
@@ -672,6 +727,8 @@ export class ChatUI {
 					outline: none;
 					transition: border-color 0.2s;
 					font-family: 'Inter', sans-serif;
+					min-height: 20px; /* Altura mínima consistente */
+					box-sizing: border-box;
 				}
 				
 				.chat-input-field:focus {
@@ -683,11 +740,10 @@ export class ChatUI {
 					width: 40px;
 					height: 40px;
 					border-radius: 50%;
-					background: linear-gradient(145deg, #0084ff, #0062cc);
-					color: white;
+					background: transparent;
+					color: #000;
 					border: none;
 					cursor: pointer;
-					margin-left: 8px;
 					display: flex;
 					align-items: center;
 					justify-content: center;
@@ -707,7 +763,7 @@ export class ChatUI {
 					width: 24px;
 					height: 24px;
 					margin: auto;
-					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-send-icon lucide-send'%3E%3Cpath d='M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z'/%3E%3Cpath d='m21.854 2.147-10.94 10.939'/%3E%3C/svg%3E");
+					background-image: url("data:image/svg+xml,%3Csvg width='24px' height='24px' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg' color='%23666666' stroke-width='1.5'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.29106 3.3088C3.00745 3.18938 2.67967 3.25533 2.4643 3.47514C2.24894 3.69495 2.1897 4.02401 2.31488 4.30512L5.40752 11.25H13C13.4142 11.25 13.75 11.5858 13.75 12C13.75 12.4142 13.4142 12.75 13 12.75H5.40754L2.31488 19.6949C2.1897 19.976 2.24894 20.3051 2.4643 20.5249C2.67967 20.7447 3.00745 20.8107 3.29106 20.6912L22.2911 12.6913C22.5692 12.5742 22.75 12.3018 22.75 12C22.75 11.6983 22.5692 11.4259 22.2911 11.3088L3.29106 3.3088Z' fill='%23666666'%3E%3C/path%3E%3C/svg%3E");
 					background-repeat: no-repeat;
 					background-position: center;
 				}
@@ -817,30 +873,34 @@ export class ChatUI {
 				}
 				
 				.chat-attachment-btn {
-					width: 30px;
-					height: 30px;
+					flex-shrink: 0; /* No se encoge */
+					width: 40px;
+					height: 40px;
 					background: transparent;
 					border: none;
 					cursor: pointer;
 					opacity: 0.6;
-					transition: opacity 0.2s;
+					transition: opacity 0.2s, transform 0.2s;
 					display: flex;
 					align-items: center;
 					justify-content: center;
+					border-radius: 50%;
 				}
 				
 				.chat-attachment-btn:hover {
 					opacity: 1;
+					transform: scale(1.05);
 				}
 				
 				.chat-attachment-btn::before {
 					content: '';
 					display: block;
-					width: 18px;
-					height: 18px;
-					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'/%3E%3C/svg%3E");
+					width: 20px;
+					height: 20px;
+					background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23666666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'/%3E%3C/svg%3E");
 					background-repeat: no-repeat;
 					background-position: center;
+					margin: auto;
 					}
 					
 				/* Indicador de satisfacción */
@@ -987,7 +1047,8 @@ export class ChatUI {
 
 		// Solo mostramos el mensaje de bienvenida si no hay mensajes existentes
 		if (!hasMessages) {
-			const welcomeText = "👋 ¡Hola! Soy una persona real de nuestro equipo y estoy aquí para ayudarte. Cuéntame, ¿qué necesitas? No dudes en escribir cualquier pregunta o problema que tengas 😊";
+			const welcomeText = "¡Hola! 👋 Bienvenido a nuestro servicio de atención al cliente. Estoy aquí para ayudarte con cualquier consulta que tengas. Por favor, escribe tu pregunta y un asesor humano te responderá en breve.";
+
 			this.addMessage(welcomeText, 'other');
 		}
 	}
@@ -2172,20 +2233,41 @@ export class ChatUI {
 	}
 
 	/**
+	 * Verifica si un participante es un bot basándose en su nombre
+	 * @param participantName Nombre del participante
+	 * @returns true si es un bot, false en caso contrario
+	 */
+	private isBot(participantName: string): boolean {
+		const botKeywords = ['bot', 'chatbot', 'assistant', 'asistente', 'ia', 'ai', 'automático', 'virtual'];
+		const lowerName = participantName.toLowerCase();
+		return botKeywords.some(keyword => lowerName.includes(keyword));
+	}
+
+	/**
 	 * Obtiene las iniciales de un participante basándose en su ID
 	 * @param senderId ID del remitente del mensaje
 	 * @returns Iniciales del participante
 	 */
 	private getParticipantInitials(senderId: string): string {
-		if (!this.chatDetail || !senderId) {
+		// Si no hay senderId, es un mensaje automático del sistema (bot)
+		if (!senderId) {
+			return 'BOT';
+		}
+
+		if (!this.chatDetail) {
 			console.warn('No se ha cargado el chat o no se proporcionó un ID de remitente válido', senderId);
-			return 'AH'; // Fallback por defecto
+			return 'BOT'; // Fallback por defecto para mensajes automáticos
 		}
 
 		const participant = this.chatDetail.participants.find(p => p.id === senderId);
 		if (!participant) {
 			console.warn(`No se encontró el participante con ID ${senderId}`);
-			return 'AH'; // Fallback si no se encuentra el participante
+			return 'BOT'; // Fallback si no se encuentra el participante (probablemente automático)
+		}
+
+		// Verificar si es un bot
+		if (this.isBot(participant.name)) {
+			return 'BOT';
 		}
 
 		// Generar iniciales del nombre
@@ -2205,13 +2287,23 @@ export class ChatUI {
 	 * @returns Nombre del participante
 	 */
 	private getParticipantName(senderId: string): string {
-		if (!this.chatDetail || !senderId) {
-			return 'Asesor Humano'; // Fallback por defecto
+		// Si no hay senderId, es un mensaje automático del sistema (bot)
+		if (!senderId) {
+			return 'Asistente Virtual';
+		}
+
+		if (!this.chatDetail) {
+			return 'Asistente Virtual'; // Fallback por defecto para mensajes automáticos
 		}
 
 		const participant = this.chatDetail.participants.find(p => p.id === senderId);
 		if (!participant) {
-			return 'Asesor Humano'; // Fallback si no se encuentra el participante
+			return 'Asistente Virtual'; // Fallback si no se encuentra el participante (probablemente automático)
+		}
+
+		// Verificar si es un bot
+		if (this.isBot(participant.name)) {
+			return 'Asistente Virtual';
 		}
 
 		return participant.name;

@@ -7,9 +7,9 @@ import { ChatV2, ChatListV2 } from '../types';
  */
 export class ChatV2Service {
 	private static instance: ChatV2Service;
-	
-	private constructor() {}
-	
+
+	private constructor() { }
+
 	public static getInstance(): ChatV2Service {
 		if (!ChatV2Service.instance) {
 			ChatV2Service.instance = new ChatV2Service();
@@ -44,7 +44,7 @@ export class ChatV2Service {
 	 */
 	async getChatById(chatId: string): Promise<ChatV2> {
 		console.log(`[ChatV2Service] 🔍 Obteniendo chat por ID: ${chatId}`);
-		
+
 		const response = await fetch(`${this.getBaseUrl()}/${chatId}`, {
 			method: 'GET',
 			headers: this.getAuthHeaders()
@@ -63,7 +63,7 @@ export class ChatV2Service {
 			assignedCommercialId: chat.assignedCommercialId,
 			isActive: chat.isActive
 		});
-		
+
 		return chat;
 	}
 
@@ -76,13 +76,13 @@ export class ChatV2Service {
 	 */
 	async getVisitorChats(visitorId: string, cursor?: string, limit: number = 20): Promise<ChatListV2> {
 		console.log(`[ChatV2Service] 👤 Obteniendo chats del visitante: ${visitorId}`);
-		
+
 		const params = new URLSearchParams();
 		if (cursor) params.append('cursor', cursor);
 		params.append('limit', limit.toString());
-		
+
 		const url = `${this.getBaseUrl()}/visitor/${visitorId}?${params.toString()}`;
-		
+
 		const response = await fetch(url, {
 			method: 'GET',
 			headers: this.getAuthHeaders()
@@ -100,7 +100,7 @@ export class ChatV2Service {
 			total: chatList.total,
 			hasMore: chatList.hasMore
 		});
-		
+
 		return chatList;
 	}
 
@@ -113,13 +113,13 @@ export class ChatV2Service {
 	 * @returns Promise con la lista de chats del comercial
 	 */
 	async getCommercialChats(
-		commercialId: string, 
-		cursor?: string, 
+		commercialId: string,
+		cursor?: string,
 		limit: number = 20,
 		filters?: Record<string, any>
 	): Promise<ChatListV2> {
 		console.log(`[ChatV2Service] 🏪 Obteniendo chats del comercial: ${commercialId}`);
-		
+
 		const params = new URLSearchParams();
 		if (cursor) params.append('cursor', cursor);
 		params.append('limit', limit.toString());
@@ -132,9 +132,9 @@ export class ChatV2Service {
 				}
 			});
 		}
-		
+
 		const url = `${this.getBaseUrl()}/commercial/${commercialId}?${params.toString()}`;
-		
+
 		const response = await fetch(url, {
 			method: 'GET',
 			headers: this.getAuthHeaders()
@@ -152,7 +152,7 @@ export class ChatV2Service {
 			total: chatList.total,
 			hasMore: chatList.hasMore
 		});
-		
+
 		return chatList;
 	}
 
@@ -164,13 +164,13 @@ export class ChatV2Service {
 	 */
 	async getPendingQueue(department?: string, limit: number = 50): Promise<ChatV2[]> {
 		console.log(`[ChatV2Service] 📋 Obteniendo cola de chats pendientes`);
-		
+
 		const params = new URLSearchParams();
 		if (department) params.append('department', department);
 		params.append('limit', limit.toString());
-		
+
 		const url = `${this.getBaseUrl()}/queue/pending?${params.toString()}`;
-		
+
 		const response = await fetch(url, {
 			method: 'GET',
 			headers: this.getAuthHeaders()
@@ -186,7 +186,7 @@ export class ChatV2Service {
 		console.log(`[ChatV2Service] ✅ Cola de chats pendientes obtenida:`, {
 			count: chats.length
 		});
-		
+
 		return chats;
 	}
 
@@ -198,7 +198,7 @@ export class ChatV2Service {
 	 */
 	async assignChat(chatId: string, commercialId: string): Promise<ChatV2> {
 		console.log(`[ChatV2Service] 📌 Asignando chat ${chatId} al comercial ${commercialId}`);
-		
+
 		const response = await fetch(`${this.getBaseUrl()}/${chatId}/assign/${commercialId}`, {
 			method: 'PUT',
 			headers: this.getAuthHeaders()
@@ -212,7 +212,7 @@ export class ChatV2Service {
 
 		const chat = await response.json() as ChatV2;
 		console.log(`[ChatV2Service] ✅ Chat asignado exitosamente`);
-		
+
 		return chat;
 	}
 
@@ -223,7 +223,7 @@ export class ChatV2Service {
 	 */
 	async closeChat(chatId: string): Promise<ChatV2> {
 		console.log(`[ChatV2Service] 🔒 Cerrando chat ${chatId}`);
-		
+
 		const response = await fetch(`${this.getBaseUrl()}/${chatId}/close`, {
 			method: 'PUT',
 			headers: this.getAuthHeaders()
@@ -237,7 +237,7 @@ export class ChatV2Service {
 
 		const chat = await response.json() as ChatV2;
 		console.log(`[ChatV2Service] ✅ Chat cerrado exitosamente`);
-		
+
 		return chat;
 	}
 
@@ -249,18 +249,18 @@ export class ChatV2Service {
 	 * @returns Promise con las métricas del comercial
 	 */
 	async getCommercialMetrics(
-		commercialId: string, 
-		dateFrom?: Date, 
+		commercialId: string,
+		dateFrom?: Date,
 		dateTo?: Date
 	): Promise<any> {
 		console.log(`[ChatV2Service] 📊 Obteniendo métricas del comercial: ${commercialId}`);
-		
+
 		const params = new URLSearchParams();
 		if (dateFrom) params.append('dateFrom', dateFrom.toISOString());
 		if (dateTo) params.append('dateTo', dateTo.toISOString());
-		
+
 		const url = `${this.getBaseUrl()}/metrics/commercial/${commercialId}?${params.toString()}`;
-		
+
 		const response = await fetch(url, {
 			method: 'GET',
 			headers: this.getAuthHeaders()
@@ -274,7 +274,7 @@ export class ChatV2Service {
 
 		const metrics = await response.json();
 		console.log(`[ChatV2Service] ✅ Métricas obtenidas`);
-		
+
 		return metrics;
 	}
 
@@ -286,19 +286,19 @@ export class ChatV2Service {
 	 * @returns Promise con las estadísticas
 	 */
 	async getResponseTimeStats(
-		dateFrom?: Date, 
-		dateTo?: Date, 
+		dateFrom?: Date,
+		dateTo?: Date,
 		groupBy: 'hour' | 'day' | 'week' = 'day'
 	): Promise<any[]> {
 		console.log(`[ChatV2Service] ⏱️ Obteniendo estadísticas de tiempo de respuesta`);
-		
+
 		const params = new URLSearchParams();
 		if (dateFrom) params.append('dateFrom', dateFrom.toISOString());
 		if (dateTo) params.append('dateTo', dateTo.toISOString());
 		params.append('groupBy', groupBy);
-		
+
 		const url = `${this.getBaseUrl()}/response-time-stats?${params.toString()}`;
-		
+
 		const response = await fetch(url, {
 			method: 'GET',
 			headers: this.getAuthHeaders()
@@ -312,7 +312,30 @@ export class ChatV2Service {
 
 		const stats = await response.json();
 		console.log(`[ChatV2Service] ✅ Estadísticas obtenidas`);
-		
+
 		return stats;
+	}
+
+	/**
+	 * Crea un chat V2 de forma idempotente (PUT /v2/chats/{chatId})
+	 * @param chatId UUID del chat a crear
+	 * @param payload Datos del chat (visitorId, visitorInfo, availableCommercialIds, priority, metadata...)
+	 * @returns Promise con el chat creado o existente
+	 */
+	async createChat(chatId: string, payload: any): Promise<ChatV2> {
+		console.log(`[ChatV2Service] 🆕 Creando chat V2 por PUT: ${chatId}`);
+		const response = await fetch(`${this.getBaseUrl()}/${chatId}`, {
+			method: 'PUT',
+			headers: this.getAuthHeaders(),
+			body: JSON.stringify(payload)
+		});
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error(`[ChatV2Service] ❌ Error al crear chat V2:`, errorText);
+			throw new Error(`Error al crear chat V2 (${response.status}): ${errorText}`);
+		}
+		const chat = await response.json() as ChatV2;
+		console.log(`[ChatV2Service] ✅ Chat V2 creado/recuperado:`, chat.id);
+		return chat;
 	}
 }

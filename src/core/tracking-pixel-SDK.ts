@@ -848,25 +848,8 @@ export class TrackingPixelSDK {
 			console.log(`  - ¿Hay al menos un comercial online? ${hasOnlineCommercial}`);
 			console.log(`  - Estado actual del botón: ${chatToggleButton.isButtonVisible()}`);
 
-			if (hasOnlineCommercial) {
-				console.log("✅ Hay comerciales online - Mostrando botón del chat");
-				console.log(`🔄 Botón antes de mostrar: ${chatToggleButton.isButtonVisible()}`);
-				chatToggleButton.show();
-				console.log(`🔄 Botón después de mostrar: ${chatToggleButton.isButtonVisible()}`);
-			} else {
-				console.log("❌ No hay comerciales online - Ocultando botón del chat");
-				console.log(`🔄 Botón antes de ocultar: ${chatToggleButton.isButtonVisible()}`);
-				chatToggleButton.hide();
-				console.log(`🔄 Botón después de ocultar: ${chatToggleButton.isButtonVisible()}`);
-				
-				// Si el chat está abierto cuando todos los comerciales se desconectan, cerrarlo
-				if (chat.isVisible()) {
-					console.log("💬 Chat abierto con todos los comerciales offline - Cerrando chat");
-					chat.hide();
-					// Mostrar mensaje del sistema en el chat
-					chat.addSystemMessage("Todos los asesores se han desconectado temporalmente. El chat se cerrará automáticamente.");
-				}
-			}
+			// Mostrar siempre el botón del chat, sin importar la disponibilidad de comerciales
+			chatToggleButton.show();
 
 		} catch (error) {
 			console.error("❌ Error al verificar y actualizar visibilidad del chat:", error);
@@ -919,13 +902,8 @@ export class TrackingPixelSDK {
 			console.log("Comerciales online:", commercials.filter((c: ChatParticipant) => c.isOnline).length);
 			console.log("¿Hay comerciales online?", hasOnlineCommercial);
 			
-			if (hasOnlineCommercial) {
-				console.log("✅ Comercial online disponible - Mostrando botón del chat");
-				chatToggleButton.show();
-			} else {
-				console.log("❌ No hay comerciales online disponibles - Ocultando botón del chat");
-				chatToggleButton.hide();
-			}
+			// Mostrar siempre el botón del chat, sin importar la disponibilidad de comerciales
+			chatToggleButton.show();
 		} catch (error) {
 			console.error("Error al verificar disponibilidad de comerciales:", error);
 			// En caso de error, ocultamos el botón por seguridad

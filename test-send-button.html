@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Botón de Enviar - Guiders SDK</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .chat-input-container {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            background: white;
+            max-width: 400px;
+            gap: 8px; /* Espacio consistente entre elementos */
+        }
+        .chat-input-field {
+            flex: 1; /* Ocupa todo el espacio disponible */
+            border: none;
+            outline: none;
+            padding: 8px 15px;
+            font-size: 14px;
+            border-radius: 20px;
+            min-height: 20px;
+            box-sizing: border-box;
+        }
+        .chat-attachment-btn {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s, transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        .chat-attachment-btn:hover {
+            opacity: 1;
+            transform: scale(1.05);
+        }
+        .chat-attachment-btn::before {
+            content: '';
+            display: block;
+            width: 20px;
+            height: 20px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23666666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+            margin: auto;
+        }
+        .chat-send-btn {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: transparent;
+            color: #000;
+            border: none;
+            cursor: pointer;
+            margin-left: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+            box-sizing: border-box;
+            overflow: visible;
+            padding: 0;
+        }
+        .chat-send-btn:hover {
+            transform: scale(1.05);
+        }
+        .chat-send-btn::before {
+            content: '';
+            display: block;
+            width: 24px;
+            height: 24px;
+            margin: auto;
+            background-image: url("data:image/svg+xml,%3Csvg width='24px' height='24px' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg' color='%23666666' stroke-width='1.5'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.29106 3.3088C3.00745 3.18938 2.67967 3.25533 2.4643 3.47514C2.24894 3.69495 2.1897 4.02401 2.31488 4.30512L5.40752 11.25H13C13.4142 11.25 13.75 11.5858 13.75 12C13.75 12.4142 13.4142 12.75 13 12.75H5.40754L2.31488 19.6949C2.1897 19.976 2.24894 20.3051 2.4643 20.5249C2.67967 20.7447 3.00745 20.8107 3.29106 20.6912L22.2911 12.6913C22.5692 12.5742 22.75 12.3018 22.75 12C22.75 11.6983 22.5692 11.4259 22.2911 11.3088L3.29106 3.3088Z' fill='%23666666'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        .svg-demo {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test del Botón de Enviar Mensaje - Guiders SDK</h1>
+        
+        <div class="test-section">
+            <div class="test-title">✅ Alineamiento Mejorado del Input</div>
+            <p>Los tres elementos ahora están perfectamente alineados: botón adjunto, input text y botón enviar:</p>
+            <div class="chat-input-container">
+                <button class="chat-attachment-btn" aria-label="Adjuntar archivo"></button>
+                <input type="text" class="chat-input-field" placeholder="Escribe tu mensaje...">
+                <button class="chat-send-btn" aria-label="Enviar mensaje"></button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🎨 SVG Original</div>
+            <p>Este es el SVG que proporcionaste:</p>
+            <div class="svg-demo">
+                <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" color="#666666" stroke-width="1.5">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M3.29106 3.3088C3.00745 3.18938 2.67967 3.25533 2.4643 3.47514C2.24894 3.69495 2.1897 4.02401 2.31488 4.30512L5.40752 11.25H13C13.4142 11.25 13.75 11.5858 13.75 12C13.75 12.4142 13.4142 12.75 13 12.75H5.40754L2.31488 19.6949C2.1897 19.976 2.24894 20.3051 2.4643 20.5249C2.67967 20.7447 3.00745 20.8107 3.29106 20.6912L22.2911 12.6913C22.5692 12.5742 22.75 12.3018 22.75 12C22.75 11.6983 22.5692 11.4259 22.2911 11.3088L3.29106 3.3088Z" fill="#666666"></path>
+                </svg>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📋 Características Implementadas</div>
+            <ul>
+                <li>✅ Alineación perfecta con Flexbox</li>
+                <li>✅ Gap consistente entre elementos (8px)</li>
+                <li>✅ Botones de igual altura (40x40px)</li>
+                <li>✅ Input con flex: 1 (ocupa espacio disponible)</li>
+                <li>✅ flex-shrink: 0 en botones (no se encogen)</li>
+                <li>✅ Altura mínima consistente en input</li>
+                <li>✅ Colores unificados (#666666)</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🚀 Prueba el SDK Completo</div>
+            <p>Para probar el botón en el contexto completo del SDK:</p>
+            <ol>
+                <li>Abre la consola del navegador</li>
+                <li>Ejecuta: <code>window.guiders.showChat()</code></li>
+                <li>Observa el botón de enviar en el widget de chat</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Cargar el SDK -->
+    <script src="dist/index.js" data-api-key="demo-key"></script>
+    
+    <script>
+        // Test de funcionalidad del botón
+        document.querySelector('.chat-send-btn').addEventListener('click', function() {
+            const input = document.querySelector('.chat-input-field');
+            if (input.value.trim()) {
+                alert('✅ Mensaje enviado: ' + input.value);
+                input.value = '';
+            } else {
+                alert('⚠️ Escribe un mensaje primero');
+            }
+        });
+
+        // Permitir enviar con Enter
+        document.querySelector('.chat-input-field').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.querySelector('.chat-send-btn').click();
+            }
+        });
+
+        // Mostrar info del SDK cuando esté listo
+        setTimeout(() => {
+            if (window.guiders) {
+                console.log('🚀 Guiders SDK cargado correctamente');
+                console.log('💬 Para mostrar el chat: window.guiders.showChat()');
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

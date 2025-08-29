@@ -146,30 +146,49 @@ export function convertV2ToLegacy(chatDetailV2: ChatDetailV2): ChatDetail {
  * @returns Promesa con los detalles del chat en formato legacy
  */
 export async function fetchChatDetail(chatId: string): Promise<ChatDetail> {
-	try {
-		// Intentar primero con la API V2
-		const chatDetailV2 = await fetchChatDetailV2(chatId);
-		return convertV2ToLegacy(chatDetailV2);
-	} catch (error) {
-		console.warn('Error al obtener detalles del chat con API V2, intentando con API legacy:', error);
-		
-		// Fallback a la API legacy
-		const accessToken = localStorage.getItem('accessToken');
-		const endpoints = EndpointManager.getInstance();
-		const baseEndpoint = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
-		
-		const response = await fetch(`${baseEndpoint}/chats/${chatId}`, {
-			method: 'GET',
-			headers: {
-				'Authorization': `Bearer ${accessToken || ''}`,
-				'Content-Type': 'application/json'
+		try {
+			// Intentar primero con la API V2
+			const chatDetailV2 = await fetchChatDetailV2(chatId);
+			return convertV2ToLegacy(chatDetailV2);
+		} catch (error) {
+			console.warn('Error al obtener detalles del chat con API V2, intentando crear chat V2 por PUT:', error);
+			// Fallback: intentar crear el chat V2 por PUT (idempotente)
+			try {
+				// Aquí deberías construir el payload mínimo requerido según el endpoint
+				// Por simplicidad, se asume que visitorId y visitorInfo están disponibles en localStorage o contexto global
+				const visitorId = localStorage.getItem('visitorId');
+				const visitorName = localStorage.getItem('visitorName') || 'Visitante';
+				const visitorEmail = localStorage.getItem('visitorEmail') || 'no-email@example.com';
+				const availableCommercialIds = JSON.parse(localStorage.getItem('availableCommercialIds') || '[]');
+				const payload = {
+					visitorId,
+					visitorInfo: {
+						name: visitorName,
+						email: visitorEmail
+					},
+					availableCommercialIds
+				};
+				const { ChatV2Service } = await import('./chat-v2-service');
+				const chatV2Service = ChatV2Service.getInstance();
+				const chatV2 = await chatV2Service.createChat(chatId, payload);
+				return convertV2ToLegacy(chatV2 as any);
+			} catch (putError) {
+				console.warn('Error al crear chat V2 por PUT, intentando con API legacy:', putError);
+				// Fallback a la API legacy
+				const accessToken = localStorage.getItem('accessToken');
+				const endpoints = EndpointManager.getInstance();
+				const baseEndpoint = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
+				const response = await fetch(`${baseEndpoint}/chats/${chatId}`, {
+					method: 'GET',
+					headers: {
+						'Authorization': `Bearer ${accessToken || ''}`,
+						'Content-Type': 'application/json'
+					}
+				});
+				if (!response.ok) {
+					throw new Error(`Error al obtener detalles del chat (${response.status})`);
+				}
+				return response.json() as Promise<ChatDetail>;
 			}
-		});
-
-		if (!response.ok) {
-			throw new Error(`Error al obtener detalles del chat (${response.status})`);
 		}
-
-		return response.json() as Promise<ChatDetail>;
-	}
 }
