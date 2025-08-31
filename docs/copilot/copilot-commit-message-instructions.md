@@ -72,4 +72,6 @@ Si el diff solo contiene formatos o Prettier: usar `style(...)`.
 Si solo es ESLint autofix sin lógica: también `style(...)`.
 Si incluye actualización de versión + changelog: `chore(release): <versión>`.
 
+para saber que se esta usando esta guia, al final del mensaje añade la id `[commit-style-v1]`.
+
 Esta guía tiene prioridad sobre cualquier otra instrucción previa para mensajes de commit.
