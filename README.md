@@ -20,12 +20,105 @@ SDK para la integración del sistema de guías y chat en sitios web.
 1. [Licencia](#licencia)
 1. [📦 Flujo de Release / Sincronización Plugin WordPress](#-flujo-de-release--sincronización-plugin-wordpress)
 
-
 ## Instalación
+
+### Opción 1: NPM / Bundlers
 
 ```bash
 npm install guiders-pixel
 ```
+
+Importa luego en tu código (TypeScript / ES Modules):
+
+```javascript
+import { TrackingPixelSDK } from 'guiders-pixel';
+```
+
+### Opción 2: Script Tag Directo / CDN
+
+Incluye el bundle (local, CDN propio o distribuido por tu infraestructura) y pasa la API key vía atributo, query param o `window.GUIDERS_CONFIG`.
+
+Ejemplos:
+
+```html
+<!-- Método A: atributo data-api-key -->
+<script src="https://cdn.tu-dominio.com/guiders-sdk.js" data-api-key="YOUR_API_KEY"></script>
+
+<!-- Método B: query param apiKey (útil si se inyecta dinámicamente) -->
+<script src="https://cdn.tu-dominio.com/guiders-sdk.js?apiKey=YOUR_API_KEY"></script>
+
+<!-- Método C: configuración global antes de cargar el script -->
+<script>
+  window.GUIDERS_CONFIG = {
+    apiKey: 'YOUR_API_KEY',
+    endpoint: 'https://api.tu-backend.com',          // opcional
+    webSocketEndpoint: 'wss://api.tu-backend.com',   // opcional
+    heuristicDetection: { enabled: true },
+    sessionTracking: { enabled: true }
+  };
+</script>
+<script src="https://cdn.tu-dominio.com/guiders-sdk.js" defer></script>
+
+<!-- Activación opcional al cargar (si necesitas forzar heurística tras load diferido) -->
+<script>
+  window.addEventListener('guiders:ready', () => {
+    // El SDK expone window.guiders
+    window.guiders.enableAutomaticTracking();
+  });
+  // Fallback simple si no se emite el evento (versiones antiguas)
+  window.addEventListener('load', () => {
+    if (window.guiders && !window.guiders.__AUTO_ENABLED__) {
+      try { window.guiders.enableAutomaticTracking(); } catch(e) { console.warn('Guiders init fallback', e); }
+    }
+  });
+</script>
+```
+
+Carga asíncrona avanzada (lazy) manteniendo orden lógico:
+
+```html
+<script>
+  window.GUIDERS_CONFIG = { apiKey: 'YOUR_API_KEY', heuristicDetection: { enabled: true } };
+  (function(){
+    var s=document.createElement('script');
+    s.src='https://cdn.tu-dominio.com/guiders-sdk.js';
+    s.async=true; s.crossOrigin='anonymous';
+    s.onload=function(){
+      if (window.guiders) window.guiders.enableAutomaticTracking();
+    };
+    document.head.appendChild(s);
+  })();
+</script>
+```
+
+Notas:
+
+- Usa `defer` si el script está en `<head>` y no necesitas ejecución antes de `DOMContentLoaded`.
+- Con caché agresiva (WP Rocket / Cloudflare) el método C evita tener que tocar HTML cada rotación de clave.
+- No mezcles simultáneamente atributo y `window.GUIDERS_CONFIG` con API keys distintas.
+
+### Opción 3: Plugin WordPress (sin tocar código)
+
+Si tu sitio es WordPress instala el plugin incluido en este repo (`wordpress-plugin/`). El plugin:
+
+- Inserta automáticamente el script del SDK en el frontend
+- Expone `window.GUIDERS_CONFIG` con tu API Key y configuración
+- Permite activar/desactivar chat, tracking y heurística desde el panel
+- Evita duplicar inicializaciones (protección contra cachés / minificadores)
+
+Pasos rápidos (instalación manual desde este repositorio):
+
+1. Genera / usa el ZIP existente en `wordpress-plugin/guiders-wp-plugin-<version>.zip` (o ejecuta `npm run release:wp:publish` para crear uno nuevo).
+1. En tu admin WP: Plugins → Añadir nuevo → Subir plugin → Selecciona el ZIP → Instalar → Activar.
+1. Ve a Ajustes → Guiders SDK, pega tu API Key y habilita las características.
+
+Publicación en un entorno con acceso al sistema de archivos (sin ZIP):
+
+1. Copia la carpeta `wordpress-plugin/guiders-wp-plugin` dentro de `wp-content/plugins/`.
+1. Activa el plugin desde el listado de plugins.
+1. Configura tu API Key.
+
+Nota: Cuando uses el plugin NO necesitas añadir manualmente el `<script>`; sólo asegúrate de que el plugin esté activo y configurado.
 
 ## Uso básico
 
@@ -159,6 +252,7 @@ sdk.updateHeuristicConfig({
 ### Migración desde el sistema anterior
 
 **Antes (sistema data-track-event):**
+
 ```html
 <button data-track-event="add_to_cart" data-product-id="123">
   Añadir al carrito
@@ -166,6 +260,7 @@ sdk.updateHeuristicConfig({
 ```
 
 **Ahora (detección automática):**
+
 ```html
 <!-- ¡No necesitas atributos especiales! -->
 <button>Añadir al carrito</button>
@@ -340,6 +435,7 @@ También puedes usar la task de VS Code "Open Test Demo" que abre automáticamen
 ### Migración v1.x → v2.0
 
 1. **Método de activación (recomendado)**:
+
    ```javascript
    // Antes
    sdk.enableDOMTracking();
@@ -349,6 +445,7 @@ También puedes usar la task de VS Code "Open Test Demo" que abre automáticamen
    ```
 
 2. **Eliminación de atributos data-track-event** (opcional):
+
    ```html
    <!-- Antes -->
    <button data-track-event="add_to_cart">Añadir</button>
@@ -369,6 +466,7 @@ También puedes usar la task de VS Code "Open Test Demo" que abre automáticamen
 ### Detalles técnicos
 
 La solución implementa:
+
 1. Inicialización en dos fases: estructura del chat + contenido diferido
 2. Carga de mensajes solo cuando el chat se muestra por primera vez
 3. Eliminación del parpadeo visual durante la inicialización
