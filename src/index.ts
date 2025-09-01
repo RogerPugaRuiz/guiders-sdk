@@ -31,25 +31,53 @@ declare global {
 			[key: string]: any;
 		};
 		RocketLazyLoadScripts?: any;
+		__GUIDERS_INITIALIZING__?: boolean; // Guard interno
 	}
 }
 
 // Función de inicialización del SDK
+function normalizeEndpoint(url: string): string {
+	// Eliminar espacios y slashes duplicados al final
+	return url.replace(/\s+/g, '').replace(/\/+$/, '');
+}
+
+function resolveEndpoints(): { endpoint: string; webSocketEndpoint: string; isProd: boolean } {
+	const globalCfg: any = (typeof window !== 'undefined' && (window as any).GUIDERS_CONFIG) ? (window as any).GUIDERS_CONFIG : {};
+	const nodeEnv = (typeof process !== 'undefined' && (process as any).env) ? (process as any).env.NODE_ENV : undefined;
+	// Prioridad: config.environment > NODE_ENV > 'production'
+	const environment = (globalCfg.environment || nodeEnv || 'production') as string;
+	const isProd = environment === 'production';
+
+	// Permitir override explícito de endpoint y websocket desde GUIDERS_CONFIG
+	let endpoint = globalCfg.endpoint;
+	let webSocketEndpoint = globalCfg.webSocketEndpoint;
+
+	if (!endpoint) {
+		endpoint = isProd ? 'http://217.154.105.26/api' : 'http://localhost:3000';
+	}
+	if (!webSocketEndpoint) {
+		webSocketEndpoint = isProd ? 'ws://217.154.105.26' : 'ws://localhost:3000';
+	}
+
+	endpoint = normalizeEndpoint(endpoint);
+	webSocketEndpoint = normalizeEndpoint(webSocketEndpoint);
+	return { endpoint, webSocketEndpoint, isProd };
+}
+
 function initializeGuidersSDK() {
+	// Guard contra inicializaciones múltiples (race de timeouts / eventos)
+	if (window.guiders || window.__GUIDERS_INITIALIZING__) {
+		console.warn('[Guiders SDK] ❌ Inicialización ignorada: instancia existente o en progreso');
+		return;
+	}
+	window.__GUIDERS_INITIALIZING__ = true;
 	try {
 		const { apiKey } = getParams();
 		window.GUIDERS_API_KEY = apiKey;
 		window.TrackingPixelSDK = TrackingPixelSDK;
 
-		// Detectar entorno por variable de entorno NODE_ENV
-		console.log("Entorno de desarrollo:", process.env.NODE_ENV);
-		const isDev = process.env.NODE_ENV === 'development';
-		console.log("Entorno de desarrollo:", isDev);
-		// Producción actualizado: backend movido a IP pública
-		const endpoint = isDev ? "http://localhost:3000" : "http://217.154.105.26/api/"; // Nota: incluye trailing slash según solicitud
-		// Ajuste: se unifica también el endpoint de WebSocket a la IP pública en producción
-		// Si en el futuro se dispone de certificado TLS para el dominio/IP se puede volver a wss
-		const webSocketEndpoint = isDev ? "ws://localhost:3000" : "ws://217.154.105.26";
+		const { endpoint, webSocketEndpoint, isProd } = resolveEndpoints();
+		console.log('[Guiders SDK] 🌐 Endpoints resueltos:', { endpoint, webSocketEndpoint, isProd });
 
 		const sdkOptions: any = {
 			apiKey,
@@ -74,11 +102,10 @@ function initializeGuidersSDK() {
 					trackBackgroundTime: false
 				}
 			}
+			,
+			endpoint,
+			webSocketEndpoint
 		};
-		if (!isDev) {
-			sdkOptions.endpoint = endpoint;
-			sdkOptions.webSocketEndpoint = webSocketEndpoint;
-		}
 
 		// Detectar bots antes de inicializar el SDK
 		const detector = new BotDetector();
@@ -86,6 +113,7 @@ function initializeGuidersSDK() {
 			if (result.isBot) {
 				console.log("Bot detectado. Probabilidad:", result.probability);
 				console.log("Detalles:", result.details);
+				window.__GUIDERS_INITIALIZING__ = false;
 				return; // No inicializar el SDK
 			}
 
@@ -103,10 +131,12 @@ function initializeGuidersSDK() {
 				await window.guiders.init();
 				// Use new automatic tracking method
 				window.guiders.enableAutomaticTracking();
+				window.__GUIDERS_INITIALIZING__ = false;
 			})();
 		});
 	} catch (error) {
 		console.error("Error inicializando Guiders SDK:", error);
+		window.__GUIDERS_INITIALIZING__ = false;
 	}
 }
 
