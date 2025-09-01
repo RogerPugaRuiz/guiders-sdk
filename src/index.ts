@@ -4,6 +4,7 @@ import { TokenManager } from "./core/token-manager";
 import { TrackingPixelSDK } from "./core/tracking-pixel-SDK";
 import { UnreadMessagesService } from "./services/unread-messages-service";
 import { BotDetector } from "./core/bot-detector";
+import { resolveDefaultEndpoints } from "./core/endpoint-resolver";
 
 export * from "./core/tracking-pixel-SDK";
 export * from "./core/token-manager";
@@ -41,28 +42,7 @@ function normalizeEndpoint(url: string): string {
 	return url.replace(/\s+/g, '').replace(/\/+$/, '');
 }
 
-function resolveEndpoints(): { endpoint: string; webSocketEndpoint: string; isProd: boolean } {
-	const globalCfg: any = (typeof window !== 'undefined' && (window as any).GUIDERS_CONFIG) ? (window as any).GUIDERS_CONFIG : {};
-	const nodeEnv = (typeof process !== 'undefined' && (process as any).env) ? (process as any).env.NODE_ENV : undefined;
-	// Prioridad: config.environment > NODE_ENV > 'production'
-	const environment = (globalCfg.environment || nodeEnv || 'production') as string;
-	const isProd = environment === 'production';
-
-	// Permitir override explícito de endpoint y websocket desde GUIDERS_CONFIG
-	let endpoint = globalCfg.endpoint;
-	let webSocketEndpoint = globalCfg.webSocketEndpoint;
-
-	if (!endpoint) {
-		endpoint = isProd ? 'http://217.154.105.26/api' : 'http://localhost:3000';
-	}
-	if (!webSocketEndpoint) {
-		webSocketEndpoint = isProd ? 'ws://217.154.105.26' : 'ws://localhost:3000';
-	}
-
-	endpoint = normalizeEndpoint(endpoint);
-	webSocketEndpoint = normalizeEndpoint(webSocketEndpoint);
-	return { endpoint, webSocketEndpoint, isProd };
-}
+const resolveEndpoints = resolveDefaultEndpoints;
 
 function initializeGuidersSDK() {
 	// Guard contra inicializaciones múltiples (race de timeouts / eventos)
@@ -142,67 +122,73 @@ function initializeGuidersSDK() {
 
 // Si estamos en un entorno de navegador, asignamos los módulos al objeto global.
 if (typeof window !== "undefined") {
-	// Añadir delay inicial para WP Rocket - esto permite que WP Rocket procese el script correctamente
-	setTimeout(() => {
-		if (!window.guiders) {
-			// Configurar listeners para WP Rocket ANTES de que el DOM esté listo
-			// Esto es crucial porque WP Rocket puede activar scripts en cualquier momento
-			const setupWPRocketListeners = () => {
-				// Listener para cuando WP Rocket activa un script
-				document.addEventListener('rocket-script-loaded', (event) => {
-					// Verificar si el script activado es el nuestro
-					const target = event.target as HTMLScriptElement;
-					if (!window.guiders && target && target.src && 
-						(target.src.includes('guiders') || target.src.includes('apiKey='))) {
-						setTimeout(initializeGuidersSDK, 10);
-					}
-				});
+	// Permitir que integraciones (ej. plugin WP) desactiven el auto-init estableciendo GUIDERS_CONFIG.preventAutoInit = true
+	const preventAutoInit = (window as any).GUIDERS_CONFIG && (window as any).GUIDERS_CONFIG.preventAutoInit;
+	if (preventAutoInit) {
+		console.log('[Guiders SDK] ⏸️ Auto-init desactivado por configuración (preventAutoInit)');
+	} else {
+		// Añadir delay inicial para WP Rocket - esto permite que WP Rocket procese el script correctamente
+		setTimeout(() => {
+			if (!window.guiders) {
+				// Configurar listeners para WP Rocket ANTES de que el DOM esté listo
+				// Esto es crucial porque WP Rocket puede activar scripts en cualquier momento
+				const setupWPRocketListeners = () => {
+					// Listener para cuando WP Rocket activa un script
+					document.addEventListener('rocket-script-loaded', (event) => {
+						// Verificar si el script activado es el nuestro
+						const target = event.target as HTMLScriptElement;
+						if (!window.guiders && target && target.src && 
+							(target.src.includes('guiders') || target.src.includes('apiKey='))) {
+							setTimeout(initializeGuidersSDK, 10);
+						}
+					});
 
-				// Listener para cuando todos los scripts lazy de WP Rocket se han cargado
-				document.addEventListener('rocket-loaded', () => {
-					if (!window.guiders) {
-						setTimeout(initializeGuidersSDK, 10);
-					}
-				});
-			};
+					// Listener para cuando todos los scripts lazy de WP Rocket se han cargado
+					document.addEventListener('rocket-loaded', () => {
+						if (!window.guiders) {
+							setTimeout(initializeGuidersSDK, 10);
+						}
+					});
+				};
 
-			// Configurar listeners inmediatamente
-			if (document.readyState === 'loading') {
-				document.addEventListener('DOMContentLoaded', setupWPRocketListeners);
-			} else {
-				setupWPRocketListeners();
+				// Configurar listeners inmediatamente
+				if (document.readyState === 'loading') {
+					document.addEventListener('DOMContentLoaded', setupWPRocketListeners);
+				} else {
+					setupWPRocketListeners();
+				}
+
+				// Verificar si el SDK ya fue inicializado para evitar múltiples inicializaciones
+				// Caso 1: Inicialización inmediata (script normal)
+				if (document.readyState === 'loading') {
+					// Si el documento está cargando, esperar a que esté listo
+					document.addEventListener('DOMContentLoaded', initializeGuidersSDK);
+				} else {
+					// Si el documento ya está listo, inicializar inmediatamente
+					initializeGuidersSDK();
+				}
+
+				// Caso 2: Fallback adicional para WP Rocket
+				// Algunos plugins pueden usar un evento diferente o tener delays
+				if (typeof window.RocketLazyLoadScripts !== 'undefined' || 
+					document.querySelector('script[type="rocketlazyloadscript"]')) {
+					// WP Rocket está presente, intentar inicializar después de un breve delay
+					setTimeout(() => {
+						if (!window.guiders) {
+							initializeGuidersSDK();
+						}
+					}, 100);
+					
+					// Fallback adicional para casos extremos
+					setTimeout(() => {
+						if (!window.guiders) {
+							initializeGuidersSDK();
+						}
+					}, 500);
+				}
 			}
-
-			// Verificar si el SDK ya fue inicializado para evitar múltiples inicializaciones
-			// Caso 1: Inicialización inmediata (script normal)
-			if (document.readyState === 'loading') {
-				// Si el documento está cargando, esperar a que esté listo
-				document.addEventListener('DOMContentLoaded', initializeGuidersSDK);
-			} else {
-				// Si el documento ya está listo, inicializar inmediatamente
-				initializeGuidersSDK();
-			}
-
-			// Caso 2: Fallback adicional para WP Rocket
-			// Algunos plugins pueden usar un evento diferente o tener delays
-			if (typeof window.RocketLazyLoadScripts !== 'undefined' || 
-				document.querySelector('script[type="rocketlazyloadscript"]')) {
-				// WP Rocket está presente, intentar inicializar después de un breve delay
-				setTimeout(() => {
-					if (!window.guiders) {
-						initializeGuidersSDK();
-					}
-				}, 100);
-				
-				// Fallback adicional para casos extremos
-				setTimeout(() => {
-					if (!window.guiders) {
-						initializeGuidersSDK();
-					}
-				}, 500);
-			}
-		}
-	}, 500); // Delay inicial para WP Rocket - mismo que funcionó manual
+		}, 500); // Delay inicial para WP Rocket - mismo que funcionó manual
+	}
 }
 
 function findGuidersScript(): HTMLScriptElement | null {

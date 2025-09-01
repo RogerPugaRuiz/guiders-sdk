@@ -105,11 +105,14 @@ class GuidersPublic {
             $config['endpoint'] = 'http://localhost:3000';
             $config['webSocketEndpoint'] = 'ws://localhost:3000';
         } else {
-            // Endpoints producción actualizados (IP pública unificada)
-            $config['endpoint'] = 'http://217.154.105.26/api/';
-            // Nota: usando ws:// por ahora; cambiar a wss://217.154.105.26 si hay TLS configurado en esa IP
+            // Endpoints producción actualizados (IP pública unificada) sin slash final para evitar // en concatenaciones
+            $config['endpoint'] = 'http://217.154.105.26/api';
+            // Nota: usando ws:// por ahora; cambiar a wss://217.154.105.26 si hay TLS configurado
             $config['webSocketEndpoint'] = 'ws://217.154.105.26';
         }
+
+        // Evitar auto-init interno del bundle (lo controlamos desde el plugin WP)
+        $config['preventAutoInit'] = true;
         
         return $config;
     }
@@ -200,10 +203,12 @@ class GuidersPublic {
                         sessionTracking: config.sessionTracking
                     };
                     
-                    // Add environment-specific options
-                    if (config.environment === 'development') {
-                        sdkOptions.endpoint = config.endpoint;
-                        sdkOptions.webSocketEndpoint = config.webSocketEndpoint;
+                    // Asignar siempre endpoints explícitos (evita fallback a localhost y doble init)
+                    if (config.endpoint) {
+                        sdkOptions.endpoint = (config.endpoint + '').replace(/\/+$/,'');
+                    }
+                    if (config.webSocketEndpoint) {
+                        sdkOptions.webSocketEndpoint = (config.webSocketEndpoint + '').replace(/\/+$/,'');
                     }
                     
                     // Initialize SDK

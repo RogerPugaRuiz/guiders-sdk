@@ -33,8 +33,10 @@ export class ChatV2Service {
 	 */
 	private getBaseUrl(): string {
 		const endpoints = EndpointManager.getInstance();
-		const baseEndpoint = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
-		return `${baseEndpoint}/api/v2/chats`;
+		const baseEndpoint = (localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint());
+		// Asegurar que /api no se duplique
+		const apiRoot = baseEndpoint.endsWith('/api') ? baseEndpoint : `${baseEndpoint}/api`;
+		return `${apiRoot}/v2/chats`;
 	}
 
 	/**

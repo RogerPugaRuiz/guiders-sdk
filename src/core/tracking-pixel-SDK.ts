@@ -13,6 +13,7 @@ import { MetadataInjectionStage } from "../pipeline/stages/metadata-stage";
 import { URLInjectionStage } from "../pipeline/stages/url-injection-stage";
 import { SessionInjectionStage } from "../pipeline/stages/session-injection-stage";
 import { ChatUI } from "../presentation/chat";
+import { resolveDefaultEndpoints } from "./endpoint-resolver";
 import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
 import { fetchChatDetail, fetchChatDetailV2, ChatDetail, ChatDetailV2, ChatParticipant } from "../services/chat-detail-service";
@@ -65,9 +66,17 @@ export class EndpointManager {
 		this.webSocketEndpoint = webSocketEndpoint;
 	}
 
-	public static getInstance(endpoint: string = "http://localhost:3000", webSocketEndpoint: string = "ws://localhost:3000"): EndpointManager {
+	public static getInstance(endpoint?: string, webSocketEndpoint?: string): EndpointManager {
 		if (!EndpointManager.instance) {
-			EndpointManager.instance = new EndpointManager(endpoint, webSocketEndpoint);
+			const defaults = resolveDefaultEndpoints();
+			EndpointManager.instance = new EndpointManager(
+				endpoint || defaults.endpoint,
+				webSocketEndpoint || defaults.webSocketEndpoint
+			);
+		} else if (endpoint || webSocketEndpoint) {
+			// Permite actualizar endpoints explícitamente si se pasan ahora
+			if (endpoint) EndpointManager.instance.endpoint = endpoint;
+			if (webSocketEndpoint) EndpointManager.instance.webSocketEndpoint = webSocketEndpoint;
 		}
 		return EndpointManager.instance;
 	}
@@ -121,8 +130,9 @@ export class TrackingPixelSDK {
 	private heuristicEnabled: boolean;
 
 	constructor(options: SDKOptions) {
-		const endpoint = options.endpoint || "http://localhost:3000";
-		const webSocketEndpoint = options.webSocketEndpoint || "ws://localhost:3000";
+		const defaults = resolveDefaultEndpoints();
+		const endpoint = options.endpoint || defaults.endpoint;
+		const webSocketEndpoint = options.webSocketEndpoint || defaults.webSocketEndpoint;
 		EndpointManager.setInstance(endpoint, webSocketEndpoint);
 
 		this.endpoint = endpoint;
