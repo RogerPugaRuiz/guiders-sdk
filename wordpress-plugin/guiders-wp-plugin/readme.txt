@@ -150,6 +150,13 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 
 == Changelog ==
 
+= 1.0.4-alpha.1 =
+* Pre-release: validación de inicialización única del SDK para evitar múltiples health checks a endpoints distintos.
+* Fix: normalización de endpoint y eliminación de doble slash en `/health`.
+* Mejora: resolución unificada de `endpoint`/`webSocketEndpoint` basada en `GUIDERS_CONFIG.environment` o `NODE_ENV`.
+* Interno: guard `__GUIDERS_INITIALIZING__` para prevenir condiciones de carrera con WP Rocket.
+* Nota: esta versión es para pruebas internas antes de 1.0.4 estable.
+
 = 1.0.4 =
 * Fix: Exposición correcta de configuración global como `window.GUIDERS_CONFIG` (antes `guidersConfig`) para que el SDK detecte `apiKey` sin requerir `data-api-key` en el script.
 * Mejora: Fallback retrocompatible a `window.guidersConfig` en inicialización (evita roturas en instalaciones cacheadas).
