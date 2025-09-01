@@ -178,8 +178,8 @@ class GuidersPublic {
      */
     public function addSDKScript() {
         ?>
-        <script type="text/javascript">
-        (function() {
+    <script type="text/javascript">
+    (function() {
             // Wait for DOM to be ready
             function initGuiders() {
                 if (typeof window.TrackingPixelSDK === 'undefined') {
@@ -240,6 +240,22 @@ class GuidersPublic {
                         }).catch(function(error) {
                             console.error('Failed to initialize Guiders SDK:', error);
                         });
+                    }
+
+                    // Exponer inicializador manual público (idempotente)
+                    if (typeof window.initGuiders === 'undefined') {
+                        window.initGuiders = function(force) {
+                            if (window.guiders && !force) {
+                                console.warn('[Guiders WP] initGuiders() ignorado: instancia existente. Usa force=true para reinicializar.');
+                                return window.guiders;
+                            }
+                            if (force && window.guiders) {
+                                try { if (window.guiders.cleanup) { window.guiders.cleanup(); } } catch(e) { /* noop */ }
+                                window.guiders = undefined;
+                            }
+                            doInit();
+                            return window.guiders;
+                        };
                     }
 
                     switch(config.autoInitMode) {
