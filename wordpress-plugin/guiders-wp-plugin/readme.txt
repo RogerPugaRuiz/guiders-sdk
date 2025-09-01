@@ -150,6 +150,9 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 
 == Changelog ==
 
+= 1.0.4-alpha.5 =
+* Bump de versión preliminar para preparar ajustes sobre auto-inicialización flexible (próximo cambio: permitir que el modo seleccionado controle `preventAutoInit` sin bloquear inicialización cuando no es manual).
+
 = 1.0.4-alpha.4 =
 * Nueva API global: `window.initGuiders(force?: boolean)` para inicialización manual o reinicialización forzada (modo manual o debugging avanzado).
 * Documentación separada de alpha.3 para aislar la nueva capacidad.

@@ -111,15 +111,16 @@ class GuidersPublic {
             $config['webSocketEndpoint'] = 'ws://217.154.105.26';
         }
 
-    // Auto-init control: sólo prevenimos si el modo es manual
+    // Auto-init control configurable:
+    //  - immediate/domready/delayed: dejamos que el bundle realice su auto init (no bloqueamos) o usamos nuestro script si se desea lógica adicional.
+    //  - manual: bloqueamos auto-init interno del bundle y exponemos window.initGuiders() para que el usuario decida cuándo iniciar.
     $settings = get_option('guiders_wp_plugin_settings', array());
     $mode = isset($settings['auto_init_mode']) ? $settings['auto_init_mode'] : 'domready';
     $delay = isset($settings['auto_init_delay']) ? intval($settings['auto_init_delay']) : 500;
     $config['autoInitMode'] = $mode;
     $config['autoInitDelay'] = $delay;
-    // Forzamos preventAutoInit siempre para que el control de inicio lo tenga el plugin y evitar doble init.
-    // El switch JS decidirá si inicia (immediate/domready/delayed) o no (manual).
-    $config['preventAutoInit'] = true;
+    // Solo establecemos preventAutoInit=true cuando el modo es manual; esto evita confundir al usuario viendo siempre el log de auto-init desactivado.
+    $config['preventAutoInit'] = ($mode === 'manual');
         
         return $config;
     }
