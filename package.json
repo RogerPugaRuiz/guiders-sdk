@@ -12,7 +12,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "webpack --mode=production",
-    "start": "webpack serve --mode=development"
+    "start": "webpack serve --mode=development",
+    "release:wp": "bash wordpress-plugin/build-plugin.sh",
+  "release:wp:skip": "bash wordpress-plugin/build-plugin.sh --skip-build",
+  "release:wp:publish": "bash wordpress-plugin/release-wp-publish.sh"
   },
   "keywords": [
     "chat",

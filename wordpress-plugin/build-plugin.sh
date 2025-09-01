@@ -1,65 +1,85 @@
 #!/bin/bash
 
 # Script para crear un ZIP distribuible del plugin de WordPress
-# Este script debe ejecutarse desde el directorio raíz del proyecto guiders-sdk
+# Uso: ./build-plugin.sh [--skip-build]
+# Debe ejecutarse desde el directorio raíz del proyecto guiders-sdk
+
+set -euo pipefail
+
+SKIP_BUILD=false
+if [[ "${1:-}" == "--skip-build" ]]; then
+    SKIP_BUILD=true
+fi
 
 echo "🚀 Creando plugin de WordPress para Guiders SDK..."
 
-# Verificar que estamos en el directorio correcto
 if [ ! -f "package.json" ] || [ ! -d "src" ]; then
     echo "❌ Error: Este script debe ejecutarse desde el directorio raíz de guiders-sdk"
     exit 1
 fi
 
-# Compilar el SDK si no existe
-if [ ! -f "dist/index.js" ]; then
-    echo "📦 Compilando SDK..."
-    npm install
-    npm run build
-fi
-
-# Verificar que la compilación fue exitosa
-if [ ! -f "dist/index.js" ]; then
-    echo "❌ Error: No se pudo compilar el SDK"
+PLUGIN_MAIN="wordpress-plugin/guiders-wp-plugin/guiders-wp-plugin.php"
+if [ ! -f "$PLUGIN_MAIN" ]; then
+    echo "❌ No se encuentra $PLUGIN_MAIN"
     exit 1
 fi
 
-# Copiar el SDK compilado al plugin
+# Obtener versión desde la cabecera del plugin
+PLUGIN_VERSION=$(grep -i -m1 "^ \* Version:" "$PLUGIN_MAIN" | sed -E 's/^ \* Version:[[:space:]]*//I')
+if [[ -z "$PLUGIN_VERSION" ]]; then
+    echo "❌ No se pudo extraer la versión del plugin"
+    exit 1
+fi
+
+echo "ℹ️  Versión detectada: $PLUGIN_VERSION"
+
+if ! $SKIP_BUILD; then
+    echo "📦 Compilando SDK (npm run build)..."
+    npm run build
+else
+    echo "⏭  Omitiendo build (flag --skip-build)"
+fi
+
+if [ ! -f "dist/index.js" ]; then
+    echo "❌ Error: No existe dist/index.js tras build"
+    exit 1
+fi
+
 echo "📋 Copiando SDK al plugin..."
 cp dist/index.js wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js
 
-# Crear directorio de distribución
 DIST_DIR="wordpress-plugin/dist"
 mkdir -p "$DIST_DIR"
 
-# Copiar archivos del plugin
-echo "📁 Preparando archivos del plugin..."
-cp -r wordpress-plugin/guiders-wp-plugin "$DIST_DIR/"
+WORK_DIR="$DIST_DIR/guiders-wp-plugin"
+rm -rf "$WORK_DIR"
+cp -r wordpress-plugin/guiders-wp-plugin "$WORK_DIR"
+rm -f "$WORK_DIR/.gitignore"
 
-# Remover archivos innecesarios del plugin
-rm -f "$DIST_DIR/guiders-wp-plugin/.gitignore"
+ZIP_NAME="guiders-wp-plugin-$PLUGIN_VERSION.zip"
+ZIP_PATH="wordpress-plugin/$ZIP_NAME"
 
-# Crear archivo ZIP
-PLUGIN_ZIP="$DIST_DIR/guiders-wp-plugin.zip"
-echo "🗜️  Creando archivo ZIP..."
-
+echo "🗜️  Generando ZIP: $ZIP_PATH"
 cd "$DIST_DIR"
-zip -r "guiders-wp-plugin.zip" "guiders-wp-plugin/" -x "*.DS_Store*" "*.git*"
+zip -r "$ZIP_NAME" "guiders-wp-plugin/" -x "*.DS_Store*" "*.git*" > /dev/null
 cd - > /dev/null
 
-# Mostrar información del archivo creado
-echo "✅ Plugin creado exitosamente:"
-echo "   📁 Ubicación: $PLUGIN_ZIP"
-echo "   📏 Tamaño: $(du -h "$PLUGIN_ZIP" | cut -f1)"
-echo ""
-echo "📋 Instrucciones de instalación:"
-echo "   1. Ve a tu WordPress admin > Plugins > Añadir nuevo > Subir plugin"
-echo "   2. Sube el archivo: $PLUGIN_ZIP"
-echo "   3. Activa el plugin"
-echo "   4. Ve a Configuración > Guiders SDK para configurar"
-echo ""
-echo "🔧 Para instalación manual:"
-echo "   1. Extrae la carpeta 'guiders-wp-plugin' en /wp-content/plugins/"
-echo "   2. Activa el plugin desde el admin de WordPress"
-echo ""
-echo "🎉 ¡Plugin listo para distribución!"
+# Mover zip a carpeta wordpress-plugin raíz para fácil acceso
+mv -f "$DIST_DIR/$ZIP_NAME" "wordpress-plugin/" || true
+
+echo "✅ Plugin creado exitosamente"
+echo "   📁 $ZIP_PATH"
+echo "   📏 Tamaño: $(du -h "$ZIP_PATH" | cut -f1)"
+echo
+echo "📋 Instalación en WordPress:"
+echo "   1. Plugins → Añadir nuevo → Subir plugin"
+echo "   2. Selecciona $ZIP_NAME"
+echo "   3. Activar"
+echo "   4. Configurar API Key en Configuración → Guiders SDK"
+echo
+echo "🧪 Verificación rápida tras activar:"
+echo "   - Ver consola sin errores '❌' del SDK"
+echo "   - Comprobar carga de guiders-sdk.js en Network"
+echo
+echo "💡 Tip: Usa --skip-build si sólo regeneras el zip tras editar metadatos"
+echo "🎉 Listo"
