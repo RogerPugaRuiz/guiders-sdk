@@ -9,7 +9,7 @@ Objetivo: evolucionar un SDK de tracking + chat tiempo real (TypeScript, bundle 
 - `types/`: reutilizar tipos; agregar nuevos exportándolos en `types/index.ts` y evitando duplicados.
 
 ### Patrones Clave
-1. Descubrimiento de apiKey: script `data-api-key` → query `?apiKey=` → `window.GUIDERS_CONFIG`. Cualquier refactor preserva los 3. Detectar localhost para endpoints dev (no hardcode repetido: factorizar si se añaden más dominios).
+1. Descubrimiento de apiKey: script `data-api-key` → query `?apiKey=` → `window.GUIDERS_CONFIG`. Cualquier refactor preserva los 3. Endpoints ahora se resuelven centralmente en `core/endpoint-resolver.ts` (orden: `window.GUIDERS_CONFIG` > env (`GUIDERS_SDK_ENDPOINT`, `GUIDERS_SDK_WS_ENDPOINT`, variantes `VITE_`) > fallback prod/dev). No hardcodear `localhost:3000` / IPs directamente en servicios: usar `EndpointManager.getInstance().getEndpoint()` o `resolveDefaultEndpoints()`. El plugin WP pasa `preventAutoInit` para evitar doble inicialización.
 2. Heurística: usar `enableAutomaticTracking()` (v2). Nuevas reglas en `heuristic-element-detector.ts`; runtime tuning con `updateHeuristicConfig()` / `setHeuristicEnabled()`. No exigir `data-track-event` salvo fallback.
 3. Bot gating: ejecutar `BotDetector` antes de instanciar UI o abrir sockets. Early exit si `isBot` sin lanzar excepciones (log prefijado ❌).
 4. Sesión: `session-tracking-manager.ts` evita `session_end` en refresh. Verificar cambios con `examples/quick-test.html` tras modificar heartbeat/inactividad.
@@ -76,6 +76,9 @@ console.log({
   heuristic: window.guiders.heuristicEnabled
 });
 new BotDetector().detect().then(r=>console.log(r));
+// Consultar endpoints efectivos
+import { resolveDefaultEndpoints } from '@/core/endpoint-resolver';
+console.log(resolveDefaultEndpoints());
 ```
 
 Actualiza este archivo si: cambias orden del pipeline, añades Stage global, agregas eventos WebSocket nuevos (definir en `websocket-service.ts`), o amplías API pública.
