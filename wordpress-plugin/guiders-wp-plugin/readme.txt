@@ -150,6 +150,12 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 
 == Changelog ==
 
+= 1.0.4-alpha.6 =
+* Cambio endpoints producción a dominio `https://guiders.es` y WebSocket `wss://guiders.es` (elimina mixed-content y dependencia de IP pública).
+* Limpieza: retirada de hardcodes IP en SDK y plugin.
+* Preparación para release estable 1.0.4 con dominio canonical.
+* Documentación: actualizado default `endpoint` en guías PIXEL_EN/ES.
+
 = 1.0.4-alpha.5 =
 * Bump de versión preliminar para preparar ajustes sobre auto-inicialización flexible (próximo cambio: permitir que el modo seleccionado controle `preventAutoInit` sin bloquear inicialización cuando no es manual).
 
