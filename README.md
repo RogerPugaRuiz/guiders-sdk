@@ -2,6 +2,25 @@
 
 SDK para la integración del sistema de guías y chat en sitios web.
 
+## Índice
+
+1. [Instalación](#instalación)
+1. [Uso básico](#uso-básico)
+1. [Características](#características)
+1. [🎯 Detección Heurística Inteligente (Nuevo)](#-detección-heurística-inteligente-nuevo)
+1. [Chat en vivo](#chat-en-vivo)
+1. [API Chat V2 (Nuevo)](#api-chat-v2-nuevo)
+1. [Detección de bots](#detección-de-bots)
+1. [Cambios recientes](#cambios-recientes)
+1. [Ejemplos / Demos](#ejemplos--demos)
+1. [v2.0.0 - Detección Heurística Inteligente (BREAKING CHANGES)](#v200---detección-heurística-inteligente-breaking-changes)
+1. [Migración v1.x → v2.0](#migración-v1x--v20)
+1. [v1.1.0 - Mejoras en la inicialización del chat](#v110---mejoras-en-la-inicialización-del-chat)
+1. [Detalles técnicos](#detalles-técnicos)
+1. [Licencia](#licencia)
+1. [📦 Flujo de Release / Sincronización Plugin WordPress](#-flujo-de-release--sincronización-plugin-wordpress)
+
+
 ## Instalación
 
 ```bash
@@ -28,6 +47,12 @@ O bien, pasando la API key como parámetro:
 - Chat en vivo con inicialización optimizada
 - Notificaciones
 - Tracking DOM
+- **API Chat V2** con paginación por cursor, filtros avanzados y métricas
+- **Fallback transparente a API v1** (sin branching en tu código)
+- **ChatV2Service** para operaciones avanzadas (asignar, métricas, cola, response time)
+- **Tracking de sesión robusto** (evita falsos `session_end` en refresh, heartbeat configurable)
+- **Toggles runtime** para heurística (`updateHeuristicConfig`, `setHeuristicEnabled`)
+- **Workflow de release WordPress** automatizable (scripts y GitHub Actions)
 
 ## 🎯 Detección Heurística Inteligente (Nuevo)
 
@@ -152,7 +177,7 @@ Visita la página `/heuristic-demo` en la aplicación demo para ver la detecció
 
 ## Chat en vivo
 
-El chat utiliza un sistema de inicialización lazy que garantiza que permanezca completamente oculto hasta que el usuario haga clic en el botón toggle. 
+El chat utiliza un sistema de inicialización lazy que garantiza que permanezca completamente oculto hasta que el usuario haga clic en el botón toggle.
 
 ### Funcionamiento de la inicialización
 
@@ -166,6 +191,57 @@ El chat utiliza un sistema de inicialización lazy que garantiza que permanezca 
 // El chat se inicializa automáticamente y permanece oculto
 // hasta que el usuario interactúe con el botón toggle
 ```
+
+## API Chat V2 (Nuevo)
+
+La versión 2 incorpora endpoints optimizados (`/api/v2/chats`) con:
+
+- Paginación por cursor
+- Filtros avanzados (estado, prioridad, departamento, etc.)
+- Métricas y estadísticas integradas (tiempos de respuesta, rendimiento comercial)
+- Operaciones idempotentes (creación por PUT `{chatId}`)
+- Cola de chats pendientes y asignación directa a comerciales
+- Cierre de chats y métricas agregadas
+
+### Uso rápido `ChatV2Service`
+
+```javascript
+import { ChatV2Service } from 'guiders-pixel';
+const chatService = ChatV2Service.getInstance();
+
+// Obtener un chat
+const chat = await chatService.getChatById('chat-id');
+
+// Lista de chats de visitante (cursor pagination)
+const { chats, nextCursor, hasMore } = await chatService.getVisitorChats('visitor-123');
+
+// Lista de chats de un comercial con filtros
+const result = await chatService.getCommercialChats('commercial-999', null, 20, {
+  status: ['ACTIVE','PENDING'],
+  priority: ['HIGH','URGENT']
+});
+
+// Métricas y tiempos de respuesta
+const metrics = await chatService.getCommercialMetrics('commercial-999');
+const stats = await chatService.getResponseTimeStats();
+
+// Asignar y cerrar
+await chatService.assignChat('chat-id','commercial-999');
+await chatService.closeChat('chat-id');
+```
+
+### Fallback Automático
+
+Si la API v2 no está disponible el SDK usa silenciosamente la API v1 adaptando formatos (no necesitas condicionales). Para detectar disponibilidad:
+
+```javascript
+try { await chatService.getChatById('chat-id'); console.log('API v2 OK'); }
+catch { console.log('Usando fallback v1'); }
+```
+
+### Migración y Detalles Ampliados
+
+Consulta `MIGRATION_GUIDE_V2.md` y `README_V2.md` para una explicación profunda de tipos, rendimiento y roadmap de migración gradual.
 
 ## Detección de bots
 
@@ -211,6 +287,21 @@ detector.detect().then(result => {
 ```
 
 ## Cambios recientes
+
+### Novedades Clave (últimas iteraciones)
+
+- 🚀 **API Chat V2**: Endpoints `/api/v2/chats` (cursor, filtros, métricas, asignación, cola, tiempos de respuesta)
+- 🔄 **Fallback transparente**: Intento v2 → adaptación v1 sin branching en UI
+- 🛠 **ChatV2Service**: Nuevo servicio centralizado para operaciones avanzadas de chat
+- 📊 **Métricas y estadísticas**: `getCommercialMetrics`, `getResponseTimeStats`
+- ✅ **Tracking de sesión robusto**: Previene `session_end` en refresh / navegación interna (ver demo `examples/quick-test.html`)
+- 🎯 **Toggles heurísticos runtime**: `updateHeuristicConfig()` y `setHeuristicEnabled()` para tuning dinámico
+- ♻️ **Creación idempotente de chats**: `createChat(chatId, payload)` por PUT
+- 🧪 **Modo desarrollo heurístico**: Visualización opcional de elementos detectados (solo dev)
+- 📦 **Flujo release plugin WordPress**: Scripts y Actions alineados con nueva guía de publicación
+- 🧱 **Documentación de migración**: `MIGRATION_GUIDE_V2.md` y `README_V2.md` añadidos
+
+> Para un changelog detallado consulta la sección v2 más abajo o el archivo de migración.
 
 ## Ejemplos / Demos
 
