@@ -150,6 +150,10 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 
 == Changelog ==
 
+= 1.0.4-alpha.4 =
+* Nueva API global: `window.initGuiders(force?: boolean)` para inicialización manual o reinicialización forzada (modo manual o debugging avanzado).
+* Documentación separada de alpha.3 para aislar la nueva capacidad.
+
 = 1.0.4-alpha.3 =
 * Nueva configuración: modos de auto-inicialización (immediate, domready, delayed, manual).
 * Añadido delay configurable (0-60000 ms) para modo delayed.
