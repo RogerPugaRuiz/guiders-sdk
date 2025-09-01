@@ -83,6 +83,30 @@ Actualiza este archivo si: cambias orden del pipeline, añades Stage global, agr
 ¿Sección confusa o faltante? Pide aclaración concreta y se iterará.
 
 ---
+### Workflow Release Plugin WordPress (sincronizar SDK → plugin)
+1. Bump versión plugin:
+  - Editar cabecera y constante en `wordpress-plugin/guiders-wp-plugin/guiders-wp-plugin.php`.
+  - Actualizar `Stable tag` + nuevo changelog arriba en `wordpress-plugin/guiders-wp-plugin/readme.txt`.
+2. Build SDK y copiar bundle:
+  - `npm run build`
+  - `cp dist/index.js wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js`
+3. Generar ZIP distribución (opcional en repo):
+  - `cd wordpress-plugin && zip -r guiders-wp-plugin-<version>.zip guiders-wp-plugin -x "*.DS_Store"`
+4. Commit + tag:
+  - `git add` archivos modificados (+ ZIP si se versiona)
+  - `git commit -m "chore(wordpress-plugin): bump plugin version to <version> and sync SDK bundle"`
+  - `git tag v<version>` y `git push origin main && git push origin v<version>`
+5. Publicar:
+  - Subir ZIP a WordPress o adjuntar en GitHub Release.
+6. Checklist rápida:
+  - Versión cabecera / constante / stable tag alineadas
+  - Changelog actualizado
+  - Bundle copiado
+  - Tag creado y pusheado
+
+Automatización futura: script `release:wp` + GitHub Action al tag.
+
+---
 ### Context7 (cuándo leer docs externas)
 Usar solo si falta en repo y afecta decisión (APIs Angular 20, signals avanzados, DI tree-shakable, Jest timers). Proceso: buscar local → si falta `resolve-library-id` → `get-library-docs(topic)` tokens ≤6000 → resumir y aplicar citando ("Context7: signals"). No para sintaxis básica.
 

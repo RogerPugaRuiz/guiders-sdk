@@ -286,3 +286,81 @@ La solución implementa:
 ## Licencia
 
 ISC
+
+## 📦 Flujo de Release / Sincronización Plugin WordPress
+
+Cuando se actualiza el bundle `dist/index.js` (nueva versión interna del SDK) y se desea publicar la actualización en el plugin de WordPress, seguir este proceso ordenado:
+
+### 1. Verificar / Ajustar versión
+
+1. Determina el nuevo número de versión del plugin (semver). Si solo cambió el bundle sin cambios funcionales de interfaz pública del plugin, usar patch (ej: 1.0.0 → 1.0.1).
+
+2. Edita `wordpress-plugin/guiders-wp-plugin/guiders-wp-plugin.php`:
+
+- Cabecera: `Version: 1.0.x`
+- Constante: `GUIDERS_WP_PLUGIN_VERSION`
+
+3. Edita `wordpress-plugin/guiders-wp-plugin/readme.txt`:
+
+- `Stable tag: 1.0.x`
+- Añade entrada en `== Changelog ==` al inicio.
+
+### 2. Construir y sincronizar bundle
+
+```bash
+npm run build
+cp dist/index.js wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js
+```
+
+### 3. Generar ZIP distribuible
+
+Desde la carpeta `wordpress-plugin/` (o en raíz ajustando ruta):
+
+```bash
+cd wordpress-plugin
+zip -r guiders-wp-plugin-<version>.zip guiders-wp-plugin -x "*.DS_Store"
+```
+
+Archivo resultante recomendado: `wordpress-plugin/guiders-wp-plugin-<version>.zip`.
+
+### 4. Commit y tag
+
+```bash
+git add wordpress-plugin/guiders-wp-plugin/guiders-wp-plugin.php \
+      wordpress-plugin/guiders-wp-plugin/readme.txt \
+      wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js
+git commit -m "chore(wordpress-plugin): bump plugin version to <version> and sync SDK bundle"
+
+# (opcional) incluir el ZIP en el repo
+git add wordpress-plugin/guiders-wp-plugin-<version>.zip
+git commit -m "chore(wordpress-plugin): add distribution zip for <version>"
+
+git tag v<version>
+git push origin main
+git push origin v<version>
+```
+
+Sugerencia: en lugar de commitear el ZIP, también puedes adjuntarlo como asset en un *GitHub Release* (más limpio del historial git). El flujo actual admite ambas modalidades.
+
+### 5. Publicar / Actualizar en WordPress
+
+Lista rápida:
+
+- Subir el ZIP a un sitio WordPress (Plugins → Añadir nuevo → Subir) para validar.
+- Para WordPress.org (cuando proceda) sincronizar `readme.txt` y tag.
+
+### 6. Checklist rápida
+
+- [ ] Versión actualizada en cabecera y constante
+- [ ] Stable tag actualizado
+- [ ] Changelog con entrada nueva arriba
+- [ ] Bundle copiado a `assets/js/guiders-sdk.js`
+- [ ] ZIP generado
+- [ ] Tag git creado y pusheado
+
+### 7. Automatización futura (ideas)
+
+- Script `npm run release:wp <version>` que ejecute los pasos 2–4.
+- GitHub Action que genere el ZIP y cree el Release al pushear un tag `v*`.
+
+---
