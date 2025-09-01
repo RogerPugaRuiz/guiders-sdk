@@ -1,0 +1,84 @@
+name: Pre-Release WordPress Plugin
+
+on:
+  push:
+    tags:
+      - 'v*-alpha.*'
+      - 'v*-beta.*'
+      - 'v*-rc.*'
+
+jobs:
+  build-and-prerelease:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📦 Install deps
+        run: npm ci
+
+      - name: 🛠 Build SDK
+        run: npm run build
+
+      - name: 🗜️ Build plugin ZIP (re-using build)
+        run: bash wordpress-plugin/build-plugin.sh --skip-build
+
+      - name: 📄 Extraer versión plugin
+        id: meta
+        run: |
+          VERSION=$(grep -i -m1 '^ \* Version:' wordpress-plugin/guiders-wp-plugin/guiders-wp-plugin.php | sed -E 's/^ \* Version:[[:space:]]*//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Plugin version: $VERSION"
+
+      - name: 🔍 Validar tag vs versión header
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}" # ej: v1.0.3-alpha.1
+            if [ -z "$TAG_NAME" ]; then
+              echo "No GITHUB_REF_NAME disponible"; exit 1; fi
+          TAG_VERSION=${TAG_NAME#v}
+          HEADER_VERSION="${{ steps.meta.outputs.version }}"
+          echo "Tag version: $TAG_VERSION"
+          echo "Header version: $HEADER_VERSION"
+          if [ "$TAG_VERSION" != "$HEADER_VERSION" ]; then
+            echo "❌ Inconsistencia: el tag '$TAG_NAME' no coincide con la versión del header '$HEADER_VERSION'" >&2
+            echo "Asegura que 'Version:' en guiders-wp-plugin.php refleje exactamente $TAG_VERSION antes de crear el tag prerelease." >&2
+            exit 1
+          fi
+          echo "✅ Tag y header coinciden."
+
+      - name: ✅ Verificar artefacto ZIP
+        run: |
+          test -f "wordpress-plugin/guiders-wp-plugin-${{ steps.meta.outputs.version }}.zip" || (echo 'ZIP no encontrado' && ls -1 wordpress-plugin && exit 1)
+          ls -lh "wordpress-plugin/guiders-wp-plugin-${{ steps.meta.outputs.version }}.zip"
+
+      - name: 📝 Generar notas Pre-Release
+        id: notes
+        run: |
+          VER="${{ steps.meta.outputs.version }}"
+          printf "Pre-release v%s (tag: %s)\n\n" "$VER" "${GITHUB_REF##*/}" > release-notes.txt
+          echo "Este es un pre-release (alpha/beta/rc) para pruebas. No usar en producción." >> release-notes.txt
+          echo 'notes<<EOF' >> $GITHUB_OUTPUT
+          cat release-notes.txt >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+
+      - name: 🚀 Crear Pre-Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }} (pre-release)
+          body: ${{ steps.notes.outputs.notes }}
+          prerelease: true
+          files: |
+            wordpress-plugin/guiders-wp-plugin-${{ steps.meta.outputs.version }}.zip
+
+      - name: ✅ Summary
+        run: |
+          echo "Pre-release creado para tag ${{ github.ref_name }} con asset guiders-wp-plugin-${{ steps.meta.outputs.version }}.zip" >> $GITHUB_STEP_SUMMARY
