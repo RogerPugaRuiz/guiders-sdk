@@ -154,6 +154,7 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 * Ajustes de documentación y scripts de release automatizado
 * Nuevo script `release:wp:publish` para empaquetado + tag + push
 * Normalización de formato Markdown en README
+* Validación CI: el workflow ahora falla si el tag `vX.Y.Z` no coincide con la cabecera `Version:` del plugin, evitando releases desalineados
 
 = 1.0.1 =
 * Actualización del SDK a 1.0.1 (index.js)
