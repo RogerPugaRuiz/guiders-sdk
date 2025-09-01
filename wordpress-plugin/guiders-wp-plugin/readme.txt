@@ -150,6 +150,13 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 
 == Changelog ==
 
+= 1.0.4-alpha.2 =
+* Pre-release: centralización de resolución de endpoints (`core/endpoint-resolver.ts`).
+* Mejora: eliminación de hardcodes `localhost:3000` / IP directa en SDK; ahora todos los servicios usan `EndpointManager` / resolver unificado.
+* Integración WP: el plugin siempre inyecta `endpoint` / `webSocketEndpoint` y añade `preventAutoInit` para evitar doble inicialización y peticiones duplicadas (localhost → prod).
+* Fix: evita primer lote de fetch a localhost en entornos producción.
+* Nota: valida ruta hacia 1.0.4 estable con configuración consistente de endpoints y menor ruido en logs.
+
 = 1.0.4-alpha.1 =
 * Pre-release: validación de inicialización única del SDK para evitar múltiples health checks a endpoints distintos.
 * Fix: normalización de endpoint y eliminación de doble slash en `/health`.
