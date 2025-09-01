@@ -1919,8 +1919,8 @@ export class ChatUI {
 	 */
 	private registerWebSocketListeners(): void {
 		// Obtener la instancia existente del WebSocket
-		// Actualizado: unificación de endpoint WebSocket a IP pública
-		const webSocketEndpoint = localStorage.getItem('pixelWebSocketEndpoint') || 'ws://217.154.105.26';
+		// Endpoint por defecto actualizado al dominio oficial en producción
+		const webSocketEndpoint = localStorage.getItem('pixelWebSocketEndpoint') || 'wss://guiders.es';
 		const webSocketClient = WebSocketClient.getInstance(webSocketEndpoint);
 
 		if (!webSocketClient) {

@@ -23,8 +23,9 @@ export function resolveDefaultEndpoints(): ResolvedEndpoints {
   const envEndpoint = (typeof process !== 'undefined' && process.env) ? (process.env.GUIDERS_SDK_ENDPOINT || process.env.VITE_GUIDERS_SDK_ENDPOINT) : undefined;
   const envWs = (typeof process !== 'undefined' && process.env) ? (process.env.GUIDERS_SDK_WS_ENDPOINT || process.env.VITE_GUIDERS_SDK_WS_ENDPOINT) : undefined;
 
-  let endpoint = winCfg.endpoint || envEndpoint || (isProd ? 'http://217.154.105.26/api' : 'http://localhost:3000');
-  let webSocketEndpoint = winCfg.webSocketEndpoint || envWs || (isProd ? 'ws://217.154.105.26' : 'ws://localhost:3000');
+  // Fallbacks producción actualizados a dominio oficial (evitar mixed-content y dependencia de IP pública)
+  let endpoint = winCfg.endpoint || envEndpoint || (isProd ? 'https://guiders.es/api' : 'http://localhost:3000');
+  let webSocketEndpoint = winCfg.webSocketEndpoint || envWs || (isProd ? 'wss://guiders.es' : 'ws://localhost:3000');
 
   endpoint = normalize(endpoint);
   webSocketEndpoint = normalize(webSocketEndpoint);

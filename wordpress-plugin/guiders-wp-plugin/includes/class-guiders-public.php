@@ -105,10 +105,9 @@ class GuidersPublic {
             $config['endpoint'] = 'http://localhost:3000';
             $config['webSocketEndpoint'] = 'ws://localhost:3000';
         } else {
-            // Endpoints producción actualizados (IP pública unificada) sin slash final para evitar // en concatenaciones
-            $config['endpoint'] = 'http://217.154.105.26/api';
-            // Nota: usando ws:// por ahora; cambiar a wss://217.154.105.26 si hay TLS configurado
-            $config['webSocketEndpoint'] = 'ws://217.154.105.26';
+            // Endpoints producción actualizados a dominio (evita mixed-content y facilita TLS)
+            $config['endpoint'] = 'https://guiders.es/api';
+            $config['webSocketEndpoint'] = 'wss://guiders.es';
         }
 
     // Auto-init control configurable:
