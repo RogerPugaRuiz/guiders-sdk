@@ -84,27 +84,40 @@ Actualiza este archivo si: cambias orden del pipeline, añades Stage global, agr
 
 ---
 ### Workflow Release Plugin WordPress (sincronizar SDK → plugin)
-1. Bump versión plugin:
-  - Editar cabecera y constante en `wordpress-plugin/guiders-wp-plugin/guiders-wp-plugin.php`.
-  - Actualizar `Stable tag` + nuevo changelog arriba en `wordpress-plugin/guiders-wp-plugin/readme.txt`.
-2. Build SDK y copiar bundle:
-  - `npm run build`
-  - `cp dist/index.js wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js`
-3. Generar ZIP distribución (opcional en repo):
-  - `cd wordpress-plugin && zip -r guiders-wp-plugin-<version>.zip guiders-wp-plugin -x "*.DS_Store"`
-4. Commit + tag:
-  - `git add` archivos modificados (+ ZIP si se versiona)
-  - `git commit -m "chore(wordpress-plugin): bump plugin version to <version> and sync SDK bundle"`
-  - `git tag v<version>` y `git push origin main && git push origin v<version>`
-5. Publicar:
-  - Subir ZIP a WordPress o adjuntar en GitHub Release.
-6. Checklist rápida:
-  - Versión cabecera / constante / stable tag alineadas
-  - Changelog actualizado
-  - Bundle copiado
-  - Tag creado y pusheado
+Ruta rápida (automatizada):
+1. Actualiza versión:
+  - Editar cabecera + constante en `wordpress-plugin/guiders-wp-plugin/guiders-wp-plugin.php` (Version / GUIDERS_WP_PLUGIN_VERSION).
+  - Editar `Stable tag:` y añadir bloque nuevo arriba del changelog en `wordpress-plugin/guiders-wp-plugin/readme.txt`.
+2. Ejecutar script completo:
+  - `npm run release:wp:publish` (hace build → copia bundle → genera ZIP → git add (plugin.php, readme, bundle, ZIP) → commit → crea tag `v<version>` si no existe → push main + tag).
+3. GitHub Actions:
+  - Workflow `Release WordPress Plugin` se dispara con tags `v*` (stable) y valida que el tag == header `Version:`; si difiere falla.
+  - Pre-releases (`vX.Y.Z-alpha.N`, `-beta.N`, `-rc.N`) disparan `Pre-Release WordPress Plugin` (misma validación + marca prerelease true).
+4. Release automático:
+  - Genera notas desde el bloque del changelog detectado o fallback genérico.
+  - Adjunta `guiders-wp-plugin-<version>.zip` al Release.
 
-Automatización futura: script `release:wp` + GitHub Action al tag.
+Ruta manual (fallback / debug):
+1. Build SDK: `npm run build`.
+2. Copiar bundle: `cp dist/index.js wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js`.
+3. Generar ZIP: `bash wordpress-plugin/build-plugin.sh --skip-build` (o sin `--skip-build` para reconstruir).
+4. Commit + tag + push manuales (ver pasos anteriores, deben alinear versión y tag).
+
+Scripts disponibles:
+- `release:wp` → build + zip (sin commit/tag).
+- `release:wp:skip` → zip reutilizando build existente.
+- `release:wp:publish` → flujo completo (build/zip/commit/tag/push) usado para releases normales.
+
+Reglas importantes:
+- Nunca retaggear versiones publicadas salvo caso excepcional documentado; preferir nueva versión (ej. 1.0.2 → 1.0.3).
+- CI fallará si el tag no coincide con `Version:` (y `Stable tag:` debe estar alineado o el flujo humano se considera incorrecto incluso si CI no lo valida explícitamente).
+- Pre-releases siempre deben tener la misma versión exacta (incluyendo sufijo) en header si queremos pasar la validación; actualmente sólo validamos coincidencia exacta tag/header (no se edita auto).
+
+Cuándo actualizar este bloque:
+- Añades/renombras scripts de release.
+- Cambias lógica de validación en workflows.
+- Modificas nombre/ubicación del ZIP o archivos añadidos al commit.
+- Introduces un paso adicional (firma, checksum, etc.).
 
 ---
 ### Context7 (cuándo leer docs externas)
