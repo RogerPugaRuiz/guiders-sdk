@@ -61,9 +61,9 @@ class GuidersPublic {
             true // Load in footer
         );
         
-        // Add SDK configuration
-        $config = $this->getSDKConfig();
-        wp_localize_script('guiders-sdk', 'guidersConfig', $config);
+    // Add SDK configuration (exponer exactamente como GUIDERS_CONFIG porque el bundle lo busca con ese nombre)
+    $config = $this->getSDKConfig();
+    wp_localize_script('guiders-sdk', 'GUIDERS_CONFIG', $config);
         
         // Add inline styles for better chat appearance if needed
         $this->addInlineStyles();
@@ -184,7 +184,8 @@ class GuidersPublic {
                 }
                 
                 try {
-                    var config = window.guidersConfig || {};
+                    // El bundle busca window.GUIDERS_CONFIG; mantenemos retrocompatibilidad con guidersConfig si existiera
+                    var config = window.GUIDERS_CONFIG || window.guidersConfig || {};
                     
                     // Create SDK options
                     var sdkOptions = {
