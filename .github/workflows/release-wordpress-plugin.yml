@@ -1,0 +1,86 @@
+name: Release WordPress Plugin
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # Necesario para crear release y subir assets
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📦 Install deps
+        run: npm ci
+
+      - name: 🛠 Build SDK
+        run: npm run build
+
+      - name: 🗜️ Build plugin ZIP (re-using build)
+        run: bash wordpress-plugin/build-plugin.sh --skip-build
+
+      - name: 📄 Extraer versión plugin
+        id: meta
+        run: |
+          VERSION=$(grep -i -m1 '^ \* Version:' wordpress-plugin/guiders-wp-plugin/guiders-wp-plugin.php | sed -E 's/^ \* Version:[[:space:]]*//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Plugin version: $VERSION"
+
+      - name: 🔍 Validar tag vs versión header
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}" # ej: v1.0.3
+            if [ -z "$TAG_NAME" ]; then
+              echo "No GITHUB_REF_NAME disponible"; exit 1; fi
+          TAG_VERSION=${TAG_NAME#v}
+          HEADER_VERSION="${{ steps.meta.outputs.version }}"
+          echo "Tag version: $TAG_VERSION"
+          echo "Header version: $HEADER_VERSION"
+          if [ "$TAG_VERSION" != "$HEADER_VERSION" ]; then
+            echo "❌ Inconsistencia: el tag '$TAG_NAME' no coincide con la versión del header '$HEADER_VERSION'" >&2
+            echo "Asegura que 'Version:' en guiders-wp-plugin.php y 'Stable tag:' en readme.txt sean $TAG_VERSION antes de crear el tag." >&2
+            exit 1
+          fi
+          echo "✅ Tag y header coinciden."
+
+      - name: ✅ Verificar artefacto ZIP
+        run: |
+          test -f "wordpress-plugin/guiders-wp-plugin-${{ steps.meta.outputs.version }}.zip" || (echo 'ZIP no encontrado' && ls -1 wordpress-plugin && exit 1)
+          ls -lh "wordpress-plugin/guiders-wp-plugin-${{ steps.meta.outputs.version }}.zip"
+
+      - name: 📝 Generar notas Release
+        id: notes
+        run: |
+          VER="${{ steps.meta.outputs.version }}"
+          CHANGELOG_LINE=$(grep -n "= ${VER} =" wordpress-plugin/guiders-wp-plugin/readme.txt | cut -d: -f1 | head -n1 || true)
+          if [ -n "$CHANGELOG_LINE" ]; then
+            tail -n +$CHANGELOG_LINE wordpress-plugin/guiders-wp-plugin/readme.txt | awk '/^= [0-9]+\.[0-9]+\.[0-9]+ =/{c++; if(c>1) exit} {print}' > release-notes.txt
+          else
+            echo "Release $VER" > release-notes.txt
+          fi
+          printf "\n---\nAutomated release generated from tag v%s.\n" "$VER" >> release-notes.txt
+          echo 'notes<<EOF' >> $GITHUB_OUTPUT
+          cat release-notes.txt >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+
+      - name: 🚀 Crear Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.notes }}
+          files: |
+            wordpress-plugin/guiders-wp-plugin-${{ steps.meta.outputs.version }}.zip
+
+      - name: ✅ Summary
+        run: |
+          echo "Release creado para tag ${{ github.ref_name }} con asset guiders-wp-plugin-${{ steps.meta.outputs.version }}.zip" >> $GITHUB_STEP_SUMMARY
