@@ -150,6 +150,13 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 
 == Changelog ==
 
+= 1.0.4-alpha.3 =
+* Nueva configuración: modos de auto-inicialización (immediate, domready, delayed, manual).
+* Añadido delay configurable (0-60000 ms) para modo delayed.
+* Siempre se fuerza `preventAutoInit` y el plugin controla el inicio según configuración para evitar dobles instancias.
+* Refactor: encapsulado `doInit()` y salvaguarda si `window.guiders` ya existe.
+* Mejora DX: facilita pruebas de performance y compatibilidad con plugins de caché.
+
 = 1.0.4-alpha.2 =
 * Pre-release: centralización de resolución de endpoints (`core/endpoint-resolver.ts`).
 * Mejora: eliminación de hardcodes `localhost:3000` / IP directa en SDK; ahora todos los servicios usan `EndpointManager` / resolver unificado.
