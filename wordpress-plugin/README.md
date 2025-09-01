@@ -81,9 +81,8 @@ El plugin detecta automáticamente:
 - Compatible con plugins de caché
 - Preconnect headers para mejor performance
 
-## 🎯 Casos de Uso
-
 ### Tienda Online (WooCommerce)
+
 ```php
 // El plugin detecta automáticamente:
 // - Botones "Añadir al carrito"
@@ -93,6 +92,7 @@ El plugin detecta automáticamente:
 ```
 
 ### Sitio Corporativo
+
 ```php
 // Detecta automáticamente:
 // - Formularios de contacto
@@ -102,6 +102,7 @@ El plugin detecta automáticamente:
 ```
 
 ### Blog/Revista
+
 ```php
 // Tracking automático de:
 // - Tiempo en página
@@ -113,6 +114,7 @@ El plugin detecta automáticamente:
 ## 🔍 Personalización
 
 ### Hooks Disponibles
+
 ```php
 // Filtrar configuración del SDK
 add_filter('guiders_sdk_config', function($config) {
@@ -128,8 +130,8 @@ add_filter('guiders_user_data', function($user_data) {
 ```
 
 ### Configuración Programática
+
 ```php
-// Configurar via código (en functions.php)
 add_action('init', function() {
     if (function_exists('guiders_set_config')) {
         guiders_set_config(array(
@@ -144,16 +146,19 @@ add_action('init', function() {
 ## 🚨 Troubleshooting
 
 ### El SDK no se carga
+
 1. Verifica que la API Key esté configurada
 2. Comprueba que el plugin esté habilitado
 3. Revisa la consola del navegador para errores
 
 ### Chat no aparece
+
 1. Verifica que el chat esté habilitado en configuración
 2. Comprueba que no haya conflictos con el tema
 3. Revisa que no esté bloqueado por adblock
 
 ### WooCommerce no funciona
+
 1. Asegúrate de que WooCommerce esté activo
 2. Verifica que jQuery esté cargado
 3. Comprueba compatibilidad con tema de WooCommerce
@@ -161,11 +166,13 @@ add_action('init', function() {
 ## 📝 Desarrollo
 
 ### Requisitos
+
 - WordPress 5.0+
 - PHP 7.4+
 - SDK de Guiders compilado
 
 ### Compilar SDK
+
 ```bash
 cd /ruta/al/guiders-sdk
 npm install
@@ -173,7 +180,33 @@ npm run build
 cp dist/index.js wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js
 ```
 
+### Flujo de Release Automatizado
+
+Scripts disponibles (ejecutar desde la raíz del monorepo):
+
+```bash
+npm run release:wp         # Build + genera ZIP guiders-wp-plugin-<version>.zip
+npm run release:wp:skip    # Genera ZIP reutilizando build existente
+npm run release:wp:publish # Build + ZIP + commit + tag + push (usa versión en cabecera del plugin)
+```
+
+Pasos internos de `release:wp:publish`:
+
+1. Lee versión de `guiders-wp-plugin.php` (línea 'Version:').
+2. Ejecuta build del SDK y copia `dist/index.js` → `assets/js/guiders-sdk.js`.
+3. Genera ZIP `wordpress-plugin/guiders-wp-plugin-<version>.zip`.
+4. Crea commit y tag `v<version>` (si no existe) y hace push.
+
+Requisitos antes de publicar:
+
+- Actualizar cabecera + constante `GUIDERS_WP_PLUGIN_VERSION`.
+- Actualizar `Stable tag` y changelog en `readme.txt`.
+- Verificar que no haya cambios pendientes inesperados (`git status`).
+
+Tip: Para sólo regenerar el ZIP tras editar `readme.txt`, usa `npm run release:wp:skip`.
+
 ### Testing
+
 ```bash
 # Instalar en entorno de testing de WordPress
 wp plugin install /ruta/al/plugin --activate
