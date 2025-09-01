@@ -135,6 +135,24 @@ class GuidersAdmin {
             'guiders-settings',
             'guiders_features_section'
         );
+
+        // Auto-init mode
+        add_settings_field(
+            'auto_init_mode',
+            __('Modo de Auto-Init', 'guiders-wp-plugin'),
+            array($this, 'autoInitModeFieldCallback'),
+            'guiders-settings',
+            'guiders_general_section'
+        );
+
+        // Auto-init delay
+        add_settings_field(
+            'auto_init_delay',
+            __('Delay Auto-Init (ms)', 'guiders-wp-plugin'),
+            array($this, 'autoInitDelayFieldCallback'),
+            'guiders-settings',
+            'guiders_general_section'
+        );
     }
     
     /**
@@ -178,6 +196,24 @@ class GuidersAdmin {
             }
         } else {
             $validated['confidence_threshold'] = 0.7;
+        }
+
+        // Validate auto init mode
+        $valid_modes = array('immediate','domready','delayed','manual');
+        if (isset($input['auto_init_mode']) && in_array($input['auto_init_mode'], $valid_modes)) {
+            $validated['auto_init_mode'] = $input['auto_init_mode'];
+        } else {
+            $validated['auto_init_mode'] = 'domready';
+        }
+
+        // Validate delay
+        if (isset($input['auto_init_delay'])) {
+            $delay = intval($input['auto_init_delay']);
+            if ($delay < 0) { $delay = 0; }
+            if ($delay > 60000) { $delay = 60000; }
+            $validated['auto_init_delay'] = $delay;
+        } else {
+            $validated['auto_init_delay'] = 500;
         }
         
         return $validated;
@@ -280,6 +316,36 @@ class GuidersAdmin {
         $confidence_threshold = isset($settings['confidence_threshold']) ? $settings['confidence_threshold'] : 0.7;
         echo '<input type="number" id="confidence_threshold" name="guiders_wp_plugin_settings[confidence_threshold]" value="' . esc_attr($confidence_threshold) . '" min="0" max="1" step="0.1" class="small-text" />';
         echo '<p class="description">' . __('Nivel de confianza mínimo para la detección heurística (0.0 - 1.0). Mayor valor = más estricto.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Auto init mode field callback
+     */
+    public function autoInitModeFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $mode = isset($settings['auto_init_mode']) ? $settings['auto_init_mode'] : 'domready';
+        $options = array(
+            'immediate' => __('Inmediato (tan pronto cargue el script)', 'guiders-wp-plugin'),
+            'domready'  => __('DOM Ready (DOMContentLoaded)', 'guiders-wp-plugin'),
+            'delayed'   => __('Delay Personalizado', 'guiders-wp-plugin'),
+            'manual'    => __('Manual (lo iniciaré yo)', 'guiders-wp-plugin')
+        );
+        echo '<select id="auto_init_mode" name="guiders_wp_plugin_settings[auto_init_mode]">';
+        foreach ($options as $val => $label) {
+            echo '<option value="' . esc_attr($val) . '" ' . selected($val, $mode, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . __('Controla cuándo se inicializa el SDK: inmediato, al estar listo el DOM, con delay o manual.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Auto init delay field callback
+     */
+    public function autoInitDelayFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $delay = isset($settings['auto_init_delay']) ? intval($settings['auto_init_delay']) : 500;
+        echo '<input type="number" id="auto_init_delay" name="guiders_wp_plugin_settings[auto_init_delay]" value="' . esc_attr($delay) . '" min="0" max="60000" step="100" class="small-text" />';
+        echo '<p class="description">' . __('Milisegundos de espera si el modo = Delay Personalizado (0 - 60000).', 'guiders-wp-plugin') . '</p>';
     }
     
     /**

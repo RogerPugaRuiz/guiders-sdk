@@ -111,8 +111,15 @@ class GuidersPublic {
             $config['webSocketEndpoint'] = 'ws://217.154.105.26';
         }
 
-        // Evitar auto-init interno del bundle (lo controlamos desde el plugin WP)
-        $config['preventAutoInit'] = true;
+    // Auto-init control: sólo prevenimos si el modo es manual
+    $settings = get_option('guiders_wp_plugin_settings', array());
+    $mode = isset($settings['auto_init_mode']) ? $settings['auto_init_mode'] : 'domready';
+    $delay = isset($settings['auto_init_delay']) ? intval($settings['auto_init_delay']) : 500;
+    $config['autoInitMode'] = $mode;
+    $config['autoInitDelay'] = $delay;
+    // Forzamos preventAutoInit siempre para que el control de inicio lo tenga el plugin y evitar doble init.
+    // El switch JS decidirá si inicia (immediate/domready/delayed) o no (manual).
+    $config['preventAutoInit'] = true;
         
         return $config;
     }
@@ -211,37 +218,53 @@ class GuidersPublic {
                         sdkOptions.webSocketEndpoint = (config.webSocketEndpoint + '').replace(/\/+$/,'');
                     }
                     
-                    // Initialize SDK
-                    window.guiders = new window.TrackingPixelSDK(sdkOptions);
-                    
-                    // Initialize SDK
-                    window.guiders.init().then(function() {
-                        console.log('Guiders SDK initialized successfully');
-                        
-                        // Enable automatic tracking if enabled
-                        if (config.features.tracking) {
-                            window.guiders.enableAutomaticTracking();
-                        }
-                        
-                        // Add WordPress-specific tracking
-                        if (config.wordpress.isWooCommerce) {
-                            // Add WooCommerce-specific event listeners
-                            addWooCommerceTracking();
-                        }
-                        
-                        // Track page view with WordPress context
-                        window.guiders.trackEvent('page_view', {
-                            page_type: config.wordpress.pageType,
-                            theme: config.wordpress.theme,
-                            wp_version: config.wordpress.version,
-                            is_woocommerce: config.wordpress.isWooCommerce,
-                            url: window.location.href,
-                            title: document.title
+                    function doInit() {
+                        if (window.guiders) return; // safeguard
+                        window.guiders = new window.TrackingPixelSDK(sdkOptions);
+                        window.guiders.init().then(function() {
+                            console.log('Guiders SDK initialized successfully');
+                            if (config.features.tracking) {
+                                window.guiders.enableAutomaticTracking();
+                            }
+                            if (config.wordpress.isWooCommerce) {
+                                addWooCommerceTracking();
+                            }
+                            window.guiders.trackEvent('page_view', {
+                                page_type: config.wordpress.pageType,
+                                theme: config.wordpress.theme,
+                                wp_version: config.wordpress.version,
+                                is_woocommerce: config.wordpress.isWooCommerce,
+                                url: window.location.href,
+                                title: document.title
+                            });
+                        }).catch(function(error) {
+                            console.error('Failed to initialize Guiders SDK:', error);
                         });
-                        
-                    }).catch(function(error) {
-                        console.error('Failed to initialize Guiders SDK:', error);
-                    });
+                    }
+
+                    switch(config.autoInitMode) {
+                        case 'immediate':
+                            doInit();
+                            break;
+                        case 'domready':
+                            if (document.readyState === 'loading') {
+                                document.addEventListener('DOMContentLoaded', doInit);
+                            } else { doInit(); }
+                            break;
+                        case 'delayed':
+                            var d = parseInt(config.autoInitDelay || 500, 10);
+                            setTimeout(doInit, isNaN(d)?500:d);
+                            break;
+                        case 'manual':
+                            // No auto init; el desarrollador puede llamar window.guiders = new TrackingPixelSDK(...)
+                            console.log('[Guiders WP] Auto-init manual seleccionado; el SDK no se inicializará automáticamente.');
+                            break;
+                        default:
+                            // fallback domready
+                            if (document.readyState === 'loading') {
+                                document.addEventListener('DOMContentLoaded', doInit);
+                            } else { doInit(); }
+                    }
                     
                 } catch (error) {
                     console.error('Error initializing Guiders SDK:', error);
