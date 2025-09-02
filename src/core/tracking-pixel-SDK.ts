@@ -893,7 +893,7 @@ export class TrackingPixelSDK {
 			}
 
 			if (!chatId) {
-				console.error("No se pudo obtener el ID del chat después de varios intentos");
+				console.error("❌ [checkCommercialAvailability] No se pudo obtener el ID del chat después de varios intentos. Abortando para evitar /chats/undefined", { attempts });
 				// Si no podemos obtener el ID, ocultamos el botón por seguridad
 				chatToggleButton.hide();
 				return;
@@ -930,6 +930,10 @@ export class TrackingPixelSDK {
 	 * @returns Detalles del chat con participantes
 	 */
 	private async fetchChatDetail(chatId: string): Promise<ChatDetail> {
+		if (!chatId) {
+			console.warn('❌ fetchChatDetail llamado sin chatId. Abortando.');
+			throw new Error('chatId requerido');
+		}
 		console.log(`🌐 fetchChatDetail - Obteniendo detalles para chat ${chatId} (usando API V2)`);
 		
 		try {

@@ -45,6 +45,10 @@ export class ChatV2Service {
 	 * @returns Promise con los detalles del chat
 	 */
 	async getChatById(chatId: string): Promise<ChatV2> {
+		if (!chatId) {
+			console.error('[ChatV2Service] ❌ getChatById llamado con chatId falsy', { chatId });
+			throw new Error('chatId requerido');
+		}
 		console.log(`[ChatV2Service] 🔍 Obteniendo chat por ID: ${chatId}`);
 
 		const response = await fetch(`${this.getBaseUrl()}/${chatId}`, {
