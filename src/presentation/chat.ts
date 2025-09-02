@@ -2,6 +2,7 @@
 
 import { Message } from "../types";
 import { startChat } from "../services/chat-service";
+import { ChatSessionStore } from "../services/chat-session-store";
 import { fetchMessages } from "../services/fetch-messages";
 import { fetchChatDetail, ChatDetail, ChatParticipant } from "../services/chat-detail-service";
 import { WebSocketClient } from "../services/websocket-service";
@@ -1070,6 +1071,7 @@ export class ChatUI {
 		
 		this.chatId = chatId;
 		this.container.setAttribute('data-chat-id', chatId);
+		ChatSessionStore.getInstance().setCurrent(chatId);
 	}
 
 	/**
@@ -1716,6 +1718,10 @@ export class ChatUI {
 		try {
 			console.log("Inicializando contenido del chat...");
 			const res = await startChat();
+			if (!res || !res.id) {
+				console.warn('startChat no devolvió un id de chat válido');
+				return; // Evitar seguir sin chatId
+			}
 			console.log("Chat iniciado:", res);
 			this.setChatId(res.id);
 

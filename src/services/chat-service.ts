@@ -1,4 +1,5 @@
 import { ChatV2Service } from './chat-v2-service';
+import { ChatSessionStore } from './chat-session-store';
 
 /**
  * startChat (solo versión moderna V2)
@@ -20,6 +21,7 @@ export async function startChat(): Promise<{ id: string }> {
 				const existing = await ChatV2Service.getInstance().getChatById(existingId);
 				if (existing && existing.id) {
 					console.log('[ChatService] ♻️ Reutilizando chat V2 existente:', existing.id);
+					ChatSessionStore.getInstance().setCurrent(existing.id);
 					return { id: existing.id };
 				}
 			} catch (e) {
@@ -66,6 +68,7 @@ export async function startChat(): Promise<{ id: string }> {
 		try {
 			const chat = await ChatV2Service.getInstance().createChatAuto(payload);
 			localStorage.setItem('chatV2Id', chat.id);
+			ChatSessionStore.getInstance().setCurrent(chat.id);
 			console.log('[ChatService] ✅ Chat V2 creado (POST):', chat.id);
 			return { id: chat.id };
 	} catch (error) {

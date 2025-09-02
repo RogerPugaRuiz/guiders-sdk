@@ -1,4 +1,5 @@
 import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { ChatSessionStore } from './chat-session-store';
 import { VisitorInfoV2, ChatMetadataV2 } from '../types';
 
 // Interfaz para la respuesta V2 del chat basada en los DTOs del backend
@@ -56,11 +57,18 @@ export interface ChatDetail {
  * @returns Promesa con los detalles del chat en formato V2
  */
 export async function fetchChatDetailV2(chatId: string): Promise<ChatDetailV2> {
+	if (!chatId) {
+		console.warn('[chat-detail-service] ❌ fetchChatDetailV2 llamado sin chatId');
+		throw new Error('chatId requerido');
+	}
 	const accessToken = localStorage.getItem('accessToken');
 	const endpoints = EndpointManager.getInstance();
-	const baseEndpoint = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
-	
-	const response = await fetch(`${baseEndpoint}/api/v2/chats/${chatId}`, {
+	const baseEndpointRaw = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
+	// Normalizar raíz API (evitar duplicar /api)
+	const apiRoot = baseEndpointRaw.endsWith('/api') ? baseEndpointRaw : `${baseEndpointRaw}/api`;
+
+	const url = `${apiRoot}/v2/chats/${chatId}`;
+	const response = await fetch(url, {
 		method: 'GET',
 		headers: {
 			'Authorization': `Bearer ${accessToken || ''}`,
@@ -177,8 +185,9 @@ export async function fetchChatDetail(chatId: string): Promise<ChatDetail> {
 				// Fallback a la API legacy
 				const accessToken = localStorage.getItem('accessToken');
 				const endpoints = EndpointManager.getInstance();
-				const baseEndpoint = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
-				const response = await fetch(`${baseEndpoint}/chats/${chatId}`, {
+				const baseEndpointRaw = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
+				const apiRoot = baseEndpointRaw.endsWith('/api') ? baseEndpointRaw : `${baseEndpointRaw}/api`;
+				const response = await fetch(`${apiRoot}/chats/${chatId}`, {
 					method: 'GET',
 					headers: {
 						'Authorization': `Bearer ${accessToken || ''}`,

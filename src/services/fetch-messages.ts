@@ -5,6 +5,7 @@ export async function fetchMessages(chatId: string, cursor?: string | null, limi
 	cursor: string;
 	messages: Array<Message>;
 }> {
+	if (!chatId) throw new Error('chatId requerido para fetchMessages');
 	const params = new URLSearchParams();
 	if (cursor) params.append("cursor", cursor);
 	params.append("limit", String(limit));
