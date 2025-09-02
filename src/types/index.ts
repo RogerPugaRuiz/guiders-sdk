@@ -107,3 +107,29 @@ export interface ChatListV2 {
 	hasMore: boolean;
 	nextCursor?: string | null;
 }
+
+// --- WebSocket Protocolo v1 (envelope unificado) ---
+export interface WSBaseEnvelope<T = any> {
+	v: 1;               // versión de protocolo (fijo 1 por ahora)
+	t: string;          // tipo (hello, ack, presence.update, nav.changed, track.batch, ping, pong, control.flow, error, ...)
+	id?: string;        // id único del mensaje (uuid / secuencia simple). Requerido para mensajes que esperan ack.
+	ts?: string | number; // timestamp cliente (ISO string o epoch ms). Servidor puede normalizar.
+	sid?: string;       // session/tab id
+	vid?: string;       // visitor id
+	data?: T;           // payload específico por tipo
+}
+
+// Mensajes específicos (opcionales para ergonomía)
+export interface WSHello extends WSBaseEnvelope<{ pubKey: string; resumeFromSeq?: number }> { t: 'hello'; }
+export interface WSAck extends WSBaseEnvelope<undefined> { t: 'ack'; id: string; }
+export interface WSPresenceUpdate extends WSBaseEnvelope<{ currentPage?: string; title?: string; typing?: boolean }> { t: 'presence.update'; }
+export interface WSNavChanged extends WSBaseEnvelope<{ url: string; title?: string }> { t: 'nav.changed'; }
+export interface WSTrackBatchEventItem { event_id: string; name: string; occurred_at: string; props?: Record<string, any>; }
+export interface WSTrackBatch extends WSBaseEnvelope<{ events: WSTrackBatchEventItem[] }> { t: 'track.batch'; }
+export interface WSPing extends WSBaseEnvelope<undefined> { t: 'ping'; }
+export interface WSPong extends WSBaseEnvelope<undefined> { t: 'pong'; }
+export interface WSControlFlow extends WSBaseEnvelope<{ mode: 'degrade' | 'normal'; useHttpFor?: string | string[]; retryInMs?: number }> { t: 'control.flow'; }
+export interface WSError extends WSBaseEnvelope<{ code: string; ref?: string }> { t: 'error'; }
+
+export type WSInboundMessage = WSAck | WSPong | WSControlFlow | WSError | (WSBaseEnvelope<any> & { t: string });
+export type WSOutboundMessage = WSHello | WSPresenceUpdate | WSNavChanged | WSTrackBatch | WSPing | (WSBaseEnvelope<any> & { t: string });

@@ -2,7 +2,7 @@
 
 import { io, Socket } from "socket.io-client";
 import { TokenManager } from "../core/token-manager";
-import { PixelEvent, WebSocketResponse } from "../types";
+import { PixelEvent, WebSocketResponse, WSOutboundMessage } from "../types";
 
 export class WebSocketClient {
 	private socket: Socket | null = null;
@@ -122,6 +122,39 @@ export class WebSocketClient {
 				resolve(ack);
 			});
 		});
+	}
+
+	// --- Nuevo protocolo envelope (v1) ---
+	private buildEnvelope(partial: Omit<WSOutboundMessage, 'v' | 'ts' | 'id'> & { id?: string }): WSOutboundMessage {
+		return {
+			v: 1,
+			id: partial.id || `tmp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+			ts: new Date().toISOString(),
+			...partial,
+		} as WSOutboundMessage;
+	}
+
+	public sendEnvelope(msg: Omit<WSOutboundMessage, 'v' | 'ts' | 'id'> & { id?: string }): Promise<any> {
+		const envelope = this.buildEnvelope(msg);
+		// Reutilizamos sendMessage para compat (espera campo type); mapeamos t -> type
+		const legacy = { ...envelope, type: envelope.t };
+		return this.sendMessage(legacy);
+	}
+
+	public sendPresenceUpdate(data: any, context: { sid?: string; vid?: string } = {}): Promise<any> {
+		return this.sendEnvelope({ t: 'presence.update', data, sid: context.sid, vid: context.vid });
+	}
+
+	public sendNavChanged(data: { url: string; title?: string }, context: { sid?: string; vid?: string } = {}): Promise<any> {
+		return this.sendEnvelope({ t: 'nav.changed', data, sid: context.sid, vid: context.vid });
+	}
+
+	public sendTrackBatch(events: { event_id: string; name: string; occurred_at: string; props?: Record<string, any>; }[], context: { sid?: string; vid?: string } = {}): Promise<any> {
+		return this.sendEnvelope({ t: 'track.batch', data: { events }, sid: context.sid, vid: context.vid });
+	}
+
+	public sendPing(): Promise<any> {
+		return this.sendEnvelope({ t: 'ping' });
 	}
 
 	public healthCheck(): Promise<void> {
