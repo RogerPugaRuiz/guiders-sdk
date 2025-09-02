@@ -70,7 +70,9 @@ export interface ChatMetadataV2 {
 	initialUrl?: string;
 	userAgent?: string;
 	referrer?: string;
-	tags?: Record<string, any>;
+	// tags ahora puede ser un array simple de strings (caso API v2) o un objeto (legacy/custom)
+	tags?: string[] | Record<string, any>;
+	notes?: string;
 	customFields?: Record<string, any>;
 }
 

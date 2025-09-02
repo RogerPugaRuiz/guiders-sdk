@@ -340,4 +340,26 @@ export class ChatV2Service {
 		console.log(`[ChatV2Service] ✅ Chat V2 creado/recuperado:`, chat.id);
 		return chat;
 	}
+
+	/**
+	 * Crea un chat V2 usando el endpoint mejorado POST /v2/chats (ID generado por el backend)
+	 * @param payload Datos del chat
+	 * @returns Promise con el chat creado
+	 */
+	async createChatAuto(payload: any): Promise<ChatV2> {
+		console.log('[ChatV2Service] 🆕 Creando chat V2 por POST (auto-id)');
+		const response = await fetch(`${this.getBaseUrl()}`, {
+			method: 'POST',
+			headers: this.getAuthHeaders(),
+			body: JSON.stringify(payload)
+		});
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error('[ChatV2Service] ❌ Error al crear chat V2 (POST):', errorText);
+			throw new Error(`Error al crear chat V2 (POST) (${response.status}): ${errorText}`);
+		}
+		const chat = await response.json() as ChatV2;
+		console.log('[ChatV2Service] ✅ Chat V2 creado (POST):', chat.id);
+		return chat;
+	}
 }

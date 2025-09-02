@@ -1,84 +1,75 @@
-import { v4 as uuidv4 } from 'uuid';
-import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { ChatV2Service } from './chat-v2-service';
 
-const chats: string[] = JSON.parse(localStorage.getItem('chats') || '[]');
-
-export async function startChat(): Promise<any> {
+/**
+ * startChat (solo versión moderna V2)
+ * Crea (o reutiliza) un chat usando únicamente la API /api/v2/chats.
+ * Elimina definitivamente el soporte y fallback a la versión legacy /chats.
+ * Retorna un objeto { id } para mantener compatibilidad con la UI existente.
+ */
+export async function startChat(): Promise<{ id: string }> {
 	const accessToken = localStorage.getItem('accessToken');
-	const endpoints = EndpointManager.getInstance();
-	const baseEndpoint = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
-
-	let validChatId: string | null = null;
-	let chatsToKeep: string[] = [];
-
-	// Verificar todos los chats en paralelo para mejorar el rendimiento
-	if (chats.length > 0) {
-		try {
-			// Crear un array de promesas para todas las peticiones
-			const checkPromises = chats.map(chatId => 
-				fetch(`${baseEndpoint}/chats/${chatId}`, {
-					method: 'GET',
-					headers: {
-						'Authorization': `Bearer ${accessToken || ''}`,
-						'Content-Type': 'application/json'
-					}
-				})
-				.then(response => {
-					if (response.ok) {
-						return chatId; // Devuelve el chatId si es válido
-					}
-					return null; // No válido
-				})
-				.catch(error => {
-					console.warn(`Error al recuperar chat ${chatId}:`, error);
-					return null;
-				})
-			);
-			
-			// Esperar a que todas las promesas se resuelvan
-			const results = await Promise.all(checkPromises);
-			
-			// Filtrar los resultados válidos
-			chatsToKeep = results.filter(id => id !== null) as string[];
-			
-			// Usar el primer chat válido
-			if (chatsToKeep.length > 0) {
-				validChatId = chatsToKeep[0];
-			}
-		} catch (error) {
-			console.warn('Error al recuperar chats existentes:', error);
-		}
+	if (!accessToken) {
+		console.warn('[ChatService] ❌ No hay accessToken disponible antes de crear el chat V2');
 	}
 
-	if (validChatId) {
-		localStorage.setItem('chats', JSON.stringify(chatsToKeep));
-		console.log('Chat existente recuperado');
-		return { id: validChatId };
-	}
-
-	// Si no hay chats válidos, crear uno nuevo
+	// Intento de reutilizar un chat previamente creado (guardado en localStorage)
 	try {
-		const uuid = uuidv4();
-		const response = await fetch(`${baseEndpoint}/chats/${uuid}`, {
-			method: 'POST',
-			headers: {
-				'Authorization': `Bearer ${accessToken || ''}`,
-				'Content-Type': 'application/json'
+		const existingId = localStorage.getItem('chatV2Id');
+		if (existingId) {
+			try {
+				const existing = await ChatV2Service.getInstance().getChatById(existingId);
+				if (existing && existing.id) {
+					console.log('[ChatService] ♻️ Reutilizando chat V2 existente:', existing.id);
+					return { id: existing.id };
+				}
+			} catch (e) {
+				console.warn('[ChatService] Chat V2 almacenado inválido, se creará uno nuevo');
 			}
-		});
-
-		if (!response.ok) {
-			throw new Error(`Error al crear chat (${response.status})`);
 		}
+	} catch (e) {
+		console.warn('[ChatService] Error comprobando chat V2 existente:', e);
+	}
 
-		console.log('Chat creado:', uuid);
+		// Extraer visitorId desde el token (campo sub) si existe
+	let visitorId = 'anonymous';
+	try {
+		if (accessToken) {
+			const payload = JSON.parse(atob(accessToken.split('.')[1]));
+			if (payload && payload.sub) visitorId = payload.sub;
+		}
+	} catch { /* continuar con anonymous */ }
 
-		chatsToKeep = [uuid];
-		localStorage.setItem('chats', JSON.stringify(chatsToKeep));
+			// Construir visitorInfo enriquecido (ejemplo dado). Si hubiera datos previos guardados, podríamos fusionarlos aquí.
+			const visitorInfo = {
+				// name: 'Juan Pérez', // Placeholder; en un futuro se puede inferir de un perfil almacenado
+				// email: 'juan.perez@example.com', // Placeholder
+				// phone: '+34 612 345 678', // Placeholder
+				currentPage: window.location.pathname,
+				userAgent: navigator.userAgent
+			};
 
-		return { id: uuid };
+			const metadata = {
+				source: 'website',
+				department: 'ventas',
+				priority: 'medium', // Nota: la API puede normalizar a enum/uppercase
+				tags: ['producto-interes', 'primera-visita'],
+				notes: 'Cliente interesado en sillas ergonómicas para oficina',
+				initialUrl: window.location.href,
+				referrer: document.referrer || ''
+			};
+
+			const payload = {
+				visitorInfo,
+				metadata
+			};
+
+		try {
+			const chat = await ChatV2Service.getInstance().createChatAuto(payload);
+			localStorage.setItem('chatV2Id', chat.id);
+			console.log('[ChatService] ✅ Chat V2 creado (POST):', chat.id);
+			return { id: chat.id };
 	} catch (error) {
-		console.error('Error al iniciar el chat:', error);
+		console.error('[ChatService] ❌ Error al crear chat V2:', error);
 		throw error;
 	}
 }
