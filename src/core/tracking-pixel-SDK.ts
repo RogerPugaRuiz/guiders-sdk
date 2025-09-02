@@ -12,6 +12,7 @@ import { ValidationStage } from "../pipeline/stages/validation-stage";
 import { MetadataInjectionStage } from "../pipeline/stages/metadata-stage";
 import { URLInjectionStage } from "../pipeline/stages/url-injection-stage";
 import { SessionInjectionStage } from "../pipeline/stages/session-injection-stage";
+import { TrackingEventV2Stage } from "../pipeline/stages/tracking-event-v2-stage";
 import { ChatUI } from "../presentation/chat";
 import { resolveDefaultEndpoints } from "./endpoint-resolver";
 import { ChatInputUI } from "../presentation/chat-input";
@@ -143,6 +144,7 @@ export class TrackingPixelSDK {
 		this.maxRetries = options.maxRetries ?? 3;
 
 		localStorage.setItem("pixelEndpoint", this.endpoint);
+		localStorage.setItem("guidersApiKey", this.apiKey);
 
 		// Crear la instancia de SessionInjectionStage
 		this.sessionInjectionStage = new SessionInjectionStage();
@@ -153,6 +155,7 @@ export class TrackingPixelSDK {
 			.addStage(new URLInjectionStage())
 			.addStage(this.sessionInjectionStage)
 			.addStage(new MetadataInjectionStage())
+			.addStage(new TrackingEventV2Stage())
 			.addStage(new ValidationStage())
 			.build();
 
