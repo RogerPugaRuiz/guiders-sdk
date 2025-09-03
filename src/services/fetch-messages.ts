@@ -9,8 +9,10 @@ export async function fetchMessages(chatId: string, cursor?: string | null, limi
 	const params = new URLSearchParams();
 	if (cursor) params.append("cursor", cursor);
 	params.append("limit", String(limit));
-	const URL = `${localStorage.getItem('pixelEndpoint')}/chats/${chatId}/messages?${params.toString()}`;
-	// const url = `http://localhost:3000/chats/${chatId}/messages?${params.toString()}`;
+	// Usar siempre endpoint V2 normalizado
+	const base = localStorage.getItem('pixelEndpoint') || '';
+	const apiRoot = base.endsWith('/api') ? base : `${base}/api`;
+	const URL = `${apiRoot}/v2/chats/${chatId}/messages?${params.toString()}`;
 	const res = await fetch(URL, {
 		headers: {
 			'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`,

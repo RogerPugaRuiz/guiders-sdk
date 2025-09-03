@@ -61,6 +61,47 @@ export async function fetchChatDetailV2(chatId: string): Promise<ChatDetailV2> {
 		console.warn('[chat-detail-service] ❌ fetchChatDetailV2 llamado sin chatId');
 		throw new Error('chatId requerido');
 	}
+
+	// 1) Intentar resolver desde cache guiders_recent_chats para evitar GET por ID
+	try {
+		const cachedRaw = localStorage.getItem('guiders_recent_chats');
+		if (cachedRaw) {
+			const list = JSON.parse(cachedRaw) as any[];
+			const found = list.find(c => c && c.id === chatId);
+			if (found) {
+				// Normalizar campos a ChatDetailV2
+				const detail: ChatDetailV2 = {
+					id: found.id,
+					status: found.status,
+					priority: found.priority,
+					visitorInfo: found.visitorInfo,
+					assignedCommercialId: found.assignedCommercialId,
+					availableCommercialIds: found.availableCommercialIds,
+					metadata: found.metadata,
+					createdAt: new Date(found.createdAt),
+					assignedAt: found.assignedAt ? new Date(found.assignedAt) : undefined,
+					closedAt: found.closedAt ? new Date(found.closedAt) : undefined,
+					lastMessageDate: found.lastMessageDate ? new Date(found.lastMessageDate) : undefined,
+					totalMessages: found.totalMessages ?? 0,
+					unreadMessagesCount: found.unreadMessagesCount ?? 0,
+					isActive: found.isActive ?? true,
+					visitorId: found.visitorId,
+					department: found.department,
+					tags: found.tags,
+					updatedAt: found.updatedAt ? new Date(found.updatedAt) : undefined,
+					averageResponseTimeMinutes: found.averageResponseTimeMinutes,
+					chatDurationMinutes: found.chatDurationMinutes,
+					resolutionStatus: found.resolutionStatus,
+					satisfactionRating: found.satisfactionRating
+				};
+				console.log('[chat-detail-service] 📦 Usando detalle de chat desde cache local (sin GET):', chatId);
+				return detail;
+			}
+		}
+	} catch (cacheErr) {
+		console.warn('[chat-detail-service] ⚠️ Error procesando cache guiders_recent_chats:', cacheErr);
+	}
+
 	const accessToken = localStorage.getItem('accessToken');
 	const endpoints = EndpointManager.getInstance();
 	const baseEndpointRaw = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
@@ -154,50 +195,6 @@ export function convertV2ToLegacy(chatDetailV2: ChatDetailV2): ChatDetail {
  * @returns Promesa con los detalles del chat en formato legacy
  */
 export async function fetchChatDetail(chatId: string): Promise<ChatDetail> {
-		try {
-			// Intentar primero con la API V2
-			const chatDetailV2 = await fetchChatDetailV2(chatId);
-			return convertV2ToLegacy(chatDetailV2);
-		} catch (error) {
-			console.warn('Error al obtener detalles del chat con API V2, intentando crear chat V2 por PUT:', error);
-			// Fallback: intentar crear el chat V2 por PUT (idempotente)
-			try {
-				// Aquí deberías construir el payload mínimo requerido según el endpoint
-				// Por simplicidad, se asume que visitorId y visitorInfo están disponibles en localStorage o contexto global
-				const visitorId = localStorage.getItem('visitorId');
-				const visitorName = localStorage.getItem('visitorName') || 'Visitante';
-				const visitorEmail = localStorage.getItem('visitorEmail') || 'no-email@example.com';
-				const availableCommercialIds = JSON.parse(localStorage.getItem('availableCommercialIds') || '[]');
-				const payload = {
-					visitorId,
-					visitorInfo: {
-						name: visitorName,
-						email: visitorEmail
-					},
-					availableCommercialIds
-				};
-				const { ChatV2Service } = await import('./chat-v2-service');
-				const chatV2Service = ChatV2Service.getInstance();
-				const chatV2 = await chatV2Service.createChat(chatId, payload);
-				return convertV2ToLegacy(chatV2 as any);
-			} catch (putError) {
-				console.warn('Error al crear chat V2 por PUT, intentando con API legacy:', putError);
-				// Fallback a la API legacy
-				const accessToken = localStorage.getItem('accessToken');
-				const endpoints = EndpointManager.getInstance();
-				const baseEndpointRaw = localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint();
-				const apiRoot = baseEndpointRaw.endsWith('/api') ? baseEndpointRaw : `${baseEndpointRaw}/api`;
-				const response = await fetch(`${apiRoot}/chats/${chatId}`, {
-					method: 'GET',
-					headers: {
-						'Authorization': `Bearer ${accessToken || ''}`,
-						'Content-Type': 'application/json'
-					}
-				});
-				if (!response.ok) {
-					throw new Error(`Error al obtener detalles del chat (${response.status})`);
-				}
-				return response.json() as Promise<ChatDetail>;
-			}
-		}
+	const chatDetailV2 = await fetchChatDetailV2(chatId);
+	return convertV2ToLegacy(chatDetailV2);
 }

@@ -282,7 +282,8 @@ export class TrackingPixelSDK {
 				// Obtener hasta 20 chats (getVisitorChats) para cache local
 				try {
 					const list = await ChatV2Service.getInstance().getVisitorChats(visitor.id, undefined, 20);
-					localStorage.setItem('guiders_recent_chats', JSON.stringify(list.chats.map(c => ({ id: c.id, status: c.status, createdAt: c.createdAt }))));
+					// Guardar objetos completos para evitar GET /v2/chats/{id}
+					localStorage.setItem('guiders_recent_chats', JSON.stringify(list.chats));
 					if (list.chats.length > 0) {
 						// Usar SOLO el primero para la UI (más reciente)
 						localStorage.setItem('chatV2Id', list.chats[0].id);
@@ -921,7 +922,7 @@ export class TrackingPixelSDK {
 			}
 
 			if (!chatId) {
-				console.error("❌ [checkCommercialAvailability] No se pudo obtener el ID del chat después de varios intentos. Abortando para evitar /chats/undefined", { attempts });
+				console.error("❌ [checkCommercialAvailability] No se pudo obtener el ID del chat después de varios intentos. Abortando para evitar /v2/chats/undefined", { attempts });
 				// Si no podemos obtener el ID, ocultamos el botón por seguridad
 				chatToggleButton.hide();
 				return;

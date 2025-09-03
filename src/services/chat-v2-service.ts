@@ -39,39 +39,6 @@ export class ChatV2Service {
 		return `${apiRoot}/v2/chats`;
 	}
 
-	/**
-	 * Obtiene un chat específico por ID
-	 * @param chatId ID del chat
-	 * @returns Promise con los detalles del chat
-	 */
-	async getChatById(chatId: string): Promise<ChatV2> {
-		if (!chatId) {
-			console.error('[ChatV2Service] ❌ getChatById llamado con chatId falsy', { chatId });
-			throw new Error('chatId requerido');
-		}
-		console.log(`[ChatV2Service] 🔍 Obteniendo chat por ID: ${chatId}`);
-
-		const response = await fetch(`${this.getBaseUrl()}/${chatId}`, {
-			method: 'GET',
-			headers: this.getAuthHeaders()
-		});
-
-		if (!response.ok) {
-			const errorText = await response.text();
-			console.error(`[ChatV2Service] ❌ Error al obtener chat ${chatId}:`, errorText);
-			throw new Error(`Error al obtener chat (${response.status}): ${errorText}`);
-		}
-
-		const chat = await response.json() as ChatV2;
-		console.log(`[ChatV2Service] ✅ Chat obtenido:`, {
-			id: chat.id,
-			status: chat.status,
-			assignedCommercialId: chat.assignedCommercialId,
-			isActive: chat.isActive
-		});
-
-		return chat;
-	}
 
 	/**
 	 * Obtiene los chats de un visitante específico
@@ -336,29 +303,6 @@ export class ChatV2Service {
 		console.log(`[ChatV2Service] ✅ Estadísticas obtenidas`);
 
 		return stats;
-	}
-
-	/**
-	 * Crea un chat V2 de forma idempotente (PUT /v2/chats/{chatId})
-	 * @param chatId UUID del chat a crear
-	 * @param payload Datos del chat (visitorId, visitorInfo, availableCommercialIds, priority, metadata...)
-	 * @returns Promise con el chat creado o existente
-	 */
-	async createChat(chatId: string, payload: any): Promise<ChatV2> {
-		console.log(`[ChatV2Service] 🆕 Creando chat V2 por PUT: ${chatId}`);
-		const response = await fetch(`${this.getBaseUrl()}/${chatId}`, {
-			method: 'PUT',
-			headers: this.getAuthHeaders(),
-			body: JSON.stringify(payload)
-		});
-		if (!response.ok) {
-			const errorText = await response.text();
-			console.error(`[ChatV2Service] ❌ Error al crear chat V2:`, errorText);
-			throw new Error(`Error al crear chat V2 (${response.status}): ${errorText}`);
-		}
-		const chat = await response.json() as ChatV2;
-		console.log(`[ChatV2Service] ✅ Chat V2 creado/recuperado:`, chat.id);
-		return chat;
 	}
 
 	/**

@@ -16,20 +16,33 @@ export async function startChat(): Promise<{ id: string }> {
 	// Intento de reutilizar un chat previamente creado (guardado en localStorage)
 	try {
 		const existingId = localStorage.getItem('chatV2Id');
+		const cachedListRaw = localStorage.getItem('guiders_recent_chats');
+		let cached: any[] = [];
+		if (cachedListRaw) {
+			try { cached = JSON.parse(cachedListRaw); } catch { /* ignore */ }
+		}
 		if (existingId) {
-			try {
-				const existing = await ChatV2Service.getInstance().getChatById(existingId);
-				if (existing && existing.id) {
-					console.log('[ChatService] ♻️ Reutilizando chat V2 existente:', existing.id);
-					ChatSessionStore.getInstance().setCurrent(existing.id);
-					return { id: existing.id };
-				}
-			} catch (e) {
-				console.warn('[ChatService] Chat V2 almacenado inválido, se creará uno nuevo');
+			// Intentar encontrarlo en cache primero
+			const cachedChat = cached.find(c => c.id === existingId);
+			if (cachedChat) {
+				console.log('[ChatService] ♻️ Reutilizando chat V2 existente desde cache:', existingId);
+				ChatSessionStore.getInstance().setCurrent(existingId);
+				return { id: existingId };
+			}
+			// Si no está en cache, opcionalmente podríamos intentar GET, pero se ha indicado que no es necesario
+		}
+		// Si no hay existingId pero tenemos lista cacheada, tomar el primero
+		if (!existingId && cached.length > 0) {
+			const first = cached[0];
+			if (first?.id) {
+				localStorage.setItem('chatV2Id', first.id);
+				ChatSessionStore.getInstance().setCurrent(first.id);
+				console.log('[ChatService] ♻️ Adoptado primer chat cacheado:', first.id);
+				return { id: first.id };
 			}
 		}
 	} catch (e) {
-		console.warn('[ChatService] Error comprobando chat V2 existente:', e);
+		console.warn('[ChatService] Error reutilizando chat V2 cacheado:', e);
 	}
 
 		// Extraer visitorId desde el token (campo sub) si existe

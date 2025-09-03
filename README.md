@@ -305,7 +305,6 @@ import { ChatV2Service } from 'guiders-pixel';
 const chatService = ChatV2Service.getInstance();
 
 // Obtener un chat
-const chat = await chatService.getChatById('chat-id');
 
 // Lista de chats de visitante (cursor pagination)
 const { chats, nextCursor, hasMore } = await chatService.getVisitorChats('visitor-123');
@@ -330,7 +329,6 @@ await chatService.closeChat('chat-id');
 Si la API v2 no está disponible el SDK usa silenciosamente la API v1 adaptando formatos (no necesitas condicionales). Para detectar disponibilidad:
 
 ```javascript
-try { await chatService.getChatById('chat-id'); console.log('API v2 OK'); }
 catch { console.log('Usando fallback v1'); }
 ```
 
