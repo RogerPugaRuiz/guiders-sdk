@@ -111,6 +111,22 @@ export class ChatV2Service {
 	}
 
 	/**
+	 * Obtiene el chat más reciente de un visitante.
+	 * Internamente solicita hasta 20 para permitir caching de historial inmediato,
+	 * pero solo devuelve el primero (más reciente) para la UI actual.
+	 */
+	async getLatestVisitorChat(visitorId: string): Promise<ChatV2 | null> {
+		try {
+			const list = await this.getVisitorChats(visitorId, undefined, 20);
+			if (list.chats && list.chats.length > 0) return list.chats[0];
+			return null;
+		} catch (e) {
+			console.warn('[ChatV2Service] ❌ Error obteniendo último chat del visitante:', e);
+			return null;
+		}
+	}
+
+	/**
 	 * Obtiene los chats de un comercial específico
 	 * @param commercialId ID del comercial
 	 * @param cursor Cursor para paginación (opcional)

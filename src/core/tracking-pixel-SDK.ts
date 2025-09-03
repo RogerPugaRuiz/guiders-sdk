@@ -14,6 +14,8 @@ import { URLInjectionStage } from "../pipeline/stages/url-injection-stage";
 import { SessionInjectionStage } from "../pipeline/stages/session-injection-stage";
 import { TrackingEventV2Stage } from "../pipeline/stages/tracking-event-v2-stage";
 import { ChatUI } from "../presentation/chat";
+import { VisitorService } from "../services/visitor-service";
+import { ChatV2Service } from "../services/chat-v2-service";
 import { resolveDefaultEndpoints } from "./endpoint-resolver";
 import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
@@ -272,6 +274,32 @@ export class TrackingPixelSDK {
 			console.error("WebSocket no disponible.");
 		}
 		console.log("Esperando mensajes del servidor...");
+
+		// Prefetch visitor/me y último chat existente (limit=1) antes de inicializar la UI
+		try {
+			const visitor = await VisitorService.getInstance().getMe();
+			if (visitor?.id) {
+				// Obtener hasta 20 chats (getVisitorChats) para cache local
+				try {
+					const list = await ChatV2Service.getInstance().getVisitorChats(visitor.id, undefined, 20);
+					localStorage.setItem('guiders_recent_chats', JSON.stringify(list.chats.map(c => ({ id: c.id, status: c.status, createdAt: c.createdAt }))));
+					if (list.chats.length > 0) {
+						// Usar SOLO el primero para la UI (más reciente)
+						localStorage.setItem('chatV2Id', list.chats[0].id);
+						console.log('[TrackingPixelSDK] ♻️ Reutilizará chat más reciente del visitante:', list.chats[0].id, ' (total cacheados:', list.chats.length, ')');
+					}
+				} catch (inner) {
+					console.warn('[TrackingPixelSDK] ⚠️ No se pudo cargar lista de chats del visitante, fallback a getLatest:', inner);
+					const latest = await ChatV2Service.getInstance().getLatestVisitorChat(visitor.id);
+					if (latest?.id) {
+						localStorage.setItem('chatV2Id', latest.id);
+						console.log('[TrackingPixelSDK] ♻️ Reutilizará chat existente (latest fallback):', latest.id);
+					}
+				}
+			}
+		} catch (e) {
+			console.warn('[TrackingPixelSDK] ❌ Prefetch visitor/latest chat fallido:', e);
+		}
 		// Guardar la referencia al chat para usarla más tarde (ej: mostrar mensajes del sistema)
 		this.chatUI = new ChatUI({
 			widget: true,
