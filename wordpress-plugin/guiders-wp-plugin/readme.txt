@@ -150,6 +150,11 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 
 == Changelog ==
 
+= 1.0.4-alpha.7 =
+* Ajuste menor de documentación y preparación final antes de consolidar cambios de endpoints y auto-inicialización en release estable.
+* Verificación adicional del script de publicación automatizada.
+* Sin cambios funcionales en runtime respecto a alpha.6 (solo metadata de versión y empaquetado).
+
 = 1.0.4-alpha.6 =
 * Cambio endpoints producción a dominio `https://guiders.es` y WebSocket `wss://guiders.es` (elimina mixed-content y dependencia de IP pública).
 * Limpieza: retirada de hardcodes IP en SDK y plugin.
