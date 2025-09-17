@@ -1213,4 +1213,69 @@ For technical support or to report issues:
 
 Current version: 1.0.5
 
+## Visitor Session Management (Visitors API V2)
+
+The SDK now relies exclusively on Visitors API V2 for identity & backend session lifecycle. Legacy endpoints like `/visitor/me` are removed.
+
+### Initialization Flow
+1. Generate or load persistent `fingerprint`.
+2. Obtain internal tokens (`ensureTokens`).
+3. `POST /visitors/identify` with `{ fingerprint }` (creates/updates visitor and opens backend session via HttpOnly cookie).
+4. Preload up to 20 recent chats (`GET /v2/chats/visitor/:visitorId`).
+5. Start backend heartbeat every 30s (`POST /visitors/session/heartbeat`).
+6. Start local advanced session tracking (emits `session_start`, `user_idle`, `user_resume`, `session_end`).
+
+### Endpoints (no fallbacks)
+| Operation | Endpoint | Method | Notes |
+|-----------|----------|--------|-------|
+| Identify visitor | `/visitors/identify` | POST | Returns `visitorId` and optional `sessionId` (stored in `sessionStorage`). |
+| Heartbeat | `/visitors/session/heartbeat` | POST | Keeps backend session alive (30s interval). |
+| Explicit end | `/visitors/session/end` | POST | Called in `cleanup()` and `beforeunload` (beacon). |
+
+### Session Tracking Internal Events
+| Event | Description |
+|-------|-------------|
+| `session_start` | New logical browser session. |
+| `user_idle` | User inactive beyond `maxInactivityTime` (default 60s). |
+| `user_resume` | User returns from idle. |
+| `session_reactivate` | Tab/page becomes active after being fully inactive. |
+| `session_end` | Explicit end (cleanup) or final closure. |
+
+### Page Unload Handling
+On `beforeunload`:
+1. Best-effort flush of pending events:
+   - If WebSocket connected: send each event directly.
+   - Else: `navigator.sendBeacon` → `POST /tracking/events/batch` (backend must implement this).
+2. Send `endSession` using beacon (or fetch keepalive fallback).
+
+### Heartbeat Customization
+Currently fixed at 30s (backend) and 10s internal session loop. Open an issue if you need to expose a `visitorHeartbeatInterval` option.
+
+### Migration Notes from V1
+| V1 | Status in V2 |
+|----|--------------|
+| `/visitor/me` | Removed. Basic data comes from `identify`. |
+| Extended profile via `visitor/me` | Extend `identify` response in backend if needed early. |
+| Conditional chat reuse via fallback | Now always based on preloaded V2 chats. |
+
+### Quick Re-identification Example
+```javascript
+import { VisitorsV2Service } from 'guiders-pixel/dist/services/visitors-v2-service';
+
+async function reIdentify() {
+  const fp = localStorage.getItem('fingerprint');
+  if (!fp) return;
+  const data = await VisitorsV2Service.getInstance().identify(fp);
+  console.log('Re-identified:', data);
+}
+```
+
+### Common Issues
+| Issue | Likely Cause | Action |
+|-------|--------------|--------|
+| Backend session not created | Cookie blocked (SameSite / 3rd party context) | Review cookie flags & embedding context. |
+| Heartbeat intermittent failures | Network hiccups / tab background throttling | Auto recovers; investigate >5 consecutive failures. |
+| Lost events on close | Fast tab shutdown or missing batch endpoint | Implement `/tracking/events/batch` & monitor delivery metrics. |
+
+
 For more information about changes and updates, check the project's README.md file.

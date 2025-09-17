@@ -14,7 +14,7 @@ import { URLInjectionStage } from "../pipeline/stages/url-injection-stage";
 import { SessionInjectionStage } from "../pipeline/stages/session-injection-stage";
 import { TrackingEventV2Stage } from "../pipeline/stages/tracking-event-v2-stage";
 import { ChatUI } from "../presentation/chat";
-import { VisitorService } from "../services/visitor-service";
+import { VisitorsV2Service } from "../services/visitors-v2-service";
 import { ChatV2Service } from "../services/chat-v2-service";
 import { resolveDefaultEndpoints } from "./endpoint-resolver";
 import { ChatInputUI } from "../presentation/chat-input";
@@ -131,6 +131,7 @@ export class TrackingPixelSDK {
 	private domTrackingManager: DomTrackingManager | EnhancedDomTrackingManager;
 	private sessionTrackingManager: SessionTrackingManager | null = null;
 	private heuristicEnabled: boolean;
+	private visitorHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -275,31 +276,28 @@ export class TrackingPixelSDK {
 		}
 		console.log("Esperando mensajes del servidor...");
 
-		// Prefetch visitor/me y último chat existente (limit=1) antes de inicializar la UI
+		// Identificar visitante via API V2 (sin fallback) y precargar chats
 		try {
-			const visitor = await VisitorService.getInstance().getMe();
-			if (visitor?.id) {
-				// Obtener hasta 20 chats (getVisitorChats) para cache local
+			const identify = await VisitorsV2Service.getInstance().identify(this.fingerprint!);
+			if (identify?.visitorId) {
+				// Iniciar heartbeat backend (cada 30s) sin fallback
+				if (this.visitorHeartbeatTimer) clearInterval(this.visitorHeartbeatTimer);
+				this.visitorHeartbeatTimer = setInterval(() => {
+					VisitorsV2Service.getInstance().heartbeat();
+				}, 30000);
 				try {
-					const list = await ChatV2Service.getInstance().getVisitorChats(visitor.id, undefined, 20);
-					// Guardar objetos completos para evitar GET /v2/chats/{id}
+					const list = await ChatV2Service.getInstance().getVisitorChats(identify.visitorId, undefined, 20);
 					localStorage.setItem('guiders_recent_chats', JSON.stringify(list.chats));
 					if (list.chats.length > 0) {
-						// Usar SOLO el primero para la UI (más reciente)
 						localStorage.setItem('chatV2Id', list.chats[0].id);
-						console.log('[TrackingPixelSDK] ♻️ Reutilizará chat más reciente del visitante:', list.chats[0].id, ' (total cacheados:', list.chats.length, ')');
+						console.log('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) cacheado:', list.chats[0].id);
 					}
 				} catch (inner) {
-					console.warn('[TrackingPixelSDK] ⚠️ No se pudo cargar lista de chats del visitante, fallback a getLatest:', inner);
-					const latest = await ChatV2Service.getInstance().getLatestVisitorChat(visitor.id);
-					if (latest?.id) {
-						localStorage.setItem('chatV2Id', latest.id);
-						console.log('[TrackingPixelSDK] ♻️ Reutilizará chat existente (latest fallback):', latest.id);
-					}
+					console.warn('[TrackingPixelSDK] ⚠️ No se pudo precargar lista de chats V2:', inner);
 				}
 			}
 		} catch (e) {
-			console.warn('[TrackingPixelSDK] ❌ Prefetch visitor/latest chat fallido:', e);
+			console.warn('[TrackingPixelSDK] ❌ identify V2 fallido:', e);
 		}
 		// Guardar la referencia al chat para usarla más tarde (ej: mostrar mensajes del sistema)
 		this.chatUI = new ChatUI({
@@ -432,6 +430,35 @@ export class TrackingPixelSDK {
 			console.log("🎯 Starting session tracking...");
 			// Session tracking will auto-initialize if enabled in config
 			// The manager is already set up to track events automatically
+		}
+
+		// Registrar cierre de pestaña/ventana para finalizar sesión backend
+		if (typeof window !== 'undefined') {
+			window.addEventListener('beforeunload', () => {
+				try {
+					// 1. Intentar flush rápido de eventos pendientes (best-effort)
+					if (this.eventQueue.length > 0) {
+						const eventsToSend = [...this.eventQueue];
+						this.eventQueue = [];
+						// WebSocket conectado: enviar directamente sin retries
+						if (this.webSocket?.isConnected()) {
+							try { eventsToSend.forEach(evt => { this.webSocket!.sendMessage(evt); }); } catch { /* ignore */ }
+						} else if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
+							try {
+								const endpoint = EndpointManager.getInstance().getEndpoint();
+								const apiRoot = endpoint.endsWith('/api') ? endpoint : `${endpoint}/api`;
+								const url = `${apiRoot}/tracking/events/batch`;
+								const blob = new Blob([JSON.stringify(eventsToSend)], { type: 'application/json' });
+								(navigator as any).sendBeacon(url, blob);
+							} catch { /* ignore */ }
+						}
+					}
+					// 2. Cerrar sesión backend vía beacon
+					VisitorsV2Service.getInstance().endSession({ useBeacon: true });
+				} catch (e) {
+					console.warn('[TrackingPixelSDK] ❌ No se pudo ejecutar flush/endSession en beforeunload', e);
+				}
+			});
 		}
 	}
 
@@ -718,6 +745,14 @@ export class TrackingPixelSDK {
 	 */
 	public cleanup(): void {
 		// Cleanup session tracking
+		if (this.visitorHeartbeatTimer) {
+			clearInterval(this.visitorHeartbeatTimer);
+			this.visitorHeartbeatTimer = null;
+		}
+		// Intentar cerrar sesión backend explícitamente (sin beacon, llamada normal)
+		VisitorsV2Service.getInstance().endSession().catch(() => {
+			/* silencio: ya logueado en servicio */
+		});
 
 		// Stop auto flush
 		this.stopAutoFlush();

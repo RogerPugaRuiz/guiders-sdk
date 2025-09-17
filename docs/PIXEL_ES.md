@@ -920,4 +920,71 @@ Para obtener soporte técnico o reportar problemas:
 
 Versión actual: 1.0.5
 
+## Gestión de Sesión Visitante (API Visitors V2)
+
+La versión actual del SDK utiliza únicamente la API V2 de visitantes para gestionar identidad y ciclo de vida de sesión. Se han eliminado los endpoints legacy (`/visitor/me`).
+
+### Flujo en la inicialización
+1. Generación/recuperación de `fingerprint`.
+2. Obtención/renovación de tokens internos (`ensureTokens`).
+3. `POST /visitors/identify` con `{ fingerprint }` (crea o actualiza visitante y abre sesión backend, cookie HttpOnly).
+4. Precarga de hasta 20 chats recientes (`GET /v2/chats/visitor/:visitorId`).
+5. Inicio de heartbeat backend cada 30s (`POST /visitors/session/heartbeat`).
+6. Inicio del tracking avanzado de sesión interna (eventos: `session_start`, `user_idle`, `user_resume`, `session_end`).
+
+### Endpoints usados (sin fallback)
+| Operación | Endpoint | Método | Notas |
+|-----------|----------|--------|-------|
+| Identificar visitante | `/visitors/identify` | POST | Devuelve `visitorId` y opcional `sessionId` (guardado en `sessionStorage`). |
+| Heartbeat de sesión | `/visitors/session/heartbeat` | POST | Mantiene viva la sesión backend (cada 30s). |
+| Cierre explícito | `/visitors/session/end` | POST | Llamado en `cleanup()` y en `beforeunload` (beacon). |
+
+### Eventos emitidos por el Session Tracking interno
+| Evento | Descripción |
+|--------|-------------|
+| `session_start` | Nueva sesión lógica del navegador. |
+| `user_idle` | Usuario inactivo > `maxInactivityTime` (default 60s). |
+| `user_resume` | Regresa de estado idle. |
+| `session_reactivate` | Reactiva tras haber estado totalmente inactiva (tab oculta y vuelve). |
+| `session_end` | Fin explícito (cleanup manual) o cierre completo cuando se llama a `endSession`. |
+
+### Cierre y descarga de página
+Antes de cerrar la pestaña/ventana:
+1. Se realiza un flush best-effort de la cola de eventos:
+   - Si WebSocket está conectado: se envía cada evento directamente.
+   - Si no: se usa `navigator.sendBeacon` → `POST /tracking/events/batch` (debes asegurar que el backend lo soporte).
+2. Se envía `endSession` con `sendBeacon` (o `fetch keepalive` si no hay soporte).
+
+### Personalización de heartbeat
+Actualmente el intervalo está fijado en 30s para el backend y 10s para la lógica de sesión interna. Si necesitas hacerlo configurable abre una incidencia para exponer `visitorHeartbeatInterval` en las opciones del SDK.
+
+### Consideraciones de migración desde V1
+| V1 | Estado en V2 |
+|----|--------------|
+| `/visitor/me` | Eliminado. Los datos básicos se obtienen vía `identify`. |
+| Perfil extendido (nombre/email) vía `visitor/me` | Debes ampliar la respuesta de `identify` en backend si lo necesitas temprano. |
+| Reuso condicional de chat vía fallback | Ahora siempre se basa en chats V2 precargados. |
+
+### Ejemplo rápido (identificación manual adicional)
+```javascript
+import { VisitorsV2Service } from 'guiders-pixel/dist/services/visitors-v2-service';
+
+async function reIdentify() {
+  const fp = localStorage.getItem('fingerprint');
+  if (!fp) return;
+  const data = await VisitorsV2Service.getInstance().identify(fp);
+  console.log('Re-identificado:', data);
+}
+```
+
+### Problemas comunes
+| Problema | Causa probable | Acción |
+|----------|----------------|--------|
+| No se crea sesión backend | Cookie bloqueada por políticas (SameSite / 3rd party) | Revisar flags de cookie y contexto (iframe / dominio). |
+| Heartbeat falla intermitente | Pérdida de conexión / pestaña en background profundo | Se recupera solo; sólo investigar si hay >5 fallos consecutivos. |
+| Eventos perdidos al cerrar | Navegador cierra demasiado rápido / endpoint batch ausente | Implementar `/tracking/events/batch` y monitorizar diferencia entre contadores enviados vs recibidos. |
+
+---
+
+
 Para más información sobre cambios y actualizaciones, consultar el archivo README.md del proyecto.
