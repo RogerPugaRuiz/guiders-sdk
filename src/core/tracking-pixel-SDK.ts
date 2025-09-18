@@ -378,32 +378,77 @@ export class TrackingPixelSDK {
 			// The manager is already set up to track events automatically
 		}
 
-		// Registrar cierre de pestaña/ventana para finalizar sesión backend
-		if (typeof window !== 'undefined') {
-			window.addEventListener('beforeunload', () => {
-				try {
-					// 1. Intentar flush rápido de eventos pendientes (best-effort)
-					if (this.eventQueue.length > 0) {
-						const eventsToSend = [...this.eventQueue];
-						this.eventQueue = [];
-						// Usar sendBeacon como fallback
-						if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
-							try {
-								const endpoint = EndpointManager.getInstance().getEndpoint();
-								const apiRoot = endpoint.endsWith('/api') ? endpoint : `${endpoint}/api`;
-								const url = `${apiRoot}/tracking/events/batch`;
-								const blob = new Blob([JSON.stringify(eventsToSend)], { type: 'application/json' });
-								(navigator as any).sendBeacon(url, blob);
-							} catch { /* ignore */ }
+		// Registrar múltiples eventos de cierre para asegurar endSession
+		this.setupPageUnloadHandlers();
+	}
+
+	/**
+	 * Configura múltiples event listeners para detectar cuando el usuario abandona la página.
+	 * Usa sendBeacon para garantizar la entrega del endSession incluso durante page unload.
+	 */
+	private setupPageUnloadHandlers(): void {
+		if (typeof window === 'undefined') return;
+
+		// Flag para evitar múltiples llamadas a endSession
+		let sessionEndCalled = false;
+
+		const endSessionOnce = (reason: string) => {
+			if (sessionEndCalled) return;
+			sessionEndCalled = true;
+			
+			try {
+				console.log(`[TrackingPixelSDK] 🚪 Finalizando sesión por: ${reason}`);
+				
+				// 1. Flush eventos pendientes si los hay
+				if (this.eventQueue.length > 0) {
+					const eventsToSend = [...this.eventQueue];
+					this.eventQueue = [];
+					
+					if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
+						try {
+							const endpoint = EndpointManager.getInstance().getEndpoint();
+							const apiRoot = endpoint.endsWith('/api') ? endpoint : `${endpoint}/api`;
+							const url = `${apiRoot}/tracking/events/batch`;
+							const blob = new Blob([JSON.stringify(eventsToSend)], { type: 'application/json' });
+							(navigator as any).sendBeacon(url, blob);
+							console.log(`[TrackingPixelSDK] 📤 ${eventsToSend.length} eventos enviados via beacon`);
+						} catch (e) {
+							console.warn('[TrackingPixelSDK] ❌ Error enviando eventos via beacon:', e);
 						}
 					}
-					// 2. Cerrar sesión backend vía beacon
-					VisitorsV2Service.getInstance().endSession({ useBeacon: true });
-				} catch (e) {
-					console.warn('[TrackingPixelSDK] ❌ No se pudo ejecutar flush/endSession en beforeunload', e);
 				}
-			});
-		}
+				
+				// 2. Finalizar sesión backend usando beacon
+				VisitorsV2Service.getInstance().endSession({ useBeacon: true });
+				
+			} catch (e) {
+				console.warn(`[TrackingPixelSDK] ❌ Error en endSession (${reason}):`, e);
+			}
+		};
+
+		// Evento 1: beforeunload - cuando la página está a punto de descargarse
+		window.addEventListener('beforeunload', () => endSessionOnce('beforeunload'));
+		
+		// Evento 2: pagehide - más confiable que beforeunload en móviles
+		window.addEventListener('pagehide', () => endSessionOnce('pagehide'));
+		
+		// Evento 3: visibilitychange - cuando la página se oculta (puede ser cierre de pestaña)
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'hidden') {
+				// Esperar un poco para ver si realmente se está cerrando
+				setTimeout(() => {
+					if (document.visibilityState === 'hidden') {
+						endSessionOnce('visibilitychange-hidden');
+					}
+				}, 100);
+			} else if (document.visibilityState === 'visible') {
+				// Reset flag si la página vuelve a ser visible
+				sessionEndCalled = false;
+			}
+		});
+
+		// Evento 4: unload - último recurso (menos confiable)
+		window.addEventListener('unload', () => endSessionOnce('unload'));
 	}
 
 	private configureTypingIndicators(chat: ChatUI): void {
@@ -888,5 +933,13 @@ export class TrackingPixelSDK {
 			lastMessageAt: chatDetailV2.lastMessageDate?.toISOString() || null,
 			createdAt: chatDetailV2.createdAt.toISOString()
 		};
+	}
+
+	/**
+	 * Getter para acceder al servicio de visitantes V2.
+	 * Útil para testing y acceso directo a funcionalidades de sesión.
+	 */
+	public get visitorsService() {
+		return VisitorsV2Service.getInstance();
 	}
 }

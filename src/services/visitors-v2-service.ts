@@ -76,17 +76,20 @@ export class VisitorsV2Service {
    */
   public async heartbeat(): Promise<boolean> {
     try {
-      // Debug: verificar estado de cookies antes de enviar
-      const sessionIdFromStorage = sessionStorage.getItem('guiders_backend_session_id');
-      const allCookies = typeof document !== 'undefined' ? document.cookie : 'N/A';
-      console.log('[VisitorsV2Service] 🔍 Debug heartbeat:', {
-        sessionIdFromStorage,
-        allCookies,
-        credentialsInclude: true
-      });
+      const sessionId = sessionStorage.getItem('guiders_backend_session_id');
+      if (!sessionId) {
+        console.warn('[VisitorsV2Service] ❌ No sessionId disponible para heartbeat');
+        return false;
+      }
       
       const url = `${this.getBaseUrl()}/session/heartbeat`;
-      const res = await fetch(url, { method: 'POST', credentials: 'include' });
+      const res = await fetch(url, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+        credentials: 'include' 
+      });
+      
       if (!res.ok) {
         const errorText = await res.text();
         console.warn('[VisitorsV2Service] ❌ Heartbeat fallido:', res.status, errorText);
@@ -102,33 +105,67 @@ export class VisitorsV2Service {
 
   /**
    * Cierra explícitamente la sesión backend.
+   * Cuando useBeacon=true, usa sendBeacon para garantizar entrega durante page unload.
    */
-  public async endSession(options: { useBeacon?: boolean } = {}): Promise<boolean> {
-    const url = `${this.getBaseUrl()}/session/end`;
-    if (options.useBeacon && typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
-      try {
-        const blob = new Blob([JSON.stringify({ reason: 'page_unload' })], { type: 'application/json' });
-        const ok = (navigator as any).sendBeacon(url, blob);
-        if (ok) {
-          sessionStorage.removeItem('guiders_backend_session_id');
-          return true;
-        }
-        // Si beacon falla, continuar con fetch normal
-      } catch (e) {
-        console.warn('[VisitorsV2Service] ❌ Beacon endSession falló, fallback fetch:', e);
-      }
-    }
-    try {
-      const res = await fetch(url, { method: 'POST', credentials: 'include', keepalive: options.useBeacon === true });
-      if (!res.ok) {
-        console.warn('[VisitorsV2Service] ❌ endSession fallido:', res.status);
-        return false;
-      }
-      sessionStorage.removeItem('guiders_backend_session_id');
-      return true;
-    } catch (e) {
-      console.warn('[VisitorsV2Service] ❌ Excepción endSession:', e);
+  public async endSession(options: { useBeacon?: boolean; reason?: string } = {}): Promise<boolean> {
+    const sessionId = sessionStorage.getItem('guiders_backend_session_id');
+    if (!sessionId) {
+      console.warn('[VisitorsV2Service] ❌ No sessionId disponible para endSession');
       return false;
     }
+    
+    const url = `${this.getBaseUrl()}/session/end`;
+    const payload = { 
+      sessionId,
+      reason: options.reason || (options.useBeacon ? 'page_unload' : 'manual')
+    };
+    
+    // Intentar sendBeacon primero si se solicita (más confiable para page unload)
+    if (options.useBeacon && typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
+      try {
+        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        const success = (navigator as any).sendBeacon(url, blob);
+        
+        if (success) {
+          console.log('[VisitorsV2Service] ✅ endSession enviado via beacon');
+          sessionStorage.removeItem('guiders_backend_session_id');
+          return true;
+        } else {
+          console.warn('[VisitorsV2Service] ⚠️ sendBeacon falló, intentando fetch...');
+        }
+      } catch (e) {
+        console.warn('[VisitorsV2Service] ❌ Error con sendBeacon, fallback a fetch:', e);
+      }
+    }
+    
+    // Fallback a fetch normal (solo si no es page unload crítico)
+    if (!options.useBeacon) {
+      try {
+        const res = await fetch(url, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          credentials: 'include',
+          keepalive: true // Permite que la petición sobreviva page unload
+        });
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.warn('[VisitorsV2Service] ❌ endSession fallido:', res.status, errorText);
+          return false;
+        }
+        
+        console.log('[VisitorsV2Service] ✅ endSession exitoso via fetch');
+        sessionStorage.removeItem('guiders_backend_session_id');
+        return true;
+      } catch (e) {
+        console.warn('[VisitorsV2Service] ❌ Excepción endSession:', e);
+        return false;
+      }
+    }
+    
+    // Si llegamos aquí, beacon falló y no podemos usar fetch
+    console.warn('[VisitorsV2Service] ❌ No se pudo enviar endSession');
+    return false;
   }
 }

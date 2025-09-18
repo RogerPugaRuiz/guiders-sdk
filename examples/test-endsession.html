@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test EndSession - Page Unload</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; }
+        .btn-danger { background: #dc3545; color: white; border: none; border-radius: 4px; }
+        .btn-primary { background: #007bff; color: white; border: none; border-radius: 4px; }
+        .btn-secondary { background: #6c757d; color: white; border: none; border-radius: 4px; }
+        #logs { background: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; margin: 20px 0; max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test EndSession y Page Unload</h1>
+    
+    <div class="status success">
+        <strong>✅ SDK cargado:</strong> Configurado para enviar endSession automáticamente en page unload
+    </div>
+    
+    <div class="status warning">
+        <strong>⚠️ Instrucciones:</strong> 
+        <ol>
+            <li>Abrir DevTools → Network para monitorear peticiones</li>
+            <li>Probar los diferentes métodos de cierre de página</li>
+            <li>Verificar que se envía POST a /session/end con sendBeacon</li>
+        </ol>
+    </div>
+
+    <h2>Acciones de Prueba</h2>
+    
+    <button class="btn-primary" onclick="manualEndSession()">
+        📤 EndSession Manual (fetch)
+    </button>
+    
+    <button class="btn-primary" onclick="manualEndSessionBeacon()">
+        📡 EndSession Manual (beacon)
+    </button>
+    
+    <button class="btn-secondary" onclick="simulatePageHide()">
+        👁️ Simular Page Hide
+    </button>
+    
+    <button class="btn-secondary" onclick="simulateVisibilityHidden()">
+        🕶️ Simular Visibility Hidden
+    </button>
+    
+    <button class="btn-danger" onclick="reloadPage()">
+        🔄 Recargar Página (test beforeunload)
+    </button>
+    
+    <button class="btn-danger" onclick="closePage()">
+        ❌ Cerrar Página (test unload)
+    </button>
+
+    <h2>Logs de Red</h2>
+    <div id="logs">Los logs aparecerán aquí...</div>
+
+    <h2>Estado Actual</h2>
+    <div id="status">
+        <p><strong>Session ID:</strong> <span id="sessionId">Cargando...</span></p>
+        <p><strong>Visitor ID:</strong> <span id="visitorId">Cargando...</span></p>
+        <p><strong>Beacon Support:</strong> <span id="beaconSupport">Verificando...</span></p>
+    </div>
+
+    <!-- SDK -->
+    <script src="http://localhost:8082/index.js" data-api-key="test-api-key"></script>
+    
+    <script>
+        // Interceptar console.log para mostrar en la página
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        const logsDiv = document.getElementById('logs');
+        
+        function addLog(level, ...args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ');
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<strong>[${timestamp}] ${level}:</strong> ${message}`;
+            logEntry.style.marginBottom = '5px';
+            if (level === 'ERROR') logEntry.style.color = '#dc3545';
+            if (level === 'WARN') logEntry.style.color = '#856404';
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addLog('LOG', ...args);
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addLog('WARN', ...args);
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addLog('ERROR', ...args);
+        };
+
+        // Funciones de prueba
+        async function manualEndSession() {
+            console.log('🧪 Iniciando endSession manual...');
+            const result = await window.guiders?.visitorsService?.endSession({ useBeacon: false, reason: 'manual_test' });
+            console.log('📋 Resultado endSession manual:', result);
+        }
+        
+        async function manualEndSessionBeacon() {
+            console.log('🧪 Iniciando endSession con beacon...');
+            const result = await window.guiders?.visitorsService?.endSession({ useBeacon: true, reason: 'beacon_test' });
+            console.log('📋 Resultado endSession beacon:', result);
+        }
+        
+        function simulatePageHide() {
+            console.log('🧪 Simulando evento pagehide...');
+            window.dispatchEvent(new Event('pagehide'));
+        }
+        
+        function simulateVisibilityHidden() {
+            console.log('🧪 Simulando visibilitychange to hidden...');
+            Object.defineProperty(document, 'visibilityState', { value: 'hidden', writable: true });
+            document.dispatchEvent(new Event('visibilitychange'));
+        }
+        
+        function reloadPage() {
+            console.log('🧪 Recargando página en 2 segundos...');
+            setTimeout(() => location.reload(), 2000);
+        }
+        
+        function closePage() {
+            console.log('🧪 Intentando cerrar página...');
+            window.close();
+        }
+        
+        // Actualizar estado en la página
+        function updateStatus() {
+            const sessionId = sessionStorage.getItem('guiders_backend_session_id');
+            const visitorId = localStorage.getItem('visitorId');
+            const beaconSupport = 'sendBeacon' in navigator;
+            
+            document.getElementById('sessionId').textContent = sessionId || 'No disponible';
+            document.getElementById('visitorId').textContent = visitorId || 'No disponible';
+            document.getElementById('beaconSupport').textContent = beaconSupport ? '✅ Soportado' : '❌ No soportado';
+        }
+        
+        // Actualizar estado cada segundo
+        setInterval(updateStatus, 1000);
+        updateStatus();
+        
+        // Log inicial
+        console.log('🚀 Página de prueba cargada. SDK configurado para endSession automático.');
+    </script>
+</body>
+</html>
