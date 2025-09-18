@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Identity Signal Demo - Guiders SDK</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .loading { background-color: #fff3cd; border: 1px solid #ffeaa7; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        
+        .chat-item {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+        .chat-meta {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        
+        .section {
+            margin: 20px 0;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Identity Signal Demo</h1>
+        <p>Esta demo muestra cómo usar el nuevo sistema de signals para identificación de visitantes y carga automática de chats.</p>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="visitorIdStat">---</div>
+                <div class="stat-label">Visitor ID</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="sessionIdStat">---</div>
+                <div class="stat-label">Session ID</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="chatsCountStat">0</div>
+                <div class="stat-label">Chats Cargados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statusStat">Inicializando</div>
+                <div class="stat-label">Estado</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🎯 Controles</h2>
+        <button id="identifyBtn" onclick="identifyVisitor()">Identificar Visitante</button>
+        <button id="reloadChatsBtn" onclick="reloadChats()" disabled>Recargar Chats</button>
+        <button id="resetBtn" onclick="resetSignal()">Reset Signal</button>
+        <button onclick="showCurrentState()">Mostrar Estado</button>
+        <button onclick="clearLogs()">Limpiar Logs</button>
+    </div>
+
+    <div class="container">
+        <h2>📊 Estado del Signal</h2>
+        <div id="signalStatus" class="status info">Inicializando SDK...</div>
+        
+        <div class="section">
+            <h3>📝 Logs en Tiempo Real</h3>
+            <div id="logs" class="log"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>💬 Chats del Visitante</h2>
+        <div id="chatsContainer">
+            <p class="info">Los chats aparecerán aquí después de la identificación...</p>
+        </div>
+    </div>
+
+    <!-- SDK Script -->
+    <script src="../dist/index.js"></script>
+    
+    <script>
+        let sdk = null;
+        let identitySignal = null;
+        let chatsSignal = null;
+        let identityUnsubscribe = null;
+        let chatsUnsubscribe = null;
+
+        // Log función helper
+        function addLog(message) {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            logs.textContent += `[${timestamp}] ${message}\n`;
+            logs.scrollTop = logs.scrollHeight;
+            console.log(`[IdentitySignalDemo] ${message}`);
+        }
+
+        // Inicializar SDK cuando esté listo
+        function initDemo() {
+            if (window.guiders) {
+                sdk = window.guiders;
+                identitySignal = sdk.getIdentitySignal();
+                chatsSignal = identitySignal.getChatsSignal();
+                
+                addLog('✅ SDK inicializado correctamente');
+                
+                // Suscribirse a cambios en identity
+                identityUnsubscribe = sdk.subscribeToIdentityChanges((state) => {
+                    addLog(`🔄 Identity state cambio: loading=${state.loading}, error=${!!state.error}`);
+                    updateUIFromIdentityState(state);
+                });
+                
+                // Suscribirse a cambios en chats
+                chatsUnsubscribe = sdk.subscribeToChatChanges((state) => {
+                    addLog(`💬 Chats state cambio: loading=${state.loading}, chats=${state.data?.chats?.length || 0}`);
+                    updateChatsUI(state);
+                });
+                
+                // Verificar si ya hay data
+                showCurrentState();
+                updateStatusStat('Listo');
+                
+            } else {
+                setTimeout(initDemo, 100);
+            }
+        }
+
+        // Identificar visitante
+        async function identifyVisitor() {
+            if (!sdk) return;
+            
+            const btn = document.getElementById('identifyBtn');
+            btn.disabled = true;
+            btn.textContent = 'Identificando...';
+            
+            try {
+                addLog('🚀 Iniciando identificación del visitante...');
+                
+                // Usar el método del SDK que automáticamente carga chats
+                const result = await sdk.identifyVisitor();
+                
+                addLog(`✅ Visitante identificado: ${result.identity.visitorId}`);
+                if (result.chats) {
+                    addLog(`💬 ${result.chats.chats.length} chats cargados automáticamente`);
+                }
+                
+            } catch (error) {
+                addLog(`❌ Error identificando: ${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Identificar Visitante';
+            }
+        }
+
+        // Recargar chats
+        async function reloadChats() {
+            if (!sdk) return;
+            
+            const btn = document.getElementById('reloadChatsBtn');
+            btn.disabled = true;
+            btn.textContent = 'Recargando...';
+            
+            try {
+                addLog('🔄 Recargando chats del visitante...');
+                const chats = await sdk.reloadVisitorChats();
+                
+                if (chats) {
+                    addLog(`✅ ${chats.chats.length} chats recargados`);
+                } else {
+                    addLog('⚠️ No se pudieron recargar los chats');
+                }
+                
+            } catch (error) {
+                addLog(`❌ Error recargando chats: ${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Recargar Chats';
+            }
+        }
+
+        // Reset signal
+        function resetSignal() {
+            if (!identitySignal) return;
+            
+            addLog('🔄 Reseteando signal...');
+            identitySignal.reset();
+            
+            // Resetear UI
+            document.getElementById('chatsContainer').innerHTML = '<p class="info">Los chats aparecerán aquí después de la identificación...</p>';
+            updateStatsUI(null, null, 0);
+            updateStatusStat('Reset');
+        }
+
+        // Mostrar estado actual
+        function showCurrentState() {
+            if (!identitySignal) return;
+            
+            const state = identitySignal.getState();
+            const identity = identitySignal.getIdentity();
+            const chats = identitySignal.getChats();
+            
+            addLog('📊 Estado actual:');
+            addLog(`  - Loading: ${state.loading}`);
+            addLog(`  - Error: ${state.error?.message || 'none'}`);
+            addLog(`  - Visitor ID: ${identity?.visitorId || 'none'}`);
+            addLog(`  - Session ID: ${identity?.sessionId || 'none'}`);
+            addLog(`  - Chats: ${chats?.chats?.length || 0}`);
+        }
+
+        // Limpiar logs
+        function clearLogs() {
+            document.getElementById('logs').textContent = '';
+        }
+
+        // Actualizar UI desde el state de identity
+        function updateUIFromIdentityState(state) {
+            const statusDiv = document.getElementById('signalStatus');
+            const reloadBtn = document.getElementById('reloadChatsBtn');
+            
+            if (state.loading) {
+                statusDiv.className = 'status loading';
+                statusDiv.textContent = '⏳ Identificando visitante...';
+                updateStatusStat('Cargando');
+            } else if (state.error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ Error: ${state.error.message}`;
+                updateStatusStat('Error');
+            } else if (state.data) {
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `✅ Visitante identificado: ${state.data.identity.visitorId}`;
+                reloadBtn.disabled = false;
+                updateStatusStat('Identificado');
+                
+                // Actualizar stats
+                updateStatsUI(
+                    state.data.identity.visitorId,
+                    state.data.identity.sessionId,
+                    state.data.chats?.chats?.length || 0
+                );
+            } else {
+                statusDiv.className = 'status info';
+                statusDiv.textContent = 'ℹ️ Listo para identificar visitante';
+                updateStatusStat('Listo');
+            }
+        }
+
+        // Actualizar UI de chats
+        function updateChatsUI(state) {
+            const container = document.getElementById('chatsContainer');
+            
+            if (state.loading) {
+                container.innerHTML = '<p class="status loading">⏳ Cargando chats...</p>';
+            } else if (state.error) {
+                container.innerHTML = `<p class="status error">❌ Error cargando chats: ${state.error.message}</p>`;
+            } else if (state.data && state.data.chats.length > 0) {
+                const chatsHtml = state.data.chats.map(chat => `
+                    <div class="chat-item">
+                        <strong>Chat ID:</strong> ${chat.id}<br>
+                        <strong>Estado:</strong> ${chat.status}<br>
+                        <strong>Prioridad:</strong> ${chat.priority}<br>
+                        <strong>Departamento:</strong> ${chat.department}<br>
+                        <strong>Mensajes:</strong> ${chat.totalMessages}<br>
+                        <strong>No leídos:</strong> ${chat.unreadMessagesCount}
+                        <div class="chat-meta">
+                            Creado: ${new Date(chat.createdAt).toLocaleString()}<br>
+                            Última actividad: ${chat.lastMessageDate ? new Date(chat.lastMessageDate).toLocaleString() : 'N/A'}
+                        </div>
+                    </div>
+                `).join('');
+                
+                container.innerHTML = chatsHtml;
+                
+                // Actualizar contador
+                document.getElementById('chatsCountStat').textContent = state.data.chats.length;
+            } else if (state.data) {
+                container.innerHTML = '<p class="status info">ℹ️ No hay chats para este visitante</p>';
+                document.getElementById('chatsCountStat').textContent = '0';
+            }
+        }
+
+        // Actualizar estadísticas
+        function updateStatsUI(visitorId, sessionId, chatsCount) {
+            document.getElementById('visitorIdStat').textContent = visitorId ? visitorId.substring(0, 8) + '...' : '---';
+            document.getElementById('sessionIdStat').textContent = sessionId ? sessionId.substring(0, 8) + '...' : '---';
+            document.getElementById('chatsCountStat').textContent = chatsCount;
+        }
+
+        function updateStatusStat(status) {
+            document.getElementById('statusStat').textContent = status;
+        }
+
+        // Cleanup al cerrar
+        window.addEventListener('beforeunload', () => {
+            if (identityUnsubscribe) identityUnsubscribe();
+            if (chatsUnsubscribe) chatsUnsubscribe();
+        });
+
+        // Inicializar cuando la página cargue
+        document.addEventListener('DOMContentLoaded', initDemo);
+    </script>
+</body>
+</html>

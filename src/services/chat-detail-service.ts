@@ -109,12 +109,26 @@ export async function fetchChatDetailV2(chatId: string): Promise<ChatDetailV2> {
 	const apiRoot = baseEndpointRaw.endsWith('/api') ? baseEndpointRaw : `${baseEndpointRaw}/api`;
 
 	const url = `${apiRoot}/v2/chats/${chatId}`;
+	
+	// Construir headers incluyendo sessionId
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json'
+	};
+	
+	// Agregar sessionId como header X-Guiders-Sid
+	const sessionId = sessionStorage.getItem('guiders_backend_session_id');
+	if (sessionId) {
+		headers['X-Guiders-Sid'] = sessionId;
+	}
+	
+	// Agregar Authorization si existe (modo JWT)
+	if (accessToken) {
+		headers['Authorization'] = `Bearer ${accessToken}`;
+	}
+	
 	const response = await fetch(url, {
 		method: 'GET',
-		headers: {
-			'Authorization': `Bearer ${accessToken || ''}`,
-			'Content-Type': 'application/json'
-		}
+		headers
 	});
 
 	if (!response.ok) {

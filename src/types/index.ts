@@ -1,6 +1,12 @@
 // src/types/index.ts
 export { ConfidenceLevel } from './confidence';
 
+// Signals
+export type { SignalState, SignalSubscriber } from '../core/signal';
+export { Signal, AsyncSignal } from '../core/signal';
+export type { IdentityWithChatsData } from '../core/identity-signal';
+export { IdentitySignal, useIdentitySignal } from '../core/identity-signal';
+
 export interface PixelEvent<T = Record<string, unknown>> {
 	type: string;
 	data: T;

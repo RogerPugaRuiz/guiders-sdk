@@ -24,6 +24,7 @@ import { EnhancedDomTrackingManager } from "./enhanced-dom-tracking-manager";
 import { HeuristicDetectionConfig } from "./heuristic-element-detector";
 import { SessionTrackingManager, SessionTrackingConfig } from "./session-tracking-manager";
 import { ChatMemoryStore } from "./chat-memory-store";
+import { IdentitySignal } from "./identity-signal";
 
 
 interface SDKOptions {
@@ -131,6 +132,7 @@ export class TrackingPixelSDK {
 	private heuristicEnabled: boolean;
 	private visitorHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	private authMode: 'jwt' | 'session';
+	private identitySignal: IdentitySignal;
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -148,6 +150,9 @@ export class TrackingPixelSDK {
 
 		localStorage.setItem("pixelEndpoint", this.endpoint);
 		localStorage.setItem("guidersApiKey", this.apiKey);
+
+		// Inicializar el signal de identity
+		this.identitySignal = IdentitySignal.getInstance();
 
 		// Crear la instancia de SessionInjectionStage
 		this.sessionInjectionStage = new SessionInjectionStage();
@@ -941,5 +946,98 @@ export class TrackingPixelSDK {
 	 */
 	public get visitorsService() {
 		return VisitorsV2Service.getInstance();
+	}
+
+	/**
+	 * Getter para acceder al signal de identity.
+	 * Permite suscribirse a cambios en el estado de identificación y chats.
+	 */
+	public getIdentitySignal() {
+		return this.identitySignal;
+	}
+
+	/**
+	 * Ejecuta la identificación del visitante usando fingerprint y automáticamente carga sus chats.
+	 * @param fingerprint Huella digital del visitante
+	 * @param apiKey API Key opcional (si no se usa el del constructor)
+	 * @returns Promise con los datos de identity y chats
+	 */
+	public async identifyVisitor(fingerprint?: string, apiKey?: string) {
+		const fp = fingerprint || this.fingerprint || this.generateFingerprint();
+		const key = apiKey || this.apiKey;
+		
+		console.log('[TrackingPixelSDK] 🔍 Identificando visitante con fingerprint:', fp);
+		
+		try {
+			const result = await this.identitySignal.identify(fp, key);
+			console.log('[TrackingPixelSDK] ✅ Visitante identificado exitosamente:', result.identity.visitorId);
+			return result;
+		} catch (error) {
+			console.error('[TrackingPixelSDK] ❌ Error identificando visitante:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Genera un nuevo fingerprint usando ClientJS.
+	 * @returns string con el fingerprint generado
+	 */
+	private generateFingerprint(): string {
+		const client = new ClientJS();
+		const fingerprint = client.getFingerprint().toString();
+		localStorage.setItem("fingerprint", fingerprint);
+		this.fingerprint = fingerprint;
+		return fingerprint;
+	}
+
+	/**
+	 * Recarga los chats del visitante actual.
+	 * @returns Promise con la lista de chats o null si no hay visitante identificado
+	 */
+	public async reloadVisitorChats() {
+		console.log('[TrackingPixelSDK] 🔄 Recargando chats del visitante...');
+		return this.identitySignal.reloadChats();
+	}
+
+	/**
+	 * Obtiene el estado actual del signal de identity.
+	 * @returns Estado actual con loading, data y error
+	 */
+	public getIdentityState() {
+		return this.identitySignal.getState();
+	}
+
+	/**
+	 * Obtiene el visitorId actual del visitante identificado.
+	 * @returns visitorId o null si no está identificado
+	 */
+	public getVisitorId() {
+		return this.identitySignal.getVisitorId();
+	}
+
+	/**
+	 * Verifica si hay un visitante identificado.
+	 * @returns true si hay un visitante identificado
+	 */
+	public isVisitorIdentified() {
+		return this.identitySignal.isIdentified();
+	}
+
+	/**
+	 * Suscribe un callback para escuchar cambios en el estado de identity.
+	 * @param callback Función que se ejecuta cuando cambia el estado
+	 * @returns Función para cancelar la suscripción
+	 */
+	public subscribeToIdentityChanges(callback: (state: any) => void) {
+		return this.identitySignal.subscribe(callback);
+	}
+
+	/**
+	 * Suscribe un callback para escuchar cambios específicamente en los chats.
+	 * @param callback Función que se ejecuta cuando cambian los chats
+	 * @returns Función para cancelar la suscripción
+	 */
+	public subscribeToChatChanges(callback: (state: any) => void) {
+		return this.identitySignal.getChatsSignal().subscribe(callback);
 	}
 }

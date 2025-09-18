@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo - Headers de Sesión</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Demo - Headers de Sesión X-Guiders-Sid</h1>
+        <p>Esta demo verifica que todas las peticiones excepto identify incluyan la cabecera X-Guiders-Sid.</p>
+        
+        <div id="status" class="status info">Preparando...</div>
+        
+        <h3>Acciones:</h3>
+        <button onclick="testIdentifyAndChats()">🚀 Test Identify + Auto Chats</button>
+        <button onclick="testChatMethods()">💬 Test Métodos Chat</button>
+        <button onclick="clearLogs()">🧹 Limpiar Logs</button>
+        
+        <h3>Información de Sesión:</h3>
+        <div id="sessionInfo" class="info">No hay sesión activa</div>
+        
+        <h3>Estado del Signal:</h3>
+        <div id="signalState" class="info">Signal no inicializado</div>
+        
+        <h3>Logs de Red:</h3>
+        <div id="networkLogs" class="log">Los logs de peticiones HTTP aparecerán aquí...</div>
+    </div>
+
+    <!-- SDK debe cargarse desde el build -->
+    <script src="../dist/index.js" data-api-key="test-key-123"></script>
+    
+    <script>
+        let networkLogs = [];
+        let statusDiv, sessionInfoDiv, signalStateDiv, networkLogsDiv;
+
+        // Interceptar fetch para monitorear cabeceras
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const [url, options = {}] = args;
+            const timestamp = new Date().toLocaleTimeString();
+            
+            // Log de la petición
+            const headers = options.headers || {};
+            const hasSessionHeader = headers['X-Guiders-Sid'] !== undefined;
+            const isIdentifyRequest = url.includes('/identify');
+            
+            const logEntry = {
+                timestamp,
+                url,
+                method: options.method || 'GET',
+                headers: headers,
+                hasSessionHeader,
+                isIdentifyRequest,
+                expectedHeader: !isIdentifyRequest
+            };
+            
+            networkLogs.push(logEntry);
+            updateNetworkLogs();
+            
+            // Llamar al fetch original
+            return originalFetch.apply(this, args);
+        };
+
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        function updateSessionInfo() {
+            const sessionId = sessionStorage.getItem('guiders_backend_session_id');
+            if (sessionId) {
+                sessionInfoDiv.innerHTML = `<strong>Session ID:</strong> ${sessionId}`;
+                sessionInfoDiv.className = 'status success';
+            } else {
+                sessionInfoDiv.textContent = 'No hay sesión activa';
+                sessionInfoDiv.className = 'status info';
+            }
+        }
+
+        function updateSignalState() {
+            try {
+                const signal = window.guiders?.getIdentitySignal?.();
+                if (signal) {
+                    const state = signal.getState();
+                    const html = `
+                        <strong>Estado:</strong> ${state.status}<br>
+                        <strong>Visitor ID:</strong> ${state.data?.visitor?.visitorId || 'N/A'}<br>
+                        <strong>Chats:</strong> ${state.data?.chats ? state.data.chats.length : 0}
+                    `;
+                    signalStateDiv.innerHTML = html;
+                    signalStateDiv.className = 'status success';
+                } else {
+                    signalStateDiv.textContent = 'Signal no disponible';
+                    signalStateDiv.className = 'status error';
+                }
+            } catch (error) {
+                signalStateDiv.textContent = `Error: ${error.message}`;
+                signalStateDiv.className = 'status error';
+            }
+        }
+
+        function updateNetworkLogs() {
+            const logText = networkLogs.map(log => {
+                const correctHeader = log.expectedHeader === log.hasSessionHeader;
+                const statusIcon = correctHeader ? '✅' : '❌';
+                const headerStatus = log.isIdentifyRequest 
+                    ? (log.hasSessionHeader ? '❌ NO debería tener' : '✅ Correcto sin header')
+                    : (log.hasSessionHeader ? '✅ Tiene header' : '❌ Falta header');
+                
+                return `${statusIcon} [${log.timestamp}] ${log.method} ${log.url}
+   Header X-Guiders-Sid: ${headerStatus}
+   Headers: ${JSON.stringify(log.headers, null, 2)}`;
+            }).join('\n\n');
+            
+            networkLogsDiv.textContent = logText;
+        }
+
+        function clearLogs() {
+            networkLogs = [];
+            updateNetworkLogs();
+            updateStatus('Logs limpiados', 'info');
+        }
+
+        async function testIdentifyAndChats() {
+            updateStatus('Ejecutando identify + auto chats...', 'info');
+            
+            try {
+                // Usar el signal para identify automático
+                const result = await window.guiders.identifyVisitor();
+                if (result.status === 'success') {
+                    updateStatus('✅ Identify completado y chats cargados automáticamente', 'success');
+                } else {
+                    updateStatus(`❌ Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+            }
+            
+            updateSessionInfo();
+            updateSignalState();
+        }
+
+        async function testChatMethods() {
+            updateStatus('Probando métodos de chat...', 'info');
+            
+            try {
+                const chatService = window.guiders.getChatV2Service?.();
+                if (!chatService) {
+                    throw new Error('Chat service no disponible');
+                }
+
+                // Probar diferentes métodos que deberían incluir headers
+                const visitorId = 'e80e12d4-6522-4439-b40a-78819fca4f17';
+                
+                // 1. getVisitorChats
+                await chatService.getVisitorChats(visitorId, 5);
+                
+                // 2. getCommercialMetrics
+                try {
+                    await chatService.getCommercialMetrics();
+                } catch (e) {
+                    console.log('Metrics error expected:', e.message);
+                }
+                
+                // 3. getResponseTimeStats  
+                try {
+                    await chatService.getResponseTimeStats();
+                } catch (e) {
+                    console.log('Stats error expected:', e.message);
+                }
+                
+                updateStatus('✅ Métodos de chat probados', 'success');
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+            }
+            
+            updateSessionInfo();
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            statusDiv = document.getElementById('status');
+            sessionInfoDiv = document.getElementById('sessionInfo');
+            signalStateDiv = document.getElementById('signalState');
+            networkLogsDiv = document.getElementById('networkLogs');
+            
+            updateStatus('SDK cargado, listo para pruebas', 'success');
+            updateSessionInfo();
+            updateSignalState();
+            
+            // Actualizar estado cada 2 segundos
+            setInterval(() => {
+                updateSessionInfo();
+                updateSignalState();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

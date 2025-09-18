@@ -21,18 +21,21 @@ export class ChatV2Service {
 	 * Obtiene los headers de autorización para las peticiones
 	 */
 	private getAuthHeaders(): Record<string, string> {
-		const baseHeaders = {
+		const baseHeaders: Record<string, string> = {
 			'Content-Type': 'application/json'
 		};
+
+		// Agregar sessionId como header X-Guiders-Sid para todas las peticiones de chat
+		const sessionId = sessionStorage.getItem('guiders_backend_session_id');
+		if (sessionId) {
+			baseHeaders['X-Guiders-Sid'] = sessionId;
+		}
 
 		// Solo agregar Authorization en modo JWT
 		// En modo session, la autenticación se maneja automáticamente por cookies
 		const accessToken = localStorage.getItem('accessToken');
 		if (accessToken) {
-			return {
-				...baseHeaders,
-				'Authorization': `Bearer ${accessToken}`
-			};
+			baseHeaders['Authorization'] = `Bearer ${accessToken}`;
 		}
 
 		return baseHeaders;
@@ -143,10 +146,7 @@ export class ChatV2Service {
 
 		const url = `${this.getBaseUrl()}/commercial/${commercialId}?${params.toString()}`;
 
-		const response = await fetch(url, {
-			method: 'GET',
-			headers: this.getAuthHeaders()
-		});
+		const response = await fetch(url, this.getFetchOptions('GET'));
 
 		if (!response.ok) {
 			const errorText = await response.text();
@@ -179,10 +179,7 @@ export class ChatV2Service {
 
 		const url = `${this.getBaseUrl()}/queue/pending?${params.toString()}`;
 
-		const response = await fetch(url, {
-			method: 'GET',
-			headers: this.getAuthHeaders()
-		});
+		const response = await fetch(url, this.getFetchOptions('GET'));
 
 		if (!response.ok) {
 			const errorText = await response.text();
@@ -207,10 +204,7 @@ export class ChatV2Service {
 	async assignChat(chatId: string, commercialId: string): Promise<ChatV2> {
 		console.log(`[ChatV2Service] 📌 Asignando chat ${chatId} al comercial ${commercialId}`);
 
-		const response = await fetch(`${this.getBaseUrl()}/${chatId}/assign/${commercialId}`, {
-			method: 'PUT',
-			headers: this.getAuthHeaders()
-		});
+		const response = await fetch(`${this.getBaseUrl()}/${chatId}/assign/${commercialId}`, this.getFetchOptions('PUT'));
 
 		if (!response.ok) {
 			const errorText = await response.text();
@@ -232,10 +226,7 @@ export class ChatV2Service {
 	async closeChat(chatId: string): Promise<ChatV2> {
 		console.log(`[ChatV2Service] 🔒 Cerrando chat ${chatId}`);
 
-		const response = await fetch(`${this.getBaseUrl()}/${chatId}/close`, {
-			method: 'PUT',
-			headers: this.getAuthHeaders()
-		});
+		const response = await fetch(`${this.getBaseUrl()}/${chatId}/close`, this.getFetchOptions('PUT'));
 
 		if (!response.ok) {
 			const errorText = await response.text();
@@ -269,10 +260,7 @@ export class ChatV2Service {
 
 		const url = `${this.getBaseUrl()}/metrics/commercial/${commercialId}?${params.toString()}`;
 
-		const response = await fetch(url, {
-			method: 'GET',
-			headers: this.getAuthHeaders()
-		});
+		const response = await fetch(url, this.getFetchOptions('GET'));
 
 		if (!response.ok) {
 			const errorText = await response.text();
@@ -307,10 +295,7 @@ export class ChatV2Service {
 
 		const url = `${this.getBaseUrl()}/response-time-stats?${params.toString()}`;
 
-		const response = await fetch(url, {
-			method: 'GET',
-			headers: this.getAuthHeaders()
-		});
+		const response = await fetch(url, this.getFetchOptions('GET'));
 
 		if (!response.ok) {
 			const errorText = await response.text();
