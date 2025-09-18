@@ -21,10 +21,32 @@ export class ChatV2Service {
 	 * Obtiene los headers de autorización para las peticiones
 	 */
 	private getAuthHeaders(): Record<string, string> {
-		const accessToken = localStorage.getItem('accessToken');
-		return {
-			'Authorization': `Bearer ${accessToken || ''}`,
+		const baseHeaders = {
 			'Content-Type': 'application/json'
+		};
+
+		// Solo agregar Authorization en modo JWT
+		// En modo session, la autenticación se maneja automáticamente por cookies
+		const accessToken = localStorage.getItem('accessToken');
+		if (accessToken) {
+			return {
+				...baseHeaders,
+				'Authorization': `Bearer ${accessToken}`
+			};
+		}
+
+		return baseHeaders;
+	}
+
+	/**
+	 * Obtiene las opciones de fetch con autenticación adecuada
+	 */
+	private getFetchOptions(method: string = 'GET', body?: string): RequestInit {
+		return {
+			method,
+			headers: this.getAuthHeaders(),
+			credentials: 'include', // Incluir cookies para autenticación session-based
+			...(body && { body })
 		};
 	}
 
@@ -56,10 +78,7 @@ export class ChatV2Service {
 
 		const url = `${this.getBaseUrl()}/visitor/${visitorId}?${params.toString()}`;
 
-		const response = await fetch(url, {
-			method: 'GET',
-			headers: this.getAuthHeaders()
-		});
+		const response = await fetch(url, this.getFetchOptions('GET'));
 
 		if (!response.ok) {
 			const errorText = await response.text();
@@ -312,11 +331,7 @@ export class ChatV2Service {
 	 */
 	async createChatAuto(payload: any): Promise<ChatV2> {
 		console.log('[ChatV2Service] 🆕 Creando chat V2 por POST (auto-id)');
-		const response = await fetch(`${this.getBaseUrl()}`, {
-			method: 'POST',
-			headers: this.getAuthHeaders(),
-			body: JSON.stringify(payload)
-		});
+		const response = await fetch(`${this.getBaseUrl()}`, this.getFetchOptions('POST', JSON.stringify(payload)));
 		if (!response.ok) {
 			const errorText = await response.text();
 			console.error('[ChatV2Service] ❌ Error al crear chat V2 (POST):', errorText);

@@ -19,6 +19,7 @@ SDK para la integración del sistema de guías y chat en sitios web.
 1. [Detalles técnicos](#detalles-técnicos)
 1. [Licencia](#licencia)
 1. [📦 Flujo de Release / Sincronización Plugin WordPress](#-flujo-de-release--sincronización-plugin-wordpress)
+ 1. [Autenticación de Tokens](#autenticación-de-tokens)
 
 ## Instalación
 
@@ -146,6 +147,7 @@ O bien, pasando la API key como parámetro:
 - **Tracking de sesión robusto** (evita falsos `session_end` en refresh, heartbeat configurable)
 - **Toggles runtime** para heurística (`updateHeuristicConfig`, `setHeuristicEnabled`)
 - **Workflow de release WordPress** automatizable (scripts y GitHub Actions)
+- **Autenticación simplificada** (sin endpoints legacy /register ni /token/refresh)
 
 ## 🎯 Detección Heurística Inteligente (Nuevo)
 
@@ -393,6 +395,7 @@ detector.detect().then(result => {
 - 🧪 **Modo desarrollo heurístico**: Visualización opcional de elementos detectados (solo dev)
 - 📦 **Flujo release plugin WordPress**: Scripts y Actions alineados con nueva guía de publicación
 - 🧱 **Documentación de migración**: `MIGRATION_GUIDE_V2.md` y `README_V2.md` añadidos
+- 🔐 **Simplificación flujo tokens**: Eliminados endpoints legacy `/pixel/register` y `/pixel/token/refresh`. Renovación completa ahora usa un único endpoint `/pixel/token`.
 
 > Para un changelog detallado consulta la sección v2 más abajo o el archivo de migración.
 
@@ -497,6 +500,61 @@ Cuando se actualiza el bundle `dist/index.js` (nueva versión interna del SDK) y
 ```bash
 npm run build
 cp dist/index.js wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js
+
+## Autenticación de Tokens
+
+El SDK usa un modelo simplificado de obtención y renovación de tokens.
+
+### Antes (legacy, eliminado)
+
+- Registro explícito vía `POST /api/pixel/register` devolvía `access_token` y `refresh_token`.
+- Renovación incremental vía `POST /api/pixel/token/refresh` usando `refresh_token`.
+
+### Ahora (modelo unificado / transición a sesión)
+
+1. Se obtiene siempre un par de tokens llamando a `POST /api/pixel/token` pasando el fingerprint del visitante.
+2. Al detectar que el `access_token` está por expirar, el SDK solicita un nuevo par completo al mismo endpoint (no se usa refresh incremental).
+3. Se conservan los campos `access_token` y `refresh_token` sólo por compatibilidad de formato; el `refresh_token` ya no se envía a ningún endpoint.
+4. (Nuevo) Modo `authMode: 'session'` evita por completo pedir el JWT y se basa únicamente en la cookie HttpOnly emitida por `/api/visitors/identify`.
+
+### API interna relevante
+
+```ts
+import { TrackingPixelSDK } from 'guiders-pixel';
+
+// Modo por defecto ahora: session (no solicitar JWT)
+const sdk = new TrackingPixelSDK({
+  apiKey: 'YOUR_API_KEY',
+  authMode: 'session', // 'jwt' para compat si el backend aún requiere token
+});
+await sdk.init();
+```
+
+`TokenManager` (sólo activo en `authMode='jwt'`):
+
+- Detecta expiración decodificando el JWT (`exp`).
+- Si faltan <60s, llama de nuevo a `/pixel/token` y reemplaza ambos tokens.
+- Ya no invoca endpoints de refresh ni register.
+
+### Razones del cambio
+
+- Menor complejidad cliente/servidor.
+- Evita estados inconsistentes si el registro era inválido o la cuenta se eliminaba.
+- Reduce latencia: una sola operación para renovar.
+
+### Impacto para integradores
+
+- Si usas `authMode='session'`: no se descarga ni decodifica ningún JWT, se omite el `TokenInjectionStage` en la pipeline.
+- Si usas `authMode='jwt'`: se mantiene el ciclo de renovación completa vía `/pixel/token`.
+- Logs: verás `[TrackingPixelSDK] 🔐 authMode=session` cuando esté activo el modo de sesión.
+- No existían métodos públicos `registerClient` ni `refreshToken` (sólo internos), por lo que integradores no necesitan cambios.
+
+### Futuras simplificaciones potenciales
+
+- El backend podría dejar de enviar `refresh_token`; cuando ocurra, se limpiará el almacenamiento y tipos.
+- Futuro: eliminación completa de `TokenManager` y `authMode='jwt'` una vez todos los clientes estén migrados.
+
+---
 ```
 
 ### 3. Generar ZIP distribuible

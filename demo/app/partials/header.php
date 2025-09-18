@@ -10,7 +10,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
   
   <!-- Guiders SDK Script -->
-  <script src="http://127.0.0.1:8081/index.js?apiKey=49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d9763&dev=true"></script>
+  <script src="http://127.0.0.1:8081/index.js?apiKey=12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0&dev=true"></script>
 
   <!-- Producción: -->
   <!-- <script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js?apiKey=ea0cb2d33e9a186906747071e88a1a1eb1c219a0189f0344c7d87e2c497bf626"></script> -->

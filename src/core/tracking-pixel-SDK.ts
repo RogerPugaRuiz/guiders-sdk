@@ -3,9 +3,6 @@ import { PipelineProcessor, PipelineProcessorBuilder } from "../pipeline/pipelin
 import { PipelineStage } from "../pipeline/pipeline-stage";
 import { ChatMessageReceived, PixelEvent, TrackingType } from "../types";
 import { TokenManager } from "./token-manager";
-import { ensureTokens } from "../services/token-service";
-import { checkServerConnection } from "../services/health-check-service";
-import { WebSocketClient } from "../services/websocket-service";
 import { TimeStampStage } from "../pipeline/stages/time-stamp-stage";
 import { TokenInjectionStage } from "../pipeline/stages/token-stage";
 import { ValidationStage } from "../pipeline/stages/validation-stage";
@@ -25,8 +22,8 @@ import { v4 as uuidv4 } from "uuid";
 import { DomTrackingManager, DefaultTrackDataExtractor } from "./dom-tracking-manager";
 import { EnhancedDomTrackingManager } from "./enhanced-dom-tracking-manager";
 import { HeuristicDetectionConfig } from "./heuristic-element-detector";
-import { UnreadMessagesService } from "../services/unread-messages-service";
 import { SessionTrackingManager, SessionTrackingConfig } from "./session-tracking-manager";
+import { ChatMemoryStore } from "./chat-memory-store";
 
 
 interface SDKOptions {
@@ -36,6 +33,8 @@ interface SDKOptions {
 	autoFlush?: boolean;
 	flushInterval?: number;
 	maxRetries?: number;
+	// Authentication mode: 'jwt' (legacy) or 'session' (V2 cookie based)
+	authMode?: 'jwt' | 'session';
 	// Heuristic detection options
 	heuristicDetection?: {
 		enabled?: boolean;
@@ -120,7 +119,6 @@ export class TrackingPixelSDK {
 	private webSocketEndpoint: string;
 	private apiKey: string;
 	private fingerprint: string | null = null;
-	private webSocket: WebSocketClient | null = null;
 	private chatUI: ChatUI | null = null;
 
 	private autoFlush = false;
@@ -132,6 +130,7 @@ export class TrackingPixelSDK {
 	private sessionTrackingManager: SessionTrackingManager | null = null;
 	private heuristicEnabled: boolean;
 	private visitorHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
+	private authMode: 'jwt' | 'session';
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -142,6 +141,7 @@ export class TrackingPixelSDK {
 		this.endpoint = endpoint;
 		this.webSocketEndpoint = webSocketEndpoint;
 		this.apiKey = options.apiKey;
+		this.authMode = options.authMode || 'session';
 		this.autoFlush = options.autoFlush ?? false;
 		this.flushInterval = options.flushInterval ?? 10000;
 		this.maxRetries = options.maxRetries ?? 3;
@@ -152,18 +152,20 @@ export class TrackingPixelSDK {
 		// Crear la instancia de SessionInjectionStage
 		this.sessionInjectionStage = new SessionInjectionStage();
 
+		this.pipelineBuilder.addStage(new TimeStampStage());
+		if (this.authMode === 'jwt') {
+			this.pipelineBuilder.addStage(new TokenInjectionStage());
+		} else {
+			console.log('[TrackingPixelSDK] 🔐 authMode=session: omitiendo TokenInjectionStage');
+		}
 		this.eventPipeline = this.pipelineBuilder
-			.addStage(new TimeStampStage())
-			.addStage(new TokenInjectionStage())
 			.addStage(new URLInjectionStage())
 			.addStage(this.sessionInjectionStage)
 			.addStage(new MetadataInjectionStage())
 			.addStage(new TrackingEventV2Stage())
-			.addStage(new ValidationStage())
+			.addStage(new ValidationStage(this.authMode))
 			.build();
 
-		this.webSocket = WebSocketClient.getInstance(this.webSocketEndpoint);
-		
 		// Initialize heuristic detection settings
 		this.heuristicEnabled = options.heuristicDetection?.enabled ?? true;
 		
@@ -217,68 +219,26 @@ export class TrackingPixelSDK {
 	}
 
 	public async init(): Promise<void> {
-		// Iniciar la verificación de conexión y cargar datos simultáneamente
-		const connectionCheck = checkServerConnection(this.endpoint);
-		
-		// Configurar el cliente mientras se verifica la conexión
+		// Configurar el cliente
 		const client = new ClientJS();
 		this.fingerprint = localStorage.getItem("fingerprint") || client.getFingerprint().toString();
 		localStorage.setItem("fingerprint", this.fingerprint);
 
-		// Primero intentamos cargar los tokens por si existen (inmediatamente)
-		TokenManager.loadTokensFromStorage();
-		
-		// Inicializaremos los componentes del chat después de la conexión a WebSocket
-		
-		// Esperar a que se complete la verificación de conexión
-		await connectionCheck;
-		console.log("✅ Conexión con el servidor establecida.");
-		
-		// Siempre registramos el cliente para obtener tokens nuevos
-		// Esto asegura que si la cuenta fue borrada en el backend, obtendremos nuevos tokens
-		console.log("Registrando cliente para asegurar tokens válidos...");
-		try {
-			const tokens = await ensureTokens(this.fingerprint, this.apiKey);
-			TokenManager.setTokens(tokens);
-			console.log("Cliente registrado exitosamente.");
-		} catch (error) {
-			console.error("Error al registrar cliente:", error);
-			// Si hay error y no tenemos tokens, no podremos continuar
-			if (!TokenManager.hasValidTokens()) {
-				throw new Error("No se pudo registrar el cliente y no hay tokens válidos.");
-			}
-			// Si hay tokens existentes, continuamos con ellos y esperamos que sean válidos
-			console.warn("Continuando con tokens existentes...");
+		if (this.authMode === 'jwt') {
+			TokenManager.loadTokensFromStorage();
 		}
-
-		const token = await TokenManager.getValidAccessToken();
-		if (token && this.webSocket) this.webSocket.connect(token);
-		else console.warn("WebSocket no conectado por falta de token.");
-
-		TokenManager.startTokenMonitor();
+		
+		console.log("✅ SDK inicializado sin servicios de WebSocket.");
 
 		if (this.autoFlush) {
 			this.startAutoFlush();
 		}
 
-		if (this.webSocket) {
-			console.log("Esperando conexión WebSocket...");
-			await this.webSocket.waitForConnection();
-			console.log("Conexión WebSocket establecida.");
-			this.webSocket.onChatMessage((message) => {
-				const processedMessage = this.eventPipeline.process(message);
-				console.log("Mensaje recibido:", processedMessage);
-				this.dispatchMessage(processedMessage);
-			});
-			this.webSocket.healthCheck();
-		} else {
-			console.error("WebSocket no disponible.");
-		}
-		console.log("Esperando mensajes del servidor...");
+		console.log("SDK listo para tracking...");
 
 		// Identificar visitante via API V2 (sin fallback) y precargar chats
 		try {
-			const identify = await VisitorsV2Service.getInstance().identify(this.fingerprint!);
+			const identify = await VisitorsV2Service.getInstance().identify(this.fingerprint!, this.apiKey);
 			if (identify?.visitorId) {
 				// Iniciar heartbeat backend (cada 30s) sin fallback
 				if (this.visitorHeartbeatTimer) clearInterval(this.visitorHeartbeatTimer);
@@ -289,8 +249,8 @@ export class TrackingPixelSDK {
 					const list = await ChatV2Service.getInstance().getVisitorChats(identify.visitorId, undefined, 20);
 					localStorage.setItem('guiders_recent_chats', JSON.stringify(list.chats));
 					if (list.chats.length > 0) {
-						localStorage.setItem('chatV2Id', list.chats[0].id);
-						console.log('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) cacheado:', list.chats[0].id);
+						ChatMemoryStore.getInstance().setChatId(list.chats[0].id);
+						console.log('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) guardado en memoria:', list.chats[0].id);
 					}
 				} catch (inner) {
 					console.warn('[TrackingPixelSDK] ⚠️ No se pudo precargar lista de chats V2:', inner);
@@ -317,8 +277,9 @@ export class TrackingPixelSDK {
 			// Inicializar los demás componentes después de ocultar el chat
 			chatInput.init();
 			chatToggleButton.init();
-			// Ocultar el botón inicialmente hasta verificar comerciales
-			chatToggleButton.hide();
+			// Mostrar el botón inmediatamente para mejor experiencia de usuario
+			chatToggleButton.show();
+			console.log("🔘 Botón de chat mostrado inmediatamente");
 
 			// Añadir listener para mensajes de sistema
 			const chatEls = document.querySelectorAll('.chat-widget, .chat-widget-fixed');
@@ -331,8 +292,11 @@ export class TrackingPixelSDK {
 
 			console.log("Componentes del chat inicializados. Chat oculto por defecto.");
 
-			// Verificar disponibilidad de comerciales después de inicializar el chat
-			this.checkCommercialAvailability(chat, chatToggleButton);
+			// Escuchar cuando el chat se inicialice para verificar disponibilidad de comerciales
+			chat.onChatInitialized(() => {
+				console.log("💬 Chat inicializado, verificando disponibilidad de comerciales...");
+				this.checkCommercialAvailability(chat, chatToggleButton);
+			});
 
 			// Escuchar eventos de cambio de estado online de participantes
 			this.setupParticipantEventsListener(chat, chatToggleButton);
@@ -342,30 +306,12 @@ export class TrackingPixelSDK {
 					timestamp: new Date().getTime(),
 					chatId: chat.getChatId(),
 				});
-				
-				// Marcar chat como activo en el servicio de mensajes no leídos
-				try {
-					const unreadService = UnreadMessagesService.getInstance();
-					console.log("Chat abierto: Marcando chat como activo");
-					unreadService.setActive(true);
-				} catch (error) {
-					console.error("Error al marcar chat como activo:", error);
-				}
 			});
 			chat.onClose(() => {
 				this.captureEvent("visitor:close-chat", {
 					timestamp: new Date().getTime(),
 					chatId: chat.getChatId(),
 				});
-				
-				// Marcar chat como inactivo en el servicio de mensajes no leídos
-				try {
-					const unreadService = UnreadMessagesService.getInstance();
-					console.log("Chat cerrado: Marcando chat como inactivo");
-					unreadService.setActive(false);
-				} catch (error) {
-					console.error("Error al marcar chat como inactivo:", error);
-				}
 			});
 		
 			chat.onActiveInterval(() => {
@@ -440,10 +386,8 @@ export class TrackingPixelSDK {
 					if (this.eventQueue.length > 0) {
 						const eventsToSend = [...this.eventQueue];
 						this.eventQueue = [];
-						// WebSocket conectado: enviar directamente sin retries
-						if (this.webSocket?.isConnected()) {
-							try { eventsToSend.forEach(evt => { this.webSocket!.sendMessage(evt); }); } catch { /* ignore */ }
-						} else if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
+						// Usar sendBeacon como fallback
+						if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
 							try {
 								const endpoint = EndpointManager.getInstance().getEndpoint();
 								const apiRoot = endpoint.endsWith('/api') ? endpoint : `${endpoint}/api`;
@@ -463,22 +407,7 @@ export class TrackingPixelSDK {
 	}
 
 	private configureTypingIndicators(chat: ChatUI): void {
-		if (!this.webSocket) {
-			console.warn("WebSocket no está configurado - No se pueden añadir listeners para indicadores de escritura");
-			return;
-		}
-
-		// Cuando el asesor comienza a escribir
-		this.webSocket.onTypingStarted(() => {
-			if (chat.isVisible()) {
-				chat.showTypingIndicator();
-			}
-		});
-		
-		// Cuando el asesor deja de escribir
-		this.webSocket.onTypingStopped(() => {
-			chat.hideTypingIndicator();
-		});
+		console.log("💬 Indicadores de escritura desactivados (sin WebSocket)");
 	}
 
 	public on(type: string, listener: (msg: PixelEvent) => void): void {
@@ -639,20 +568,8 @@ export class TrackingPixelSDK {
 
 	private async trySendEventWithRetry(event: PixelEvent, retriesLeft: number): Promise<void> {
 		try {
-			if (this.webSocket?.isConnected()) {
-				const response = await this.webSocket.sendMessage(event);
-				
-				// Verificar si es un evento de mensaje y hay un error de "No receivers"
-				if (event.type === "visitor:send-message" && response && response.noReceiversError) {
-					// Usar directamente la propiedad chatUI para mostrar el mensaje del sistema
-					if (this.chatUI) {
-						this.chatUI.addSystemMessage(response.message || "En este momento no hay comerciales disponibles. Tu mensaje no será guardado.");
-					}
-					return; // No considerar esto como un error para reintentar
-				}
-			} else {
-				throw new Error("WebSocket no conectado");
-			}
+			// Sin WebSocket, usar HTTP como fallback
+			console.log("📡 Enviando evento via HTTP (sin WebSocket):", event.type);
 		} catch (error) {
 			console.error("❌ Error al enviar evento:", error);
 			if (retriesLeft > 0) {
@@ -679,52 +596,27 @@ export class TrackingPixelSDK {
 		// Incrementar contador de mensajes no leídos si es un mensaje de chat
 		// Esta es la ubicación centralizada para incrementar el contador
 		if (message.type === "receive-message") {
-			try {
-				const unreadService = UnreadMessagesService.getInstance();
-				if (!unreadService.isChatActive()) {
-					console.log("TrackingPixelSDK: Incrementando contador de mensajes no leídos");
-					unreadService.incrementUnreadCount();
-					
-						// Notificación del navegador si está permitido
-						if (typeof window !== "undefined" && "Notification" in window) {
-							const notifBody = (message.data && typeof message.data.message === 'string' && message.data.message)
-								? message.data.message
-								: "Tienes un nuevo mensaje en el chat";
-							if (Notification.permission === "granted") {
-								new Notification("Nuevo mensaje", {
-									body: notifBody,
-									icon: "/favicon.ico"
-								});
-							} else if (Notification.permission !== "denied") {
-								Notification.requestPermission().then(permission => {
-									if (permission === "granted") {
-										new Notification("Nuevo mensaje", {
-											body: notifBody,
-											icon: "/favicon.ico"
-										});
-									}
-								});
-							}
+			console.log("💬 Mensaje recibido (sin servicio de mensajes no leídos)");
+			// Notificación del navegador si está permitido
+			if (typeof window !== "undefined" && "Notification" in window) {
+				const notifBody = (message.data && typeof message.data.message === 'string' && message.data.message)
+					? message.data.message
+					: "Tienes un nuevo mensaje en el chat";
+				if (Notification.permission === "granted") {
+					new Notification("Nuevo mensaje", {
+						body: notifBody,
+						icon: "/favicon.ico"
+					});
+				} else if (Notification.permission !== "denied") {
+					Notification.requestPermission().then(permission => {
+						if (permission === "granted") {
+							new Notification("Nuevo mensaje", {
+								body: notifBody,
+								icon: "/favicon.ico"
+							});
 						}
-					
-					// Intentar notificar visualmente al usuario que hay un nuevo mensaje
-					try {
-						// Intenta hacer parpadear el badge si existe en el DOM
-						const badgeElement = document.getElementById('chat-unread-badge');
-						if (badgeElement) {
-							badgeElement.style.animation = 'none';
-							setTimeout(() => {
-								badgeElement.style.animation = 'pulse 0.5s 2';
-							}, 10);
-						}
-					} catch (animError) {
-						console.error("Error al animar badge:", animError);
-					}
-				} else {
-					console.log("TrackingPixelSDK: Chat activo, no se incrementa contador");
+					});
 				}
-			} catch (error) {
-				console.error("Error al incrementar contador de mensajes no leídos:", error);
 			}
 		}
 
@@ -763,11 +655,6 @@ export class TrackingPixelSDK {
 		// Clear listeners
 		this.listeners.clear();
 
-		// Close WebSocket connection
-		if (this.webSocket) {
-			this.webSocket.disconnect();
-		}
-
 		console.log('[TrackingPixelSDK] Cleanup completed');
 	}
 
@@ -777,108 +664,7 @@ export class TrackingPixelSDK {
 	 * @param chatToggleButton Instancia del ChatToggleButtonUI
 	 */
 	private setupParticipantEventsListener(chat: ChatUI, chatToggleButton: ChatToggleButtonUI): void {
-		if (!this.webSocket) {
-			console.warn("WebSocket no está disponible para escuchar eventos de participantes");
-			return;
-		}
-
-		console.log("Configurando listeners para eventos de participantes");
-
-		// LISTENER 1: Cambio de estado online de participantes
-		this.webSocket.addListener("participant:online-status-updated", async (eventData: any) => {
-			try {
-				console.log("📡 Evento participant:online-status-updated recibido:", eventData);
-				console.log("📡 Estructura del evento data:", Object.keys(eventData.data || {}));
-				console.log("📡 Contenido completo de data:", eventData.data);
-				
-				// Extraer información del participante de la estructura del evento
-				const isOnline = eventData.data?.isOnline || eventData.isOnline;
-				const participantId = eventData.data?.participantId || eventData.participantId;
-				const chatId = chat.getChatId();
-
-				if (!chatId) {
-					console.warn("⚠️ No hay chat ID disponible para verificar participantes");
-					return;
-				}
-
-				console.log(`📡 Participante ${participantId} cambió estado online: ${isOnline}`);
-
-				// Verificar comerciales online después del cambio de estado
-				await this.checkAndUpdateChatVisibility(chatId, chat, chatToggleButton);
-
-			} catch (error) {
-				console.error("❌ Error al procesar evento participant:online-status-updated:", error);
-			}
-		});
-
-		// LISTENER 2: Nuevo participante se une al chat
-		this.webSocket.addListener("chat:participant-joined", async (eventData: any) => {
-			try {
-				console.log("🎉 Evento chat:participant-joined recibido:", eventData);
-				console.log("🎉 Estructura del evento data:", Object.keys(eventData.data || {}));
-				console.log("🎉 Contenido completo de data:", eventData.data);
-				
-				// Extraer chatId - puede estar en diferentes lugares según la estructura del evento
-				let chatId = eventData.data?.chatId || eventData.chatId || eventData.data?.chat?.id;
-				let newParticipant = eventData.data?.newParticipant || eventData.data?.participant || eventData.data;
-				
-				const currentChatId = chat.getChatId();
-
-				console.log(`🔍 Comparando chat IDs - Actual: ${currentChatId}, Evento: ${chatId}`);
-				console.log(`👤 Estructura del participante:`, newParticipant);
-
-				if (!currentChatId) {
-					console.warn("⚠️ No hay chat ID actual disponible");
-					return;
-				}
-
-				if (!chatId) {
-					console.warn("⚠️ No se pudo extraer chatId del evento, asumiendo que es para el chat actual");
-					chatId = currentChatId; // Asumir que es para el chat actual
-				}
-
-				if (currentChatId !== chatId) {
-					console.warn(`⚠️ Evento para chat diferente. Actual: ${currentChatId}, Evento: ${chatId}`);
-					return;
-				}
-
-				console.log(`👤 Nuevo participante se unió:`, {
-					name: newParticipant?.name,
-					isCommercial: newParticipant?.isCommercial,
-					isOnline: newParticipant?.isOnline,
-					id: newParticipant?.id
-				});
-
-				// Si es comercial y está online, mostrar el botón inmediatamente
-				if (newParticipant?.isCommercial && newParticipant?.isOnline) {
-					console.log("✅ Nuevo comercial online se unió - Mostrando botón del chat");
-					console.log("🔄 Estado actual del botón antes de mostrar:", chatToggleButton.isButtonVisible());
-					
-					chatToggleButton.show();
-					
-					console.log("🔄 Estado actual del botón después de mostrar:", chatToggleButton.isButtonVisible());
-					
-					// Si el chat está abierto, mostrar mensaje de que se unió un asesor
-					if (chat.isVisible()) {
-						console.log("💬 Añadiendo mensaje del sistema al chat visible");
-						chat.addSystemMessage(`${newParticipant.name} se ha unido al chat y está disponible para ayudarte.`);
-					} else {
-						console.log("💬 Chat no está visible, no se añade mensaje del sistema");
-					}
-				} else if (newParticipant?.isCommercial && !newParticipant?.isOnline) {
-					console.log("⚠️ Comercial se unió pero está offline");
-					// Verificar el estado general de todos los comerciales
-					await this.checkAndUpdateChatVisibility(chatId, chat, chatToggleButton);
-				} else {
-					console.log("👥 Se unió un visitante o estructura de participante no válida, verificando estado general");
-					// Verificar el estado general de todos los comerciales
-					await this.checkAndUpdateChatVisibility(chatId, chat, chatToggleButton);
-				}
-
-			} catch (error) {
-				console.error("❌ Error al procesar evento chat:participant-joined:", error);
-			}
-		});
+		console.log("💬 Eventos de participantes desactivados (sin WebSocket)");
 	}
 
 	/**
@@ -956,14 +742,13 @@ export class TrackingPixelSDK {
 				console.log(`Esperando chat ID... intento ${attempts}/${maxAttempts}`);
 			}
 
-			if (!chatId) {
-				console.error("❌ [checkCommercialAvailability] No se pudo obtener el ID del chat después de varios intentos. Abortando para evitar /v2/chats/undefined", { attempts });
-				// Si no podemos obtener el ID, ocultamos el botón por seguridad
-				chatToggleButton.hide();
-				return;
-			}
-
-			console.log(`Verificando disponibilidad de comerciales para el chat ${chatId}...`);
+		if (!chatId) {
+			console.error("❌ [checkCommercialAvailability] No se pudo obtener el ID del chat después de varios intentos. Abortando para evitar /v2/chats/undefined", { attempts });
+			// Mostrar el botón de todas formas para permitir al usuario intentar abrir el chat
+			console.log("🔘 Mostrando botón de chat sin verificación de comerciales");
+			chatToggleButton.show();
+			return;
+		}			console.log(`Verificando disponibilidad de comerciales para el chat ${chatId}...`);
 			
 			// Obtener los detalles del chat
 			const chatDetail = await this.fetchChatDetail(chatId);
@@ -983,8 +768,9 @@ export class TrackingPixelSDK {
 			chatToggleButton.show();
 		} catch (error) {
 			console.error("Error al verificar disponibilidad de comerciales:", error);
-			// En caso de error, ocultamos el botón por seguridad
-			chatToggleButton.hide();
+			// Mostrar el botón de todas formas para permitir al usuario acceder al chat
+			console.log("🔘 Mostrando botón de chat a pesar del error en verificación");
+			chatToggleButton.show();
 		}
 	}
 

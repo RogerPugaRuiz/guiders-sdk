@@ -1,5 +1,4 @@
 // src/core/token-manager.ts
-import { fetchTokens, refreshToken } from "../services/token-service";
 import { PixelEvent } from "../types/index";
 import { ClientJS } from "clientjs";
 
@@ -79,23 +78,9 @@ export class TokenManager {
 	 */
 	public static async getValidAccessToken(): Promise<string | null> {
 		if (this.isTokenExpiring()) {
-			console.log("Access token está a punto de expirar, intentando refrescar...");
-			if (!this.refreshToken) {
-				console.error("No hay refresh token disponible.");
-				return null;
-			}
-			try {
-				const newToken = await refreshToken(this.refreshToken);
-				this.setTokens({ access_token: newToken.access_token, refresh_token: this.refreshToken });
-				console.log("Token refrescado exitosamente.");
-			} catch (error) {
-				console.error(error);
-				const client = new ClientJS();
-				const fingerprint = localStorage.getItem("fingerprint") || client.getFingerprint().toString();
-				const tokens = await fetchTokens(fingerprint);
-				this.setTokens(tokens);
-				return tokens.access_token;
-			}
+			console.log("Access token expirando, solicitando nuevos tokens...");
+			console.log("❌ No hay servicio de tokens disponible.");
+			return null;
 		}
 		return this.accessToken;
 	}

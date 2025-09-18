@@ -1,11 +1,10 @@
 // chat-ui.ts
 
 import { Message } from "../types";
-import { startChat } from "../services/chat-service";
 import { ChatSessionStore } from "../services/chat-session-store";
 import { fetchMessages } from "../services/fetch-messages";
 import { fetchChatDetail, ChatDetail, ChatParticipant } from "../services/chat-detail-service";
-import { WebSocketClient } from "../services/websocket-service";
+import { ChatMemoryStore } from "../core/chat-memory-store";
 
 // Posible tipo para el remitente
 export type Sender = 'user' | 'other';
@@ -54,6 +53,7 @@ export class ChatUI {
 	// Callbacks para eventos de apertura y cierre
 	private openCallbacks: Array<() => void> = [];
 	private closeCallbacks: Array<() => void> = [];
+	private initializationCallbacks: Array<() => void> = [];
 
 	// Estructura para almacenar múltiples intervalos y callbacks
 	private activeIntervals: Array<{ id: number | null, callback: () => void, intervalMs: number }> = [];
@@ -1072,6 +1072,9 @@ export class ChatUI {
 		this.chatId = chatId;
 		this.container.setAttribute('data-chat-id', chatId);
 		ChatSessionStore.getInstance().setCurrent(chatId);
+		
+		// Sincronizar con ChatMemoryStore
+		ChatMemoryStore.getInstance().setChatId(chatId);
 	}
 
 	/**
@@ -1083,6 +1086,12 @@ export class ChatUI {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
 		}
+		
+		// Si no tenemos chatId local, consultar el ChatMemoryStore
+		if (!this.chatId) {
+			this.chatId = ChatMemoryStore.getInstance().getChatId();
+		}
+		
 		return this.chatId;
 	}
 
@@ -1538,6 +1547,13 @@ export class ChatUI {
 	}
 
 	/**
+	 * Suscribe un callback al evento de inicialización del chat.
+	 */
+	public onChatInitialized(callback: () => void): void {
+		this.initializationCallbacks.push(callback);
+	}
+
+	/**
 	 * Permite registrar múltiples callbacks periódicos mientras el chat está activo.
 	 * @param callback Función a ejecutar
 	 * @param intervalMs Intervalo en milisegundos (por defecto 5000ms)
@@ -1716,23 +1732,8 @@ export class ChatUI {
 	 */
 	private async initializeChatContent(): Promise<void> {
 		try {
-			console.log("Inicializando contenido del chat...");
-			const res = await startChat();
-			if (!res || !res.id) {
-				console.warn('startChat no devolvió un id de chat válido');
-				return; // Evitar seguir sin chatId
-			}
-			console.log("Chat iniciado:", res);
-			this.setChatId(res.id);
-
-			// Cargar detalles del chat con participantes
-			await this.loadChatDetails();
-
-			// Registrar listeners de WebSocket para eventos del chat
-			this.registerWebSocketListeners();
-
-			// Marcar que el chat está listo para mostrar contenido
-			this.container?.setAttribute('data-chat-initialized', 'true');
+			console.log("❌ Chat no disponible (servicio eliminado)");
+			return;
 
 			// Si el chat está visible, cargar el contenido inmediatamente
 			if (this.isVisible()) {
@@ -1924,204 +1925,7 @@ export class ChatUI {
 	 * Registra listeners para eventos WebSocket
 	 */
 	private registerWebSocketListeners(): void {
-		// Obtener la instancia existente del WebSocket
-		// Endpoint por defecto actualizado al dominio oficial en producción
-		const webSocketEndpoint = localStorage.getItem('pixelWebSocketEndpoint') || 'wss://guiders.es';
-		const webSocketClient = WebSocketClient.getInstance(webSocketEndpoint);
-
-		if (!webSocketClient) {
-			console.error("No se pudo obtener la instancia de WebSocketClient");
-			return;
-		}
-
-		console.log("Registrando listener para evento chat:status-updated");
-
-		// Registrar listener para el evento de cambio de estado del chat
-		webSocketClient.addListener("chat:status-updated", (payload) => {
-			console.log("Evento chat:status-updated recibido:", payload);
-			const data = payload.data as {
-				chatId: string;
-				status:
-				'active' |
-				'inactive' |
-				'closed' |
-				'archived' |
-				'pending';
-			};
-			
-			// Solo actualizar si este es el chat actualmente abierto
-			if (this.chatId && data.chatId === this.chatId) {
-				console.log(`Estado del chat actualizado: ${this.lastKnownChatStatus || 'desconocido'} → ${data.status}`);
-				
-				// Si el estado anterior era pendiente y ahora es activo, actualizamos los detalles del chat
-				const isPendingToActive = this.lastKnownChatStatus === 'pending' && data.status === 'active';
-				
-				// Detectar cualquier cambio de estado importante
-				const isStatusChange = this.lastKnownChatStatus !== data.status;
-				
-				// Si es un cambio de pending a active o cualquier otro cambio de estado
-				if (isPendingToActive || isStatusChange) {
-					console.log("Cambio de estado importante detectado - Recargando detalles del chat");
-					
-					// Actualizar nuestro estado conocido inmediatamente para evitar múltiples actualizaciones
-					this.lastKnownChatStatus = data.status;
-					
-					// Recargar los detalles del chat para reflejar los cambios
-					this.loadChatDetails().then(() => {
-						console.log("Detalles del chat actualizados después del cambio de estado");
-						
-						// Si cambió de pending a active, verificar estado de comerciales
-						if (isPendingToActive && this.chatDetail && this.chatDetail.status === 'active') {
-							console.log("Chat activado - verificando estado inicial de comerciales");
-							// Verificar el estado de comerciales después de un pequeño delay
-							setTimeout(() => {
-								this.checkInitialCommercialStatus();
-							}, 200);
-						}
-					});
-				}
-			}
-		});
-
-		// Registrar listener para cuando un nuevo participante se une al chat
-		webSocketClient.addListener("chat:participant-joined", (payload) => {
-			console.log("Evento chat:participant-joined recibido:", payload);
-
-			const data = payload.data as {
-				chatId: string;
-				newParticipant: ChatParticipant;
-			};
-
-			// Solo actualizar si este es el chat actualmente abierto
-			if (this.chatId && data.chatId === this.chatId) {
-				console.log("Nuevo participante unido al chat:", data.newParticipant);
-
-				// Verificar que tenemos detalles del chat cargados
-				if (this.chatDetail) {
-					// Añadir el nuevo participante a la lista de participantes
-					this.chatDetail.participants.push(data.newParticipant);
-
-					// Actualizar el encabezado para reflejar el nuevo participante
-					this.updateChatHeader();
-
-					console.log("Lista de participantes actualizada:", this.chatDetail.participants);
-				} else {
-					// Si no tenemos detalles del chat, cargarlos completamente
-					this.loadChatDetails();
-				}
-			}
-		});
-
-		// Registrar listener para cuando un participante abandona el chat
-		webSocketClient.addListener("chat:participant-left", (payload) => {
-			console.log("Evento chat:participant-left recibido:", payload);
-
-			const data = payload.data as {
-				chatId: string;
-				participantId: string;
-			};
-
-			// Solo actualizar si este es el chat actualmente abierto
-			if (this.chatId && data.chatId === this.chatId && this.chatDetail) {
-				console.log("Participante abandonó el chat:", data.participantId);
-
-				// Filtrar la lista de participantes para eliminar al que se fue
-				this.chatDetail.participants = this.chatDetail.participants.filter(
-					participant => participant.id !== data.participantId
-				);
-
-				// Actualizar el encabezado para reflejar el cambio de participantes
-				this.updateChatHeader();
-
-				console.log("Lista de participantes actualizada:", this.chatDetail.participants);
-			}
-		});
-
-		// Registrar listener para actualizaciones de participantes existentes
-		webSocketClient.addListener("chat:participant-updated", (payload) => {
-			console.log("Evento chat:participant-updated recibido:", payload);
-
-			const data = payload.data as {
-				chatId: string;
-				participant: Partial<ChatParticipant> & { id: string };
-			};
-
-			// Solo actualizar si este es el chat actualmente abierto
-			if (this.chatId && data.chatId === this.chatId && this.chatDetail) {
-				console.log("Actualización de participante recibida:", data.participant);
-
-				// Encontrar y actualizar el participante en la lista
-				const participantIndex = this.chatDetail.participants.findIndex(
-					p => p.id === data.participant.id
-				);
-
-				if (participantIndex !== -1) {
-					// Actualizar el participante con los nuevos datos
-					this.chatDetail.participants[participantIndex] = {
-						...this.chatDetail.participants[participantIndex],
-						...data.participant
-					};
-
-					// Actualizar el encabezado para reflejar cambios (online, typing, etc.)
-					this.updateChatHeader();
-
-					// Si está escribiendo, mostrar indicador
-					if (data.participant.isTyping) {
-						this.showTypingIndicator(data.participant.id);
-					} else {
-						this.hideTypingIndicator();
-					}
-
-					console.log("Participante actualizado:", this.chatDetail.participants[participantIndex]);
-				}
-			}
-		});
-
-		// Registrar listener para actualizaciones del estado online de los participantes
-		webSocketClient.addListener("participant:online-status-updated", (payload) => {
-			console.log("Evento participant:online-status-updated recibido:", payload);
-			
-			const data = payload.data as {
-				isOnline: boolean;
-				participantId: string;
-			};
-			
-			// Solo actualizar si tenemos detalles del chat cargados
-			if (this.chatDetail) {
-				console.log(`Actualizando estado online del participante ${data.participantId}: ${data.isOnline}`);
-				
-				// Encontrar y actualizar el participante
-				const participant = this.chatDetail.participants.find(p => p.id === data.participantId);
-				if (participant) {
-					// Guardar el estado anterior para detectar cambios
-					const wasOnline = participant.isOnline;
-					
-					// Actualizar el estado online del participante
-					participant.isOnline = data.isOnline;
-					
-					// Si es un participante comercial y el chat está activo
-					if (participant.isCommercial && this.chatDetail.status === 'active') {
-						console.log(`Participante comercial ${participant.name} está ahora ${data.isOnline ? 'online' : 'offline'}`);
-						
-						// Si el comercial se desconectó (pasó de online a offline), enviar mensaje automático
-						if (wasOnline && !data.isOnline && this.lastNotificationType !== 'offline') {
-							this.sendOfflineNotificationMessage(participant.name, false); // false = desconexión en tiempo real
-							this.lastNotificationType = 'offline';
-						}
-						// Si el comercial se reconectó (pasó de offline a online), enviar mensaje de reconexión
-						else if (!wasOnline && data.isOnline && this.lastNotificationType !== 'online') {
-							this.sendOnlineNotificationMessage(participant.name);
-							this.lastNotificationType = 'online';
-						}
-						
-						// Actualizar el encabezado para reflejar el cambio
-						this.updateChatHeader();
-					}
-				} else {
-					console.warn(`No se encontró el participante con ID ${data.participantId}`);
-				}
-			}
-		});
+		console.log("💬 Listeners WebSocket desactivados (servicio eliminado)");
 	}
 
 	/**

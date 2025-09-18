@@ -2,7 +2,6 @@
 
 import { TokenManager } from "./core/token-manager";
 import { TrackingPixelSDK } from "./core/tracking-pixel-SDK";
-import { UnreadMessagesService } from "./services/unread-messages-service";
 import { BotDetector } from "./core/bot-detector";
 import { resolveDefaultEndpoints } from "./core/endpoint-resolver";
 
@@ -16,7 +15,6 @@ export * from "./core/url-page-detector";
 export * from "./core/session-tracking-manager";
 export * from "./pipeline/pipeline-stage";
 export * from "./pipeline/stages/token-stage";
-export * from "./services/unread-messages-service";
 export * from "./services/chat-detail-service";
 export * from "./services/chat-v2-service";
 export * from "./types";
@@ -101,13 +99,6 @@ function initializeGuidersSDK() {
 			window.guiders = new window.TrackingPixelSDK(sdkOptions);
 			
 			(async () => {
-				// Inicializar el servicio de mensajes no leídos
-				const unreadService = UnreadMessagesService.getInstance();
-				console.log("Servicio de mensajes no leídos inicializado");
-				
-				// Forzar una actualización inicial del contador para que se muestre correctamente
-				unreadService.forceUpdate();
-				
 				await window.guiders.init();
 				// Use new automatic tracking method
 				window.guiders.enableAutomaticTracking();

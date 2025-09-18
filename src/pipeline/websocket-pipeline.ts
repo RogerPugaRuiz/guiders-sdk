@@ -1,14 +1,12 @@
 import { PixelEvent } from '../types';
 import { PipelineStage } from './pipeline-stage';
-import { WebSocketClient } from '../services/websocket-service';
 
+// Archivo desactivado - WebSocket pipeline removido
 export class WebSocketPipeline {
     private stages: PipelineStage[] = [];
-    private websocketClient: WebSocketClient;
 
-    constructor(websocketClient: WebSocketClient) {
-        this.websocketClient = websocketClient;
-        this.setupWebSocketListeners();
+    constructor() {
+        console.log("💬 WebSocket pipeline desactivado");
     }
 
     /**
@@ -30,22 +28,10 @@ export class WebSocketPipeline {
     }
 
     /**
-     * Configura los listeners del WebSocket
-     */
-    private setupWebSocketListeners(): void {
-        // Aquí podríamos añadir listeners específicos del WebSocket
-        // Por ejemplo, para manejar eventos de conexión, desconexión, etc.
-        this.websocketClient.onConnect(() => {
-            console.log("🌐 WebSocket conectado");
-        });
-    }
-
-    /**
-     * Envía un evento a través del pipeline y luego por WebSocket
+     * Envía un evento (desactivado)
      * @param event El evento a enviar
      */
     public sendEvent(event: PixelEvent): void {
-        const processedEvent = this.processEvent(event);
-        this.websocketClient.sendMessage(processedEvent);
+        console.log("💬 Envío WebSocket desactivado:", event.type);
     }
 } 

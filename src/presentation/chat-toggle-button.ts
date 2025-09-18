@@ -1,5 +1,4 @@
 import { ChatUI } from "./chat";
-import { UnreadMessagesService } from "../services/unread-messages-service";
 
 interface ChatToggleButtonOptions {
 	label?: string;            // Texto o ícono a mostrar en el botón
@@ -17,7 +16,6 @@ export class ChatToggleButtonUI {
 	private badgeElement: HTMLElement | null = null;
 	private options: ChatToggleButtonOptions;
 	private isVisible: boolean = false;
-	private unreadMessagesService: UnreadMessagesService;
 
 	private toggleCallback: Array<(visible: boolean) => void> = [];
 
@@ -41,9 +39,6 @@ export class ChatToggleButtonUI {
 		
 		// Inicializar como oculto (no visible)
 		this.isVisible = false;
-		
-		// Obtener la instancia del servicio de mensajes no leídos
-		this.unreadMessagesService = UnreadMessagesService.getInstance();
 	}
 
 	/**
@@ -71,13 +66,9 @@ export class ChatToggleButtonUI {
 			this.badgeElement.setAttribute('id', 'chat-unread-badge');
 			shadowHost.shadowRoot.appendChild(this.badgeElement);
 			
-			// Inicialmente ocultar el badge si no hay mensajes
-			console.log("Inicializando badge de mensajes no leídos");
-			
-			// Comprobar si ya hay mensajes no leídos al iniciar
-			const currentCount = this.unreadMessagesService.getUnreadCount();
-			console.log("Contador actual de mensajes no leídos:", currentCount);
-			this.updateUnreadBadge(currentCount);
+			// Ocultar el badge inicialmente (sin mensajes no leídos)
+			this.hideBadge();
+			console.log("💬 Badge inicializado y oculto (0 mensajes no leídos)");
 			
 			// Inyectar estilos específicos del botón si no existen
 			if (!shadowHost.shadowRoot.querySelector('style[data-chat-toggle-btn]')) {
@@ -173,21 +164,17 @@ export class ChatToggleButtonUI {
 			this.badgeElement.setAttribute('id', 'chat-unread-badge');
 			document.body.appendChild(this.badgeElement);
 			
-			// Inicialmente comprobar si hay mensajes no leídos al iniciar
-			console.log("Inicializando badge de mensajes no leídos (sin shadow DOM)");
-			const currentCount = this.unreadMessagesService.getUnreadCount();
-			console.log("Contador actual de mensajes no leídos:", currentCount);
-			this.updateUnreadBadge(currentCount);
+			// Ocultar el badge inicialmente (sin mensajes no leídos)
+			this.hideBadge();
+			console.log("💬 Badge inicializado y oculto (sin shadow DOM)");
 		}
 		
 		this.applyStyles();
 		this.addEventListeners();
 		this.initializeStyles(); // Inicializar estilos inline además de CSS
 		
-		// Suscribirse a cambios en el contador de mensajes no leídos
-		this.unreadMessagesService.onCountChange((count) => {
-			this.updateUnreadBadge(count);
-		});
+		// Eventos de mensajes no leídos desactivados
+		console.log("💬 Eventos de contador desactivados (servicio eliminado)");
 	}
 
 	/**
@@ -227,18 +214,9 @@ export class ChatToggleButtonUI {
 			
 			console.log("Toggle button clicked, new state:", this.isVisible ? "visible" : "hidden");
 			
-			// Actualizar el estado de visibilidad en el servicio de mensajes no leídos
-			this.unreadMessagesService.setActive(this.isVisible);
-			
 			// Aplicar/quitar clase para animar icono
 			if (this.isVisible) {
 				this.button.classList.add('open');
-				
-				// Si hay mensajes no leídos, resetear el contador
-				if (this.unreadMessagesService.getUnreadCount() > 0) {
-					this.unreadMessagesService.resetUnreadCount();
-					this.updateUnreadBadge(0);
-				}
 			} else {
 				this.button.classList.remove('open');
 			}
@@ -248,6 +226,20 @@ export class ChatToggleButtonUI {
 				callback(this.isVisible);
 			});
 		});
+	}
+
+	/**
+	 * Oculta el badge de mensajes no leídos
+	 */
+	private hideBadge(): void {
+		if (!this.badgeElement) return;
+		
+		this.badgeElement.classList.add('hidden');
+		this.badgeElement.style.opacity = '0';
+		this.badgeElement.style.transform = 'scale(0)';
+		this.badgeElement.style.display = 'none';
+		this.badgeElement.textContent = '';
+		console.log("🚫 Badge oculto - sin mensajes no leídos");
 	}
 
 	/**
@@ -263,10 +255,7 @@ export class ChatToggleButtonUI {
 		console.log(`📬 Actualizando badge: ${count} mensajes no leídos`);
 		
 		if (count <= 0) {
-			this.badgeElement.classList.add('hidden');
-			this.badgeElement.style.opacity = '0';
-			this.badgeElement.textContent = '';
-			console.log("🚫 Badge oculto - sin mensajes no leídos");
+			this.hideBadge();
 		} else {
 			this.badgeElement.classList.remove('hidden');
 			this.badgeElement.style.opacity = '1';
@@ -385,5 +374,21 @@ export class ChatToggleButtonUI {
 		}
 		console.log("🔘 isButtonVisible() - Resultado:", isVisible);
 		return isVisible;
+	}
+
+	/**
+	 * Oculta el badge de mensajes no leídos (método público)
+	 */
+	public hideUnreadBadge(): void {
+		this.hideBadge();
+	}
+
+	/**
+	 * Actualiza el badge con el número de mensajes no leídos (método público)
+	 * @param count Número de mensajes no leídos (0, null o undefined para ocultar)
+	 */
+	public updateUnreadCount(count: number | null | undefined): void {
+		const safeCount = count ?? 0;
+		this.updateUnreadBadge(safeCount);
 	}
 }
