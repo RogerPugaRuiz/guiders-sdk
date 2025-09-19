@@ -9,13 +9,22 @@
   <meta name="description" content="Guiders SDK: Seguimiento avanzado, análisis en tiempo real y chat integrado para aplicaciones web modernas.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
   
-  <!-- Guiders SDK Script -->
-  <script src="http://127.0.0.1:8081/index.js?apiKey=12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0&dev=true"></script>
-
-  <!-- Producción: -->
-  <!-- <script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js?apiKey=ea0cb2d33e9a186906747071e88a1a1eb1c219a0189f0344c7d87e2c497bf626"></script> -->
-
+  <!-- Configuración de Guiders SDK -->
   <script>
+    window.GUIDERS_CONFIG = {
+      apiKey: '12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0',
+      dev: true,
+      welcomeMessage: {
+        enabled: true,
+        style: 'custom',
+        customMessage: 'Estamos aquí para orientarte y responder lo que necesites. ¿Empezamos?',
+        includeEmojis: false,
+        language: 'es',
+        showTips: false
+      }
+    };
+
+    // Generar session ID único
     (function() {
       if (!sessionStorage.getItem('uniqueSessionId')) {
         const uniqueSessionId = 'sess-' + Math.random().toString(36).substr(2, 16) + '-' + Date.now();
@@ -23,5 +32,11 @@
       }
     })();
   </script>
+
+  <!-- Guiders SDK Script -->
+  <script src="http://127.0.0.1:8081/index.js?dev=true" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script>
+
+  <!-- Producción: -->
+  <!-- <script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js" data-api-key="ea0cb2d33e9a186906747071e88a1a1eb1c219a0189f0344c7d87e2c497bf626"></script> -->
 </head>
 <body>

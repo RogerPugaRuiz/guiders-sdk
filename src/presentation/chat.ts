@@ -5,6 +5,7 @@ import { ChatSessionStore } from "../services/chat-session-store";
 import { fetchMessages } from "../services/fetch-messages";
 import { fetchChatDetail, ChatDetail, ChatParticipant } from "../services/chat-detail-service";
 import { ChatMemoryStore } from "../core/chat-memory-store";
+import { WelcomeMessageManager, WelcomeMessageConfig } from "../core/welcome-message-manager";
 
 // Posible tipo para el remitente
 export type Sender = 'user' | 'other';
@@ -19,6 +20,7 @@ export interface ChatUIOptions {
 	otherBgColor?: string;
 	textColor?: string;
 	maxWidthMessage?: string;
+	welcomeMessage?: Partial<WelcomeMessageConfig>;
 }
 
 /**
@@ -66,6 +68,9 @@ export class ChatUI {
 
 	private lastMessageDate: string | null = null;
 
+	// Manager para mensajes de bienvenida personalizables
+	private welcomeMessageManager: WelcomeMessageManager;
+
 	constructor(options: ChatUIOptions = {}) {
 		this.options = {
 			widget: false,
@@ -77,6 +82,9 @@ export class ChatUI {
 			maxWidthMessage: '80%',
 			...options
 		};
+
+		// Inicializar el manager de mensajes de bienvenida
+		this.welcomeMessageManager = new WelcomeMessageManager(options.welcomeMessage);
 
 		// Si se pasa un containerId, se obtiene ese contenedor; si no, ya veremos si creamos el widget.
 		if (this.options.containerId) {
@@ -1036,6 +1044,8 @@ export class ChatUI {
 	 * Agrega un mensaje de bienvenida al chat solo si no hay mensajes existentes
 	 */
 	private addWelcomeMessage(): void {
+		console.log('💬 [ChatUI] Verificando si agregar mensaje de bienvenida...');
+		
 		// Verificamos primero si ya hay mensajes en el chat
 		// Buscar si hay algún mensaje real (excluir elementos que no son mensajes como separadores de fecha)
 		const hasMessages = this.containerMessages &&
@@ -1046,13 +1056,42 @@ export class ChatUI {
 				)
 			);
 
+		console.log('💬 [ChatUI] Estado:', {
+			hasMessages,
+			containerMessages: !!this.containerMessages,
+			welcomeConfig: this.welcomeMessageManager.getConfig()
+		});
+
 		// Solo mostramos el mensaje de bienvenida si no hay mensajes existentes
 		if (!hasMessages) {
-			const welcomeText = "¡Hola! 👋 Bienvenido a nuestro servicio de atención al cliente. Estoy aquí para ayudarte con cualquier consulta que tengas. Por favor, escribe tu pregunta y un asesor humano te responderá en breve.";
-
-			this.addMessage(welcomeText, 'other');
+			const welcomeText = this.welcomeMessageManager.getWelcomeMessage();
+			console.log('💬 [ChatUI] Mensaje de bienvenida generado:', welcomeText);
+			
+			if (welcomeText) {
+				this.addMessage(welcomeText, 'other');
+				console.log('💬 [ChatUI] ✅ Mensaje de bienvenida agregado');
+				
+				// Agregar tips adicionales si están habilitados
+				const tips = this.welcomeMessageManager.getTips();
+				if (tips.length > 0) {
+					console.log('💬 [ChatUI] Agregando', tips.length, 'tips adicionales');
+					// Agregar tips después de un pequeño delay para mejor UX
+					setTimeout(() => {
+						tips.forEach((tip, index) => {
+							setTimeout(() => {
+								this.addMessage(tip, 'other');
+							}, index * 1000); // 1 segundo entre cada tip
+						});
+					}, 2000); // 2 segundos después del mensaje principal
+				}
+			} else {
+				console.log('💬 [ChatUI] ❌ No se generó mensaje de bienvenida');
+			}
+		} else {
+			console.log('💬 [ChatUI] Ya hay mensajes, no se agrega mensaje de bienvenida');
 		}
 	}
+
 	/**
 	 * Establece el ID del chat actual.
 	 * @param chatId ID del chat
@@ -1547,6 +1586,32 @@ export class ChatUI {
 	}
 
 	/**
+	 * Configura el mensaje de bienvenida
+	 * @param config Configuración del mensaje de bienvenida
+	 */
+	public setWelcomeMessage(config: Partial<WelcomeMessageConfig>): void {
+		this.welcomeMessageManager.updateConfig(config);
+	}
+
+	/**
+	 * Establece un mensaje de bienvenida personalizado
+	 * @param message Mensaje personalizado
+	 */
+	public setCustomWelcomeMessage(message: string): void {
+		this.welcomeMessageManager.updateConfig({
+			style: 'custom',
+			customMessage: message
+		});
+	}
+
+	/**
+	 * Obtiene la configuración actual del mensaje de bienvenida
+	 */
+	public getWelcomeMessageConfig(): WelcomeMessageConfig {
+		return this.welcomeMessageManager.getConfig();
+	}
+
+	/**
 	 * Suscribe un callback al evento de inicialización del chat.
 	 */
 	public onChatInitialized(callback: () => void): void {
@@ -1732,15 +1797,19 @@ export class ChatUI {
 	 */
 	private async initializeChatContent(): Promise<void> {
 		try {
-			console.log("❌ Chat no disponible (servicio eliminado)");
-			return;
-
+			console.log("💬 [ChatUI] Inicializando contenido del chat...");
+			
+			// Siempre mostrar el mensaje de bienvenida primero, independientemente del estado del chat
+			this.addWelcomeMessage();
+			
 			// Si el chat está visible, cargar el contenido inmediatamente
 			if (this.isVisible()) {
 				this.loadChatContent();
 			}
 		} catch (err) {
 			console.error("Error iniciando chat:", err);
+			// En caso de error, asegurar que al menos se muestre el mensaje de bienvenida
+			this.addWelcomeMessage();
 		}
 	}
 	/**

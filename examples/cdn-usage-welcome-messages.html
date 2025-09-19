@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guiders SDK - Uso con CDN y Mensajes de Bienvenida</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .content {
+            padding: 30px;
+        }
+        .example-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+        .example-section h3 {
+            margin: 0 0 15px 0;
+            color: #667eea;
+        }
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .test-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 10px 10px 0;
+        }
+        .test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+        .info-box {
+            background: #e8f4f8;
+            border: 1px solid #0066cc;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        .info-box h4 {
+            margin: 0 0 10px 0;
+            color: #0066cc;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        .warning-box h4 {
+            margin: 0 0 10px 0;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 Mensajes de Bienvenida con CDN</h1>
+            <p>Ejemplos de configuración para diferentes escenarios</p>
+        </div>
+        
+        <div class="content">
+            <div class="info-box">
+                <h4>📋 Esta página demuestra:</h4>
+                <ul>
+                    <li>✅ Mensaje de bienvenida por defecto (sin configuración)</li>
+                    <li>✅ Personalización vía GUIDERS_CONFIG</li>
+                    <li>✅ Cambios dinámicos en tiempo real</li>
+                    <li>✅ Diferentes estilos y idiomas</li>
+                </ul>
+            </div>
+
+            <div class="example-section">
+                <h3>🚀 Ejemplo 1: Configuración Mínima (Mensaje por Defecto)</h3>
+                <p>Con solo incluir el script, obtienes un mensaje de bienvenida amigable automáticamente:</p>
+                <div class="code-block">
+&lt;script src="https://cdn.guiders.es/sdk/latest/index.js?apiKey=tu-api-key"&gt;&lt;/script&gt;
+                </div>
+                <p><strong>Resultado:</strong> Mensaje amigable en español con emojis y consejos.</p>
+            </div>
+
+            <div class="example-section">
+                <h3>⚙️ Ejemplo 2: Configuración Personalizada</h3>
+                <p>Personaliza el mensaje antes de cargar el SDK:</p>
+                <div class="code-block">
+&lt;script&gt;
+    window.GUIDERS_CONFIG = {
+        apiKey: 'tu-api-key',
+        welcomeMessage: {
+            enabled: true,
+            style: 'professional',
+            language: 'en',
+            includeEmojis: false,
+            showTips: true
+        }
+    };
+&lt;/script&gt;
+&lt;script src="https://cdn.guiders.es/sdk/latest/index.js"&gt;&lt;/script&gt;
+                </div>
+            </div>
+
+            <div class="example-section">
+                <h3>💼 Ejemplo 3: Mensaje Personalizado para E-commerce</h3>
+                <div class="code-block">
+&lt;script&gt;
+    window.GUIDERS_CONFIG = {
+        apiKey: 'tu-api-key',
+        welcomeMessage: {
+            enabled: true,
+            style: 'custom',
+            customMessage: '¡Hola! 🛍️ Bienvenido a nuestra tienda. ¿Te ayudo a encontrar algo específico?',
+            language: 'es',
+            includeEmojis: true,
+            showTips: false
+        }
+    };
+&lt;/script&gt;
+&lt;script src="https://cdn.guiders.es/sdk/latest/index.js"&gt;&lt;/script&gt;
+                </div>
+            </div>
+
+            <div class="example-section">
+                <h3>🏥 Ejemplo 4: Mensaje para Servicios de Salud</h3>
+                <div class="code-block">
+&lt;script&gt;
+    window.GUIDERS_CONFIG = {
+        apiKey: 'tu-api-key',
+        welcomeMessage: {
+            enabled: true,
+            style: 'custom',
+            customMessage: '¡Hola! 🏥 Bienvenido a nuestro centro de atención. Estoy aquí para ayudarte con citas, información sobre servicios o consultas generales. ¿Cómo puedo ayudarte hoy?',
+            language: 'es',
+            includeEmojis: true,
+            showTips: true
+        }
+    };
+&lt;/script&gt;
+&lt;script src="https://cdn.guiders.es/sdk/latest/index.js"&gt;&lt;/script&gt;
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <h4>⚠️ Importante:</h4>
+                <p>Asegúrate de definir <code>window.GUIDERS_CONFIG</code> <strong>antes</strong> de cargar el script del SDK. Una vez inicializado, puedes usar <code>window.guiders.updateWelcomeMessage()</code> para cambios dinámicos.</p>
+            </div>
+
+            <div class="example-section">
+                <h3>🔄 Cambios Dinámicos</h3>
+                <p>Cambia el mensaje de bienvenida en tiempo real:</p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <button class="test-btn" onclick="setFriendlyMessage()">😊 Amigable</button>
+                    <button class="test-btn" onclick="setProfessionalMessage()">👔 Profesional</button>
+                    <button class="test-btn" onclick="setCasualMessage()">🤙 Casual</button>
+                    <button class="test-btn" onclick="setCustomMessage()">✏️ Personalizado</button>
+                </div>
+                <div style="text-align: center; margin: 20px 0;">
+                    <button class="test-btn" onclick="showChat()">💬 Abrir Chat</button>
+                    <button class="test-btn" onclick="resetChat()">🔄 Resetear Chat</button>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h4>📊 Configuración Actual:</h4>
+                <div id="currentConfig" style="font-family: monospace; background: #f1f3f4; padding: 10px; border-radius: 5px; margin-top: 10px;">
+                    Cargando...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SDK con configuración por defecto -->
+    <script>
+        // Configuración por defecto - esta se aplicará automáticamente
+        // El SDK incluye valores por defecto cuando no se especifica GUIDERS_CONFIG
+    </script>
+    <script src="http://localhost:8081/index.js?apiKey=demo-key-cdn&dev=true"></script>
+
+    <script>
+        // Funciones para cambiar mensajes dinámicamente
+        function setFriendlyMessage() {
+            if (window.guiders) {
+                window.guiders.updateWelcomeMessage({
+                    enabled: true,
+                    style: 'friendly',
+                    language: 'es',
+                    includeEmojis: true,
+                    showTips: true
+                });
+                updateConfigDisplay();
+            }
+        }
+
+        function setProfessionalMessage() {
+            if (window.guiders) {
+                window.guiders.updateWelcomeMessage({
+                    enabled: true,
+                    style: 'professional',
+                    language: 'es',
+                    includeEmojis: false,
+                    showTips: true
+                });
+                updateConfigDisplay();
+            }
+        }
+
+        function setCasualMessage() {
+            if (window.guiders) {
+                window.guiders.updateWelcomeMessage({
+                    enabled: true,
+                    style: 'casual',
+                    language: 'es',
+                    includeEmojis: true,
+                    showTips: false
+                });
+                updateConfigDisplay();
+            }
+        }
+
+        function setCustomMessage() {
+            if (window.guiders) {
+                window.guiders.updateWelcomeMessage({
+                    enabled: true,
+                    style: 'custom',
+                    customMessage: '¡Hola! 👋 Soy tu asistente virtual personalizado. He sido configurado especialmente para brindarte la mejor experiencia posible. ¿En qué puedo ayudarte hoy?',
+                    language: 'es',
+                    includeEmojis: true,
+                    showTips: true
+                });
+                updateConfigDisplay();
+            }
+        }
+
+        function showChat() {
+            if (window.guiders) {
+                window.guiders.showChat();
+            } else {
+                alert('El SDK aún se está cargando...');
+            }
+        }
+
+        function resetChat() {
+            if (window.guiders) {
+                window.guiders.resetChat();
+            }
+        }
+
+        function updateConfigDisplay() {
+            if (window.guiders) {
+                const config = window.guiders.getWelcomeMessageConfig();
+                document.getElementById('currentConfig').textContent = JSON.stringify(config, null, 2);
+            }
+        }
+
+        // Actualizar configuración cuando el SDK esté listo
+        setTimeout(() => {
+            updateConfigDisplay();
+        }, 2000);
+
+        // Logs de información
+        console.log('🎨 Demo de Mensajes de Bienvenida con CDN');
+        console.log('📋 Configuraciones disponibles:');
+        console.log('   - Por defecto: Amigable, español, con emojis y tips');
+        console.log('   - Personalizable vía window.GUIDERS_CONFIG');
+        console.log('   - Cambios dinámicos vía window.guiders.updateWelcomeMessage()');
+    </script>
+</body>
+</html>

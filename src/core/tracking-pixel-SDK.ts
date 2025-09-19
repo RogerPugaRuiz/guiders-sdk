@@ -19,6 +19,7 @@ import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
 import { fetchChatDetail, fetchChatDetailV2, ChatDetail, ChatDetailV2, ChatParticipant } from "../services/chat-detail-service";
 import { VisitorInfoV2, ChatMetadataV2 } from "../types";
 import { v4 as uuidv4 } from "uuid";
+import { WelcomeMessageConfig } from "./welcome-message-manager";
 import { DomTrackingManager, DefaultTrackDataExtractor } from "./dom-tracking-manager";
 import { EnhancedDomTrackingManager } from "./enhanced-dom-tracking-manager";
 import { HeuristicDetectionConfig } from "./heuristic-element-detector";
@@ -56,6 +57,8 @@ interface SDKOptions {
 			crossTabSync?: boolean;
 		};
 	};
+	// Welcome message options
+	welcomeMessage?: Partial<WelcomeMessageConfig>;
 }
 
 
@@ -133,6 +136,7 @@ export class TrackingPixelSDK {
 	private visitorHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	private authMode: 'jwt' | 'session';
 	private identitySignal: IdentitySignal;
+	private welcomeMessageConfig?: Partial<WelcomeMessageConfig>;
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -147,6 +151,15 @@ export class TrackingPixelSDK {
 		this.autoFlush = options.autoFlush ?? false;
 		this.flushInterval = options.flushInterval ?? 10000;
 		this.maxRetries = options.maxRetries ?? 3;
+		
+		// Configurar mensaje de bienvenida con valores por defecto si no se proporciona
+		this.welcomeMessageConfig = options.welcomeMessage || {
+			enabled: true,
+			style: 'friendly',
+			includeEmojis: true,
+			language: 'es',
+			showTips: true
+		};
 
 		localStorage.setItem("pixelEndpoint", this.endpoint);
 		localStorage.setItem("guidersApiKey", this.apiKey);
@@ -247,6 +260,7 @@ export class TrackingPixelSDK {
 		// Guardar la referencia al chat para usarla más tarde (ej: mostrar mensajes del sistema)
 		this.chatUI = new ChatUI({
 			widget: true,
+			welcomeMessage: this.welcomeMessageConfig,
 		});
 		const chat = this.chatUI; // Alias para mantener compatibilidad con el código existente
 		const chatInput = new ChatInputUI(chat);
@@ -1060,5 +1074,74 @@ export class TrackingPixelSDK {
 	 */
 	public subscribeToChatChanges(callback: (state: any) => void) {
 		return this.identitySignal.getChatsSignal().subscribe(callback);
+	}
+
+	/**
+	 * Muestra el chat UI.
+	 */
+	public showChat(): void {
+		console.log('[TrackingPixelSDK] 💬 Mostrando chat...');
+		if (this.chatUI) {
+			this.chatUI.show();
+		} else {
+			console.warn('[TrackingPixelSDK] ❌ Chat UI no está inicializado');
+		}
+	}
+
+	/**
+	 * Oculta el chat UI.
+	 */
+	public hideChat(): void {
+		console.log('[TrackingPixelSDK] 💬 Ocultando chat...');
+		if (this.chatUI) {
+			this.chatUI.hide();
+		}
+	}
+
+	/**
+	 * Actualiza la configuración del mensaje de bienvenida.
+	 * @param config Nueva configuración del mensaje de bienvenida
+	 */
+	public updateWelcomeMessage(config: WelcomeMessageConfig): void {
+		console.log('[TrackingPixelSDK] 🎨 Actualizando mensaje de bienvenida:', config);
+		
+		// Guardar en configuración para futuras inicializaciones
+		this.welcomeMessageConfig = config;
+		
+		// Si el chat ya está inicializado, aplicar la configuración
+		if (this.chatUI) {
+			this.chatUI.setWelcomeMessage(config);
+		}
+	}
+
+	/**
+	 * Obtiene la configuración actual del mensaje de bienvenida.
+	 * @returns Configuración actual del mensaje de bienvenida
+	 */
+	public getWelcomeMessageConfig(): Partial<WelcomeMessageConfig> | null {
+		return this.welcomeMessageConfig || null;
+	}
+
+	/**
+	 * Verifica si el chat UI está visible.
+	 * @returns true si el chat está visible
+	 */
+	public isChatVisible(): boolean {
+		return this.chatUI?.isVisible() || false;
+	}
+
+	/**
+	 * Reinicia el chat cerrándolo y volviéndolo a abrir.
+	 */
+	public resetChat(): void {
+		console.log('[TrackingPixelSDK] 🔄 Reiniciando chat...');
+		if (this.chatUI) {
+			this.chatUI.hide();
+			setTimeout(() => {
+				if (this.chatUI) {
+					this.chatUI.show();
+				}
+			}, 500);
+		}
 	}
 }

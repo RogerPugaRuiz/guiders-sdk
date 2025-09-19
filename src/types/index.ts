@@ -7,6 +7,10 @@ export { Signal, AsyncSignal } from '../core/signal';
 export type { IdentityWithChatsData } from '../core/identity-signal';
 export { IdentitySignal, useIdentitySignal } from '../core/identity-signal';
 
+// Welcome Messages
+export type { WelcomeMessageConfig } from '../core/welcome-message-manager';
+export { WelcomeMessageManager, BUSINESS_WELCOME_TEMPLATES } from '../core/welcome-message-manager';
+
 export interface PixelEvent<T = Record<string, unknown>> {
 	type: string;
 	data: T;

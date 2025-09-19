@@ -97,7 +97,8 @@ class GuidersPublic {
                 'isWooCommerce' => class_exists('WooCommerce'),
                 'isEDD' => class_exists('Easy_Digital_Downloads'),
                 'pageType' => $this->getPageType()
-            )
+            ),
+            'welcomeMessage' => $this->getWelcomeMessageConfig()
         );
         
         // Add environment-specific endpoints
@@ -386,5 +387,69 @@ class GuidersPublic {
         }
         
         return $user_data;
+    }
+
+    /**
+     * Get welcome message configuration
+     */
+    private function getWelcomeMessageConfig() {
+        $config = array(
+            'enabled' => isset($this->settings['welcome_message_enabled']) ? $this->settings['welcome_message_enabled'] : true,
+            'style' => isset($this->settings['welcome_message_style']) ? $this->settings['welcome_message_style'] : 'friendly',
+            'language' => isset($this->settings['welcome_message_language']) ? $this->settings['welcome_message_language'] : 'es',
+            'includeEmojis' => isset($this->settings['welcome_message_include_emojis']) ? $this->settings['welcome_message_include_emojis'] : true,
+            'showTips' => isset($this->settings['welcome_message_show_tips']) ? $this->settings['welcome_message_show_tips'] : true
+        );
+
+        // Si hay una plantilla de negocio seleccionada, configurar mensaje personalizado
+        if (!empty($this->settings['welcome_message_business_template'])) {
+            $config['style'] = 'custom';
+            $config['customMessage'] = $this->getBusinessTemplateMessage($this->settings['welcome_message_business_template'], $config['language']);
+        }
+        // Si hay un mensaje personalizado y el estilo es custom
+        elseif (!empty($this->settings['welcome_message_custom']) && $config['style'] === 'custom') {
+            $config['customMessage'] = $this->settings['welcome_message_custom'];
+        }
+
+        return $config;
+    }
+
+    /**
+     * Get business template message
+     */
+    private function getBusinessTemplateMessage($template, $language = 'es') {
+        $templates = array(
+            'ecommerce' => array(
+                'es' => '¡Hola! 🛍️ Bienvenido a nuestra tienda. Estoy aquí para ayudarte con tus compras, seguimiento de pedidos, devoluciones o cualquier pregunta sobre nuestros productos. ¿En qué puedo asistirte?',
+                'en' => 'Hello! 🛍️ Welcome to our store. I\'m here to help you with your purchases, order tracking, returns, or any questions about our products. How can I assist you?'
+            ),
+            'saas' => array(
+                'es' => '¡Hola! 💻 Bienvenido al soporte técnico. Estoy aquí para ayudarte con configuración, resolución de problemas, facturación o cualquier duda sobre nuestro software. ¡Cuéntame qué necesitas!',
+                'en' => 'Hello! 💻 Welcome to technical support. I\'m here to help you with setup, troubleshooting, billing, or any questions about our software. Tell me what you need!'
+            ),
+            'healthcare' => array(
+                'es' => '¡Hola! 🏥 Bienvenido a nuestro centro de atención. Estoy aquí para ayudarte con citas, información sobre servicios, seguros médicos o consultas generales. ¿Cómo puedo ayudarte hoy?',
+                'en' => 'Hello! 🏥 Welcome to our care center. I\'m here to help you with appointments, service information, medical insurance, or general inquiries. How can I help you today?'
+            ),
+            'education' => array(
+                'es' => '¡Hola! 📚 Bienvenido a nuestro centro de aprendizaje. Estoy aquí para ayudarte con cursos, inscripciones, material de estudio o cualquier consulta académica. ¿Qué necesitas saber?',
+                'en' => 'Hello! 📚 Welcome to our learning center. I\'m here to help you with courses, enrollments, study materials, or any academic inquiries. What do you need to know?'
+            ),
+            'finance' => array(
+                'es' => '¡Hola! 💰 Bienvenido a nuestros servicios financieros. Estoy aquí para ayudarte con consultas sobre cuentas, transacciones, inversiones o servicios bancarios. ¿En qué puedo asistirte?',
+                'en' => 'Hello! 💰 Welcome to our financial services. I\'m here to help you with account inquiries, transactions, investments, or banking services. How can I assist you?'
+            )
+        );
+
+        if (isset($templates[$template][$language])) {
+            return $templates[$template][$language];
+        }
+
+        // Fallback al español si no existe el idioma
+        if (isset($templates[$template]['es'])) {
+            return $templates[$template]['es'];
+        }
+
+        return '';
     }
 }

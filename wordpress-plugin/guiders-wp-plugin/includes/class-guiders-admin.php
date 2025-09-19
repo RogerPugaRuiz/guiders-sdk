@@ -153,6 +153,77 @@ class GuidersAdmin {
             'guiders-settings',
             'guiders_general_section'
         );
+
+        // Welcome Messages section
+        add_settings_section(
+            'guiders_welcome_messages_section',
+            __('Mensajes de Bienvenida del Chat', 'guiders-wp-plugin'),
+            array($this, 'welcomeMessagesSectionCallback'),
+            'guiders-settings'
+        );
+
+        // Welcome message enabled field
+        add_settings_field(
+            'welcome_message_enabled',
+            __('Habilitar Mensajes de Bienvenida', 'guiders-wp-plugin'),
+            array($this, 'welcomeMessageEnabledFieldCallback'),
+            'guiders-settings',
+            'guiders_welcome_messages_section'
+        );
+
+        // Welcome message style field
+        add_settings_field(
+            'welcome_message_style',
+            __('Estilo del Mensaje', 'guiders-wp-plugin'),
+            array($this, 'welcomeMessageStyleFieldCallback'),
+            'guiders-settings',
+            'guiders_welcome_messages_section'
+        );
+
+        // Welcome message language field
+        add_settings_field(
+            'welcome_message_language',
+            __('Idioma', 'guiders-wp-plugin'),
+            array($this, 'welcomeMessageLanguageFieldCallback'),
+            'guiders-settings',
+            'guiders_welcome_messages_section'
+        );
+
+        // Welcome message include emojis field
+        add_settings_field(
+            'welcome_message_include_emojis',
+            __('Incluir Emojis', 'guiders-wp-plugin'),
+            array($this, 'welcomeMessageIncludeEmojisFieldCallback'),
+            'guiders-settings',
+            'guiders_welcome_messages_section'
+        );
+
+        // Welcome message show tips field
+        add_settings_field(
+            'welcome_message_show_tips',
+            __('Mostrar Consejos Adicionales', 'guiders-wp-plugin'),
+            array($this, 'welcomeMessageShowTipsFieldCallback'),
+            'guiders-settings',
+            'guiders_welcome_messages_section'
+        );
+
+        // Custom welcome message field
+        add_settings_field(
+            'welcome_message_custom',
+            __('Mensaje Personalizado', 'guiders-wp-plugin'),
+            array($this, 'welcomeMessageCustomFieldCallback'),
+            'guiders-settings',
+            'guiders_welcome_messages_section'
+        );
+
+        // Business template field
+        add_settings_field(
+            'welcome_message_business_template',
+            __('Plantilla de Negocio', 'guiders-wp-plugin'),
+            array($this, 'welcomeMessageBusinessTemplateFieldCallback'),
+            'guiders-settings',
+            'guiders_welcome_messages_section'
+        );
     }
     
     /**
@@ -214,6 +285,44 @@ class GuidersAdmin {
             $validated['auto_init_delay'] = $delay;
         } else {
             $validated['auto_init_delay'] = 500;
+        }
+
+        // Validate welcome message settings
+        $validated['welcome_message_enabled'] = isset($input['welcome_message_enabled']) ? true : false;
+        
+        // Validate welcome message style
+        $valid_styles = array('friendly', 'professional', 'casual', 'helpful', 'custom');
+        if (isset($input['welcome_message_style']) && in_array($input['welcome_message_style'], $valid_styles)) {
+            $validated['welcome_message_style'] = $input['welcome_message_style'];
+        } else {
+            $validated['welcome_message_style'] = 'friendly';
+        }
+        
+        // Validate welcome message language
+        $valid_languages = array('es', 'en');
+        if (isset($input['welcome_message_language']) && in_array($input['welcome_message_language'], $valid_languages)) {
+            $validated['welcome_message_language'] = $input['welcome_message_language'];
+        } else {
+            $validated['welcome_message_language'] = 'es';
+        }
+        
+        // Validate welcome message include emojis
+        $validated['welcome_message_include_emojis'] = isset($input['welcome_message_include_emojis']) ? true : false;
+        
+        // Validate welcome message show tips
+        $validated['welcome_message_show_tips'] = isset($input['welcome_message_show_tips']) ? true : false;
+        
+        // Validate custom welcome message
+        if (isset($input['welcome_message_custom'])) {
+            $validated['welcome_message_custom'] = sanitize_textarea_field($input['welcome_message_custom']);
+        }
+        
+        // Validate business template
+        $valid_templates = array('', 'ecommerce', 'saas', 'healthcare', 'education', 'finance');
+        if (isset($input['welcome_message_business_template']) && in_array($input['welcome_message_business_template'], $valid_templates)) {
+            $validated['welcome_message_business_template'] = $input['welcome_message_business_template'];
+        } else {
+            $validated['welcome_message_business_template'] = '';
         }
         
         return $validated;
@@ -346,6 +455,129 @@ class GuidersAdmin {
         $delay = isset($settings['auto_init_delay']) ? intval($settings['auto_init_delay']) : 500;
         echo '<input type="number" id="auto_init_delay" name="guiders_wp_plugin_settings[auto_init_delay]" value="' . esc_attr($delay) . '" min="0" max="60000" step="100" class="small-text" />';
         echo '<p class="description">' . __('Milisegundos de espera si el modo = Delay Personalizado (0 - 60000).', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Welcome messages section callback
+     */
+    public function welcomeMessagesSectionCallback() {
+        echo '<p>' . __('Configura los mensajes de bienvenida automáticos que aparecerán cuando los usuarios abran el chat.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Welcome message enabled field callback
+     */
+    public function welcomeMessageEnabledFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $enabled = isset($settings['welcome_message_enabled']) ? $settings['welcome_message_enabled'] : true;
+        echo '<input type="checkbox" id="welcome_message_enabled" name="guiders_wp_plugin_settings[welcome_message_enabled]" value="1" ' . checked($enabled, true, false) . ' />';
+        echo '<label for="welcome_message_enabled">' . __('Mostrar mensajes de bienvenida automáticamente', 'guiders-wp-plugin') . '</label>';
+    }
+
+    /**
+     * Welcome message style field callback
+     */
+    public function welcomeMessageStyleFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $style = isset($settings['welcome_message_style']) ? $settings['welcome_message_style'] : 'friendly';
+        
+        $styles = array(
+            'friendly' => __('😊 Amigable - Tono cálido y acogedor', 'guiders-wp-plugin'),
+            'professional' => __('👔 Profesional - Formal y confiable', 'guiders-wp-plugin'),
+            'casual' => __('🤙 Casual - Relajado y moderno', 'guiders-wp-plugin'),
+            'helpful' => __('🌟 Útil - Enfocado en soluciones', 'guiders-wp-plugin'),
+            'custom' => __('✏️ Personalizado - Usar mensaje personalizado', 'guiders-wp-plugin')
+        );
+        
+        echo '<select id="welcome_message_style" name="guiders_wp_plugin_settings[welcome_message_style]">';
+        foreach ($styles as $value => $label) {
+            echo '<option value="' . esc_attr($value) . '" ' . selected($style, $value, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . __('Selecciona el estilo del mensaje de bienvenida.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Welcome message language field callback
+     */
+    public function welcomeMessageLanguageFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $language = isset($settings['welcome_message_language']) ? $settings['welcome_message_language'] : 'es';
+        
+        $languages = array(
+            'es' => __('🇪🇸 Español', 'guiders-wp-plugin'),
+            'en' => __('🇺🇸 English', 'guiders-wp-plugin')
+        );
+        
+        echo '<select id="welcome_message_language" name="guiders_wp_plugin_settings[welcome_message_language]">';
+        foreach ($languages as $value => $label) {
+            echo '<option value="' . esc_attr($value) . '" ' . selected($language, $value, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+    }
+
+    /**
+     * Welcome message include emojis field callback
+     */
+    public function welcomeMessageIncludeEmojisFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $include_emojis = isset($settings['welcome_message_include_emojis']) ? $settings['welcome_message_include_emojis'] : true;
+        echo '<input type="checkbox" id="welcome_message_include_emojis" name="guiders_wp_plugin_settings[welcome_message_include_emojis]" value="1" ' . checked($include_emojis, true, false) . ' />';
+        echo '<label for="welcome_message_include_emojis">' . __('Incluir emojis en los mensajes', 'guiders-wp-plugin') . '</label>';
+    }
+
+    /**
+     * Welcome message show tips field callback
+     */
+    public function welcomeMessageShowTipsFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $show_tips = isset($settings['welcome_message_show_tips']) ? $settings['welcome_message_show_tips'] : true;
+        echo '<input type="checkbox" id="welcome_message_show_tips" name="guiders_wp_plugin_settings[welcome_message_show_tips]" value="1" ' . checked($show_tips, true, false) . ' />';
+        echo '<label for="welcome_message_show_tips">' . __('Mostrar consejos adicionales después del mensaje principal', 'guiders-wp-plugin') . '</label>';
+    }
+
+    /**
+     * Custom welcome message field callback
+     */
+    public function welcomeMessageCustomFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $custom_message = isset($settings['welcome_message_custom']) ? $settings['welcome_message_custom'] : '';
+        echo '<textarea id="welcome_message_custom" name="guiders_wp_plugin_settings[welcome_message_custom]" rows="4" cols="50" class="large-text">' . esc_textarea($custom_message) . '</textarea>';
+        echo '<p class="description">' . __('Mensaje personalizado (se usará si seleccionas "Personalizado" como estilo).', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Business template field callback
+     */
+    public function welcomeMessageBusinessTemplateFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $template = isset($settings['welcome_message_business_template']) ? $settings['welcome_message_business_template'] : '';
+        
+        $templates = array(
+            '' => __('-- Seleccionar plantilla --', 'guiders-wp-plugin'),
+            'ecommerce' => __('🛍️ E-commerce - Tiendas online, marketplace', 'guiders-wp-plugin'),
+            'saas' => __('💻 SaaS - Software, aplicaciones', 'guiders-wp-plugin'),
+            'healthcare' => __('🏥 Salud - Clínicas, hospitales', 'guiders-wp-plugin'),
+            'education' => __('📚 Educación - Cursos, academias', 'guiders-wp-plugin'),
+            'finance' => __('💰 Finanzas - Bancos, fintech', 'guiders-wp-plugin')
+        );
+        
+        echo '<select id="welcome_message_business_template" name="guiders_wp_plugin_settings[welcome_message_business_template]">';
+        foreach ($templates as $value => $label) {
+            echo '<option value="' . esc_attr($value) . '" ' . selected($template, $value, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . __('Selecciona una plantilla predefinida según tu tipo de negocio. Esto sobrescribirá el mensaje personalizado.', 'guiders-wp-plugin') . '</p>';
+        
+        echo '<script>
+        jQuery(document).ready(function($) {
+            $("#welcome_message_business_template").change(function() {
+                if ($(this).val() !== "") {
+                    $("#welcome_message_style").val("custom");
+                }
+            });
+        });
+        </script>';
     }
     
     /**
