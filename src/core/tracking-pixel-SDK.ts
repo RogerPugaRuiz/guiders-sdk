@@ -241,29 +241,9 @@ export class TrackingPixelSDK {
 
 		console.log("SDK listo para tracking...");
 
-		// Identificar visitante via API V2 (sin fallback) y precargar chats
-		try {
-			const identify = await VisitorsV2Service.getInstance().identify(this.fingerprint!, this.apiKey);
-			if (identify?.visitorId) {
-				// Iniciar heartbeat backend (cada 30s) sin fallback
-				if (this.visitorHeartbeatTimer) clearInterval(this.visitorHeartbeatTimer);
-				this.visitorHeartbeatTimer = setInterval(() => {
-					VisitorsV2Service.getInstance().heartbeat();
-				}, 30000);
-				try {
-					const list = await ChatV2Service.getInstance().getVisitorChats(identify.visitorId, undefined, 20);
-					localStorage.setItem('guiders_recent_chats', JSON.stringify(list.chats));
-					if (list.chats.length > 0) {
-						ChatMemoryStore.getInstance().setChatId(list.chats[0].id);
-						console.log('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) guardado en memoria:', list.chats[0].id);
-					}
-				} catch (inner) {
-					console.warn('[TrackingPixelSDK] ⚠️ No se pudo precargar lista de chats V2:', inner);
-				}
-			}
-		} catch (e) {
-			console.warn('[TrackingPixelSDK] ❌ identify V2 fallido:', e);
-		}
+		// La identificación del visitante ahora se realiza solo cuando se abre la pestaña
+		// mediante un listener de visibilitychange/focus
+		this.setupTabOpenListener();
 		// Guardar la referencia al chat para usarla más tarde (ej: mostrar mensajes del sistema)
 		this.chatUI = new ChatUI({
 			widget: true,
@@ -388,8 +368,58 @@ export class TrackingPixelSDK {
 	}
 
 	/**
-	 * Configura múltiples event listeners para detectar cuando el usuario abandona la página.
-	 * Usa sendBeacon para garantizar la entrega del endSession incluso durante page unload.
+	 * Configura un listener para detectar cuando se abre una pestaña
+	 * y ejecutar /identify únicamente en ese momento.
+	 */
+	private setupTabOpenListener(): void {
+		if (typeof window === 'undefined') return;
+
+		console.log('[TrackingPixelSDK] 🔍 Configurando listener para apertura de pestaña (una sola vez)');
+
+		// Ejecutar identificación inmediatamente solo al cargar la página
+		// No en eventos posteriores de cambio de foco
+		if (document.visibilityState === 'visible') {
+			console.log('[TrackingPixelSDK] 🚀 Pestaña cargada - ejecutando identify una sola vez');
+			this.executeIdentify();
+		}
+
+		// NO agregar listeners para visibilitychange o focus
+		// La sesión debe mantenerse durante toda la vida de la pestaña
+		// Solo se debe crear una nueva sesión cuando se abre una nueva pestaña/ventana
+	}
+
+	/**
+	 * Ejecuta la identificación del visitante y carga sus chats.
+	 */
+	private async executeIdentify(): Promise<void> {
+		try {
+			console.log('[TrackingPixelSDK] 🔍 Ejecutando identify...');
+			const identify = await VisitorsV2Service.getInstance().identify(this.fingerprint!, this.apiKey);
+			if (identify?.visitorId) {
+				// Iniciar heartbeat backend (cada 30s) sin fallback
+				if (this.visitorHeartbeatTimer) clearInterval(this.visitorHeartbeatTimer);
+				this.visitorHeartbeatTimer = setInterval(() => {
+					VisitorsV2Service.getInstance().heartbeat();
+				}, 30000);
+				try {
+					const list = await ChatV2Service.getInstance().getVisitorChats(identify.visitorId, undefined, 20);
+					localStorage.setItem('guiders_recent_chats', JSON.stringify(list.chats));
+					if (list.chats.length > 0) {
+						ChatMemoryStore.getInstance().setChatId(list.chats[0].id);
+						console.log('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) guardado en memoria:', list.chats[0].id);
+					}
+				} catch (inner) {
+					console.warn('[TrackingPixelSDK] ⚠️ No se pudo precargar lista de chats V2:', inner);
+				}
+			}
+		} catch (e) {
+			console.warn('[TrackingPixelSDK] ❌ identify V2 fallido:', e);
+		}
+	}
+
+	/**
+	 * Configura listeners simplificados para detectar cuando se cierra la ventana/pestaña.
+	 * Ejecuta /endSession únicamente cuando se cierra la ventana.
 	 */
 	private setupPageUnloadHandlers(): void {
 		if (typeof window === 'undefined') return;
@@ -431,29 +461,20 @@ export class TrackingPixelSDK {
 			}
 		};
 
-		// Evento 1: beforeunload - cuando la página está a punto de descargarse
-		window.addEventListener('beforeunload', () => endSessionOnce('beforeunload'));
+		// Solo usar beforeunload y pagehide que son los más confiables para cierre de ventana
+		console.log('[TrackingPixelSDK] 🚪 Configurando listeners simplificados para cierre de ventana');
 		
-		// Evento 2: pagehide - más confiable que beforeunload en móviles
-		window.addEventListener('pagehide', () => endSessionOnce('pagehide'));
-		
-		// Evento 3: visibilitychange - cuando la página se oculta (puede ser cierre de pestaña)
-		document.addEventListener('visibilitychange', () => {
-			if (document.visibilityState === 'hidden') {
-				// Esperar un poco para ver si realmente se está cerrando
-				setTimeout(() => {
-					if (document.visibilityState === 'hidden') {
-						endSessionOnce('visibilitychange-hidden');
-					}
-				}, 100);
-			} else if (document.visibilityState === 'visible') {
-				// Reset flag si la página vuelve a ser visible
-				sessionEndCalled = false;
-			}
+		// Evento principal: beforeunload - cuando la página está a punto de descargarse
+		window.addEventListener('beforeunload', () => {
+			console.log('[TrackingPixelSDK] 🚪 beforeunload detectado');
+			endSessionOnce('window_close');
 		});
-
-		// Evento 4: unload - último recurso (menos confiable)
-		window.addEventListener('unload', () => endSessionOnce('unload'));
+		
+		// Evento secundario: pagehide - más confiable que beforeunload en móviles
+		window.addEventListener('pagehide', () => {
+			console.log('[TrackingPixelSDK] 🚪 pagehide detectado');
+			endSessionOnce('window_close');
+		});
 	}
 
 	private configureTypingIndicators(chat: ChatUI): void {

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test /identify y /endSession</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            background: #e8f4fd;
+            border: 1px solid #bee5eb;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test de /identify y /endSession</h1>
+        
+        <div class="instructions">
+            <h3>📋 Instrucciones de prueba (CORREGIDAS):</h3>
+            <ol>
+                <li><strong>/identify</strong> debe ejecutarse:
+                    <ul>
+                        <li>✅ <strong>UNA SOLA VEZ</strong> al cargar esta pestaña por primera vez</li>
+                        <li>❌ NO al cambiar desde otra pestaña a esta</li>
+                        <li>❌ NO al volver al navegador desde otra aplicación</li>
+                        <li>ℹ️ Solo se crea una sesión por pestaña durante toda su vida</li>
+                    </ul>
+                </li>
+                <li><strong>/endSession</strong> debe ejecutarse:
+                    <ul>
+                        <li>✅ Al cerrar esta pestaña</li>
+                        <li>✅ Al cerrar toda la ventana del navegador</li>
+                        <li>❌ NO al cambiar de pestaña (solo al cerrar)</li>
+                    </ul>
+                </li>
+            </ol>
+            <p><strong>🔄 Regla clave:</strong> Una sesión = Una pestaña. La sesión permanece activa mientras la pestaña existe, sin importar cambios de foco.</p>
+        </div>
+
+        <div class="status" id="status">
+            <strong>Estado del SDK:</strong> <span id="sdk-status">Cargando...</span>
+        </div>
+
+        <div>
+            <button onclick="clearLog()">🗑️ Limpiar Log</button>
+            <button onclick="testTabSwitch()">🔄 Simular cambio de pestaña</button>
+            <button onclick="showStatus()">📊 Mostrar Estado</button>
+        </div>
+
+        <div class="log" id="log">
+            <div>🚀 Iniciando pruebas...</div>
+        </div>
+    </div>
+
+    <script src="dist/index.js"></script>
+    <script>
+        let sdk = null;
+        let logContainer = document.getElementById('log');
+        let originalConsoleLog = console.log;
+        let originalConsoleWarn = console.warn;
+        let originalConsoleError = console.error;
+
+        // Interceptar console para mostrar en la página
+        function addToLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'red' : type === 'warn' ? 'orange' : type === 'identify' ? 'green' : type === 'endsession' ? 'purple' : 'black';
+            logContainer.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Override console methods
+        console.log = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('identify') || message.includes('Ejecutando identify')) {
+                addToLog('🔍 IDENTIFY: ' + message, 'identify');
+            } else if (message.includes('endSession') || message.includes('Finalizando sesión')) {
+                addToLog('🚪 ENDSESSION: ' + message, 'endsession');
+            } else {
+                addToLog(message, 'info');
+            }
+            originalConsoleLog.apply(console, args);
+        };
+
+        console.warn = function(...args) {
+            addToLog('⚠️ WARN: ' + args.join(' '), 'warn');
+            originalConsoleWarn.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            addToLog('❌ ERROR: ' + args.join(' '), 'error');
+            originalConsoleError.apply(console, args);
+        };
+
+        // Initialize SDK when ready
+        function initTest() {
+            if (window.guiders) {
+                sdk = window.guiders;
+                document.getElementById('sdk-status').textContent = 'SDK cargado ✅';
+                addToLog('✅ SDK inicializado', 'info');
+                
+                // No es necesario interceptar nada más, solo observar los logs
+                showStatus();
+            } else {
+                setTimeout(initTest, 100);
+            }
+        }
+
+        function clearLog() {
+            logContainer.innerHTML = '<div>🗑️ Log limpiado...</div>';
+        }
+
+        function testTabSwitch() {
+            addToLog('🔄 Simulando cambio de pestaña (hidden/visible)', 'info');
+            addToLog('❗ IMPORTANTE: Con el nuevo comportamiento, NO debería ejecutar identify', 'warn');
+            
+            // Simular que la pestaña se oculta
+            Object.defineProperty(document, 'visibilityState', {
+                writable: true,
+                value: 'hidden'
+            });
+            document.dispatchEvent(new Event('visibilitychange'));
+            
+            // Después simular que vuelve a ser visible
+            setTimeout(() => {
+                Object.defineProperty(document, 'visibilityState', {
+                    writable: true,
+                    value: 'visible'
+                });
+                document.dispatchEvent(new Event('visibilitychange'));
+                addToLog('👁️ Pestaña visible otra vez - NO debería ejecutar identify (comportamiento correcto)', 'info');
+            }, 1000);
+        }
+
+        function showStatus() {
+            if (!sdk) return;
+            
+            const state = {
+                visitorId: sdk.getVisitorId(),
+                isIdentified: sdk.isVisitorIdentified(),
+                sessionData: sdk.sessionTrackingManager?.getCurrentSession()
+            };
+            
+            addToLog('📊 Estado actual: ' + JSON.stringify(state, null, 2), 'info');
+        }
+
+        // Detectar eventos de visibilidad para logging
+        document.addEventListener('visibilitychange', () => {
+            addToLog(`👁️ visibilitychange: ${document.visibilityState}`, 'info');
+        });
+
+        window.addEventListener('focus', () => {
+            addToLog('🎯 window focus detectado', 'info');
+        });
+
+        window.addEventListener('blur', () => {
+            addToLog('😴 window blur detectado', 'info');
+        });
+
+        // Detectar eventos de cierre
+        window.addEventListener('beforeunload', () => {
+            addToLog('🚪 beforeunload detectado', 'endsession');
+        });
+
+        window.addEventListener('pagehide', () => {
+            addToLog('🚪 pagehide detectado', 'endsession');
+        });
+
+        // Start test
+        addToLog('🔍 Esperando que el SDK se cargue...', 'info');
+        initTest();
+    </script>
+</body>
+</html>
