@@ -1,0 +1,1096 @@
+// chat-ui.ts - Componente principal del chat UI (versión simplificada)
+
+import { Message } from "../../types";
+import { ChatSessionStore } from "../../services/chat-session-store";
+import { fetchChatDetail, ChatDetail, ChatParticipant } from "../../services/chat-detail-service";
+import { ChatMemoryStore } from "../../core/chat-memory-store";
+import { WelcomeMessageManager, WelcomeMessageConfig } from "../../core/welcome-message-manager";
+
+// Importar tipos y utilidades
+import { ChatUIOptions, Sender, ChatMessageParams, ActiveInterval } from '../types/chat-types';
+import { formatTime, formatDate, isBot, generateInitials, createDateSeparator } from '../utils/chat-utils';
+
+/**
+ * Clase ChatUI para renderizar mensajes en el chat.
+ * Se incluye lógica para:
+ *  - scroll infinito (cargar mensajes antiguos en onScroll)
+ *  - métodos para cargar mensajes iniciales y "prepend" mensajes antiguos
+ */
+export class ChatUI {
+	private container: HTMLElement | null = null;
+	private containerMessages: HTMLElement | null = null;
+	private options: ChatUIOptions;
+
+	private currentIndex: string | null = null;
+	private chatId: string | null = null;
+	private chatDetail: ChatDetail | null = null;
+	private lastKnownChatStatus: string | null = null;
+	private lastNotificationType: 'online' | 'offline' | null = null;
+	private messagesLoaded: boolean = false;
+
+	// Callbacks para eventos
+	private openCallbacks: Array<() => void> = [];
+	private closeCallbacks: Array<() => void> = [];
+	private initializationCallbacks: Array<() => void> = [];
+	private activeIntervals: Array<ActiveInterval> = [];
+
+	// Elementos del UI
+	private titleElement: HTMLElement | null = null;
+	private subtitleElement: HTMLElement | null = null;
+	private typingIndicator: HTMLElement | null = null;
+	private lastMessageDate: string | null = null;
+
+	// Manager para mensajes de bienvenida
+	private welcomeMessageManager: WelcomeMessageManager;
+
+	// Control de estado para evitar creación de múltiples chats
+	private isCreatingChatFlag: boolean = false;
+	private chatCreationPromise: Promise<void> | null = null;
+	private chatCreationResolve: (() => void) | null = null;
+
+	constructor(options: ChatUIOptions = {}) {
+		this.options = {
+			widget: false,
+			widgetWidth: '300px',
+			widgetHeight: '400px',
+			userBgColor: '#007bff',
+			otherBgColor: '#6c757d',
+			textColor: '#fff',
+			maxWidthMessage: '80%',
+			...options
+		};
+
+		// Inicializar el manager de mensajes de bienvenida
+		this.welcomeMessageManager = new WelcomeMessageManager(options.welcomeMessage);
+
+		// Si se pasa un containerId, se obtiene ese contenedor
+		if (this.options.containerId) {
+			const container = document.getElementById(this.options.containerId);
+			if (!container) {
+				throw new Error(`No se encontró el contenedor con ID "${this.options.containerId}"`);
+			}
+			this.container = container;
+		}
+	}
+
+	/**
+	 * Inicializa el chat.
+	 */
+	public init(): void {
+		if (!this.container || this.options.widget) {
+			// Crear un host para el Shadow DOM
+			const shadowHost = document.createElement('div');
+			shadowHost.classList.add('chat-widget-host');
+			document.body.appendChild(shadowHost);
+			
+			// Crear el shadow root
+			const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+			
+			// Crear el contenedor principal dentro del shadow root
+			this.container = document.createElement('div');
+			this.container.classList.add('chat-widget');
+			
+			if (this.options.widget) {
+				this.container.classList.add('chat-widget-fixed');
+			}
+			
+			// Ocultar el chat por defecto
+			this.container.style.display = 'none';
+			this.container.style.opacity = '0';
+			this.container.style.transform = 'translateY(20px)';
+			this.container.setAttribute('data-initial-state', 'hidden');
+
+			console.log("Chat inicializado con estado: oculto");
+			shadowRoot.appendChild(this.container);
+
+			// Añadir encabezado del chat
+			this.createChatHeader();
+
+			// Inyectar los estilos CSS
+			this.injectStyles(shadowRoot);
+		} else {
+			if (!this.container || this.options.widget) {
+				this.container = document.createElement('div');
+				this.container.classList.add('chat-widget');
+				document.body.appendChild(this.container);
+
+				if (this.options.widget) {
+					this.container.classList.add('chat-widget-fixed');
+				}
+			}
+		}
+
+		this.createChatBody();
+		this.initializeChatContent();
+	}
+
+	/**
+	 * Crea el encabezado del chat
+	 */
+	private createChatHeader(): void {
+		if (!this.container) return;
+
+		const headerEl = document.createElement('div');
+		headerEl.className = 'chat-header';
+
+		const titleEl = document.createElement('div');
+		titleEl.className = 'chat-header-title';
+		titleEl.textContent = 'Chat';
+		this.titleElement = titleEl;
+
+		const subtitleEl = document.createElement('div');
+		subtitleEl.className = 'chat-header-subtitle';
+		subtitleEl.textContent = 'Atención personalizada';
+		this.subtitleElement = subtitleEl;
+		titleEl.appendChild(subtitleEl);
+
+		headerEl.appendChild(titleEl);
+
+		const actionsEl = document.createElement('div');
+		actionsEl.className = 'chat-header-actions';
+
+		const closeBtn = document.createElement('button');
+		closeBtn.className = 'chat-close-btn';
+		closeBtn.setAttribute('aria-label', 'Cerrar chat');
+		closeBtn.addEventListener('click', () => {
+			this.hide();
+		});
+
+		actionsEl.appendChild(closeBtn);
+		headerEl.appendChild(actionsEl);
+		this.container.appendChild(headerEl);
+	}
+
+	/**
+	 * Crea el cuerpo del chat (mensajes y footer)
+	 */
+	private createChatBody(): void {
+		if (!this.container) return;
+
+		// Contenedor para mensajes
+		const containerMessages = document.createElement('div');
+		containerMessages.className = 'chat-messages';
+		this.container.appendChild(containerMessages);
+		this.containerMessages = containerMessages;
+
+		// Bloque inferior para "empujar" mensajes hacia arriba
+		const div = document.createElement('div');
+		div.className = 'chat-messages-bottom';
+		this.containerMessages.appendChild(div);
+
+		// Footer
+		const footerEl = document.createElement('div');
+		footerEl.className = 'chat-footer';
+
+		const footerText = document.createElement('div');
+		footerText.className = 'chat-footer-text';
+		footerText.innerHTML = 'Equipo de atención al cliente';
+		footerEl.appendChild(footerText);
+
+		this.container.appendChild(footerEl);
+
+		// Configurar estilos
+		this.container.style.display = 'none';
+		this.container.style.flexDirection = 'column';
+		this.container.style.gap = '0';
+		this.container.setAttribute('data-content-ready', 'true');
+
+		// Event listener para scroll
+		this.containerMessages.addEventListener('scroll', () => {
+			// Scroll infinito desactivado
+		});
+	}
+
+	/**
+	 * Inyecta los estilos CSS en el shadow root
+	 */
+	private injectStyles(shadowRoot: ShadowRoot): void {
+		const style = document.createElement('style');
+		style.textContent = this.getChatStyles();
+		shadowRoot.appendChild(style);
+	}
+
+	/**
+	 * Retorna los estilos CSS básicos del chat
+	 */
+	private getChatStyles(): string {
+		return `
+			@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+			:host { all: initial; font-family: 'Inter', sans-serif; }
+
+			.chat-widget {
+				box-shadow: 0 8px 48px 0 rgba(0,0,0,0.22), 0 1.5px 8px 0 rgba(0,0,0,0.10);
+				border-radius: 20px;
+				overflow: hidden;
+				background: linear-gradient(135deg, #f7faff 0%, #e3e9f6 100%);
+				font-family: 'Inter', sans-serif;
+				display: flex;
+				flex-direction: column;
+				transition: box-shadow 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+			}
+			
+			.chat-widget-fixed { 
+				width: 340px; 
+				height: 520px; 
+				position: fixed; 
+				bottom: 90px; 
+				right: 20px; 
+				transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+				z-index: 2147483647; 
+				display: flex;
+				flex-direction: column;
+			}
+			
+			.chat-header {
+				background: linear-gradient(145deg, #0084ff 60%, #00c6fb 100%);
+				color: #fff;
+				padding: 18px 20px 14px 20px;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				border-top-left-radius: 20px;
+				border-top-right-radius: 20px;
+				box-shadow: 0 2px 8px rgba(0,132,255,0.08);
+			}
+			
+			.chat-header-title {
+				font-weight: 700;
+				font-size: 17px;
+				display: flex;
+				flex-direction: column;
+				align-items: flex-start;
+				gap: 4px;
+				letter-spacing: 0.01em;
+			}
+			
+			.chat-header-subtitle {
+				font-size: 13px;
+				font-weight: 400;
+				opacity: 0.92;
+				margin-top: 2px;
+				color: #e3f2fd;
+			}
+			
+			.chat-close-btn {
+				background: transparent;
+				border: none;
+				color: white;
+				cursor: pointer;
+				width: 24px;
+				height: 24px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 0;
+				opacity: 0.8;
+				transition: opacity 0.2s;
+			}
+			
+			.chat-messages {
+				display: flex;
+				flex-direction: column;
+				flex: 1;
+				overflow-y: auto;
+				padding: 18px 16px 12px 16px;
+				background: linear-gradient(120deg, #f7faff 60%, #e3e9f6 100%);
+				scroll-behavior: smooth;
+			}
+			
+			.chat-message-wrapper {
+				position: relative;
+				margin-bottom: 16px;
+				max-width: 85%;
+				display: flex;
+				flex-direction: column;
+			}
+			
+			.chat-message {
+				padding: 12px 16px;
+				border-radius: 18px;
+				white-space: pre-wrap;
+				word-break: break-word;
+				line-height: 1.5;
+				font-size: 14px;
+				position: relative;
+				box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+			}
+			
+			.chat-message-user-wrapper {
+				align-self: flex-end;
+			}
+			
+			.chat-message-user {
+				background: linear-gradient(145deg, #0084ff 70%, #00c6fb 100%);
+				color: #fff;
+				border-bottom-right-radius: 8px;
+				box-shadow: 0 2px 8px rgba(0,132,255,0.08);
+			}
+			
+			.chat-message-other-wrapper {
+				align-self: flex-start;
+				display: flex;
+				gap: 8px;
+			}
+			
+			.chat-message-other {
+				background: #fff;
+				color: #333;
+				border: 1px solid #e1e9f1;
+				border-bottom-left-radius: 4px;
+			}
+			
+			.chat-avatar {
+				width: 28px;
+				height: 28px;
+				border-radius: 50%;
+				background-color: #e1e9f1;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-shrink: 0;
+			}
+			
+			.chat-message-time {
+				font-size: 11px;
+				color: #8a9aa9;
+				margin-top: 4px;
+				opacity: 0.8;
+			}
+			
+			.chat-footer {
+				padding: 10px 18px;
+				background: linear-gradient(90deg, #f7faff 80%, #e3e9f6 100%);
+				border-top: 1.5px solid #e1e9f1;
+				font-size: 13px;
+				color: #8a9aa9;
+				text-align: center;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				letter-spacing: 0.01em;
+			}
+			
+			.chat-input-container {
+				padding: 12px 16px;
+				background: #ffffff;
+				border-top: 1px solid #e1e9f1;
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				border-bottom-left-radius: 20px;
+				border-bottom-right-radius: 20px;
+			}
+			
+			.chat-input-field {
+				flex: 1;
+				border: 1px solid #e1e9f1;
+				border-radius: 20px;
+				padding: 10px 16px;
+				font-size: 14px;
+				font-family: 'Inter', sans-serif;
+				outline: none;
+				background: #f8fafb;
+				color: #333;
+				transition: all 0.2s ease;
+			}
+			
+			.chat-input-field:focus {
+				border-color: #0084ff;
+				background: #fff;
+				box-shadow: 0 0 0 3px rgba(0, 132, 255, 0.1);
+			}
+			
+			.chat-input-field::placeholder {
+				color: #8a9aa9;
+			}
+			
+			.chat-send-btn {
+				background: linear-gradient(145deg, #0084ff, #00c6fb);
+				color: white;
+				border: none;
+				border-radius: 50%;
+				width: 36px;
+				height: 36px;
+				cursor: pointer;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				transition: all 0.2s ease;
+				flex-shrink: 0;
+			}
+			
+			.chat-send-btn:hover {
+				background: linear-gradient(145deg, #0090ff, #00d6fb);
+				transform: scale(1.05);
+			}
+			
+			.chat-send-btn:active {
+				transform: scale(0.95);
+			}
+			
+			.chat-send-btn::before {
+				content: '';
+				width: 16px;
+				height: 16px;
+				background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 21L23 12L2 3V10L17 12L2 14V21Z' fill='white'/%3E%3C/svg%3E");
+				background-repeat: no-repeat;
+				background-position: center;
+			}
+			
+			.chat-attachment-btn {
+				background: transparent;
+				color: #8a9aa9;
+				border: none;
+				border-radius: 50%;
+				width: 36px;
+				height: 36px;
+				cursor: pointer;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				transition: all 0.2s ease;
+				flex-shrink: 0;
+			}
+			
+			.chat-attachment-btn:hover {
+				background: #f0f4f8;
+				color: #0084ff;
+			}
+			
+			.chat-attachment-btn::before {
+				content: '';
+				width: 18px;
+				height: 18px;
+				background-image: url("data:image/svg+xml,%3Csvg width='18' height='18' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M16.5 6V17.5C16.5 19.71 14.71 21.5 12.5 21.5S8.5 19.71 8.5 17.5V5C8.5 3.62 9.62 2.5 11 2.5S13.5 3.62 13.5 5V15.5C13.5 16.05 13.05 16.5 12.5 16.5S11.5 16.05 11.5 15.5V6H10V15.5C10 16.88 11.12 18 12.5 18S15 16.88 15 15.5V5C15 2.79 13.21 1 11 1S7 2.79 7 5V17.5C7 20.54 9.46 23 12.5 23S18 20.54 18 17.5V6H16.5Z' fill='currentColor'/%3E%3C/svg%3E");
+				background-repeat: no-repeat;
+				background-position: center;
+			}
+		`;
+	}
+
+	// Métodos principales de la API pública
+	public setChatId(chatId: string): void {
+		if (!this.container) {
+			throw new Error('No se ha inicializado el chat');
+		}
+		
+		if (this.chatId !== chatId) {
+			this.messagesLoaded = false;
+			this.lastKnownChatStatus = null;
+			this.lastNotificationType = null;
+		}
+		
+		this.chatId = chatId;
+		this.container.setAttribute('data-chat-id', chatId);
+		ChatSessionStore.getInstance().setCurrent(chatId);
+		ChatMemoryStore.getInstance().setChatId(chatId);
+	}
+
+	public getChatId(): string | null {
+		if (!this.container) {
+			throw new Error('No se ha inicializado el chat');
+		}
+		
+		if (!this.chatId) {
+			this.chatId = ChatMemoryStore.getInstance().getChatId();
+		}
+		
+		return this.chatId;
+	}
+
+	public getMessagesContainer(): HTMLElement | null {
+		return this.containerMessages;
+	}
+
+	public renderChatMessage(params: ChatMessageParams): void {
+		const { text, sender, timestamp, senderId } = params;
+		this.addMessage(text, sender, timestamp, senderId);
+		this.rebuildDateSeparators();
+	}
+
+	public scrollToBottom(scrollToBottom: boolean): void {
+		if (!this.containerMessages) return;
+		if (scrollToBottom) {
+			this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
+		} else {
+			this.containerMessages.scrollTop = 0;
+		}
+	}
+
+	public hide(): void {
+		if (!this.container) {
+			throw new Error('No se ha inicializado el chat');
+		}
+
+		if (this.container.style.display === 'none') {
+			return;
+		}
+
+		this.container.style.transform = 'translateY(20px)';
+		this.container.style.opacity = '0';
+
+		setTimeout(() => {
+			if (this.container) {
+				this.container.style.display = 'none';
+			}
+
+			this.activeIntervals.forEach(intervalObj => {
+				if (intervalObj.id !== null) {
+					clearInterval(intervalObj.id);
+					intervalObj.id = null;
+				}
+			});
+			this.closeCallbacks.forEach(cb => cb());
+		}, 300);
+	}
+
+	public show(): void {
+		if (!this.container) {
+			throw new Error('No se ha inicializado el chat');
+		}
+
+		this.container.style.display = 'flex';
+		this.container.offsetHeight;
+
+		this.container.style.opacity = '1';
+		this.container.style.transform = 'translateY(0)';
+
+		this.loadChatContent();
+		this.refreshChatDetails();
+		this.scrollToBottom(true);
+
+		this.activeIntervals.forEach(intervalObj => {
+			if (intervalObj.id === null) {
+				intervalObj.id = window.setInterval(intervalObj.callback, intervalObj.intervalMs);
+			}
+		});
+		this.openCallbacks.forEach(cb => cb());
+	}
+
+	public toggle(): void {
+		if (!this.container) {
+			throw new Error('No se ha inicializado el chat');
+		}
+
+		if (this.container.style.display === 'none') {
+			this.show();
+		} else {
+			this.hide();
+		}
+	}
+
+	public isVisible(): boolean {
+		if (!this.container) return false;
+		return this.container.style.display !== 'none';
+	}
+
+	public getOptions(): ChatUIOptions {
+		return this.options;
+	}
+
+	// Métodos privados
+	private addMessage(text: string, sender: Sender, timestamp?: number, senderId?: string): void {
+		if (!this.container || !this.containerMessages) {
+			throw new Error('No se ha inicializado el chat');
+		}
+
+		const messageDate = timestamp ? new Date(timestamp) : new Date();
+		this.addDateSeparatorIfNeeded(messageDate);
+
+		const messageDiv = this.createMessageDiv(text, sender, timestamp, senderId);
+		this.containerMessages.appendChild(messageDiv);
+
+		this.scrollToBottom(true);
+	}
+
+	private createMessageDiv(text: string, sender: Sender, timestamp?: number, senderId?: string): HTMLDivElement {
+		// Usar la MISMA estructura HTML que ChatMessagesUI.createMessageElement para consistencia
+		const wrapperDiv = document.createElement('div');
+		wrapperDiv.classList.add('chat-message-wrapper');
+
+		if (timestamp) {
+			wrapperDiv.setAttribute('data-timestamp', timestamp.toString());
+		}
+
+		if (sender === 'user') {
+			// Usar EXACTAMENTE la misma estructura que ChatMessagesUI para mensajes de usuario
+			wrapperDiv.classList.add('chat-message-user-wrapper');
+
+			const messageDiv = document.createElement('div');
+			messageDiv.classList.add('chat-message', 'chat-message-user');
+			messageDiv.textContent = text;
+			wrapperDiv.appendChild(messageDiv);
+
+			const timeDiv = document.createElement('div');
+			timeDiv.classList.add('chat-message-time');
+			timeDiv.textContent = formatTime(timestamp ? new Date(timestamp) : new Date());
+			wrapperDiv.appendChild(timeDiv);
+
+		} else {
+			// Usar la misma estructura que ChatMessagesUI para mensajes de otros
+			wrapperDiv.classList.add('chat-message-other-wrapper');
+
+			const avatarDiv = document.createElement('div');
+			avatarDiv.classList.add('chat-avatar');
+
+			const participantInitials = this.getParticipantInitials(senderId || '');
+			avatarDiv.textContent = participantInitials;
+			avatarDiv.style.display = 'flex';
+			avatarDiv.style.alignItems = 'center';
+			avatarDiv.style.justifyContent = 'center';
+			avatarDiv.style.color = '#0062cc';
+			avatarDiv.style.fontWeight = '600';
+			avatarDiv.style.fontSize = '10px';
+
+			wrapperDiv.appendChild(avatarDiv);
+
+			const contentDiv = document.createElement('div');
+
+			const nameDiv = document.createElement('div');
+			nameDiv.classList.add('chat-message-name');
+			const participantName = this.getParticipantName(senderId || '');
+			nameDiv.textContent = participantName;
+			nameDiv.style.fontSize = '11px';
+			nameDiv.style.color = '#5a6877';
+			nameDiv.style.marginBottom = '3px';
+			nameDiv.style.fontWeight = '500';
+			contentDiv.appendChild(nameDiv);
+
+			const messageDiv = document.createElement('div');
+			messageDiv.classList.add('chat-message', 'chat-message-other');
+			messageDiv.textContent = text;
+			contentDiv.appendChild(messageDiv);
+
+			const timeDiv = document.createElement('div');
+			timeDiv.classList.add('chat-message-time');
+			timeDiv.textContent = formatTime(timestamp ? new Date(timestamp) : new Date());
+			contentDiv.appendChild(timeDiv);
+
+			wrapperDiv.appendChild(contentDiv);
+		}
+
+		return wrapperDiv;
+	}
+
+	private getParticipantInitials(senderId: string): string {
+		if (!senderId) {
+			return 'AI';
+		}
+
+		if (!this.chatDetail) {
+			return 'AH';
+		}
+
+		const participant = this.chatDetail.participants.find(p => p.id === senderId);
+		if (!participant) {
+			return 'AH';
+		}
+
+		if (isBot(participant.name)) {
+			return 'AI';
+		}
+
+		return generateInitials(participant.name);
+	}
+
+	private getParticipantName(senderId: string): string {
+		if (!senderId) {
+			return 'Asistente';
+		}
+
+		if (!this.chatDetail) {
+			return 'Asesor';
+		}
+
+		const participant = this.chatDetail.participants.find(p => p.id === senderId);
+		if (!participant) {
+			return 'Asesor';
+		}
+
+		if (isBot(participant.name)) {
+			return 'Asistente';
+		}
+
+		return participant.name;
+	}
+
+	private addDateSeparatorIfNeeded(date: Date): void {
+		if (!this.containerMessages) return;
+
+		const dateStr = formatDate(date);
+
+		if (!this.lastMessageDate || this.lastMessageDate !== dateStr) {
+			const separator = createDateSeparator(dateStr);
+			this.containerMessages.appendChild(separator);
+			this.lastMessageDate = dateStr;
+		}
+	}
+
+	private rebuildDateSeparators(): void {
+		if (!this.containerMessages) return;
+
+		this.lastMessageDate = null;
+
+		const existingSeparators = this.containerMessages.querySelectorAll('.chat-date-separator');
+		existingSeparators.forEach(sep => sep.parentNode?.removeChild(sep));
+
+		const messageWrappers = Array.from(this.containerMessages.querySelectorAll('.chat-message-wrapper'));
+
+		if (messageWrappers.length === 0) return;
+
+		let currentDateStr: string | null = null;
+
+		messageWrappers.forEach((wrapper) => {
+			const messageDate = new Date();
+			const messageDateStr = formatDate(messageDate);
+
+			if (messageDateStr !== currentDateStr) {
+				currentDateStr = messageDateStr;
+
+				const separator = createDateSeparator(messageDateStr);
+
+				if (this.containerMessages) {
+					this.containerMessages.insertBefore(separator, wrapper);
+				}
+			}
+		});
+
+		if (currentDateStr) {
+			this.lastMessageDate = currentDateStr;
+		}
+	}
+
+	private async initializeChatContent(): Promise<void> {
+		try {
+			console.log("💬 [ChatUI] Inicializando contenido del chat...");
+			
+			if (this.isVisible()) {
+				this.loadChatContent();
+			}
+		} catch (err) {
+			console.error("Error iniciando chat:", err);
+			this.addWelcomeMessage();
+		}
+	}
+
+	private async loadChatContent(): Promise<void> {
+		if (!this.container?.getAttribute('data-chat-initialized')) {
+			console.log("Chat no inicializado aún, esperando...");
+			return;
+		}
+
+		if (this.messagesLoaded) {
+			console.log("Los mensajes ya fueron cargados previamente, omitiendo fetch...");
+			return;
+		}
+
+		console.log("Cargando contenido del chat...");
+
+		try {
+			this.messagesLoaded = true;
+
+			if (this.chatDetail && this.chatDetail.status === 'active') {
+				this.checkInitialCommercialStatus();
+			}
+		} catch (error) {
+			console.error("Error al cargar el contenido del chat:", error);
+			this.addWelcomeMessage();
+			
+			if (this.chatDetail && this.chatDetail.status === 'active') {
+				this.checkInitialCommercialStatus();
+			}
+		}
+	}
+
+	private async loadChatDetails(): Promise<void> {
+		if (!this.chatId) return;
+		
+		try {
+			console.log("Cargando detalles del chat...");
+			this.chatDetail = await fetchChatDetail(this.chatId);
+			console.log("Detalles del chat:", this.chatDetail);
+			
+			this.lastKnownChatStatus = this.chatDetail.status;
+			console.log("Estado actual del chat:", this.lastKnownChatStatus);
+			
+			this.updateChatHeader();
+		} catch (error) {
+			console.warn("Error al cargar detalles del chat:", error);
+		}
+	}
+
+	private checkInitialCommercialStatus(): void {
+		if (!this.chatDetail) return;
+		
+		const commercialParticipants = this.chatDetail.participants.filter(p => p.isCommercial);
+		
+		commercialParticipants.forEach(commercial => {
+			if (!commercial.isOnline && this.lastNotificationType !== 'offline') {
+				console.log("Comercial", commercial.name, "está offline en la carga inicial");
+				setTimeout(() => {
+					this.sendOfflineNotificationMessage(commercial.name, true);
+					this.lastNotificationType = 'offline';
+				}, 100);
+			}
+		});
+	}
+
+	private updateChatHeader(): void {
+		if (!this.chatDetail || !this.titleElement || !this.subtitleElement) return;
+
+		const commercialParticipants = this.chatDetail.participants.filter(p => p.isCommercial);
+
+		if (this.chatDetail.status === 'pending' && commercialParticipants.length > 1) {
+			this.titleElement.textContent = 'Chat';
+			this.subtitleElement.textContent = `Conectando con asesor (${commercialParticipants.length} disponibles)...`;
+		} else if (this.chatDetail.status === 'pending' && commercialParticipants.length === 1) {
+			this.titleElement.textContent = 'Chat';
+			this.subtitleElement.textContent = `Conectando con ${commercialParticipants[0].name}...`;
+		} else if (commercialParticipants.length > 0) {
+			const advisor = commercialParticipants[0];
+			
+			if (this.chatDetail.status === 'active') {
+				const titleWithIndicator = document.createElement('div');
+				titleWithIndicator.className = 'chat-online-indicator';
+				
+				const statusDot = document.createElement('span');
+				statusDot.className = `chat-status-dot ${advisor.isOnline ? 'online' : 'offline'}`;
+				
+				const titleText = document.createElement('span');
+				titleText.textContent = `Chat con ${advisor.name}`;
+				
+				titleWithIndicator.appendChild(statusDot);
+				titleWithIndicator.appendChild(titleText);
+				
+				this.titleElement.innerHTML = '';
+				this.titleElement.appendChild(titleWithIndicator);
+				
+				const onlineStatus = advisor.isOnline ? 'En línea' : 'Desconectado';
+				const typingStatus = advisor.isTyping ? ' • Escribiendo...' : '';
+				this.subtitleElement.textContent = `${onlineStatus}${typingStatus}`;
+			} else {
+				this.titleElement.textContent = `Chat con ${advisor.name}`;
+				const chatStatusText = this.chatDetail.status === 'inactive' ? 'Inactivo' : 
+								   this.chatDetail.status === 'closed' ? 'Cerrado' : 
+								   this.chatDetail.status === 'archived' ? 'Archivado' : 'Conectando...';
+				this.subtitleElement.textContent = chatStatusText;
+			}
+		} else {
+			this.titleElement.textContent = 'Chat';
+			this.subtitleElement.textContent = 'Buscando asesor disponible...';
+		}
+	}
+
+	private sendOfflineNotificationMessage(commercialName: string, isInitialLoad: boolean = false): void {
+		let offlineMessage: string;
+		
+		if (isInitialLoad) {
+			offlineMessage = `${commercialName} no está disponible en este momento. Te responderá tan pronto como esté online.`;
+		} else {
+			offlineMessage = `${commercialName} se ha desconectado temporalmente. Te responderá tan pronto como esté disponible nuevamente.`;
+		}
+		
+		console.log("Enviando mensaje automático de desconexión:", offlineMessage);
+		this.addSystemMessage(offlineMessage);
+	}
+
+	// Métodos públicos adicionales para la API
+	public addWelcomeMessage(): void {
+		console.log('💬 [ChatUI] Verificando si agregar mensaje de bienvenida...');
+		
+		const hasMessages = this.containerMessages &&
+			Array.from(this.containerMessages.children).some(el =>
+				el.classList && (
+					el.classList.contains('chat-message-user-wrapper') ||
+					el.classList.contains('chat-message-other-wrapper')
+				)
+			);
+
+		if (!hasMessages) {
+			const welcomeText = this.welcomeMessageManager.getWelcomeMessage();
+			
+			if (welcomeText) {
+				this.addMessage(welcomeText, 'other');
+				console.log('💬 [ChatUI] ✅ Mensaje de bienvenida agregado');
+				
+				const tips = this.welcomeMessageManager.getTips();
+				if (tips.length > 0) {
+					setTimeout(() => {
+						tips.forEach((tip, index) => {
+							setTimeout(() => {
+								this.addMessage(tip, 'other');
+							}, index * 1000);
+						});
+					}, 2000);
+				}
+			}
+		}
+	}
+
+	public addSystemMessage(text: string): void {
+		if (!this.container || !this.containerMessages) {
+			throw new Error('No se ha inicializado el chat');
+		}
+
+		this.addDateSeparatorIfNeeded(new Date());
+
+		const systemMessageDiv = document.createElement('div');
+		systemMessageDiv.classList.add('chat-message-wrapper', 'chat-system-message-wrapper');
+
+		const messageDiv = document.createElement('div');
+		messageDiv.classList.add('chat-message', 'chat-system-message');
+		messageDiv.textContent = text;
+		systemMessageDiv.appendChild(messageDiv);
+
+		this.containerMessages.appendChild(systemMessageDiv);
+		this.scrollToBottom(true);
+	}
+
+	public async refreshChatDetails(): Promise<void> {
+		await this.loadChatDetails();
+	}
+
+	public onOpen(callback: () => void): void {
+		this.openCallbacks.push(callback);
+	}
+
+	public onClose(callback: () => void): void {
+		this.closeCallbacks.push(callback);
+	}
+
+	public setWelcomeMessage(config: Partial<WelcomeMessageConfig>): void {
+		this.welcomeMessageManager.updateConfig(config);
+	}
+
+	public setCustomWelcomeMessage(message: string): void {
+		this.welcomeMessageManager.updateConfig({
+			style: 'custom',
+			customMessage: message
+		});
+	}
+
+	public getWelcomeMessageConfig(): WelcomeMessageConfig {
+		return this.welcomeMessageManager.getConfig();
+	}
+
+	// Métodos adicionales requeridos por tracking-pixel-SDK.ts
+	public onChatInitialized(callback: () => void): void {
+		this.initializationCallbacks.push(callback);
+	}
+
+	public onActiveInterval(callback: () => void, intervalMs: number = 5000): void {
+		this.activeIntervals.push({ id: null, callback, intervalMs });
+	}
+
+	public isCreatingChat(): boolean {
+		return this.isCreatingChatFlag;
+	}
+
+	public async waitForChatCreation(): Promise<void> {
+		if (this.chatCreationPromise) {
+			await this.chatCreationPromise;
+		}
+	}
+
+	public setCreatingChat(isCreating: boolean): void {
+		this.isCreatingChatFlag = isCreating;
+		
+		if (isCreating) {
+			// Crear la promesa de espera
+			this.chatCreationPromise = new Promise<void>((resolve) => {
+				this.chatCreationResolve = resolve;
+			});
+		} else {
+			// Resolver la promesa si existe
+			if (this.chatCreationResolve) {
+				this.chatCreationResolve();
+				this.chatCreationResolve = null;
+			}
+			this.chatCreationPromise = null;
+		}
+	}
+
+	/**
+	 * Muestra indicador de carga de mensajes
+	 */
+	public showLoadingMessages(): void {
+		if (!this.containerMessages) return;
+
+		// Crear indicador de carga si no existe
+		let loadingIndicator = this.containerMessages.querySelector('.loading-messages-indicator') as HTMLElement;
+		
+		if (!loadingIndicator) {
+			loadingIndicator = document.createElement('div');
+			loadingIndicator.className = 'loading-messages-indicator';
+			loadingIndicator.style.cssText = `
+				text-align: center;
+				padding: 20px;
+				color: #666;
+				font-size: 14px;
+			`;
+			loadingIndicator.innerHTML = `
+				<div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #0084ff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></div>
+				Cargando mensajes...
+				<style>
+					@keyframes spin {
+						0% { transform: rotate(0deg); }
+						100% { transform: rotate(360deg); }
+					}
+				</style>
+			`;
+			
+			this.containerMessages.appendChild(loadingIndicator);
+		}
+
+		loadingIndicator.style.display = 'block';
+		console.log('💬 [ChatUI] Indicador de carga de mensajes mostrado');
+	}
+
+	/**
+	 * Oculta indicador de carga de mensajes
+	 */
+	public hideLoadingMessages(): void {
+		if (!this.containerMessages) return;
+
+		const loadingIndicator = this.containerMessages.querySelector('.loading-messages-indicator') as HTMLElement;
+		
+		if (loadingIndicator) {
+			loadingIndicator.style.display = 'none';
+		}
+
+		console.log('💬 [ChatUI] Indicador de carga de mensajes ocultado');
+	}
+
+	/**
+	 * Limpia todos los mensajes del chat
+	 */
+	public clearMessages(): void {
+		if (!this.containerMessages) return;
+
+		// Limpiar todos los elementos excepto el indicador de carga
+		const children = Array.from(this.containerMessages.children);
+		children.forEach(child => {
+			if (!child.classList.contains('loading-messages-indicator')) {
+				child.remove();
+			}
+		});
+
+		this.messagesLoaded = false;
+		this.lastMessageDate = null;
+		console.log('💬 [ChatUI] Mensajes limpiados');
+	}
+
+	/**
+	 * Método de scroll alternativo para compatibilidad con el TrackingPixelSDK
+	 */
+	public scrollToBottomV2(): void {
+		if (!this.containerMessages) return;
+
+		requestAnimationFrame(() => {
+			if (this.containerMessages) {
+				this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
+				console.log('💬 [ChatUI] Scroll al bottom realizado (V2)');
+			}
+		});
+	}
+}

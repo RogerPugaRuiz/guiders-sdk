@@ -58,6 +58,7 @@ export interface MessageListResponse {
 	total: number;
 	hasMore: boolean;
 	cursor?: string;
+	nextCursor?: string; // Compatibilidad con backend que devuelve nextCursor
 }
 
 export interface ChatMessageReceived {

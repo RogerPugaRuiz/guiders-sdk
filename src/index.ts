@@ -5,6 +5,9 @@ import { TrackingPixelSDK } from "./core/tracking-pixel-SDK";
 import { BotDetector } from "./core/bot-detector";
 import { resolveDefaultEndpoints } from "./core/endpoint-resolver";
 
+// Importar mensajes aleatorios para dev (se auto-inicializa solo en modo dev)
+import "./core/dev-random-messages";
+
 export * from "./core/tracking-pixel-SDK";
 export * from "./core/token-manager";
 export * from "./core/bot-detector";
@@ -31,6 +34,14 @@ declare global {
 		};
 		RocketLazyLoadScripts?: any;
 		__GUIDERS_INITIALIZING__?: boolean; // Guard interno
+		// Funcionalidad dev para mensajes aleatorios
+		guidersDevRandomMessages?: {
+			trigger: (chatId: string, count?: number) => Promise<void>;
+			setConfig: (config: any) => void;
+			getConfig: () => any;
+			isEnabled: () => boolean;
+			isGenerating: () => boolean;
+		};
 	}
 }
 
@@ -121,6 +132,21 @@ function initializeGuidersSDK() {
 
 			// Solo inicializar el SDK para usuarios legítimos
 			window.guiders = new window.TrackingPixelSDK(sdkOptions);
+			
+			// Configurar acceso global para dev random messages (solo en modo dev)
+			if (!isProd && typeof window !== 'undefined') {
+				import('./core/dev-random-messages').then(({ DevRandomMessages }) => {
+					const devRandomMessages = DevRandomMessages.getInstance();
+					window.guidersDevRandomMessages = {
+						trigger: (chatId: string, count?: number) => devRandomMessages.triggerRandomMessages(chatId, count),
+						setConfig: (config: any) => devRandomMessages.setConfig(config),
+						getConfig: () => devRandomMessages.getConfig(),
+						isEnabled: () => devRandomMessages.isEnabled(),
+						isGenerating: () => devRandomMessages.isGenerating()
+					};
+					console.log('🎲 [DevRandomMessages] 🌐 Interfaz global configurada en window.guidersDevRandomMessages');
+				});
+			}
 			
 			(async () => {
 				await window.guiders.init();

@@ -13,7 +13,10 @@
   <script>
     window.GUIDERS_CONFIG = {
       apiKey: '12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0',
+      environment: 'development',
       dev: true,
+      endpoint: 'http://localhost:3000/api',
+      webSocketEndpoint: 'ws://localhost:3000',
       welcomeMessage: {
         enabled: true,
         style: 'custom',
@@ -34,7 +37,10 @@
   </script>
 
   <!-- Guiders SDK Script -->
-  <script src="http://127.0.0.1:8081/index.js?dev=true" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script>
+  <script src="/guiders-sdk.js?dev=true" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script>
+
+  <!-- Desarrollo (servidor webpack): -->
+  <!-- <script src="http://127.0.0.1:8081/index.js?dev=true" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script> -->
 
   <!-- Producción: -->
   <!-- <script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js" data-api-key="ea0cb2d33e9a186906747071e88a1a1eb1c219a0189f0344c7d87e2c497bf626"></script> -->

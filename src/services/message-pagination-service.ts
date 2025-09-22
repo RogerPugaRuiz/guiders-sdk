@@ -83,6 +83,11 @@ export class MessagePaginationService {
 
             const messageList = await response.json() as MessageListResponse;
             
+            // 🔧 Mapear nextCursor a cursor para compatibilidad con scroll infinito
+            if (messageList.nextCursor && !messageList.cursor) {
+                messageList.cursor = messageList.nextCursor;
+            }
+            
             console.log(`✅ [MessagePagination] Mensajes iniciales cargados:`, {
                 count: messageList.messages?.length || 0,
                 total: messageList.total,
@@ -120,6 +125,11 @@ export class MessagePaginationService {
             }
 
             const messageList = await response.json() as MessageListResponse;
+            
+            // 🔧 Mapear nextCursor a cursor para compatibilidad con scroll infinito
+            if (messageList.nextCursor && !messageList.cursor) {
+                messageList.cursor = messageList.nextCursor;
+            }
             
             console.log(`✅ [MessagePagination] Mensajes antiguos cargados:`, {
                 count: messageList.messages?.length || 0,

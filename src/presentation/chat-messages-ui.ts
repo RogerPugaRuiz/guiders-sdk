@@ -19,6 +19,7 @@ export class ChatMessagesUI {
     private hasMoreMessages: boolean = true;
     private isLoading: boolean = false;
     private isInitialLoad: boolean = true;
+    private preventAutoScrollLoad: boolean = false; // Previene carga automática después de scrollToBottom
     
     // Elementos de loading
     private topLoadingIndicator: HTMLElement | null = null;
@@ -38,22 +39,17 @@ export class ChatMessagesUI {
      * Configura la interfaz de usuario
      */
     private setupUI(): void {
-        // Limpiar contenedor
-        this.container.innerHTML = '';
+        // 🔧 No limpiar el contenedor, usar el contenedor existente como messagesContainer
+        // El contenedor ya tiene la clase 'chat-messages' y el contenido de mensajes
+        this.messagesContainer = this.container;
         
-        // Crear contenedor de mensajes
-        this.messagesContainer = document.createElement('div');
-        this.messagesContainer.className = 'chat-messages-container';
-        this.messagesContainer.style.cssText = `
-            height: 100%;
+        // Aplicar estilos de scroll infinito al contenedor existente
+        this.messagesContainer.style.cssText += `
             overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            padding: 16px;
             scroll-behavior: smooth;
         `;
         
-        this.container.appendChild(this.messagesContainer);
+        console.log(`📦 [ChatMessagesUI] setupUI: Usando contenedor existente como messagesContainer`);
     }
 
     /**
@@ -67,16 +63,56 @@ export class ChatMessagesUI {
      * Maneja el evento de scroll para activar la carga de mensajes antiguos
      */
     private async handleScroll(): Promise<void> {
+        const { scrollTop, scrollHeight, clientHeight } = this.messagesContainer;
+        
+        console.log(`🔍 [ChatMessagesUI] handleScroll ejecutándose:`, {
+            scrollTop,
+            scrollHeight,
+            clientHeight,
+            threshold: this.SCROLL_THRESHOLD,
+            chatId: this.chatId,
+            hasMoreMessages: this.hasMoreMessages,
+            isLoading: this.isLoading,
+            currentCursor: this.currentCursor,
+            preventAutoScrollLoad: this.preventAutoScrollLoad
+        });
+
         // Solo activar si tenemos un chat cargado y hay más mensajes
-        if (!this.chatId || !this.hasMoreMessages || this.isLoading) {
+        if (!this.chatId) {
+            console.log(`❌ [ChatMessagesUI] handleScroll: Sin chatId`);
+            return;
+        }
+        
+        if (!this.hasMoreMessages) {
+            console.log(`❌ [ChatMessagesUI] handleScroll: hasMoreMessages = false`);
+            return;
+        }
+        
+        if (this.isLoading) {
+            console.log(`❌ [ChatMessagesUI] handleScroll: isLoading = true`);
             return;
         }
 
-        const { scrollTop } = this.messagesContainer;
+        // 🛡️ Prevenir carga automática después de scrollToBottom
+        if (this.preventAutoScrollLoad) {
+            console.log(`🛡️ [ChatMessagesUI] handleScroll: preventAutoScrollLoad activo - ignorando threshold`);
+            
+            // Si el usuario hace scroll manual significativo, desactivar la protección
+            if (scrollTop > this.SCROLL_THRESHOLD * 2) { // Si se aleja del threshold por 2x
+                this.preventAutoScrollLoad = false;
+                console.log(`✅ [ChatMessagesUI] handleScroll: Usuario hizo scroll manual - desactivando preventAutoScrollLoad`);
+            }
+            return;
+        }
+
+        console.log(`🔍 [ChatMessagesUI] Verificando threshold: scrollTop=${scrollTop} <= ${this.SCROLL_THRESHOLD}?`);
         
         // Si el usuario ha hecho scroll cerca del top, cargar más mensajes
         if (scrollTop <= this.SCROLL_THRESHOLD) {
+            console.log(`🚀 [ChatMessagesUI] THRESHOLD ALCANZADO! Iniciando loadOlderMessages...`);
             await this.loadOlderMessages();
+        } else {
+            console.log(`📊 [ChatMessagesUI] Threshold no alcanzado. Necesita scroll más arriba.`);
         }
     }
 
@@ -98,6 +134,7 @@ export class ChatMessagesUI {
         this.currentCursor = null;
         this.hasMoreMessages = true;
         this.isLoading = false;
+        this.preventAutoScrollLoad = false; // Reset del flag al inicializar
 
         // Limpiar mensajes existentes
         this.clearMessages();
@@ -143,7 +180,26 @@ export class ChatMessagesUI {
      * Carga mensajes más antiguos (scroll infinito)
      */
     private async loadOlderMessages(): Promise<void> {
-        if (!this.chatId || !this.currentCursor || !this.hasMoreMessages) {
+        console.log(`🚀 [ChatMessagesUI] loadOlderMessages INICIADO`);
+        console.log(`🔍 [ChatMessagesUI] Estado antes de validaciones:`, {
+            chatId: this.chatId,
+            currentCursor: this.currentCursor,
+            hasMoreMessages: this.hasMoreMessages,
+            isLoading: this.isLoading
+        });
+
+        if (!this.chatId) {
+            console.log(`❌ [ChatMessagesUI] loadOlderMessages: Sin chatId`);
+            return;
+        }
+        
+        if (!this.currentCursor) {
+            console.log(`❌ [ChatMessagesUI] loadOlderMessages: Sin currentCursor`);
+            return;
+        }
+        
+        if (!this.hasMoreMessages) {
+            console.log(`❌ [ChatMessagesUI] loadOlderMessages: hasMoreMessages = false`);
             return;
         }
 
@@ -151,7 +207,12 @@ export class ChatMessagesUI {
             this.isLoading = true;
             this.showTopLoadingIndicator();
             
-            console.log(`📜 [ChatMessagesUI] Cargando mensajes antiguos...`);
+            console.log(`📜 [ChatMessagesUI] ✅ LLAMANDO AL BACKEND - Cargando mensajes antiguos...`);
+            console.log(`📋 [ChatMessagesUI] Parámetros de petición:`, {
+                chatId: this.chatId,
+                cursor: this.currentCursor,
+                limit: this.MESSAGE_LIMIT
+            });
             
             // Guardar posición de scroll actual
             const scrollHeightBefore = this.messagesContainer.scrollHeight;
@@ -162,6 +223,8 @@ export class ChatMessagesUI {
                 this.currentCursor,
                 this.MESSAGE_LIMIT
             );
+
+            console.log(`📦 [ChatMessagesUI] Respuesta del backend:`, response);
 
             this.renderOlderMessages(response);
             this.updatePaginationState(response);
@@ -225,95 +288,244 @@ export class ChatMessagesUI {
     }
 
     /**
-     * Crea un elemento HTML para un mensaje
+     * Crea un elemento HTML para un mensaje con diseño moderno
      */
-    private createMessageElement(message: MessageV2): HTMLElement {
+    public createMessageElement(message: MessageV2): HTMLElement {
         const messageDiv = document.createElement('div');
-        messageDiv.className = 'chat-message';
         messageDiv.setAttribute('data-message-id', message.id);
         
         // Determinar si es mensaje del usuario o de otro
         const isUserMessage = this.isUserMessage(message);
-        const messageClass = isUserMessage ? 'user-message' : 'other-message';
+        
+        // Estructura moderna unificada para todos los mensajes
+        messageDiv.className = `modern-message ${isUserMessage ? 'user-message' : 'other-message'}`;
+        
+        // Avatar/Indicador (solo para mensajes de otros)
+        const avatarHtml = !isUserMessage ? `
+            <div class="message-avatar">
+                <div class="avatar-circle">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L19 8V15.5L17.5 14L16 14L10.5 19.5L10.5 16L12 14.5L14 15V9H21ZM3 13V11L1 12V21H3V13Z" fill="currentColor"/>
+                    </svg>
+                </div>
+            </div>
+        ` : '';
         
         messageDiv.innerHTML = `
-            <div class="message-wrapper ${messageClass}">
+            ${avatarHtml}
+            <div class="message-bubble">
                 <div class="message-content">
                     <div class="message-text">${this.escapeHtml(message.content)}</div>
-                    <div class="message-time">${this.formatMessageTime(message.createdAt)}</div>
+                </div>
+                <div class="message-metadata">
+                    <span class="message-time">${this.formatMessageTime(message.createdAt)}</span>
+                    ${isUserMessage ? '<span class="message-status">✓</span>' : ''}
                 </div>
             </div>
         `;
-
-        // Aplicar estilos inline para garantizar consistencia
-        this.applyMessageStyles(messageDiv, isUserMessage);
+        
+        // Aplicar estilos modernos
+        this.applyModernMessageStyles(messageDiv, isUserMessage);
         
         return messageDiv;
     }
 
     /**
-     * Aplica estilos CSS inline a un mensaje
+     * Aplica estilos CSS modernos a un mensaje
      */
-    private applyMessageStyles(messageDiv: HTMLElement, isUserMessage: boolean): void {
-        const wrapper = messageDiv.querySelector('.message-wrapper') as HTMLElement;
+    private applyModernMessageStyles(messageDiv: HTMLElement, isUserMessage: boolean): void {
+        const avatar = messageDiv.querySelector('.message-avatar') as HTMLElement;
+        const bubble = messageDiv.querySelector('.message-bubble') as HTMLElement;
         const content = messageDiv.querySelector('.message-content') as HTMLElement;
         const text = messageDiv.querySelector('.message-text') as HTMLElement;
+        const metadata = messageDiv.querySelector('.message-metadata') as HTMLElement;
         const time = messageDiv.querySelector('.message-time') as HTMLElement;
+        const status = messageDiv.querySelector('.message-status') as HTMLElement;
 
-        // Estilos base del mensaje
+        // Estilos base del contenedor del mensaje
         messageDiv.style.cssText = `
-            margin-bottom: 12px;
             display: flex;
-            ${isUserMessage ? 'justify-content: flex-end;' : 'justify-content: flex-start;'}
+            align-items: flex-end;
+            margin-bottom: 16px;
+            ${isUserMessage ? 'flex-direction: row-reverse; padding-left: 60px;' : 'flex-direction: row; padding-right: 60px;'}
+            animation: messageSlideIn 0.3s ease-out;
         `;
 
-        wrapper.style.cssText = `
-            max-width: 80%;
-            display: flex;
-            flex-direction: column;
+        // Avatar (solo para mensajes de otros)
+        if (avatar) {
+            avatar.style.cssText = `
+                margin-right: 12px;
+                margin-bottom: 4px;
+            `;
+            
+            const avatarCircle = avatar.querySelector('.avatar-circle') as HTMLElement;
+            if (avatarCircle) {
+                avatarCircle.style.cssText = `
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-size: 12px;
+                    font-weight: 600;
+                    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+                `;
+            }
+        }
+
+        // Burbuja del mensaje
+        bubble.style.cssText = `
+            position: relative;
+            max-width: 85%;
+            min-width: 120px;
         `;
 
+        // Contenido del mensaje
         content.style.cssText = `
-            padding: 12px 16px;
-            border-radius: 18px;
+            padding: 12px 16px 8px;
+            border-radius: 20px;
+            position: relative;
             word-break: break-word;
             ${isUserMessage ? 
-                'background: linear-gradient(145deg, #0084ff, #0062cc); color: white; border-bottom-right-radius: 4px;' : 
-                'background: white; color: #333; border: 1px solid #e1e9f1; border-bottom-left-radius: 4px;'
+                `background: linear-gradient(145deg, #0084ff 60%, #00c6fb 100%);
+                 color: white;
+                 border-bottom-right-radius: 6px;
+                 box-shadow: 0 2px 12px rgba(0, 132, 255, 0.3);` : 
+                `background: white;
+                 color: #1d1d1f;
+                 border: 1px solid rgba(0, 0, 0, 0.08);
+                 border-bottom-left-radius: 6px;
+                 box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);`
             }
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
         `;
 
+        // Texto del mensaje
         text.style.cssText = `
-            font-size: 14px;
-            line-height: 1.5;
+            font-size: 15px;
+            line-height: 1.4;
             margin: 0;
+            font-weight: 400;
+            letter-spacing: -0.01em;
         `;
 
+        // Metadatos (tiempo y estado)
+        metadata.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: ${isUserMessage ? 'flex-end' : 'flex-start'};
+            gap: 6px;
+            margin-top: 2px;
+            padding: 0 4px;
+        `;
+
+        // Tiempo
         time.style.cssText = `
             font-size: 11px;
-            color: ${isUserMessage ? 'rgba(255,255,255,0.8)' : '#8a9aa9'};
-            margin-top: 4px;
-            ${isUserMessage ? 'text-align: right;' : 'text-align: left;'}
+            color: ${isUserMessage ? 'rgba(0, 0, 0, 0.8)' : 'rgba(60, 60, 67, 0.6)'};
+            font-weight: 500;
+            letter-spacing: 0.01em;
         `;
+
+        // Estado del mensaje (solo para mensajes del usuario)
+        if (status) {
+            status.style.cssText = `
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.8);
+                margin-left: 2px;
+            `;
+        }
+
+        // Añadir animaciones CSS
+        this.addMessageAnimations();
+
+        // Efecto hover
+        messageDiv.addEventListener('mouseenter', () => {
+            if (content) {
+                content.style.transform = 'scale(1.02)';
+                content.style.boxShadow = isUserMessage 
+                    ? '0 4px 20px rgba(0, 132, 255, 0.4)'
+                    : '0 2px 16px rgba(0, 0, 0, 0.12)';
+            }
+        });
+
+        messageDiv.addEventListener('mouseleave', () => {
+            if (content) {
+                content.style.transform = 'scale(1)';
+                content.style.boxShadow = isUserMessage 
+                    ? '0 2px 12px rgba(0, 132, 255, 0.3)'
+                    : '0 1px 8px rgba(0, 0, 0, 0.08)';
+            }
+        });
+    }
+
+    /**
+     * Añade animaciones CSS globales para mensajes
+     */
+    private addMessageAnimations(): void {
+        // Solo añadir una vez
+        if (document.getElementById('modern-message-animations')) return;
+
+        const style = document.createElement('style');
+        style.id = 'modern-message-animations';
+        style.textContent = `
+            @keyframes messageSlideIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .modern-message .message-content:hover {
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            /* Mejorar tipografía */
+            .modern-message .message-text {
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+            }
+
+            /* Estilos responsivos */
+            @media (max-width: 480px) {
+                .modern-message {
+                    padding-left: 20px !important;
+                    padding-right: 20px !important;
+                }
+                
+                .modern-message .message-bubble {
+                    max-width: 90% !important;
+                }
+            }
+        `;
+        
+        document.head.appendChild(style);
     }
 
     /**
      * Determina si un mensaje es del usuario actual
      */
     private isUserMessage(message: MessageV2): boolean {
-        // Obtener el ID del usuario actual desde el token de acceso
+        // Obtener el visitorId actual desde localStorage
         try {
-            const accessToken = localStorage.getItem('accessToken');
-            if (accessToken) {
-                const payload = JSON.parse(atob(accessToken.split('.')[1]));
-                return message.senderId === payload.sub;
+            const visitorId = localStorage.getItem('visitorId');
+            if (visitorId) {
+                // Comparar el senderId del mensaje con el visitorId actual
+                return message.senderId === visitorId;
             }
         } catch (error) {
-            console.warn('No se pudo determinar el usuario actual:', error);
+            console.warn('No se pudo determinar el visitor ID actual:', error);
         }
         
-        // Fallback: asumir que es del usuario si no podemos determinarlo
+        // Fallback: asumir que NO es del usuario si no podemos determinarlo
         return false;
     }
 
@@ -321,18 +533,34 @@ export class ChatMessagesUI {
      * Actualiza el estado de paginación
      */
     private updatePaginationState(response: MessageListResponse): void {
+        console.log(`🔄 [ChatMessagesUI] updatePaginationState ANTES:`, {
+            prevHasMore: this.hasMoreMessages,
+            prevCursor: this.currentCursor
+        });
+        
+        console.log(`📥 [ChatMessagesUI] Respuesta recibida:`, {
+            hasMore: response.hasMore,
+            cursor: response.cursor,
+            nextCursor: response.nextCursor,
+            messagesCount: response.messages?.length || 0
+        });
+
         this.hasMoreMessages = response.hasMore;
         
-        // Actualizar cursor si está disponible
-        if (response.cursor && response.hasMore) {
-            this.currentCursor = response.cursor;
+        // Extraer cursor de la respuesta (tanto cursor como nextCursor para compatibilidad)
+        const extractedCursor = response.cursor || response.nextCursor;
+        console.log(`🔍 [ChatMessagesUI] Cursor extraído:`, { extractedCursor, hasMore: response.hasMore });
+        
+        if (extractedCursor && response.hasMore) {
+            this.currentCursor = extractedCursor;
         } else {
             this.currentCursor = null;
         }
 
-        console.log(`📊 [ChatMessagesUI] Estado paginación actualizado:`, {
+        console.log(`📊 [ChatMessagesUI] Estado paginación actualizado DESPUÉS:`, {
             hasMore: this.hasMoreMessages,
             hasCursor: !!this.currentCursor,
+            cursor: this.currentCursor,
             totalMessages: this.messagesContainer.children.length
         });
     }
@@ -341,8 +569,18 @@ export class ChatMessagesUI {
      * Hace scroll al final del contenedor (mensajes más recientes)
      */
     public scrollToBottom(): void {
+        // 🛡️ Activar flag para prevenir carga automática
+        this.preventAutoScrollLoad = true;
+        console.log(`🛡️ [ChatMessagesUI] scrollToBottom: Activando preventAutoScrollLoad`);
+        
         requestAnimationFrame(() => {
             this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+            
+            // 🛡️ Desactivar flag después de un breve delay para permitir que el scroll se estabilice
+            setTimeout(() => {
+                this.preventAutoScrollLoad = false;
+                console.log(`✅ [ChatMessagesUI] scrollToBottom: Desactivando preventAutoScrollLoad después de delay`);
+            }, 500); // 500ms debería ser suficiente para que se estabilice el scroll
         });
     }
 
@@ -466,6 +704,7 @@ export class ChatMessagesUI {
         this.currentCursor = null;
         this.hasMoreMessages = true;
         this.isLoading = false;
+        this.preventAutoScrollLoad = false; // Reset del flag
     }
 
     /**
@@ -477,5 +716,33 @@ export class ChatMessagesUI {
             isLoading: this.isLoading,
             messageCount: this.messagesContainer.children.length
         };
+    }
+
+    /**
+     * Verifica si el chat está inicializado para un chatId específico
+     * @param chatId ID del chat a verificar
+     * @returns true si el chat está inicializado
+     */
+    public isChatInitialized(chatId?: string): boolean {
+        if (chatId) {
+            return this.chatId === chatId && !this.isInitialLoad;
+        }
+        return this.chatId !== null && !this.isInitialLoad;
+    }
+
+    /**
+     * Obtiene el ID del chat actual
+     * @returns El ID del chat actual o null si no hay chat inicializado
+     */
+    public getCurrentChatId(): string | null {
+        return this.chatId;
+    }
+
+    /**
+     * Verifica si el sistema está cargando mensajes
+     * @returns true si está cargando mensajes
+     */
+    public isLoadingMessages(): boolean {
+        return this.isLoading;
     }
 }

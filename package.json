@@ -10,7 +10,11 @@
     "filename": "index.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:headed": "playwright test --headed",
+    "test:report": "playwright show-report",
     "build": "webpack --mode=production",
     "start": "webpack serve --mode=development",
     "release:wp": "bash wordpress-plugin/build-plugin.sh",

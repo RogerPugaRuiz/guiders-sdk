@@ -479,10 +479,17 @@ export class ChatV2Service {
 		}
 
 		const messageList = await response.json();
+		
+		// 🔧 Mapear nextCursor a cursor para compatibilidad con scroll infinito
+		if (messageList.nextCursor && !messageList.cursor) {
+			messageList.cursor = messageList.nextCursor;
+		}
+		
 		console.log(`[ChatV2Service] ✅ Mensajes del chat obtenidos:`, {
 			count: messageList.messages?.length || 0,
 			total: messageList.total,
-			hasMore: messageList.hasMore
+			hasMore: messageList.hasMore,
+			cursor: messageList.cursor
 		});
 
 		return messageList;

@@ -112,6 +112,15 @@ export class ChatInputUI {
 		const text = this.inputField.value.trim();
 		if (!text) return;
 
+		// 🎲 Interceptar comandos de desarrollo (solo en modo dev)
+		if (this.isDevCommand(text)) {
+			console.log(`🎲 [ChatInput] Comando de desarrollo detectado: ${text}`);
+			this.handleDevCommand(text);
+			// Limpiar el campo de texto sin enviar el comando como mensaje
+			this.inputField.value = '';
+			return;
+		}
+
 		// Mandamos el texto al ChatUI como remitente "user"
 		this.chatUI.renderChatMessage({ text, sender: 'user' });
 
@@ -123,6 +132,53 @@ export class ChatInputUI {
 		// Ejecutamos el callback de "submit"
 		if (this.listeners.submit) {
 			this.listeners.submit(text);
+		}
+	}
+
+	/**
+	 * Detecta si el texto es un comando de desarrollo
+	 */
+	private isDevCommand(text: string): boolean {
+		const trimmedText = text.trim().toLowerCase();
+		return trimmedText.match(/^#random(?::\d+)?$/) !== null;
+	}
+
+	/**
+	 * Maneja comandos de desarrollo específicos
+	 */
+	private handleDevCommand(text: string): void {
+		const trimmedText = text.trim().toLowerCase();
+		
+		// Comando #random o #random:N
+		const randomMatch = trimmedText.match(/^#random(?::(\d+))?$/);
+		if (randomMatch) {
+			// Disparar evento personalizado para que DevRandomMessages lo capture
+			if (typeof window !== 'undefined') {
+				const customEvent = new CustomEvent('guidersDevCommand', {
+					detail: {
+						command: 'random',
+						text: text,
+						count: randomMatch[1] ? parseInt(randomMatch[1], 10) : null,
+						chatId: this.getCurrentChatId()
+					}
+				});
+				window.dispatchEvent(customEvent);
+				console.log(`🎲 [ChatInput] Evento guidersDevCommand disparado para: ${text}`);
+			}
+		}
+	}
+
+	/**
+	 * Obtiene el ID del chat actual (si está disponible)
+	 */
+	private getCurrentChatId(): string | null {
+		// Intentar obtener el chat ID desde el ChatUI o desde el estado global
+		try {
+			const chatUI = this.chatUI as any;
+			return chatUI.chatId || null;
+		} catch (error) {
+			console.warn('🎲 [ChatInput] No se pudo obtener el chat ID:', error);
+			return null;
 		}
 	}
 

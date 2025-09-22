@@ -11,6 +11,7 @@ import { URLInjectionStage } from "../pipeline/stages/url-injection-stage";
 import { SessionInjectionStage } from "../pipeline/stages/session-injection-stage";
 import { TrackingEventV2Stage } from "../pipeline/stages/tracking-event-v2-stage";
 import { ChatUI } from "../presentation/chat";
+import { ChatMessagesUI } from "../presentation/chat-messages-ui";
 import { VisitorsV2Service } from "../services/visitors-v2-service";
 import { ChatV2Service } from "../services/chat-v2-service";
 import { resolveDefaultEndpoints } from "./endpoint-resolver";
@@ -124,6 +125,7 @@ export class TrackingPixelSDK {
 	private apiKey: string;
 	private fingerprint: string | null = null;
 	private chatUI: ChatUI | null = null;
+	private chatMessagesUI: ChatMessagesUI | null = null;
 
 	private autoFlush = false;
 	private flushInterval = 10000;
@@ -276,6 +278,13 @@ export class TrackingPixelSDK {
 			// Inicializar los demás componentes después de ocultar el chat
 			chatInput.init();
 			chatToggleButton.init();
+			
+			// Inicializar ChatMessagesUI para scroll infinito (después de que chat esté inicializado)
+			const messagesContainer = chat.getMessagesContainer();
+			if (messagesContainer) {
+				this.chatMessagesUI = new ChatMessagesUI(messagesContainer);
+			}
+			
 			// Mostrar el botón inmediatamente para mejor experiencia de usuario
 			chatToggleButton.show();
 			console.log("🔘 Botón de chat mostrado inmediatamente");
@@ -460,6 +469,18 @@ export class TrackingPixelSDK {
 						chatId: result.chat.id,
 						isNewChat: result.isNewChat
 					});
+
+					// Disparar evento personalizado para dev random messages
+					if (typeof window !== 'undefined') {
+						const customEvent = new CustomEvent('guidersMessageSent', {
+							detail: {
+								message: message,
+								chatId: result.chat.id,
+								isNewChat: result.isNewChat
+							}
+						});
+						window.dispatchEvent(customEvent);
+					}
 				}
 			} catch (error) {
 				console.error('💬 [TrackingPixelSDK] ❌ Error enviando mensaje:', error);
@@ -548,6 +569,10 @@ export class TrackingPixelSDK {
 					localStorage.setItem('guiders_recent_chats', JSON.stringify(result.chats.chats));
 					ChatMemoryStore.getInstance().setChatId(result.chats.chats[0].id);
 					console.log('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) guardado en memoria:', result.chats.chats[0].id);
+					
+					// 🔧 ELIMINADO: No cargar mensajes automáticamente al identificar visitante
+					// Solo cargar cuando el usuario abra el chat para evitar peticiones innecesarias
+					// this.loadInitialMessagesFromFirstChat(result.chats.chats[0]);
 				}
 			}
 		} catch (e) {
@@ -1281,7 +1306,17 @@ export class TrackingPixelSDK {
 				return;
 			}
 
-			console.log('[TrackingPixelSDK] 💬 Cargando mensajes del chat:', chatId);
+			console.log('[TrackingPixelSDK] 💬 Delegando carga de mensajes a ChatMessagesUI para chat:', chatId);
+			
+			// 🔧 UNIFICACIÓN: Delegar completamente a ChatMessagesUI si está disponible
+			if (this.chatMessagesUI) {
+				console.log('[TrackingPixelSDK] ✅ Usando ChatMessagesUI para carga unificada');
+				await this.chatMessagesUI.initializeChat(chatId);
+				return;
+			}
+
+			// 🔧 FALLBACK: Sistema legacy solo si ChatMessagesUI no está disponible
+			console.log('[TrackingPixelSDK] ⚠️ ChatMessagesUI no disponible, usando sistema legacy');
 			
 			// Mostrar indicador de carga
 			chat.showLoadingMessages();
@@ -1299,12 +1334,6 @@ export class TrackingPixelSDK {
 			if (messageList.messages && messageList.messages.length > 0) {
 				// Agregar mensajes en orden cronológico (invertir el array ya que vienen DESC)
 				const messagesInOrder = messageList.messages.reverse();
-				
-				// Deshabilitar temporalmente el auto-scroll durante la carga
-				const originalScrollBehavior = chat.containerMessages?.style.scrollBehavior;
-				if (chat.containerMessages) {
-					chat.containerMessages.style.scrollBehavior = 'auto';
-				}
 				
 				for (const message of messagesInOrder) {
 					// Extraer el texto del contenido (puede ser string u objeto)
@@ -1326,15 +1355,7 @@ export class TrackingPixelSDK {
 					});
 				}
 
-				// Restaurar comportamiento de scroll
-				if (chat.containerMessages && originalScrollBehavior) {
-					chat.containerMessages.style.scrollBehavior = originalScrollBehavior;
-				}
-
-				// NOTA: scroll infinito ahora se maneja automáticamente en ChatMessagesUI
-				// No necesitamos configuración manual aquí
-
-				console.log(`[TrackingPixelSDK] ✅ Cargados ${messagesInOrder.length} mensajes del chat`);
+				console.log(`[TrackingPixelSDK] ✅ Cargados ${messagesInOrder.length} mensajes del chat (sistema legacy)`);
 			} else {
 				console.log('[TrackingPixelSDK] 📭 No hay mensajes en el chat');
 				
@@ -1348,7 +1369,6 @@ export class TrackingPixelSDK {
 			chat.hideLoadingMessages();
 
 			// Hacer scroll al final para mostrar los mensajes más recientes
-			// Usar timeout para asegurar que el DOM se haya actualizado
 			setTimeout(() => {
 				if (chat.scrollToBottomV2) {
 					chat.scrollToBottomV2();
@@ -1360,6 +1380,66 @@ export class TrackingPixelSDK {
 		} catch (error) {
 			console.error('[TrackingPixelSDK] ❌ Error cargando mensajes del chat:', error);
 			chat.hideLoadingMessages();
+		}
+	}
+
+	/**
+	 * Carga automáticamente los mensajes iniciales del primer chat en el array.
+	 * Se utiliza cuando se identifica al visitante para preparar el historial.
+	 * @param firstChat El primer chat del array de chats
+	 */
+	private async loadInitialMessagesFromFirstChat(firstChat: any): Promise<void> {
+		try {
+			if (!firstChat?.id) {
+				console.log('[TrackingPixelSDK] 📭 No hay ID en el primer chat, omitiendo carga inicial');
+				return;
+			}
+
+			console.log('[TrackingPixelSDK] 🔄 Cargando mensajes iniciales del chat:', firstChat.id);
+
+			// Si existe una instancia de ChatMessagesUI, verificar si ya está inicializado
+			if (this.chatMessagesUI) {
+				// Verificar si el chat ya está inicializado o si se está cargando
+				if (this.chatMessagesUI.isChatInitialized(firstChat.id)) {
+					console.log('[TrackingPixelSDK] ✅ Chat ya inicializado con ChatMessagesUI, omitiendo carga duplicada');
+					return;
+				}
+				
+				if (this.chatMessagesUI.isLoadingMessages()) {
+					console.log('[TrackingPixelSDK] ⏳ ChatMessagesUI ya está cargando mensajes, omitiendo carga duplicada');
+					return;
+				}
+
+				await this.chatMessagesUI.initializeChat(firstChat.id);
+				console.log('[TrackingPixelSDK] ✅ Mensajes iniciales cargados con ChatMessagesUI');
+				return;
+			}
+
+			// Fallback: usar el método tradicional si no hay ChatMessagesUI
+			const messageList = await ChatV2Service.getInstance().getChatMessages(
+				firstChat.id,
+				50, // limit inicial
+				undefined // no cursor (mensajes más recientes)
+			);
+
+			if (messageList.messages && messageList.messages.length > 0) {
+				// Almacenar los mensajes en memoria para cuando se abra el chat
+				const messagesInOrder = messageList.messages.reverse();
+				
+				// Guardar en localStorage temporal para acceso rápido
+				localStorage.setItem('guiders_initial_messages', JSON.stringify({
+					chatId: firstChat.id,
+					messages: messagesInOrder,
+					loadedAt: Date.now()
+				}));
+
+				console.log(`[TrackingPixelSDK] 💾 ${messagesInOrder.length} mensajes iniciales almacenados en memoria`);
+			} else {
+				console.log('[TrackingPixelSDK] 📭 No hay mensajes iniciales para cargar');
+			}
+
+		} catch (error) {
+			console.error('[TrackingPixelSDK] ❌ Error cargando mensajes iniciales:', error);
 		}
 	}
 }

@@ -54,6 +54,23 @@ export class ChatToggleButtonUI {
 		// Inicialmente el botón no debe mostrar el estado 'open'
 		this.isVisible = false;
 		this.button.classList.remove('open');
+		
+		// AHORA: Añadir el botón al DOM (después de que el ChatUI ya se haya inicializado)
+		this.addButtonToDOM();
+		
+		this.applyStyles();
+		this.addEventListeners();
+		this.initializeStyles(); // Inicializar estilos inline además de CSS
+		
+		// Eventos de mensajes no leídos desactivados
+		console.log("💬 Eventos de contador desactivados (servicio eliminado)");
+	}
+
+	/**
+	 * Añade el botón al DOM, intentando primero añadirlo al shadow DOM del chat
+	 * y si no existe, lo añade al body del documento.
+	 */
+	private addButtonToDOM(): void {
 		// Buscar el host del Shadow DOM del chat
 		const shadowHost = document.querySelector('.chat-widget-host') as HTMLElement;
 		if (shadowHost && shadowHost.shadowRoot) {
@@ -155,6 +172,7 @@ export class ChatToggleButtonUI {
 				`;
 				shadowHost.shadowRoot.appendChild(style);
 			}
+			console.log("💬 Botón añadido al shadow DOM del chat");
 		} else {
 			document.body.appendChild(this.button);
 			
@@ -166,15 +184,8 @@ export class ChatToggleButtonUI {
 			
 			// Ocultar el badge inicialmente (sin mensajes no leídos)
 			this.hideBadge();
-			console.log("💬 Badge inicializado y oculto (sin shadow DOM)");
+			console.log("💬 Botón añadido al body (sin shadow DOM)");
 		}
-		
-		this.applyStyles();
-		this.addEventListeners();
-		this.initializeStyles(); // Inicializar estilos inline además de CSS
-		
-		// Eventos de mensajes no leídos desactivados
-		console.log("💬 Eventos de contador desactivados (servicio eliminado)");
 	}
 
 	/**
