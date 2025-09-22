@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Message Loading & Infinite Scroll</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        
+        /* Chat override styles para testing */
+        #chat-widget {
+            position: relative !important;
+            width: 400px !important;
+            height: 500px !important;
+            margin: 20px 0 !important;
+        }
+        
+        .chat-container {
+            height: 400px !important;
+        }
+        
+        .chat-messages {
+            height: 350px !important;
+            overflow-y: auto !important;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Message Loading & Infinite Scroll</h1>
+    
+    <div class="test-section">
+        <h2>📡 SDK Initialization</h2>
+        <button class="button" onclick="initializeSDK()">Initialize SDK</button>
+        <button class="button" onclick="createTestChat()">Create Test Chat</button>
+        <button class="button" onclick="openChat()">Open Chat</button>
+        <div id="init-status" class="status info">Ready to initialize...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>💬 Message Testing</h2>
+        <button class="button" onclick="sendTestMessage()">Send Test Message</button>
+        <button class="button" onclick="loadMessages()">Load Messages Manually</button>
+        <button class="button" onclick="testInfiniteScroll()">Test Infinite Scroll</button>
+        <div id="message-status" class="status info">Ready for message tests...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎛️ Chat Controls</h2>
+        <button class="button" onclick="clearChatMessages()">Clear Messages</button>
+        <button class="button" onclick="scrollToTop()">Scroll to Top</button>
+        <button class="button" onclick="scrollToBottom()">Scroll to Bottom</button>
+        <div id="control-status" class="status info">Chat controls ready...</div>
+    </div>
+
+    <!-- El chat aparecerá aquí -->
+    <div id="chat-widget"></div>
+
+    <!-- SDK Script -->
+    <script src="http://localhost:8081/index.js" data-api-key="test-message-loading-key"></script>
+
+    <script>
+        let sdkInitialized = false;
+        let chatInstance = null;
+
+        function updateStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        function initializeSDK() {
+            try {
+                if (typeof window.guiders !== 'undefined') {
+                    updateStatus('init-status', '✅ SDK ya está disponible', 'success');
+                    sdkInitialized = true;
+                } else {
+                    updateStatus('init-status', '❌ SDK no disponible', 'error');
+                }
+            } catch (error) {
+                updateStatus('init-status', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function createTestChat() {
+            if (!sdkInitialized) {
+                updateStatus('init-status', '❌ SDK no inicializado', 'error');
+                return;
+            }
+
+            try {
+                updateStatus('init-status', '🔄 Creando chat de prueba...', 'info');
+                
+                // Usar la API V2 directamente
+                if (window.guiders && window.guiders.chatService) {
+                    const result = await window.guiders.chatService.sendMessageSmart(
+                        'Hola, este es un mensaje de prueba para cargar el historial.',
+                        'text'
+                    );
+                    updateStatus('init-status', `✅ Chat creado: ${result.chat.id}`, 'success');
+                } else {
+                    updateStatus('init-status', '❌ Chat service no disponible', 'error');
+                }
+            } catch (error) {
+                updateStatus('init-status', `❌ Error creando chat: ${error.message}`, 'error');
+            }
+        }
+
+        function openChat() {
+            try {
+                if (window.guiders && window.guiders.openChat) {
+                    window.guiders.openChat();
+                    chatInstance = window.guiders.chatUI;
+                    updateStatus('control-status', '✅ Chat abierto', 'success');
+                } else {
+                    updateStatus('control-status', '❌ Función openChat no disponible', 'error');
+                }
+            } catch (error) {
+                updateStatus('control-status', `❌ Error abriendo chat: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendTestMessage() {
+            try {
+                if (window.guiders && window.guiders.chatService) {
+                    const testMessages = [
+                        'Mensaje de prueba 1',
+                        'Mensaje de prueba 2 con más contenido',
+                        'Mensaje de prueba 3 para scroll infinito',
+                        '¿Cómo funciona el scroll infinito?',
+                        'Este es otro mensaje de prueba'
+                    ];
+                    
+                    const randomMessage = testMessages[Math.floor(Math.random() * testMessages.length)];
+                    await window.guiders.chatService.sendMessageSmart(randomMessage, 'text');
+                    updateStatus('message-status', `✅ Mensaje enviado: ${randomMessage}`, 'success');
+                } else {
+                    updateStatus('message-status', '❌ Chat service no disponible', 'error');
+                }
+            } catch (error) {
+                updateStatus('message-status', `❌ Error enviando mensaje: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadMessages() {
+            try {
+                if (chatInstance && chatInstance.chatId) {
+                    updateStatus('message-status', '🔄 Cargando mensajes...', 'info');
+                    
+                    // Simular la carga de mensajes como lo hace loadChatMessagesOnOpen
+                    if (window.guiders && window.guiders.loadChatMessagesOnOpen) {
+                        await window.guiders.loadChatMessagesOnOpen();
+                        updateStatus('message-status', '✅ Mensajes cargados', 'success');
+                    } else {
+                        updateStatus('message-status', '❌ loadChatMessagesOnOpen no disponible', 'error');
+                    }
+                } else {
+                    updateStatus('message-status', '❌ Chat no inicializado', 'error');
+                }
+            } catch (error) {
+                updateStatus('message-status', `❌ Error cargando mensajes: ${error.message}`, 'error');
+            }
+        }
+
+        function testInfiniteScroll() {
+            try {
+                if (chatInstance) {
+                    const messagesContainer = chatInstance.containerMessages;
+                    if (messagesContainer) {
+                        // Simular scroll hacia arriba para activar infinite scroll
+                        messagesContainer.scrollTop = 0;
+                        updateStatus('message-status', '✅ Scroll infinito activado (scroll to top)', 'success');
+                    } else {
+                        updateStatus('message-status', '❌ Container de mensajes no encontrado', 'error');
+                    }
+                } else {
+                    updateStatus('message-status', '❌ Chat instance no disponible', 'error');
+                }
+            } catch (error) {
+                updateStatus('message-status', `❌ Error en test scroll: ${error.message}`, 'error');
+            }
+        }
+
+        function clearChatMessages() {
+            try {
+                if (chatInstance && chatInstance.clearMessages) {
+                    chatInstance.clearMessages();
+                    updateStatus('control-status', '✅ Mensajes limpiados', 'success');
+                } else {
+                    updateStatus('control-status', '❌ clearMessages no disponible', 'error');
+                }
+            } catch (error) {
+                updateStatus('control-status', `❌ Error limpiando mensajes: ${error.message}`, 'error');
+            }
+        }
+
+        function scrollToTop() {
+            try {
+                if (chatInstance && chatInstance.containerMessages) {
+                    chatInstance.containerMessages.scrollTop = 0;
+                    updateStatus('control-status', '✅ Scroll to top', 'success');
+                } else {
+                    updateStatus('control-status', '❌ Container mensajes no disponible', 'error');
+                }
+            } catch (error) {
+                updateStatus('control-status', `❌ Error scroll: ${error.message}`, 'error');
+            }
+        }
+
+        function scrollToBottom() {
+            try {
+                if (chatInstance && chatInstance.scrollToBottomV2) {
+                    chatInstance.scrollToBottomV2();
+                    updateStatus('control-status', '✅ Scroll to bottom', 'success');
+                } else if (chatInstance && chatInstance.containerMessages) {
+                    chatInstance.containerMessages.scrollTop = chatInstance.containerMessages.scrollHeight;
+                    updateStatus('control-status', '✅ Scroll to bottom (manual)', 'success');
+                } else {
+                    updateStatus('control-status', '❌ Scroll methods no disponibles', 'error');
+                }
+            } catch (error) {
+                updateStatus('control-status', `❌ Error scroll: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-inicializar cuando el SDK esté listo
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                initializeSDK();
+            }, 1000);
+        });
+
+        // Debug global
+        window.debugChat = {
+            getSDK: () => window.guiders,
+            getChatInstance: () => chatInstance,
+            getMessages: () => {
+                if (chatInstance && chatInstance.containerMessages) {
+                    return chatInstance.containerMessages.querySelectorAll('.message-container');
+                }
+                return null;
+            }
+        };
+    </script>
+</body>
+</html>

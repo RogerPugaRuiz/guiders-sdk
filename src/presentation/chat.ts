@@ -71,6 +71,11 @@ export class ChatUI {
 	// Manager para mensajes de bienvenida personalizables
 	private welcomeMessageManager: WelcomeMessageManager;
 
+	// Control de estado para evitar creación de múltiples chats
+	private isCreatingChatFlag: boolean = false;
+	private chatCreationPromise: Promise<void> | null = null;
+	private chatCreationResolve: (() => void) | null = null;
+
 	constructor(options: ChatUIOptions = {}) {
 		this.options = {
 			widget: false,
@@ -1043,7 +1048,7 @@ export class ChatUI {
 	/**
 	 * Agrega un mensaje de bienvenida al chat solo si no hay mensajes existentes
 	 */
-	private addWelcomeMessage(): void {
+	public addWelcomeMessage(): void {
 		console.log('💬 [ChatUI] Verificando si agregar mensaje de bienvenida...');
 		
 		// Verificamos primero si ya hay mensajes en el chat
@@ -1132,6 +1137,43 @@ export class ChatUI {
 		}
 		
 		return this.chatId;
+	}
+
+	/**
+	 * Verifica si se está creando un chat actualmente
+	 */
+	public isCreatingChat(): boolean {
+		return this.isCreatingChatFlag;
+	}
+
+	/**
+	 * Marca el estado de creación de chat
+	 */
+	public setCreatingChat(isCreating: boolean): void {
+		this.isCreatingChatFlag = isCreating;
+		
+		if (isCreating) {
+			// Crear la promesa de espera
+			this.chatCreationPromise = new Promise<void>((resolve) => {
+				this.chatCreationResolve = resolve;
+			});
+		} else {
+			// Resolver la promesa si existe
+			if (this.chatCreationResolve) {
+				this.chatCreationResolve();
+				this.chatCreationResolve = null;
+			}
+			this.chatCreationPromise = null;
+		}
+	}
+
+	/**
+	 * Espera a que se complete la creación del chat actual
+	 */
+	public async waitForChatCreation(): Promise<void> {
+		if (this.chatCreationPromise) {
+			await this.chatCreationPromise;
+		}
 	}
 
 	/**
@@ -1799,16 +1841,14 @@ export class ChatUI {
 		try {
 			console.log("💬 [ChatUI] Inicializando contenido del chat...");
 			
-			// Siempre mostrar el mensaje de bienvenida primero, independientemente del estado del chat
-			this.addWelcomeMessage();
-			
+			// NO mostrar mensaje de bienvenida aquí - se hará después de cargar mensajes existentes
 			// Si el chat está visible, cargar el contenido inmediatamente
 			if (this.isVisible()) {
 				this.loadChatContent();
 			}
 		} catch (err) {
 			console.error("Error iniciando chat:", err);
-			// En caso de error, asegurar que al menos se muestre el mensaje de bienvenida
+			// En caso de error, mostrar mensaje de bienvenida como fallback
 			this.addWelcomeMessage();
 		}
 	}
@@ -1955,8 +1995,8 @@ export class ChatUI {
 			// Marcar que los mensajes fueron cargados exitosamente
 			this.messagesLoaded = true;
 
-			// Después de cargar los mensajes, verificamos si debemos mostrar el mensaje de bienvenida
-			this.addWelcomeMessage();
+			// NOTA: El mensaje de bienvenida ahora se maneja en loadChatMessagesOnOpen
+			// después de verificar si existen mensajes desde la API V2
 			
 			// Verificar estado inicial de los comerciales si el chat está activo
 			// Esto se hace al final para que el mensaje aparezca después de todos los mensajes existentes
@@ -2187,6 +2227,286 @@ export class ChatUI {
 		}
 
 		return participant.name;
+	}
+
+	/**
+	 * Muestra un indicador de carga de mensajes
+	 */
+	public showLoadingMessages(): void {
+		if (!this.containerMessages) return;
+
+		const loadingElement = document.createElement('div');
+		loadingElement.className = 'chat-loading-messages';
+		loadingElement.innerHTML = `
+			<div style="text-align: center; padding: 20px; color: #666;">
+				<div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+				<p style="margin: 10px 0 0 0; font-size: 14px;">Cargando mensajes...</p>
+			</div>
+			<style>
+				@keyframes spin {
+					0% { transform: rotate(0deg); }
+					100% { transform: rotate(360deg); }
+				}
+			</style>
+		`;
+		this.containerMessages.appendChild(loadingElement);
+	}
+
+	/**
+	 * Oculta el indicador de carga de mensajes
+	 */
+	public hideLoadingMessages(): void {
+		if (!this.containerMessages) return;
+
+		const loadingElement = this.containerMessages.querySelector('.chat-loading-messages');
+		if (loadingElement) {
+			loadingElement.remove();
+		}
+	}
+
+	/**
+	 * Limpia todos los mensajes del chat
+	 */
+	public clearMessages(): void {
+		if (!this.containerMessages) return;
+
+		const messages = this.containerMessages.querySelectorAll('.message-container, .chat-loading-messages');
+		messages.forEach(message => message.remove());
+	}
+
+	/**
+	 * Configura el scroll infinito para cargar mensajes más antiguos
+	 * @param cursor Cursor para la siguiente página de mensajes
+	 */
+	public setupInfiniteScroll(cursor: string): void {
+		if (!this.containerMessages) return;
+
+		// Remover listener anterior si existe
+		if (this.handleInfiniteScroll) {
+			this.containerMessages.removeEventListener('scroll', this.handleInfiniteScroll);
+		}
+
+		// Guardar el cursor actual
+		this.currentIndex = cursor;
+
+		// Agregar nuevo listener
+		this.handleInfiniteScroll = this.createInfiniteScrollHandler();
+		this.containerMessages.addEventListener('scroll', this.handleInfiniteScroll);
+	}
+
+	/**
+	 * Crea el handler para el scroll infinito
+	 */
+	private createInfiniteScrollHandler() {
+		return async (): Promise<void> => {
+			if (!this.containerMessages || !this.chatId || !this.currentIndex) return;
+
+			// Verificar si el usuario ha hecho scroll hacia arriba (cerca del top)
+			const { scrollTop } = this.containerMessages;
+			const scrolledToTop = scrollTop < 100; // 100px del top
+
+			if (scrolledToTop && !this.loadingOlderMessages) {
+				await this.loadOlderMessagesV2();
+			}
+		};
+	}
+
+	/**
+	 * Indica si se están cargando mensajes más antiguos
+	 */
+	private loadingOlderMessages: boolean = false;
+
+	/**
+	 * Handler del scroll infinito
+	 */
+	private handleInfiniteScroll?: () => Promise<void>;
+
+	/**
+	 * Carga mensajes más antiguos usando ChatV2Service
+	 */
+	private async loadOlderMessagesV2(): Promise<void> {
+		if (!this.chatId || !this.currentIndex || this.loadingOlderMessages) return;
+
+		try {
+			this.loadingOlderMessages = true;
+			console.log('[ChatUI] 📜 Cargando mensajes más antiguos...');
+
+			// Mostrar indicador de carga en la parte superior
+			this.showTopLoadingIndicator();
+
+			// Importar dinámicamente ChatV2Service para evitar dependencias circulares
+			const { ChatV2Service } = await import('../services/chat-v2-service');
+			
+			const messageList = await ChatV2Service.getInstance().getChatMessages(
+				this.chatId,
+				20, // cargar 20 mensajes más antiguos
+				this.currentIndex
+			);
+
+			if (messageList.messages && messageList.messages.length > 0) {
+				// Guardar posición actual de scroll
+				const currentScrollHeight = this.containerMessages!.scrollHeight;
+
+				// Agregar mensajes más antiguos al principio (en orden cronológico)
+				const messagesInOrder = messageList.messages.reverse();
+				
+				for (const message of messagesInOrder) {
+					// Extraer el texto del contenido
+					let messageText = '';
+					if (typeof message.content === 'string') {
+						messageText = message.content;
+					} else if (message.content && typeof message.content === 'object') {
+						messageText = message.content.text || message.content.message || message.content.body || JSON.stringify(message.content);
+					} else {
+						messageText = String(message.content || '');
+					}
+
+					this.prependMessageV2({
+						id: message.id,
+						sender: message.senderId === this.getVisitorId() ? 'user' : 'other',
+						content: messageText, // Usar el texto extraído
+						timestamp: new Date(message.createdAt).getTime(),
+						type: message.type,
+						isInternal: message.isInternal
+					});
+				}
+
+				// Actualizar cursor para la siguiente carga
+				if (messageList.hasMore && messageList.nextCursor) {
+					this.currentIndex = messageList.nextCursor;
+				} else {
+					this.currentIndex = null; // No hay más mensajes
+					if (this.handleInfiniteScroll) {
+						this.containerMessages!.removeEventListener('scroll', this.handleInfiniteScroll);
+					}
+				}
+
+				// Mantener posición de scroll relativa
+				const newScrollHeight = this.containerMessages!.scrollHeight;
+				this.containerMessages!.scrollTop = newScrollHeight - currentScrollHeight;
+
+				console.log(`[ChatUI] ✅ Cargados ${messagesInOrder.length} mensajes más antiguos`);
+			} else {
+				// No hay más mensajes
+				this.currentIndex = null;
+				if (this.handleInfiniteScroll) {
+					this.containerMessages!.removeEventListener('scroll', this.handleInfiniteScroll);
+				}
+				console.log('[ChatUI] 📭 No hay más mensajes antiguos');
+			}
+
+		} catch (error) {
+			console.error('[ChatUI] ❌ Error cargando mensajes antiguos:', error);
+		} finally {
+			this.hideTopLoadingIndicator();
+			this.loadingOlderMessages = false;
+		}
+	}
+
+	/**
+	 * Obtiene el visitorId del SDK
+	 */
+	private getVisitorId(): string | null {
+		// Acceder al SDK global para obtener el visitorId
+		if (typeof window !== 'undefined' && (window as any).guiders) {
+			return (window as any).guiders.getVisitorId();
+		}
+		return null;
+	}
+
+	/**
+	 * Agrega un mensaje al principio del chat (para scroll infinito)
+	 */
+	private prependMessageV2(params: any): void {
+		if (!this.containerMessages) return;
+
+		const messageElement = this.createMessageElementV2(params);
+		const firstMessage = this.containerMessages.querySelector('.message-container');
+		
+		if (firstMessage) {
+			this.containerMessages.insertBefore(messageElement, firstMessage);
+		} else {
+			this.containerMessages.appendChild(messageElement);
+		}
+	}
+
+	/**
+	 * Crea el elemento HTML de un mensaje para scroll infinito
+	 */
+	private createMessageElementV2(params: any): HTMLElement {
+		const messageContainer = document.createElement('div');
+		messageContainer.className = 'message-container';
+		
+		// Extraer el texto del contenido correctamente
+		let messageText = '';
+		if (typeof params.content === 'string') {
+			messageText = params.content;
+		} else if (params.text) {
+			messageText = params.text;
+		} else if (params.content && typeof params.content === 'object') {
+			messageText = params.content.text || params.content.message || params.content.body || JSON.stringify(params.content);
+		} else {
+			messageText = String(params.content || '');
+		}
+		
+		const messageElement = document.createElement('div');
+		messageElement.className = `message ${params.sender}-message`;
+		messageElement.innerHTML = `
+			<div class="message-content">${messageText}</div>
+			<div class="message-time">${new Date(params.timestamp).toLocaleTimeString()}</div>
+		`;
+		
+		messageContainer.appendChild(messageElement);
+		return messageContainer;
+	}
+
+	/**
+	 * Muestra indicador de carga en la parte superior
+	 */
+	private showTopLoadingIndicator(): void {
+		if (!this.containerMessages) return;
+
+		const loadingElement = document.createElement('div');
+		loadingElement.className = 'chat-top-loading';
+		loadingElement.innerHTML = `
+			<div style="text-align: center; padding: 10px; color: #666; font-size: 12px;">
+				<div style="display: inline-block; width: 16px; height: 16px; border: 2px solid #f3f3f3; border-top: 2px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></div>
+				Cargando mensajes anteriores...
+			</div>
+		`;
+		
+		const firstChild = this.containerMessages.firstChild;
+		if (firstChild) {
+			this.containerMessages.insertBefore(loadingElement, firstChild);
+		} else {
+			this.containerMessages.appendChild(loadingElement);
+		}
+	}
+
+	/**
+	 * Oculta el indicador de carga superior
+	 */
+	private hideTopLoadingIndicator(): void {
+		if (!this.containerMessages) return;
+
+		const loadingElement = this.containerMessages.querySelector('.chat-top-loading');
+		if (loadingElement) {
+			loadingElement.remove();
+		}
+	}
+
+	/**
+	 * Hace scroll hasta el final del chat (versión nueva)
+	 */
+	public scrollToBottomV2(): void {
+		if (!this.containerMessages) return;
+
+		// Usar requestAnimationFrame para asegurar que el DOM esté listo
+		requestAnimationFrame(() => {
+			if (this.containerMessages) {
+				this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
+			}
+		});
 	}
 }
 

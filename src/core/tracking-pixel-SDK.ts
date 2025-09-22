@@ -305,6 +305,9 @@ export class TrackingPixelSDK {
 					timestamp: new Date().getTime(),
 					chatId: chat.getChatId(),
 				});
+
+				// Cargar mensajes del chat si existe un chatId
+				this.loadChatMessagesOnOpen(chat);
 			});
 			chat.onClose(() => {
 				this.captureEvent("visitor:close-chat", {
@@ -332,18 +335,138 @@ export class TrackingPixelSDK {
 				}
 			});
 		
-			chatInput.onSubmit((message: string) => {
-				if (!message) return;
-				this.captureEvent("visitor:send-message", { 
-					id: uuidv4(),
-					message,
-					timestamp: new Date().getTime(),
-					chatId: chat.getChatId(),
-				});
-				this.flush();
+		chatInput.onSubmit(async (message: string) => {
+			if (!message) return;
+			
+			console.log('💬 [TrackingPixelSDK] 📝 Mensaje enviado desde UI:', message);
+			
+			// Capturar el evento de tracking como antes
+			this.captureEvent("visitor:send-message", { 
+				id: uuidv4(),
+				message,
+				timestamp: new Date().getTime(),
+				chatId: chat.getChatId(),
 			});
-		
-			this.on("receive-message", (msg: PixelEvent) => {
+			this.flush();
+
+			// Verificar estado del visitante
+			const visitorId = this.getVisitorId();
+			const isIdentified = this.isVisitorIdentified();
+			console.log('💬 [TrackingPixelSDK] 🔍 Estado del visitante:', {
+				visitorId,
+				isIdentified,
+				identityState: this.identitySignal.getState()
+			});
+
+			if (!visitorId) {
+				console.warn('💬 [TrackingPixelSDK] ❌ No hay visitorId disponible para enviar mensaje');
+				console.warn('💬 [TrackingPixelSDK] 🔄 Intentando identificar visitante primero...');
+				
+				try {
+					await this.executeIdentify();
+					const newVisitorId = this.getVisitorId();
+					if (!newVisitorId) {
+						console.error('💬 [TrackingPixelSDK] ❌ No se pudo identificar el visitante');
+						return;
+					}
+					console.log('💬 [TrackingPixelSDK] ✅ Visitante identificado:', newVisitorId);
+				} catch (error) {
+					console.error('💬 [TrackingPixelSDK] ❌ Error identificando visitante:', error);
+					return;
+				}
+			}
+
+			// Lógica optimizada: usar chatId existente o crear nuevo chat (con protección anti-duplicados)
+			try {
+				const finalVisitorId = this.getVisitorId();
+				const currentChatId = chat.getChatId();
+				
+				console.log('💬 [TrackingPixelSDK] 📤 Enviando mensaje para visitante:', finalVisitorId);
+				console.log('💬 [TrackingPixelSDK] 🔍 Chat ID actual:', currentChatId);
+
+				let result;
+
+				if (currentChatId) {
+					// Ya existe un chat activo, enviar mensaje directamente
+					console.log('💬 [TrackingPixelSDK] 📋 Enviando mensaje a chat existente:', currentChatId);
+					
+					const message_sent = await ChatV2Service.getInstance().sendMessage(
+						currentChatId,
+						message,
+						'text'
+					);
+
+					result = {
+						chat: { id: currentChatId },
+						message: message_sent,
+						isNewChat: false
+					};
+				} else {
+					// No hay chat activo, verificar si ya se está creando uno
+					if (chat.isCreatingChat()) {
+						console.log('💬 [TrackingPixelSDK] ⏳ Ya se está creando un chat, esperando...');
+						// Esperar a que se complete la creación del chat actual
+						await chat.waitForChatCreation();
+						// Intentar enviar el mensaje al chat recién creado
+						const newChatId = chat.getChatId();
+						if (newChatId) {
+							console.log('💬 [TrackingPixelSDK] 📋 Enviando mensaje a chat recién creado:', newChatId);
+							const message_sent = await ChatV2Service.getInstance().sendMessage(
+								newChatId,
+								message,
+								'text'
+							);
+							result = {
+								chat: { id: newChatId },
+								message: message_sent,
+								isNewChat: false
+							};
+						} else {
+							throw new Error('No se pudo obtener el chatId después de la creación');
+						}
+					} else {
+						// Marcar que se está creando un chat para evitar duplicados
+						chat.setCreatingChat(true);
+						
+						console.log('💬 [TrackingPixelSDK] 🆕 Creando nuevo chat con mensaje');
+						
+						try {
+							const chatWithMessage = await ChatV2Service.getInstance().createChatWithMessage(
+								{}, // chatData vacío
+								{ content: message, type: 'text' } // messageData
+							);
+
+							// La respuesta viene directamente con chatId, no chat.id
+							const newChatId = chatWithMessage.chatId;
+							if (newChatId) {
+								chat.setChatId(newChatId);
+								console.log('💬 [TrackingPixelSDK] 🆕 Chat ID asignado:', newChatId);
+							}
+
+							result = {
+								chat: { id: newChatId },
+								message: { id: chatWithMessage.messageId },
+								isNewChat: true
+							};
+						} finally {
+							// Siempre marcar que ya no se está creando el chat
+							chat.setCreatingChat(false);
+						}
+					}
+				}
+
+				if (result) {
+					console.log('💬 [TrackingPixelSDK] ✅ Mensaje enviado exitosamente:', {
+						chatId: result.chat.id,
+						isNewChat: result.isNewChat
+					});
+				}
+			} catch (error) {
+				console.error('💬 [TrackingPixelSDK] ❌ Error enviando mensaje:', error);
+				// En caso de error, asegurar que se libere el bloqueo
+				chat.setCreatingChat(false);
+			}
+		});			this.on("receive-message", (msg: PixelEvent) => {
 				// Imprimir el mensaje completo para depuración
 				console.log("Mensaje recibido via WebSocket:", msg);
 				
@@ -408,22 +531,23 @@ export class TrackingPixelSDK {
 	private async executeIdentify(): Promise<void> {
 		try {
 			console.log('[TrackingPixelSDK] 🔍 Ejecutando identify...');
-			const identify = await VisitorsV2Service.getInstance().identify(this.fingerprint!, this.apiKey);
-			if (identify?.visitorId) {
+			
+			// Usar identitySignal en lugar de llamar directamente al servicio
+			const result = await this.identitySignal.identify(this.fingerprint!, this.apiKey);
+			if (result?.identity?.visitorId) {
+				console.log('[TrackingPixelSDK] ✅ Visitante identificado con identitySignal:', result.identity.visitorId);
+				
 				// Iniciar heartbeat backend (cada 30s) sin fallback
 				if (this.visitorHeartbeatTimer) clearInterval(this.visitorHeartbeatTimer);
 				this.visitorHeartbeatTimer = setInterval(() => {
 					VisitorsV2Service.getInstance().heartbeat();
 				}, 30000);
-				try {
-					const list = await ChatV2Service.getInstance().getVisitorChats(identify.visitorId, undefined, 20);
-					localStorage.setItem('guiders_recent_chats', JSON.stringify(list.chats));
-					if (list.chats.length > 0) {
-						ChatMemoryStore.getInstance().setChatId(list.chats[0].id);
-						console.log('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) guardado en memoria:', list.chats[0].id);
-					}
-				} catch (inner) {
-					console.warn('[TrackingPixelSDK] ⚠️ No se pudo precargar lista de chats V2:', inner);
+
+				// Los chats ya se cargan automáticamente en identitySignal.identify()
+				if (result.chats?.chats && result.chats.chats.length > 0) {
+					localStorage.setItem('guiders_recent_chats', JSON.stringify(result.chats.chats));
+					ChatMemoryStore.getInstance().setChatId(result.chats.chats[0].id);
+					console.log('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) guardado en memoria:', result.chats.chats[0].id);
 				}
 			}
 		} catch (e) {
@@ -1142,6 +1266,102 @@ export class TrackingPixelSDK {
 					this.chatUI.show();
 				}
 			}, 500);
+		}
+	}
+
+	/**
+	 * Carga los mensajes del chat cuando se abre por primera vez
+	 * @param chat Instancia del ChatUI
+	 */
+	private async loadChatMessagesOnOpen(chat: any): Promise<void> {
+		try {
+			const chatId = chat.getChatId();
+			if (!chatId) {
+				console.log('[TrackingPixelSDK] 💬 No hay chatId, omitiendo carga de mensajes');
+				return;
+			}
+
+			console.log('[TrackingPixelSDK] 💬 Cargando mensajes del chat:', chatId);
+			
+			// Mostrar indicador de carga
+			chat.showLoadingMessages();
+
+			// Obtener mensajes del chat usando la API V2
+			const messageList = await ChatV2Service.getInstance().getChatMessages(
+				chatId,
+				50, // limit inicial
+				undefined // no cursor (mensajes más recientes)
+			);
+
+			// Limpiar mensajes existentes y cargar los nuevos
+			chat.clearMessages();
+
+			if (messageList.messages && messageList.messages.length > 0) {
+				// Agregar mensajes en orden cronológico (invertir el array ya que vienen DESC)
+				const messagesInOrder = messageList.messages.reverse();
+				
+				// Deshabilitar temporalmente el auto-scroll durante la carga
+				const originalScrollBehavior = chat.containerMessages?.style.scrollBehavior;
+				if (chat.containerMessages) {
+					chat.containerMessages.style.scrollBehavior = 'auto';
+				}
+				
+				for (const message of messagesInOrder) {
+					// Extraer el texto del contenido (puede ser string u objeto)
+					let messageText = '';
+					if (typeof message.content === 'string') {
+						messageText = message.content;
+					} else if (message.content && typeof message.content === 'object') {
+						// Si es un objeto, buscar propiedades comunes
+						messageText = message.content.text || message.content.message || message.content.body || JSON.stringify(message.content);
+					} else {
+						messageText = String(message.content || '');
+					}
+
+					chat.renderChatMessage({
+						text: messageText,
+						sender: message.senderId === this.getVisitorId() ? 'user' : 'other',
+						timestamp: new Date(message.createdAt).getTime(),
+						senderId: message.senderId
+					});
+				}
+
+				// Restaurar comportamiento de scroll
+				if (chat.containerMessages && originalScrollBehavior) {
+					chat.containerMessages.style.scrollBehavior = originalScrollBehavior;
+				}
+
+				// Configurar scroll infinito con el cursor
+				if (messageList.hasMore && messageList.nextCursor) {
+					chat.setupInfiniteScroll(messageList.nextCursor);
+				}
+
+				console.log(`[TrackingPixelSDK] ✅ Cargados ${messagesInOrder.length} mensajes del chat`);
+			} else {
+				console.log('[TrackingPixelSDK] 📭 No hay mensajes en el chat');
+				
+				// Si no hay mensajes existentes, mostrar mensaje de bienvenida
+				if (chat.addWelcomeMessage) {
+					chat.addWelcomeMessage();
+				}
+			}
+
+			// Ocultar indicador de carga
+			chat.hideLoadingMessages();
+
+			// Hacer scroll al final para mostrar los mensajes más recientes
+			// Usar timeout para asegurar que el DOM se haya actualizado
+			setTimeout(() => {
+				if (chat.scrollToBottomV2) {
+					chat.scrollToBottomV2();
+				} else {
+					chat.scrollToBottom(true);
+				}
+			}, 100);
+
+		} catch (error) {
+			console.error('[TrackingPixelSDK] ❌ Error cargando mensajes del chat:', error);
+			chat.hideLoadingMessages();
 		}
 	}
 }

@@ -326,4 +326,165 @@ export class ChatV2Service {
 		console.log('[ChatV2Service] ✅ Chat V2 creado (POST):', chat.id);
 		return chat;
 	}
+
+	/**
+	 * Crea un chat V2 con mensaje inicial usando el endpoint POST /v2/chats/with-message
+	 * Esta operación es atómica: crea el chat y envía el primer mensaje juntos
+	 * @param chatData Datos del chat (department, priority, subject, etc.)
+	 * @param messageData Datos del primer mensaje (content, type)
+	 * @returns Promise con la respuesta de la API: { chatId, messageId, position }
+	 */
+	async createChatWithMessage(chatData: any, messageData: any): Promise<{ chatId: string; messageId: string; position: number }> {
+		console.log('[ChatV2Service] 🆕💬 Creando chat V2 con mensaje inicial');
+		
+		// Estructura corregida según la API real: firstMessage en lugar de message
+		const payload = {
+			...chatData, // Los datos del chat van directamente en el root
+			firstMessage: messageData // El mensaje va como firstMessage
+		};
+
+		console.log('[ChatV2Service] 📤 Payload enviado:', JSON.stringify(payload, null, 2));
+
+		const response = await fetch(`${this.getBaseUrl()}/with-message`, this.getFetchOptions('POST', JSON.stringify(payload)));
+		
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error('[ChatV2Service] ❌ Error al crear chat V2 con mensaje:', errorText);
+			throw new Error(`Error al crear chat V2 con mensaje (${response.status}): ${errorText}`);
+		}
+
+		const result = await response.json();
+		console.log('[ChatV2Service] ✅ Chat V2 con mensaje creado:', result.chat?.chatId || result.chat?.id);
+		
+		return result;
+	}
+
+	/**
+	 * Envía un mensaje a un chat existente usando POST /v2/messages
+	 * @param chatId ID del chat al que enviar el mensaje
+	 * @param content Contenido del mensaje
+	 * @param type Tipo de mensaje (text, image, file, etc.)
+	 * @returns Promise con el mensaje enviado
+	 */
+	async sendMessage(chatId: string, content: string, type: string = 'text'): Promise<any> {
+		console.log(`[ChatV2Service] 💬 Enviando mensaje al chat ${chatId}`);
+		
+		const payload = {
+			chatId,
+			content,
+			type
+		};
+
+		// Construir URL para el endpoint de mensajes
+		const endpoints = EndpointManager.getInstance();
+		const baseEndpoint = (localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint());
+		const apiRoot = baseEndpoint.endsWith('/api') ? baseEndpoint : `${baseEndpoint}/api`;
+		const messagesUrl = `${apiRoot}/v2/messages`;
+
+		const response = await fetch(messagesUrl, this.getFetchOptions('POST', JSON.stringify(payload)));
+		
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error('[ChatV2Service] ❌ Error al enviar mensaje:', errorText);
+			throw new Error(`Error al enviar mensaje (${response.status}): ${errorText}`);
+		}
+
+		const message = await response.json();
+		console.log('[ChatV2Service] ✅ Mensaje enviado:', message.messageId || message.id);
+		
+		return message;
+	}
+
+	/**
+	 * Método inteligente que decide si crear un chat nuevo con mensaje o enviar mensaje a chat existente
+	 * @param visitorId ID del visitante
+	 * @param content Contenido del mensaje
+	 * @param chatData Datos del chat (solo se usa si se crea uno nuevo)
+	 * @param messageType Tipo de mensaje (default: TEXT)
+	 * @returns Promise con el resultado de la operación
+	 */
+	async sendMessageSmart(
+		visitorId: string, 
+		content: string, 
+		chatData: any = {}, 
+		messageType: string = 'text'
+	): Promise<{ chat: { id: string }; message: { id: string }; isNewChat: boolean }> {
+		console.log(`[ChatV2Service] 🧠 Enviando mensaje inteligente para visitante ${visitorId}`);
+
+		try {
+			// Primero intentar obtener chats existentes del visitante
+			const chatList = await this.getVisitorChats(visitorId, undefined, 1);
+			
+			if (chatList.chats && chatList.chats.length > 0) {
+				// Existe al menos un chat, usar el primero (más reciente) y enviar mensaje
+				const existingChat = chatList.chats[0];
+				console.log(`[ChatV2Service] 📋 Chat existente encontrado: ${existingChat.id}, enviando mensaje`);
+				
+				const message = await this.sendMessage(existingChat.id, content, messageType);
+				
+				return {
+					chat: { id: existingChat.id },
+					message: { id: message.messageId || message.id },
+					isNewChat: false
+				};
+			} else {
+				// No hay chats existentes, crear uno nuevo con el mensaje
+				console.log(`[ChatV2Service] 🆕 No hay chats existentes, creando chat nuevo con mensaje`);
+				
+				const messageData = { content, type: messageType };
+				const result = await this.createChatWithMessage(chatData, messageData);
+				
+				return {
+					chat: { id: result.chatId }, // Crear objeto chat con el ID recibido
+					message: { id: result.messageId }, // Crear objeto message con el ID recibido
+					isNewChat: true
+				};
+			}
+		} catch (error) {
+			console.error('[ChatV2Service] ❌ Error en sendMessageSmart:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Obtiene los mensajes de un chat específico con paginación
+	 * @param chatId ID del chat
+	 * @param limit Límite de mensajes (default: 50)
+	 * @param cursor Cursor para paginación (opcional)
+	 * @returns Promise con la lista de mensajes
+	 */
+	async getChatMessages(
+		chatId: string,
+		limit: number = 50,
+		cursor?: string
+	): Promise<any> {
+		console.log(`[ChatV2Service] 📋 Obteniendo mensajes del chat: ${chatId}`);
+
+		const params = new URLSearchParams();
+		params.append('limit', limit.toString());
+		if (cursor) params.append('cursor', cursor);
+
+		// Construir URL para el endpoint de mensajes
+		const endpoints = EndpointManager.getInstance();
+		const baseEndpoint = (localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint());
+		const apiRoot = baseEndpoint.endsWith('/api') ? baseEndpoint : `${baseEndpoint}/api`;
+		const url = `${apiRoot}/v2/messages/chat/${chatId}?${params.toString()}`;
+
+		const response = await fetch(url, this.getFetchOptions('GET'));
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error('[ChatV2Service] ❌ Error al obtener mensajes del chat:', errorText);
+			throw new Error(`Error al obtener mensajes del chat (${response.status}): ${errorText}`);
+		}
+
+		const messageList = await response.json();
+		console.log(`[ChatV2Service] ✅ Mensajes del chat obtenidos:`, {
+			count: messageList.messages?.length || 0,
+			total: messageList.total,
+			hasMore: messageList.hasMore
+		});
+
+		return messageList;
+	}
 }
