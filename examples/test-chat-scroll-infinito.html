@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Chat con Scroll Infinito</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .chat-container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-header {
+            background: linear-gradient(145deg, #0084ff, #0062cc);
+            color: white;
+            padding: 16px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            background: #f7f9fc;
+        }
+        
+        .chat-input {
+            padding: 16px;
+            background: white;
+            border-top: 1px solid #e1e9f1;
+            display: flex;
+            gap: 12px;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            outline: none;
+        }
+        
+        .chat-input button {
+            padding: 12px 20px;
+            background: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+        }
+        
+        .controls {
+            max-width: 400px;
+            margin: 20px auto;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .control-group {
+            margin-bottom: 12px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .control-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .control-group button {
+            padding: 8px 16px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        
+        .status {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <h3>🧪 Test Chat con Scroll Infinito</h3>
+        <div class="control-group">
+            <label for="chatId">Chat ID:</label>
+            <input type="text" id="chatId" value="9efcc62d-fb34-42e1-8414-62f3bc55180f" placeholder="ID del chat">
+        </div>
+        <div class="control-group">
+            <button onclick="initializeChat()">🚀 Inicializar Chat</button>
+            <button onclick="addTestMessage()">➕ Agregar Mensaje Test</button>
+            <button onclick="scrollToBottom()">⬇️ Scroll Bottom</button>
+        </div>
+        <div class="status" id="status">
+            Estado: Listo para inicializar
+        </div>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            💬 Chat con Scroll Infinito
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <!-- Los mensajes se cargarán aquí -->
+        </div>
+        <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="Escribe un mensaje...">
+            <button onclick="sendMessage()">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales para el chat
+        let chatMessagesUI = null;
+        let currentChatId = null;
+
+        // Configurar el endpoint para desarrollo
+        if (typeof window !== 'undefined') {
+            window.GUIDERS_CONFIG = {
+                endpoint: 'http://localhost:3000/api',
+                wsEndpoint: 'ws://localhost:3000'
+            };
+        }
+
+        // Función para actualizar el estado
+        function updateStatus(message) {
+            document.getElementById('status').textContent = `Estado: ${message}`;
+            console.log('📊 [Test]', message);
+        }
+
+        // Función para inicializar el chat
+        async function initializeChat() {
+            const chatId = document.getElementById('chatId').value.trim();
+            
+            if (!chatId) {
+                alert('Por favor ingresa un Chat ID válido');
+                return;
+            }
+
+            updateStatus('Inicializando chat...');
+
+            try {
+                // Importar dinámicamente las clases necesarias
+                const { ChatMessagesUI } = await import('../src/presentation/chat-messages-ui.ts');
+                
+                // Crear instancia del chat
+                const container = document.getElementById('chatMessages');
+                chatMessagesUI = new ChatMessagesUI(container);
+                
+                // Inicializar con el chat ID
+                await chatMessagesUI.initializeChat(chatId);
+                currentChatId = chatId;
+                
+                updateStatus(`Chat ${chatId.substring(0, 8)}... inicializado exitosamente`);
+                
+                // Mostrar estado del scroll
+                const scrollState = chatMessagesUI.getScrollState();
+                console.log('📊 [Test] Estado del scroll:', scrollState);
+                
+            } catch (error) {
+                console.error('❌ [Test] Error inicializando chat:', error);
+                updateStatus(`Error: ${error.message}`);
+            }
+        }
+
+        // Función para agregar un mensaje de prueba
+        function addTestMessage() {
+            if (!chatMessagesUI) {
+                alert('Primero inicializa el chat');
+                return;
+            }
+
+            const testMessage = {
+                id: 'test-' + Date.now(),
+                chatId: currentChatId,
+                senderId: 'test-user',
+                content: `Mensaje de prueba ${new Date().toLocaleTimeString()}`,
+                type: 'TEXT',
+                isInternal: false,
+                isFirstResponse: false,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+
+            chatMessagesUI.addNewMessage(testMessage);
+            updateStatus('Mensaje de prueba agregado');
+        }
+
+        // Función para hacer scroll al bottom
+        function scrollToBottom() {
+            if (!chatMessagesUI) {
+                alert('Primero inicializa el chat');
+                return;
+            }
+
+            chatMessagesUI.scrollToBottom();
+            updateStatus('Scroll al bottom realizado');
+        }
+
+        // Función para enviar mensaje (simulado)
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            if (!chatMessagesUI) {
+                alert('Primero inicializa el chat');
+                return;
+            }
+
+            // Crear mensaje simulado del usuario
+            const userMessage = {
+                id: 'user-' + Date.now(),
+                chatId: currentChatId,
+                senderId: 'current-user-id', // Simular que es del usuario actual
+                content: message,
+                type: 'TEXT',
+                isInternal: false,
+                isFirstResponse: false,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+
+            chatMessagesUI.addNewMessage(userMessage);
+            input.value = '';
+            
+            updateStatus('Mensaje enviado (simulado)');
+        }
+
+        // Event listener para Enter en el input
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Configurar token de acceso de prueba para simular usuario
+        localStorage.setItem('accessToken', btoa(JSON.stringify({
+            header: {},
+            payload: { sub: 'current-user-id' },
+            signature: 'test'
+        })));
+
+        updateStatus('Listo para inicializar');
+    </script>
+</body>
+</html>

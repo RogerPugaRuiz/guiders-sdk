@@ -40,6 +40,26 @@ export interface Message {
 	createdAt: number;
 }
 
+// Tipos específicos para el sistema de mensajes con scroll infinito
+export interface MessageV2 {
+	id: string;
+	chatId: string;
+	senderId: string;
+	content: string;
+	type: string;
+	isInternal: boolean;
+	isFirstResponse: boolean;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface MessageListResponse {
+	messages: MessageV2[];
+	total: number;
+	hasMore: boolean;
+	cursor?: string;
+}
+
 export interface ChatMessageReceived {
 	type: "chat_message";
 	message: string;

@@ -1331,10 +1331,8 @@ export class TrackingPixelSDK {
 					chat.containerMessages.style.scrollBehavior = originalScrollBehavior;
 				}
 
-				// Configurar scroll infinito con el cursor
-				if (messageList.hasMore && messageList.nextCursor) {
-					chat.setupInfiniteScroll(messageList.nextCursor);
-				}
+				// NOTA: scroll infinito ahora se maneja automáticamente en ChatMessagesUI
+				// No necesitamos configuración manual aquí
 
 				console.log(`[TrackingPixelSDK] ✅ Cargados ${messagesInOrder.length} mensajes del chat`);
 			} else {

@@ -2,7 +2,6 @@
 
 import { Message } from "../types";
 import { ChatSessionStore } from "../services/chat-session-store";
-import { fetchMessages } from "../services/fetch-messages";
 import { fetchChatDetail, ChatDetail, ChatParticipant } from "../services/chat-detail-service";
 import { ChatMemoryStore } from "../core/chat-memory-store";
 import { WelcomeMessageManager, WelcomeMessageConfig } from "../core/welcome-message-manager";
@@ -1034,11 +1033,8 @@ export class ChatUI {
 
 		// --- Scroll infinito: detecta scroll top ---
 		this.containerMessages.addEventListener('scroll', () => {
-			// Si el usuario llegó al tope (scrollTop == 0) y tenemos index
-			if (this.containerMessages && this.containerMessages.scrollTop === 0 && this.currentIndex) {
-				// Cargar más mensajes antiguos
-				this.loadOlderMessages();
-			}
+			// Scroll infinito desactivado - usar ChatMessagesUI para nuevos chats
+			// La funcionalidad de scroll infinito está implementada en ChatMessagesUI
 		});
 
 		// Inicializar el chat de forma lazy - solo cargar contenido cuando se muestre por primera vez
@@ -1203,69 +1199,6 @@ export class ChatUI {
 	}
 
 	/**
-	 * Carga inicial de mensajes desde el servidor (los más recientes).
-	 * @param chatId ID del chat
-	 * @param limit  cuántos mensajes traer
-	 */
-	public async loadInitialMessages(limit = 20): Promise<void> {
-		if (!this.containerMessages) return;
-		if (!this.chatId) {
-			throw new Error('No se ha establecido un chatId');
-		}
-		const chatId = this.chatId;
-
-		// Iniciar la carga de mensajes y procesar el token en paralelo
-		const messagePromise = fetchMessages(chatId, null, limit);
-
-		// Extraer el ID de usuario del token mientras se cargan los mensajes
-		let user = '';
-		try {
-			const accessToken = localStorage.getItem('accessToken') || '';
-			if (accessToken) {
-				const payload = JSON.parse(atob(accessToken.split('.')[1]));
-				user = payload.sub; // ID del usuario
-			}
-		} catch (tokenErr) {
-			console.warn("Error al procesar el token de acceso:", tokenErr);
-		}
-
-		try {
-			// Esperar por los mensajes
-			const data = await messagePromise;
-
-			// Guardamos el index para futuras peticiones (mensajes antiguos)
-			this.currentIndex = data.cursor || null;
-
-			// Renderizamos los mensajes (los más recientes)
-			if (data.messages && data.messages.length > 0) {
-				const reversedMessages = [...data.messages].reverse(); // Invertimos para mostrar los más nuevos al final
-
-				// Crear un fragmento para renderizar todos los mensajes de una vez (mejor rendimiento)
-				const batch = reversedMessages.map(msg => {
-					const sender: Sender = (user && msg.senderId.includes(user)) ? 'user' : 'other';
-					return {
-						text: msg.content,
-						sender,
-						timestamp: msg.createdAt, // Usar el timestamp de creación del mensaje
-						senderId: msg.senderId // Incluir el ID del remitente
-					};
-				});
-
-				// Renderizar mensajes en lote
-				batch.forEach(item => this.renderChatMessage(item));
-
-				// Reconstruir los separadores de fecha después de cargar mensajes
-				this.rebuildDateSeparators();
-
-				// Ajustar scroll al final (donde están los más nuevos)
-				this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
-			}
-		} catch (err) {
-			console.error("Error cargando mensajes iniciales:", err);
-		}
-	}
-
-	/**
 	 * Scroll hacia abajo (último mensaje).
 	 * @param scrollToBottom
 	 */
@@ -1275,55 +1208,6 @@ export class ChatUI {
 			this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
 		} else {
 			this.containerMessages.scrollTop = 0;
-		}
-	}
-
-	/**
-	 * Cuando hacemos scroll hacia arriba, cargamos los mensajes "más antiguos".
-	 */
-	private async loadOlderMessages(): Promise<void> {
-		if (!this.containerMessages || !this.currentIndex) return;
-
-		// Guardamos la posición inicial para restaurarla
-		const oldScrollHeight = this.containerMessages.scrollHeight;
-		const oldScrollTop = this.containerMessages.scrollTop;
-
-		try {
-			const chatId = this.getChatId();
-			if (!chatId) {
-				throw new Error('No se ha establecido un chatId');
-			}
-			const data = await fetchMessages(chatId, this.currentIndex, 20);
-
-			// Actualizamos el index para la siguiente carga (si hay más)
-			this.currentIndex = data.cursor || null;
-
-			// Extraer el ID de usuario del token
-			let user = '';
-			try {
-				const accessToken = localStorage.getItem('accessToken') || '';
-				if (accessToken) {
-					const payload = JSON.parse(atob(accessToken.split('.')[1]));
-					user = payload.sub; // ID del usuario
-				}
-			} catch (tokenErr) {
-				console.warn("Error al procesar el token de acceso para mensajes antiguos:", tokenErr);
-			}
-
-			// "Prepend" de mensajes antiguos
-			for (const msg of data.messages) {
-				const sender: Sender = (user && msg.senderId.includes(user)) ? "user" : "other";
-				this.prependMessage(msg.content, sender, msg.createdAt, msg.senderId);
-			}
-
-			// Reconstruir los separadores de fecha después de cargar mensajes antiguos
-			this.rebuildDateSeparators();
-
-			// Restaurar la posición del scroll para que no se mueva de golpe
-			const newScrollHeight = this.containerMessages.scrollHeight;
-			this.containerMessages.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
-		} catch (err) {
-			console.error("Error cargando mensajes antiguos:", err);
 		}
 	}
 
@@ -1990,13 +1874,11 @@ export class ChatUI {
 
 		// Primero cargamos los mensajes iniciales
 		try {
-			await this.loadInitialMessages(20);
+		// Marcar que los mensajes fueron cargados exitosamente
+		this.messagesLoaded = true;
 
-			// Marcar que los mensajes fueron cargados exitosamente
-			this.messagesLoaded = true;
-
-			// NOTA: El mensaje de bienvenida ahora se maneja en loadChatMessagesOnOpen
-			// después de verificar si existen mensajes desde la API V2
+		// El mensaje de bienvenida se maneja en loadChatMessagesOnOpen
+		// después de verificar si existen mensajes desde la API V2
 			
 			// Verificar estado inicial de los comerciales si el chat está activo
 			// Esto se hace al final para que el mensaje aparezca después de todos los mensajes existentes
@@ -2272,241 +2154,6 @@ export class ChatUI {
 
 		const messages = this.containerMessages.querySelectorAll('.message-container, .chat-loading-messages');
 		messages.forEach(message => message.remove());
-	}
-
-	/**
-	 * Configura el scroll infinito para cargar mensajes más antiguos
-	 * @param cursor Cursor para la siguiente página de mensajes
-	 */
-	public setupInfiniteScroll(cursor: string): void {
-		if (!this.containerMessages) return;
-
-		// Remover listener anterior si existe
-		if (this.handleInfiniteScroll) {
-			this.containerMessages.removeEventListener('scroll', this.handleInfiniteScroll);
-		}
-
-		// Guardar el cursor actual
-		this.currentIndex = cursor;
-
-		// Agregar nuevo listener
-		this.handleInfiniteScroll = this.createInfiniteScrollHandler();
-		this.containerMessages.addEventListener('scroll', this.handleInfiniteScroll);
-	}
-
-	/**
-	 * Crea el handler para el scroll infinito
-	 */
-	private createInfiniteScrollHandler() {
-		return async (): Promise<void> => {
-			if (!this.containerMessages || !this.chatId || !this.currentIndex) return;
-
-			// Verificar si el usuario ha hecho scroll hacia arriba (cerca del top)
-			const { scrollTop } = this.containerMessages;
-			const scrolledToTop = scrollTop < 100; // 100px del top
-
-			if (scrolledToTop && !this.loadingOlderMessages) {
-				await this.loadOlderMessagesV2();
-			}
-		};
-	}
-
-	/**
-	 * Indica si se están cargando mensajes más antiguos
-	 */
-	private loadingOlderMessages: boolean = false;
-
-	/**
-	 * Handler del scroll infinito
-	 */
-	private handleInfiniteScroll?: () => Promise<void>;
-
-	/**
-	 * Carga mensajes más antiguos usando ChatV2Service
-	 */
-	private async loadOlderMessagesV2(): Promise<void> {
-		if (!this.chatId || !this.currentIndex || this.loadingOlderMessages) return;
-
-		try {
-			this.loadingOlderMessages = true;
-			console.log('[ChatUI] 📜 Cargando mensajes más antiguos...');
-
-			// Mostrar indicador de carga en la parte superior
-			this.showTopLoadingIndicator();
-
-			// Importar dinámicamente ChatV2Service para evitar dependencias circulares
-			const { ChatV2Service } = await import('../services/chat-v2-service');
-			
-			const messageList = await ChatV2Service.getInstance().getChatMessages(
-				this.chatId,
-				20, // cargar 20 mensajes más antiguos
-				this.currentIndex
-			);
-
-			if (messageList.messages && messageList.messages.length > 0) {
-				// Guardar posición actual de scroll
-				const currentScrollHeight = this.containerMessages!.scrollHeight;
-
-				// Agregar mensajes más antiguos al principio (en orden cronológico)
-				const messagesInOrder = messageList.messages.reverse();
-				
-				for (const message of messagesInOrder) {
-					// Extraer el texto del contenido
-					let messageText = '';
-					if (typeof message.content === 'string') {
-						messageText = message.content;
-					} else if (message.content && typeof message.content === 'object') {
-						messageText = message.content.text || message.content.message || message.content.body || JSON.stringify(message.content);
-					} else {
-						messageText = String(message.content || '');
-					}
-
-					this.prependMessageV2({
-						id: message.id,
-						sender: message.senderId === this.getVisitorId() ? 'user' : 'other',
-						content: messageText, // Usar el texto extraído
-						timestamp: new Date(message.createdAt).getTime(),
-						type: message.type,
-						isInternal: message.isInternal
-					});
-				}
-
-				// Actualizar cursor para la siguiente carga
-				if (messageList.hasMore && messageList.nextCursor) {
-					this.currentIndex = messageList.nextCursor;
-				} else {
-					this.currentIndex = null; // No hay más mensajes
-					if (this.handleInfiniteScroll) {
-						this.containerMessages!.removeEventListener('scroll', this.handleInfiniteScroll);
-					}
-				}
-
-				// Mantener posición de scroll relativa
-				const newScrollHeight = this.containerMessages!.scrollHeight;
-				this.containerMessages!.scrollTop = newScrollHeight - currentScrollHeight;
-
-				console.log(`[ChatUI] ✅ Cargados ${messagesInOrder.length} mensajes más antiguos`);
-			} else {
-				// No hay más mensajes
-				this.currentIndex = null;
-				if (this.handleInfiniteScroll) {
-					this.containerMessages!.removeEventListener('scroll', this.handleInfiniteScroll);
-				}
-				console.log('[ChatUI] 📭 No hay más mensajes antiguos');
-			}
-
-		} catch (error) {
-			console.error('[ChatUI] ❌ Error cargando mensajes antiguos:', error);
-		} finally {
-			this.hideTopLoadingIndicator();
-			this.loadingOlderMessages = false;
-		}
-	}
-
-	/**
-	 * Obtiene el visitorId del SDK
-	 */
-	private getVisitorId(): string | null {
-		// Acceder al SDK global para obtener el visitorId
-		if (typeof window !== 'undefined' && (window as any).guiders) {
-			return (window as any).guiders.getVisitorId();
-		}
-		return null;
-	}
-
-	/**
-	 * Agrega un mensaje al principio del chat (para scroll infinito)
-	 */
-	private prependMessageV2(params: any): void {
-		if (!this.containerMessages) return;
-
-		const messageElement = this.createMessageElementV2(params);
-		const firstMessage = this.containerMessages.querySelector('.message-container');
-		
-		if (firstMessage) {
-			this.containerMessages.insertBefore(messageElement, firstMessage);
-		} else {
-			this.containerMessages.appendChild(messageElement);
-		}
-	}
-
-	/**
-	 * Crea el elemento HTML de un mensaje para scroll infinito
-	 */
-	private createMessageElementV2(params: any): HTMLElement {
-		const messageContainer = document.createElement('div');
-		messageContainer.className = 'message-container';
-		
-		// Extraer el texto del contenido correctamente
-		let messageText = '';
-		if (typeof params.content === 'string') {
-			messageText = params.content;
-		} else if (params.text) {
-			messageText = params.text;
-		} else if (params.content && typeof params.content === 'object') {
-			messageText = params.content.text || params.content.message || params.content.body || JSON.stringify(params.content);
-		} else {
-			messageText = String(params.content || '');
-		}
-		
-		const messageElement = document.createElement('div');
-		messageElement.className = `message ${params.sender}-message`;
-		messageElement.innerHTML = `
-			<div class="message-content">${messageText}</div>
-			<div class="message-time">${new Date(params.timestamp).toLocaleTimeString()}</div>
-		`;
-		
-		messageContainer.appendChild(messageElement);
-		return messageContainer;
-	}
-
-	/**
-	 * Muestra indicador de carga en la parte superior
-	 */
-	private showTopLoadingIndicator(): void {
-		if (!this.containerMessages) return;
-
-		const loadingElement = document.createElement('div');
-		loadingElement.className = 'chat-top-loading';
-		loadingElement.innerHTML = `
-			<div style="text-align: center; padding: 10px; color: #666; font-size: 12px;">
-				<div style="display: inline-block; width: 16px; height: 16px; border: 2px solid #f3f3f3; border-top: 2px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></div>
-				Cargando mensajes anteriores...
-			</div>
-		`;
-		
-		const firstChild = this.containerMessages.firstChild;
-		if (firstChild) {
-			this.containerMessages.insertBefore(loadingElement, firstChild);
-		} else {
-			this.containerMessages.appendChild(loadingElement);
-		}
-	}
-
-	/**
-	 * Oculta el indicador de carga superior
-	 */
-	private hideTopLoadingIndicator(): void {
-		if (!this.containerMessages) return;
-
-		const loadingElement = this.containerMessages.querySelector('.chat-top-loading');
-		if (loadingElement) {
-			loadingElement.remove();
-		}
-	}
-
-	/**
-	 * Hace scroll hasta el final del chat (versión nueva)
-	 */
-	public scrollToBottomV2(): void {
-		if (!this.containerMessages) return;
-
-		// Usar requestAnimationFrame para asegurar que el DOM esté listo
-		requestAnimationFrame(() => {
-			if (this.containerMessages) {
-				this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
-			}
-		});
 	}
 }
 
