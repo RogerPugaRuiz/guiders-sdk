@@ -114,7 +114,11 @@ class GuidersWPPlugin {
                 'chat_enabled' => true,
                 'tracking_enabled' => true,
                 'heuristic_detection' => true,
-                'confidence_threshold' => 0.7
+                'confidence_threshold' => 0.7,
+                'active_hours_enabled' => false,
+                'active_hours_timezone' => '',
+                'active_hours_ranges' => '[{"start":"09:00","end":"18:00"}]',
+                'active_hours_fallback_message' => 'El chat no está disponible en este momento. Por favor, inténtalo más tarde durante nuestros horarios de atención.'
             ));
         }
         
