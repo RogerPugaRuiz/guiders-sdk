@@ -1,9 +1,8 @@
-// src/index.ts
-
 import { TokenManager } from "./core/token-manager";
 import { TrackingPixelSDK } from "./core/tracking-pixel-SDK";
 import { BotDetector } from "./core/bot-detector";
 import { resolveDefaultEndpoints } from "./core/endpoint-resolver";
+import { ActiveHoursConfig } from './types';
 
 // Importar mensajes aleatorios para dev (se auto-inicializa solo en modo dev)
 import "./core/dev-random-messages";
@@ -30,6 +29,7 @@ declare global {
 		GUIDERS_API_KEY: string;
 		GUIDERS_CONFIG?: {
 			apiKey: string;
+			activeHours?: Partial<ActiveHoursConfig>;
 			[key: string]: any;
 		};
 		RocketLazyLoadScripts?: any;

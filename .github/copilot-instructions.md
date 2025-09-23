@@ -2,7 +2,7 @@
 Objetivo: evolucionar un SDK de tracking + chat tiempo real (TypeScript, bundle UMD `dist/index.js`, global `GuidersPixel`) manteniendo compatibilidad v1 mientras se impulsa v2 (heurística + Chat API v2).
 
 ### Arquitectura (mapa mental)
-- `core/`: orquestación y estado runtime (`tracking-pixel-SDK.ts` punto de entrada; managers: tokens, sesión, bot, heurística, DOM). Mantener side effects mínimos aquí y centralizar limpieza vía `cleanup()`.
+- `core/`: orquestación y estado runtime (`tracking-pixel-SDK.ts` punto de entrada; managers: tokens, sesión, bot, heurística, DOM, horarios activos). Mantener side effects mínimos aquí y centralizar limpieza vía `cleanup()`.
 - `pipeline/`: procesamiento inmutable de eventos. Orden fijo: time-stamp → token → url → session → metadata → validation → side-effect. Sólo `side-effect-stage.ts` puede hacer IO. Nuevos enriquecimientos = nuevo Stage puro antes de `validation`.
 - `services/`: acceso red + WebSocket. `chat-v2-service.ts` intenta `/api/v2/...` y hace fallback silencioso a v1 adaptando al shape legacy (no filtrar en UI). Nunca importar componentes de `presentation/` aquí.
 - `presentation/`: UI del chat (lazy, oculta hasta interacción o disponibilidad comercial). No lógica de tokens / heurística.
@@ -16,6 +16,7 @@ Objetivo: evolucionar un SDK de tracking + chat tiempo real (TypeScript, bundle 
 5. Chat lazy: nunca mostrar `chat.ts` antes de interacción; retrasar carga pesada hasta primer open. Reconexión WebSocket silenciosa (`console.warn` en fallos recuperables).
 6. Fallback API Chat: atrapar errores v2; mapear a formato v1 en el service (ej. normalizar `participants`, `messages`, `unread`). No hacer branching en UI.
 7. Pipeline purity: cualquier necesidad de llamar red / console / storage va en `side-effect-stage`. Si un Stage retorna `null` se corta el flujo (documentar motivo en log 📊/❌).
+8. Horarios Activos: usar `ActiveHoursValidator` para controlar disponibilidad del chat por horarios. Soporta timezone manual o `'auto'` (detecta `Intl.DateTimeFormat().resolvedOptions().timeZone`). Configurar en `window.GUIDERS_CONFIG.activeHours` o dinámicamente vía `updateActiveHoursConfig()`. Validar antes de inicializar chat UI. Rangos cruzan medianoche (ej: `22:00-06:00`). API pública: `isChatActive()`, `getActiveHoursConfig()`, `updateActiveHoursConfig()`.
 
 ### Contratos & Ejemplos
 Nuevo Stage:
@@ -35,6 +36,23 @@ Uso fallback chat (implícito):
 ```ts
 const chat = await ChatV2Service.getInstance().getChatById(id); // Interno: try v2 → adapt v1
 ```
+Configuración horarios activos:
+```ts
+// Detección automática de timezone
+window.GUIDERS_CONFIG = {
+  activeHours: {
+    enabled: true,
+    timezone: 'auto',  // o 'Europe/Madrid'
+    ranges: [
+      { start: '08:00', end: '14:00' },
+      { start: '15:00', end: '17:00' }
+    ],
+    fallbackMessage: 'Chat disponible de 8:00-14:00 y 15:00-17:00'
+  }
+};
+// Actualización dinámica
+window.guiders.trackingPixelSDK.updateActiveHoursConfig({...});
+```
 
 ### Desarrollo Diario
 - Instalar deps: `npm install` (task: Install Dependencies).
@@ -45,9 +63,10 @@ const chat = await ChatV2Service.getInstance().getChatById(id); // Interno: try 
 - Lint & format: tasks "Lint Code" / "Format Code" antes de PR.
 - Tamaño bundle: "Check Bundle Size" o "Analyze Bundle" tras cambios de dependencias.
 - Validar sesión: abrir `examples/quick-test.html` o demo PHP `demo/app`.
+- Demos horarios: `demo/app/timezone-comparison.html`, `examples/timezone-auto-demo.html`.
 
 ### Logging & Estilo
-- Prefijos emoji: 🚀 init, 📊 tracking, 💬 chat, 🔍 heurística, 📡 socket, ❌ warn/error. Añadir nuevos sólo si se documentan aquí.
+- Prefijos emoji: 🚀 init, 📊 tracking, 💬 chat, 🔍 heurística, 📡 socket, 🕐 active hours, ❌ warn/error. Añadir nuevos sólo si se documentan aquí.
 - No `throw` en flujo usuario; devolver temprano + log ❌. Excepciones sólo en paths internos imposibles.
 - Evitar dependencias >10KB min+gzip salvo justificación (añadir nota en PR). Reutilizar utilidades existentes.
 - Siempre exponer nuevas capacidades como opt‑in (no romper `window.guiders.*`).
@@ -59,6 +78,7 @@ const chat = await ChatV2Service.getInstance().getChatById(id); // Interno: try 
 4. Tests verdes (incluye cobertura si tocaste lógica core/pipeline).
 5. Bundle size dentro de presupuesto (ver tarea analyzer).
 6. Chat y tracking básico funcionan sin heurística (compat v1).
+7. Si modificaste horarios activos: probar rangos que cruzan medianoche, detección automática timezone, validación configuración.
 
 ### Anti‑Patrones (rechazar en review)
 - IO dentro de Stages no side-effect.
@@ -66,6 +86,8 @@ const chat = await ChatV2Service.getInstance().getChatById(id); // Interno: try 
 - Duplicar tipos ya definidos.
 - Branching de compatibilidad v1/v2 en UI (debe vivir en services adaptadores).
 - Bloquear inicialización por error recuperable (tokens, socket, heurística).
+- Hardcodear timezones en lugar de usar detección automática cuando sea apropiado.
+- Validar horarios activos en UI (debe validarse en `ActiveHoursValidator`).
 
 ### Debug Rápido
 ```ts
@@ -73,15 +95,21 @@ console.log({
   tokens: TokenManager.hasValidTokens(),
   ws: window.guiders.webSocket?.isConnected(),
   chatVisible: window.guiders.chatUI?.isVisible(),
-  heuristic: window.guiders.heuristicEnabled
+  heuristic: window.guiders.heuristicEnabled,
+  activeHours: window.guiders.trackingPixelSDK.getActiveHoursConfig(),
+  chatActive: window.guiders.trackingPixelSDK.isChatActive()
 });
 new BotDetector().detect().then(r=>console.log(r));
 // Consultar endpoints efectivos
 import { resolveDefaultEndpoints } from '@/core/endpoint-resolver';
 console.log(resolveDefaultEndpoints());
+// Probar diferentes timezones
+window.guiders.trackingPixelSDK.updateActiveHoursConfig({
+  enabled: true, timezone: 'Asia/Tokyo', ranges: [{ start: '09:00', end: '17:00' }]
+});
 ```
 
-Actualiza este archivo si: cambias orden del pipeline, añades Stage global, agregas eventos WebSocket nuevos (definir en `websocket-service.ts`), o amplías API pública.
+Actualiza este archivo si: cambias orden del pipeline, añades Stage global, agregas eventos WebSocket nuevos (definir en `websocket-service.ts`), amplías API pública, o modificas lógica de horarios activos.
 
 ¿Sección confusa o faltante? Pide aclaración concreta y se iterará.
 

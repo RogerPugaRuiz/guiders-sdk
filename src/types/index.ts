@@ -11,6 +11,9 @@ export { IdentitySignal, useIdentitySignal } from '../core/identity-signal';
 export type { WelcomeMessageConfig } from '../core/welcome-message-manager';
 export { WelcomeMessageManager, BUSINESS_WELCOME_TEMPLATES } from '../core/welcome-message-manager';
 
+// Active Hours (utilities)
+export { ActiveHoursValidator, createActiveHoursConfig, COMMON_ACTIVE_HOURS } from '../core/active-hours-validator';
+
 export interface PixelEvent<T = Record<string, unknown>> {
 	type: string;
 	data: T;
@@ -164,3 +167,16 @@ export interface WSError extends WSBaseEnvelope<{ code: string; ref?: string }> 
 
 export type WSInboundMessage = WSAck | WSPong | WSControlFlow | WSError | (WSBaseEnvelope<any> & { t: string });
 export type WSOutboundMessage = WSHello | WSPresenceUpdate | WSNavChanged | WSTrackBatch | WSPing | (WSBaseEnvelope<any> & { t: string });
+
+// --- Configuración de horarios de activación del chat ---
+export interface TimeRange {
+	start: string;  // Formato "HH:MM" (ej: "08:00")
+	end: string;    // Formato "HH:MM" (ej: "14:00")
+}
+
+export interface ActiveHoursConfig {
+	enabled: boolean;           // Si está habilitada la validación de horarios
+	timezone?: string | 'auto'; // Zona horaria (ej: "America/Mexico_City", "auto" para detección automática)
+	ranges: TimeRange[];        // Rangos de horarios activos
+	fallbackMessage?: string;   // Mensaje a mostrar cuando el chat no está activo
+}

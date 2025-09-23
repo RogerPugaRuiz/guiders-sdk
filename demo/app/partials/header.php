@@ -24,6 +24,15 @@
         includeEmojis: false,
         language: 'es',
         showTips: false
+      },
+      activeHours: {
+        enabled: true,
+        timezone: 'Europe/Madrid',
+        ranges: [
+          { start: '08:00', end: '14:00' },
+          { start: '15:00', end: '17:00' }
+        ],
+        fallbackMessage: '🕐 Nuestro chat está disponible de 8:00-14:00 y 15:00-17:00 (hora de Madrid). ¡Vuelve durante nuestros horarios de atención!'
       }
     };
 

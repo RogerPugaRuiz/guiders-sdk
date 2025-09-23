@@ -27,6 +27,8 @@ import { HeuristicDetectionConfig } from "./heuristic-element-detector";
 import { SessionTrackingManager, SessionTrackingConfig } from "./session-tracking-manager";
 import { ChatMemoryStore } from "./chat-memory-store";
 import { IdentitySignal } from "./identity-signal";
+import { ActiveHoursValidator } from "./active-hours-validator";
+import { ActiveHoursConfig } from "../types";
 
 
 interface SDKOptions {
@@ -60,6 +62,8 @@ interface SDKOptions {
 	};
 	// Welcome message options
 	welcomeMessage?: Partial<WelcomeMessageConfig>;
+	// Active hours configuration
+	activeHours?: Partial<ActiveHoursConfig>;
 }
 
 
@@ -139,6 +143,7 @@ export class TrackingPixelSDK {
 	private authMode: 'jwt' | 'session';
 	private identitySignal: IdentitySignal;
 	private welcomeMessageConfig?: Partial<WelcomeMessageConfig>;
+	private activeHoursValidator?: ActiveHoursValidator;
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -162,6 +167,25 @@ export class TrackingPixelSDK {
 			language: 'es',
 			showTips: true
 		};
+
+		// Configurar validador de horarios activos si se proporciona
+		if (options.activeHours && options.activeHours.enabled) {
+			const activeHoursConfig: ActiveHoursConfig = {
+				enabled: true,
+				ranges: options.activeHours.ranges || [],
+				timezone: options.activeHours.timezone,
+				fallbackMessage: options.activeHours.fallbackMessage
+			};
+
+			// Validar la configuración antes de crear el validador
+			const configErrors = ActiveHoursValidator.validateConfig(activeHoursConfig);
+			if (configErrors.length > 0) {
+				console.warn('[TrackingPixelSDK] ❌ Errores en configuración de horarios activos:', configErrors);
+			} else {
+				this.activeHoursValidator = new ActiveHoursValidator(activeHoursConfig);
+				console.log('[TrackingPixelSDK] 🕐 Validador de horarios activos configurado:', activeHoursConfig);
+			}
+		}
 
 		localStorage.setItem("pixelEndpoint", this.endpoint);
 		localStorage.setItem("guidersApiKey", this.apiKey);
@@ -270,6 +294,49 @@ export class TrackingPixelSDK {
 
 		const initializeChatComponents = () => {
 			console.log("Inicializando componentes del chat rápidamente...");
+			
+			// Verificar horarios activos antes de inicializar
+			if (this.activeHoursValidator && !this.activeHoursValidator.isChatActive()) {
+				console.log("🕐 Chat no está disponible según horarios configurados");
+				
+				// Inicializar componentes pero mantener el chat oculto
+				chat.init();
+				chat.hide();
+				chatInput.init();
+				
+				// No mostrar el botón de chat cuando está fuera de horarios
+				chatToggleButton.init();
+				chatToggleButton.hide();
+				
+				// Mostrar mensaje de horarios si está disponible
+				const fallbackMessage = this.activeHoursValidator.getFallbackMessage();
+				const nextAvailable = this.activeHoursValidator.getNextAvailableTime();
+				
+				let statusMessage = fallbackMessage;
+				if (nextAvailable) {
+					statusMessage += ` Próximo horario disponible: ${nextAvailable}`;
+				}
+				
+				console.log("🕐 " + statusMessage);
+				
+				// Opcionalmente, agregar mensaje al chat (oculto) para cuando se active
+				if (chat) {
+					chat.addSystemMessage(statusMessage);
+				}
+				
+				// Configurar verificación periódica de horarios (cada 5 minutos)
+				const checkInterval = setInterval(() => {
+					if (this.activeHoursValidator && this.activeHoursValidator.isChatActive()) {
+						console.log("🕐 ✅ Chat ahora está disponible según horarios");
+						chatToggleButton.show();
+						clearInterval(checkInterval);
+					}
+				}, 5 * 60 * 1000); // 5 minutos
+				
+				return; // No continuar con la inicialización normal
+			}
+			
+			// Inicialización normal del chat cuando está en horarios activos
 			// Inicializar componentes (el chat comienza oculto por defecto)
 			chat.init();
 			// Asegurarnos explícitamente que el chat esté oculto ANTES de inicializar cualquier
@@ -725,6 +792,37 @@ export class TrackingPixelSDK {
 		} else {
 			console.warn('[TrackingPixelSDK] Heuristic detection not available.');
 		}
+	}
+
+	/**
+	 * Update active hours configuration dynamically
+	 */
+	public updateActiveHoursConfig(config: ActiveHoursConfig): void {
+		try {
+			this.activeHoursValidator = new ActiveHoursValidator(config);
+			console.log('[TrackingPixelSDK] 🕐 Configuración de horarios activos actualizada:', {
+				enabled: config.enabled,
+				timezone: config.timezone,
+				ranges: config.ranges?.length || 0,
+				fallbackMessage: config.fallbackMessage ? 'Configurado' : 'No configurado'
+			});
+
+			// Re-evaluar estado del chat 
+			const isActive = this.activeHoursValidator.isChatActive();
+			if (!isActive && config.fallbackMessage) {
+				console.log('[TrackingPixelSDK] 🕐 Chat fuera de horario activo, aplicando mensaje de fallback');
+				// Aquí podrías emitir un evento o actualizar la UI según sea necesario
+			}
+		} catch (error) {
+			console.error('[TrackingPixelSDK] ❌ Error actualizando configuración de horarios activos:', error);
+		}
+	}
+
+	/**
+	 * Get current active hours configuration
+	 */
+	public getActiveHoursConfig(): ActiveHoursConfig | null {
+		return this.activeHoursValidator?.getConfig() || null;
 	}
 
 	/**
@@ -1440,6 +1538,120 @@ export class TrackingPixelSDK {
 
 		} catch (error) {
 			console.error('[TrackingPixelSDK] ❌ Error cargando mensajes iniciales:', error);
+		}
+	}
+
+	// --- Métodos públicos para gestión de horarios activos ---
+
+	/**
+	 * Verifica si el chat está activo según los horarios configurados
+	 */
+	public isChatActive(): boolean {
+		if (!this.activeHoursValidator) {
+			return true; // Si no hay configuración de horarios, siempre está activo
+		}
+		return this.activeHoursValidator.isChatActive();
+	}
+
+	/**
+	 * Obtiene el mensaje de fallback cuando el chat no está activo
+	 */
+	public getChatFallbackMessage(): string | null {
+		if (!this.activeHoursValidator) {
+			return null;
+		}
+		return this.activeHoursValidator.getFallbackMessage();
+	}
+
+	/**
+	 * Obtiene información sobre el próximo horario disponible
+	 */
+	public getNextAvailableTime(): string | null {
+		if (!this.activeHoursValidator) {
+			return null;
+		}
+		return this.activeHoursValidator.getNextAvailableTime();
+	}
+
+	/**
+	 * Actualiza la configuración de horarios activos dinámicamente
+	 */
+	public updateActiveHours(config: Partial<ActiveHoursConfig>): boolean {
+		try {
+			const activeHoursConfig: ActiveHoursConfig = {
+				enabled: config.enabled ?? true,
+				ranges: config.ranges || [],
+				timezone: config.timezone,
+				fallbackMessage: config.fallbackMessage
+			};
+
+			const configErrors = ActiveHoursValidator.validateConfig(activeHoursConfig);
+			if (configErrors.length > 0) {
+				console.warn('[TrackingPixelSDK] ❌ Errores en nueva configuración de horarios activos:', configErrors);
+				return false;
+			}
+
+			this.activeHoursValidator = new ActiveHoursValidator(activeHoursConfig);
+			console.log('[TrackingPixelSDK] 🕐 ✅ Configuración de horarios activos actualizada');
+			
+			// Verificar estado actual y actualizar UI si es necesario
+			this.checkAndUpdateChatAvailability();
+			
+			return true;
+		} catch (error) {
+			console.error('[TrackingPixelSDK] ❌ Error actualizando horarios activos:', error);
+			return false;
+		}
+	}
+
+	/**
+	 * Desactiva completamente la validación de horarios activos
+	 */
+	public disableActiveHours(): void {
+		this.activeHoursValidator = undefined;
+		console.log('[TrackingPixelSDK] 🕐 Validación de horarios activos desactivada');
+		
+		// Mostrar el chat si estaba oculto por horarios
+		this.checkAndUpdateChatAvailability();
+	}
+
+	/**
+	 * Verifica y actualiza la disponibilidad del chat según horarios actuales
+	 */
+	private checkAndUpdateChatAvailability(): void {
+		if (!this.chatUI) {
+			return;
+		}
+
+		const isActive = this.isChatActive();
+		const chatToggleButton = document.querySelector('.chat-toggle-button') as HTMLElement;
+
+		if (isActive) {
+			// Chat debe estar disponible
+			if (chatToggleButton) {
+				chatToggleButton.style.display = 'block';
+			}
+			console.log('[TrackingPixelSDK] 🕐 ✅ Chat ahora disponible según horarios');
+		} else {
+			// Chat debe estar oculto
+			if (chatToggleButton) {
+				chatToggleButton.style.display = 'none';
+			}
+			
+			// Cerrar chat si está abierto
+			if (this.chatUI.isVisible && this.chatUI.isVisible()) {
+				this.chatUI.hide();
+			}
+			
+			const fallbackMessage = this.getChatFallbackMessage();
+			const nextAvailable = this.getNextAvailableTime();
+			
+			let statusMessage = fallbackMessage || 'Chat no disponible en este momento';
+			if (nextAvailable) {
+				statusMessage += ` Próximo horario: ${nextAvailable}`;
+			}
+			
+			console.log('[TrackingPixelSDK] 🕐 ' + statusMessage);
 		}
 	}
 }

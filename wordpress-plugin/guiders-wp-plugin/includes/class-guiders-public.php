@@ -98,7 +98,8 @@ class GuidersPublic {
                 'isEDD' => class_exists('Easy_Digital_Downloads'),
                 'pageType' => $this->getPageType()
             ),
-            'welcomeMessage' => $this->getWelcomeMessageConfig()
+            'welcomeMessage' => $this->getWelcomeMessageConfig(),
+            'activeHours' => $this->getActiveHoursConfig()
         );
         
         // Add environment-specific endpoints
@@ -451,5 +452,32 @@ class GuidersPublic {
         }
 
         return '';
+    }
+
+    /**
+     * Get active hours configuration
+     */
+    private function getActiveHoursConfig() {
+        $config = array(
+            'enabled' => isset($this->settings['active_hours_enabled']) ? $this->settings['active_hours_enabled'] : false,
+            'timezone' => isset($this->settings['active_hours_timezone']) ? $this->settings['active_hours_timezone'] : '',
+            'fallbackMessage' => isset($this->settings['active_hours_fallback_message']) ? $this->settings['active_hours_fallback_message'] : '',
+            'ranges' => array()
+        );
+
+        // Parse ranges from JSON
+        if (!empty($this->settings['active_hours_ranges'])) {
+            $ranges = json_decode($this->settings['active_hours_ranges'], true);
+            if (is_array($ranges)) {
+                $config['ranges'] = $ranges;
+            }
+        }
+
+        // Set default fallback message if empty
+        if (empty($config['fallbackMessage'])) {
+            $config['fallbackMessage'] = __('El chat no está disponible en este momento. Por favor, inténtalo más tarde durante nuestros horarios de atención.', 'guiders-wp-plugin');
+        }
+
+        return $config;
     }
 }

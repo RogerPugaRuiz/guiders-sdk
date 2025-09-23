@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo: Configuración Manual vs Automática - Guiders SDK</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            line-height: 1.6;
+        }
+        .demo-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        .config-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .status-display {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .status-indicator {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .active { background: #48bb78; color: white; }
+        .inactive { background: #f56565; color: white; }
+        .auto { background: #4299e1; color: white; }
+        .manual { background: #9f7aea; color: white; }
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        .config-example {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        @media (max-width: 768px) {
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>⚙️ Demo: Configuración Manual vs Automática de Zona Horaria</h1>
+        <p>Compara cómo funciona la detección automática vs configuración manual de zona horaria en el sistema de horarios activos.</p>
+
+        <div class="config-grid">
+            <!-- Configuración Manual -->
+            <div class="config-section">
+                <h3>🌍 Configuración Manual (Madrid)</h3>
+                <div class="config-example">
+                    <pre><code>activeHours: {
+  enabled: true,
+  timezone: 'Europe/Madrid',
+  ranges: [
+    { start: '08:00', end: '14:00' },
+    { start: '15:00', end: '17:00' }
+  ]
+}</code></pre>
+                </div>
+                <div class="status-display">
+                    <div><strong>Configuración:</strong> <span class="status-indicator manual">Manual</span></div>
+                    <div><strong>Timezone:</strong> <span id="manual-timezone">Europe/Madrid</span></div>
+                    <div><strong>Hora Actual:</strong> <span id="manual-time">Calculando...</span></div>
+                    <div><strong>Estado Chat:</strong> <span id="manual-status" class="status-indicator">Verificando...</span></div>
+                </div>
+                <button onclick="updateManualConfig()">🔄 Actualizar Config Manual</button>
+            </div>
+
+            <!-- Configuración Automática -->
+            <div class="config-section">
+                <h3>🤖 Configuración Automática</h3>
+                <div class="config-example">
+                    <pre><code>activeHours: {
+  enabled: true,
+  timezone: 'auto',  // 🔥 Auto-detecta!
+  ranges: [
+    { start: '08:00', end: '14:00' },
+    { start: '15:00', end: '17:00' }
+  ]
+}</code></pre>
+                </div>
+                <div class="status-display">
+                    <div><strong>Configuración:</strong> <span class="status-indicator auto">Automática</span></div>
+                    <div><strong>Timezone:</strong> <span id="auto-timezone">Detectando...</span></div>
+                    <div><strong>Hora Actual:</strong> <span id="auto-time">Calculando...</span></div>
+                    <div><strong>Estado Chat:</strong> <span id="auto-status" class="status-indicator">Verificando...</span></div>
+                </div>
+                <button onclick="updateAutoConfig()">🔄 Actualizar Config Auto</button>
+            </div>
+        </div>
+
+        <div class="demo-container">
+            <h3>🔬 Controles de Prueba</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                <button onclick="testTimezone('America/New_York')">🗽 Simular Nueva York</button>
+                <button onclick="testTimezone('Asia/Tokyo')">🗾 Simular Tokio</button>
+                <button onclick="testTimezone('Europe/London')">🇬🇧 Simular Londres</button>
+                <button onclick="testTimezone('Australia/Sydney')">🇦🇺 Simular Sidney</button>
+                <button onclick="resetConfigs()">🔄 Resetear Todo</button>
+                <button onclick="toggleChatVisibility()">👁️ Toggle Chat</button>
+            </div>
+        </div>
+
+        <div id="comparison-results" class="demo-container" style="display: none;">
+            <h3>📊 Resultados de Comparación</h3>
+            <div id="comparison-output"></div>
+        </div>
+    </div>
+
+    <!-- Configuración Base de Guiders SDK -->
+    <script>
+        // Configuraciones para comparación
+        const baseConfig = {
+            apiKey: '12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0',
+            environment: 'development',
+            dev: true,
+            endpoint: 'http://localhost:3000/api',
+            webSocketEndpoint: 'ws://localhost:3000'
+        };
+
+        const manualConfig = {
+            ...baseConfig,
+            activeHours: {
+                enabled: true,
+                timezone: 'Europe/Madrid',
+                ranges: [
+                    { start: '08:00', end: '14:00' },
+                    { start: '15:00', end: '17:00' }
+                ],
+                fallbackMessage: '🕐 Chat disponible de 8:00-14:00 y 15:00-17:00 (Madrid)'
+            }
+        };
+
+        const autoConfig = {
+            ...baseConfig,
+            activeHours: {
+                enabled: true,
+                timezone: 'auto',
+                ranges: [
+                    { start: '08:00', end: '14:00' },
+                    { start: '15:00', end: '17:00' }
+                ],
+                fallbackMessage: '🕐 Chat disponible de 8:00-14:00 y 15:00-17:00 (tu zona horaria local)'
+            }
+        };
+
+        // Inicializar con configuración automática por defecto
+        window.GUIDERS_CONFIG = autoConfig;
+    </script>
+
+    <!-- Guiders SDK -->
+    <script src="guiders-sdk.js?dev=true" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script>
+
+    <script>
+        let currentMode = 'auto';
+
+        // Función para actualizar la información de timezone manual
+        function updateManualInfo() {
+            try {
+                const madridTime = new Date().toLocaleString('es-ES', {
+                    timeZone: 'Europe/Madrid',
+                    hour12: false,
+                    weekday: 'short',
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+
+                document.getElementById('manual-timezone').textContent = 'Europe/Madrid';
+                document.getElementById('manual-time').textContent = madridTime;
+
+                // Simular validación manual
+                setTimeout(() => {
+                    if (window.guiders && currentMode === 'manual') {
+                        const isActive = window.guiders.trackingPixelSDK.isChatActive();
+                        const statusEl = document.getElementById('manual-status');
+                        statusEl.textContent = isActive ? 'Activo' : 'Inactivo';
+                        statusEl.className = 'status-indicator ' + (isActive ? 'active' : 'inactive');
+                    }
+                }, 200);
+
+            } catch (error) {
+                console.error('Error actualizando info manual:', error);
+            }
+        }
+
+        // Función para actualizar la información de timezone automática
+        function updateAutoInfo() {
+            try {
+                const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const localTime = new Date().toLocaleString('es-ES', {
+                    timeZone: detectedTimezone,
+                    hour12: false,
+                    weekday: 'short',
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+
+                document.getElementById('auto-timezone').textContent = detectedTimezone;
+                document.getElementById('auto-time').textContent = localTime;
+
+                setTimeout(() => {
+                    if (window.guiders && currentMode === 'auto') {
+                        const isActive = window.guiders.trackingPixelSDK.isChatActive();
+                        const statusEl = document.getElementById('auto-status');
+                        statusEl.textContent = isActive ? 'Activo' : 'Inactivo';
+                        statusEl.className = 'status-indicator ' + (isActive ? 'active' : 'inactive');
+                    }
+                }, 200);
+
+            } catch (error) {
+                console.error('Error actualizando info automática:', error);
+            }
+        }
+
+        // Función para cambiar a configuración manual
+        function updateManualConfig() {
+            currentMode = 'manual';
+            window.GUIDERS_CONFIG = manualConfig;
+            if (window.guiders?.trackingPixelSDK) {
+                window.guiders.trackingPixelSDK.updateActiveHoursConfig(manualConfig.activeHours);
+            }
+            console.log('🌍 [Demo] Cambiado a configuración manual (Madrid)');
+            updateDisplays();
+        }
+
+        // Función para cambiar a configuración automática
+        function updateAutoConfig() {
+            currentMode = 'auto';
+            window.GUIDERS_CONFIG = autoConfig;
+            if (window.guiders?.trackingPixelSDK) {
+                window.guiders.trackingPixelSDK.updateActiveHoursConfig(autoConfig.activeHours);
+            }
+            console.log('🤖 [Demo] Cambiado a configuración automática');
+            updateDisplays();
+        }
+
+        // Función para probar diferentes zonas horarias
+        function testTimezone(timezone) {
+            const testConfig = {
+                ...baseConfig,
+                activeHours: {
+                    enabled: true,
+                    timezone: timezone,
+                    ranges: [
+                        { start: '08:00', end: '14:00' },
+                        { start: '15:00', end: '17:00' }
+                    ],
+                    fallbackMessage: `🕐 Chat disponible de 8:00-14:00 y 15:00-17:00 (${timezone})`
+                }
+            };
+
+            currentMode = 'test';
+            window.GUIDERS_CONFIG = testConfig;
+            if (window.guiders?.trackingPixelSDK) {
+                window.guiders.trackingPixelSDK.updateActiveHoursConfig(testConfig.activeHours);
+            }
+
+            // Mostrar resultados
+            showComparisonResults(timezone);
+        }
+
+        // Función para mostrar resultados de comparación
+        function showComparisonResults(timezone) {
+            try {
+                const testTime = new Date().toLocaleString('es-ES', {
+                    timeZone: timezone,
+                    hour12: false,
+                    weekday: 'long',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+
+                setTimeout(() => {
+                    const isActive = window.guiders?.trackingPixelSDK?.isChatActive() || false;
+                    const resultsDiv = document.getElementById('comparison-results');
+                    const outputDiv = document.getElementById('comparison-output');
+                    
+                    resultsDiv.style.display = 'block';
+                    outputDiv.innerHTML = `
+                        <div class="status-display">
+                            <h4>🧪 Prueba de Zona Horaria: ${timezone}</h4>
+                            <div><strong>Hora en ${timezone}:</strong> ${testTime}</div>
+                            <div><strong>Estado del Chat:</strong> 
+                                <span class="status-indicator ${isActive ? 'active' : 'inactive'}">
+                                    ${isActive ? 'Activo' : 'Inactivo'}
+                                </span>
+                            </div>
+                            <div><strong>Horarios configurados:</strong> 8:00-14:00 y 15:00-17:00</div>
+                        </div>
+                    `;
+                }, 500);
+
+            } catch (error) {
+                console.error('Error en prueba de timezone:', error);
+            }
+        }
+
+        // Función para resetear configuraciones
+        function resetConfigs() {
+            updateAutoConfig();
+            document.getElementById('comparison-results').style.display = 'none';
+        }
+
+        // Función para toggle del chat
+        function toggleChatVisibility() {
+            if (window.guiders?.chatUI) {
+                const isVisible = window.guiders.chatUI.isVisible();
+                if (isVisible) {
+                    window.guiders.chatUI.hide();
+                } else {
+                    window.guiders.chatUI.show();
+                }
+            }
+        }
+
+        // Función para actualizar todas las pantallas
+        function updateDisplays() {
+            updateManualInfo();
+            updateAutoInfo();
+        }
+
+        // Inicializar y actualizar cada segundo
+        setTimeout(() => {
+            console.log('⚙️ [Demo] Sistema de comparación de configuraciones iniciado');
+            updateDisplays();
+            setInterval(updateDisplays, 1000);
+        }, 2000);
+    </script>
+</body>
+</html>

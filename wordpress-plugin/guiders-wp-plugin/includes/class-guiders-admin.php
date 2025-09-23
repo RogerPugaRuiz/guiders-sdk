@@ -224,6 +224,50 @@ class GuidersAdmin {
             'guiders-settings',
             'guiders_welcome_messages_section'
         );
+
+        // Active Hours section
+        add_settings_section(
+            'guiders_active_hours_section',
+            __('Horarios de Activación del Chat', 'guiders-wp-plugin'),
+            array($this, 'activeHoursSectionCallback'),
+            'guiders-settings'
+        );
+
+        // Active hours enabled field
+        add_settings_field(
+            'active_hours_enabled',
+            __('Habilitar Horarios de Activación', 'guiders-wp-plugin'),
+            array($this, 'activeHoursEnabledFieldCallback'),
+            'guiders-settings',
+            'guiders_active_hours_section'
+        );
+
+        // Active hours timezone field
+        add_settings_field(
+            'active_hours_timezone',
+            __('Zona Horaria', 'guiders-wp-plugin'),
+            array($this, 'activeHoursTimezoneFieldCallback'),
+            'guiders-settings',
+            'guiders_active_hours_section'
+        );
+
+        // Active hours ranges field
+        add_settings_field(
+            'active_hours_ranges',
+            __('Rangos de Horarios', 'guiders-wp-plugin'),
+            array($this, 'activeHoursRangesFieldCallback'),
+            'guiders-settings',
+            'guiders_active_hours_section'
+        );
+
+        // Active hours fallback message field
+        add_settings_field(
+            'active_hours_fallback_message',
+            __('Mensaje cuando Chat no está Disponible', 'guiders-wp-plugin'),
+            array($this, 'activeHoursFallbackMessageFieldCallback'),
+            'guiders-settings',
+            'guiders_active_hours_section'
+        );
     }
     
     /**
@@ -323,6 +367,49 @@ class GuidersAdmin {
             $validated['welcome_message_business_template'] = $input['welcome_message_business_template'];
         } else {
             $validated['welcome_message_business_template'] = '';
+        }
+
+        // Validate active hours settings
+        $validated['active_hours_enabled'] = isset($input['active_hours_enabled']) ? true : false;
+        
+        // Validate timezone
+        if (isset($input['active_hours_timezone'])) {
+            $validated['active_hours_timezone'] = sanitize_text_field($input['active_hours_timezone']);
+        } else {
+            $validated['active_hours_timezone'] = '';
+        }
+        
+        // Validate fallback message
+        if (isset($input['active_hours_fallback_message'])) {
+            $validated['active_hours_fallback_message'] = sanitize_textarea_field($input['active_hours_fallback_message']);
+        } else {
+            $validated['active_hours_fallback_message'] = '';
+        }
+        
+        // Validate active hours ranges (JSON format)
+        if (isset($input['active_hours_ranges'])) {
+            $ranges_json = stripslashes($input['active_hours_ranges']);
+            $ranges = json_decode($ranges_json, true);
+            
+            if (json_last_error() === JSON_ERROR_NONE && is_array($ranges)) {
+                // Validate each range
+                $valid_ranges = array();
+                foreach ($ranges as $range) {
+                    if (isset($range['start']) && isset($range['end']) && 
+                        preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $range['start']) &&
+                        preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $range['end'])) {
+                        $valid_ranges[] = array(
+                            'start' => sanitize_text_field($range['start']),
+                            'end' => sanitize_text_field($range['end'])
+                        );
+                    }
+                }
+                $validated['active_hours_ranges'] = json_encode($valid_ranges);
+            } else {
+                $validated['active_hours_ranges'] = '[]';
+            }
+        } else {
+            $validated['active_hours_ranges'] = '[]';
         }
         
         return $validated;
@@ -578,6 +665,171 @@ class GuidersAdmin {
             });
         });
         </script>';
+    }
+
+    // === Active Hours Field Callbacks ===
+
+    /**
+     * Active hours section callback
+     */
+    public function activeHoursSectionCallback() {
+        echo '<p>' . __('Configure los horarios en los que el chat estará disponible para sus visitantes. Fuera de estos horarios, el chat estará oculto.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Active hours enabled field callback
+     */
+    public function activeHoursEnabledFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $enabled = isset($settings['active_hours_enabled']) ? $settings['active_hours_enabled'] : false;
+        
+        echo '<input type="checkbox" id="active_hours_enabled" name="guiders_wp_plugin_settings[active_hours_enabled]" value="1" ' . checked($enabled, true, false) . ' />';
+        echo '<label for="active_hours_enabled">' . __('Activar restricción por horarios', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('Si está desactivado, el chat estará disponible las 24 horas.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Active hours timezone field callback
+     */
+    public function activeHoursTimezoneFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $timezone = isset($settings['active_hours_timezone']) ? $settings['active_hours_timezone'] : '';
+        
+        // Get common timezones
+        $timezones = array(
+            '' => __('-- Usar zona horaria local del navegador --', 'guiders-wp-plugin'),
+            'America/New_York' => __('America/New_York (EST/EDT)', 'guiders-wp-plugin'),
+            'America/Chicago' => __('America/Chicago (CST/CDT)', 'guiders-wp-plugin'),
+            'America/Denver' => __('America/Denver (MST/MDT)', 'guiders-wp-plugin'),
+            'America/Los_Angeles' => __('America/Los_Angeles (PST/PDT)', 'guiders-wp-plugin'),
+            'America/Mexico_City' => __('America/Mexico_City (México)', 'guiders-wp-plugin'),
+            'America/Bogota' => __('America/Bogota (Colombia)', 'guiders-wp-plugin'),
+            'America/Lima' => __('America/Lima (Perú)', 'guiders-wp-plugin'),
+            'America/Argentina/Buenos_Aires' => __('America/Argentina/Buenos_Aires (Argentina)', 'guiders-wp-plugin'),
+            'America/Sao_Paulo' => __('America/Sao_Paulo (Brasil)', 'guiders-wp-plugin'),
+            'Europe/Madrid' => __('Europe/Madrid (España)', 'guiders-wp-plugin'),
+            'Europe/London' => __('Europe/London (Reino Unido)', 'guiders-wp-plugin'),
+            'Europe/Paris' => __('Europe/Paris (Francia)', 'guiders-wp-plugin'),
+            'UTC' => __('UTC (Tiempo Universal Coordinado)', 'guiders-wp-plugin')
+        );
+        
+        echo '<select id="active_hours_timezone" name="guiders_wp_plugin_settings[active_hours_timezone]">';
+        foreach ($timezones as $value => $label) {
+            echo '<option value="' . esc_attr($value) . '" ' . selected($timezone, $value, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . __('Seleccione la zona horaria para interpretar los horarios configurados. Si no se especifica, se usará la zona horaria local del navegador del visitante.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Active hours ranges field callback
+     */
+    public function activeHoursRangesFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $ranges_json = isset($settings['active_hours_ranges']) ? $settings['active_hours_ranges'] : '[]';
+        $ranges = json_decode($ranges_json, true);
+        if (!is_array($ranges)) {
+            $ranges = array();
+        }
+        
+        echo '<div id="active-hours-ranges-container">';
+        echo '<div id="active-hours-ranges">';
+        
+        if (empty($ranges)) {
+            // Default example range
+            $ranges = array(array('start' => '09:00', 'end' => '18:00'));
+        }
+        
+        foreach ($ranges as $index => $range) {
+            echo '<div class="active-hours-range" data-index="' . $index . '">';
+            echo '<label>' . __('Desde:', 'guiders-wp-plugin') . '</label> ';
+            echo '<input type="time" class="range-start" value="' . esc_attr($range['start']) . '" /> ';
+            echo '<label>' . __('Hasta:', 'guiders-wp-plugin') . '</label> ';
+            echo '<input type="time" class="range-end" value="' . esc_attr($range['end']) . '" /> ';
+            echo '<button type="button" class="button remove-range">' . __('Eliminar', 'guiders-wp-plugin') . '</button>';
+            echo '</div>';
+        }
+        
+        echo '</div>';
+        echo '<button type="button" id="add-range" class="button">' . __('+ Agregar horario', 'guiders-wp-plugin') . '</button>';
+        echo '</div>';
+        
+        echo '<input type="hidden" id="active_hours_ranges" name="guiders_wp_plugin_settings[active_hours_ranges]" value="' . esc_attr($ranges_json) . '" />';
+        
+        echo '<p class="description">' . __('Configure uno o más rangos de horarios. Ejemplo: 08:00-14:00 y 15:00-17:00 para horario partido.', 'guiders-wp-plugin') . '</p>';
+        
+        // JavaScript for managing ranges
+        echo '<script>
+        jQuery(document).ready(function($) {
+            function updateRangesInput() {
+                var ranges = [];
+                $("#active-hours-ranges .active-hours-range").each(function() {
+                    var start = $(this).find(".range-start").val();
+                    var end = $(this).find(".range-end").val();
+                    if (start && end) {
+                        ranges.push({start: start, end: end});
+                    }
+                });
+                $("#active_hours_ranges").val(JSON.stringify(ranges));
+            }
+            
+            $("#add-range").click(function() {
+                var index = $("#active-hours-ranges .active-hours-range").length;
+                var rangeHtml = \'<div class="active-hours-range" data-index="\' + index + \'">\' +
+                    \'<label>' . __('Desde:', 'guiders-wp-plugin') . '</label> \' +
+                    \'<input type="time" class="range-start" value="09:00" /> \' +
+                    \'<label>' . __('Hasta:', 'guiders-wp-plugin') . '</label> \' +
+                    \'<input type="time" class="range-end" value="18:00" /> \' +
+                    \'<button type="button" class="button remove-range">' . __('Eliminar', 'guiders-wp-plugin') . '</button>\' +
+                    \'</div>\';
+                $("#active-hours-ranges").append(rangeHtml);
+                updateRangesInput();
+            });
+            
+            $(document).on("click", ".remove-range", function() {
+                $(this).closest(".active-hours-range").remove();
+                updateRangesInput();
+            });
+            
+            $(document).on("change", ".range-start, .range-end", function() {
+                updateRangesInput();
+            });
+            
+            // Initialize
+            updateRangesInput();
+        });
+        </script>';
+        
+        echo '<style>
+        .active-hours-range {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        .active-hours-range label {
+            margin-left: 10px;
+            margin-right: 5px;
+        }
+        .active-hours-range input[type="time"] {
+            margin-right: 10px;
+        }
+        #add-range {
+            margin-top: 10px;
+        }
+        </style>';
+    }
+
+    /**
+     * Active hours fallback message field callback
+     */
+    public function activeHoursFallbackMessageFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $message = isset($settings['active_hours_fallback_message']) ? $settings['active_hours_fallback_message'] : '';
+        
+        echo '<textarea id="active_hours_fallback_message" name="guiders_wp_plugin_settings[active_hours_fallback_message]" rows="3" cols="50" class="large-text">' . esc_textarea($message) . '</textarea>';
+        echo '<p class="description">' . __('Mensaje que se mostrará cuando el chat no esté disponible por horarios. Si se deja vacío, se usará un mensaje predeterminado.', 'guiders-wp-plugin') . '</p>';
     }
     
     /**
