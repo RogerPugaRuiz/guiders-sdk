@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Renderizado Unificado de Mensajes</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 50px auto; 
+            padding: 20px; 
+            background: #f8f9fa;
+        }
+        .test-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status { 
+            padding: 12px; 
+            margin: 10px 0; 
+            border-radius: 6px; 
+            font-size: 14px;
+        }
+        .pass { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .fail { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { 
+            background: linear-gradient(145deg, #007bff, #0056b3); 
+            color: white; 
+            border: none; 
+            padding: 12px 20px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            margin: 5px; 
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        button:hover { 
+            transform: translateY(-1px); 
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3); 
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 { color: #2c3e50; }
+        h1 { border-bottom: 3px solid #007bff; padding-bottom: 10px; }
+        pre { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 6px; 
+            font-size: 13px; 
+            overflow-x: auto; 
+            border-left: 4px solid #007bff;
+        }
+        .test-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+            margin: 10px 0;
+            transition: border-color 0.2s ease;
+        }
+        .test-input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .comparison-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+        .comparison-section h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de Renderizado Unificado de Mensajes</h1>
+    
+    <div class="test-controls">
+        <div class="info">
+            <h3>📋 Instrucciones del Test:</h3>
+            <ol>
+                <li><strong>Abrir herramientas de desarrollador</strong> y observar la consola</li>
+                <li><strong>Inicializar SDK</strong> - debe mostrar chat inicializado</li>
+                <li><strong>Cargar mensajes dinámicos</strong> - observar estilo y animaciones</li>
+                <li><strong>Enviar mensaje nuevo</strong> - debe verse IDÉNTICO a los cargados</li>
+                <li><strong>Comparar visualmente</strong> - ambos tipos deben usar los mismos estilos modernos</li>
+            </ol>
+        </div>
+        
+        <div>
+            <button onclick="initializeSDK()" id="init-btn">🚀 Inicializar SDK</button>
+            <button onclick="loadDynamicMessages()" id="load-btn" disabled>📥 Cargar Mensajes Dinámicos</button>
+            <button onclick="openChat()" id="chat-btn" disabled>💬 Abrir Chat</button>
+            <button onclick="showDeveloperInfo()" id="info-btn">🔍 Info del Desarrollador</button>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <input type="text" 
+                   id="message-input" 
+                   class="test-input" 
+                   placeholder="Escribe un mensaje para enviar..." 
+                   disabled>
+            <button onclick="sendTestMessage()" id="send-btn" disabled>📤 Enviar Mensaje de Prueba</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Estado del Test</h2>
+        <div id="status"></div>
+        <div id="logs"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 Comparación Visual</h2>
+        <p>Una vez que hayas cargado mensajes dinámicos y enviado mensajes nuevos, observa que:</p>
+        <div class="comparison-grid">
+            <div class="comparison-section">
+                <h3>✅ Mensajes Cargados Dinámicamente</h3>
+                <ul>
+                    <li>Deben usar estructura <code>modern-message</code></li>
+                    <li>Animación <code>messageSlideIn</code></li>
+                    <li>Estilos modernos con gradientes</li>
+                    <li>Efectos hover suaves</li>
+                </ul>
+            </div>
+            <div class="comparison-section">
+                <h3>✅ Mensajes Enviados en Tiempo Real</h3>
+                <ul>
+                    <li>Deben usar EXACTAMENTE la misma estructura</li>
+                    <li>Misma animación de entrada</li>
+                    <li>Mismos estilos visuales</li>
+                    <li>Mismos efectos hover</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🛠️ Log de Eventos</h2>
+        <pre id="event-log"></pre>
+    </div>
+
+    <!-- SDK del chat -->
+    <script src="/dist/index.js" data-api-key="demo-test-key"></script>
+    
+    <script>
+        let sdk = null;
+        let chatInstance = null;
+        let messageCount = 0;
+        
+        // Log de eventos
+        function logEvent(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('event-log');
+            const existingLog = logElement.textContent;
+            logElement.textContent = `[${timestamp}] ${type.toUpperCase()}: ${message}\n${existingLog}`;
+            
+            // También mostrar en estado
+            updateStatus(message, type);
+            console.log(`🧪 [Test] ${message}`, { type, timestamp });
+        }
+
+        function updateStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            const statusClass = type === 'error' ? 'fail' : type === 'success' ? 'pass' : 'info';
+            statusDiv.innerHTML = `<div class="${statusClass}">${message}</div>`;
+        }
+
+        async function initializeSDK() {
+            try {
+                logEvent('Inicializando SDK...', 'info');
+                
+                // Esperar a que el SDK se cargue completamente
+                let attempts = 0;
+                const maxAttempts = 10;
+                
+                while (attempts < maxAttempts) {
+                    if (window.guiders && window.guiders.trackingPixelSDK) {
+                        sdk = window.guiders;
+                        logEvent('✅ SDK cargado correctamente', 'success');
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    attempts++;
+                }
+                
+                if (!sdk) {
+                    logEvent('❌ SDK no encontrado después de 5 segundos', 'error');
+                    return;
+                }
+                
+                // Habilitar modo debug
+                if (sdk.enableDebugMode) {
+                    sdk.enableDebugMode();
+                    logEvent('🔧 Modo debug habilitado', 'info');
+                }
+                
+                // Intentar obtener instancia del chat
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Dar más tiempo para inicializar
+                
+                if (sdk.chatUI) {
+                    chatInstance = sdk.chatUI;
+                    logEvent('💬 Instancia de chat obtenida', 'success');
+                    
+                    // Habilitar botones
+                    document.getElementById('load-btn').disabled = false;
+                    document.getElementById('chat-btn').disabled = false;
+                    document.getElementById('message-input').disabled = false;
+                    document.getElementById('send-btn').disabled = false;
+                    document.getElementById('init-btn').disabled = true;
+                    
+                } else {
+                    logEvent('⚠️ Chat UI no disponible aún', 'error');
+                    logEvent('🔍 Propiedades disponibles: ' + Object.keys(sdk).join(', '), 'info');
+                }
+            } catch (error) {
+                logEvent(`❌ Error inicializando SDK: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadDynamicMessages() {
+            try {
+                logEvent('📥 Cargando mensajes dinámicos...', 'info');
+                
+                if (!chatInstance) {
+                    logEvent('❌ Chat no inicializado', 'error');
+                    return;
+                }
+
+                // Simular carga de mensajes usando el mismo método que usa el SDK internamente
+                if (sdk && sdk.loadChatMessagesOnOpen && chatInstance) {
+                    await sdk.loadChatMessagesOnOpen(chatInstance);
+                    logEvent('✅ Mensajes dinámicos cargados (vía loadChatMessagesOnOpen)', 'success');
+                } else {
+                    // Fallback: agregar mensajes de prueba directamente
+                    const testMessages = [
+                        { text: '¡Hola! Soy un mensaje cargado dinámicamente 1', sender: 'other', timestamp: Date.now() - 10000 },
+                        { text: 'Este es mi segundo mensaje dinámico', sender: 'other', timestamp: Date.now() - 8000 },
+                        { text: 'Respuesta del usuario cargada dinámicamente', sender: 'user', timestamp: Date.now() - 6000 },
+                        { text: 'Mensaje final cargado dinámicamente', sender: 'other', timestamp: Date.now() - 4000 }
+                    ];
+
+                    for (const message of testMessages) {
+                        chatInstance.renderChatMessage(message);
+                        await new Promise(resolve => setTimeout(resolve, 500)); // Pequeña pausa para ver la animación
+                    }
+                    
+                    logEvent('✅ Mensajes de prueba cargados directamente', 'success');
+                }
+
+                logEvent('🎨 Verifica que los mensajes usen estructura "modern-message"', 'info');
+                
+            } catch (error) {
+                logEvent(`❌ Error cargando mensajes: ${error.message}`, 'error');
+            }
+        }
+
+        function openChat() {
+            try {
+                if (chatInstance && chatInstance.show) {
+                    chatInstance.show();
+                    logEvent('💬 Chat abierto', 'success');
+                } else if (sdk && sdk.showChat) {
+                    sdk.showChat();
+                    logEvent('💬 Chat abierto (vía SDK)', 'success');
+                } else {
+                    logEvent('❌ No se pudo abrir el chat', 'error');
+                }
+            } catch (error) {
+                logEvent(`❌ Error abriendo chat: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendTestMessage() {
+            try {
+                const input = document.getElementById('message-input');
+                const message = input.value.trim();
+                
+                if (!message) {
+                    logEvent('⚠️ Escribe un mensaje primero', 'error');
+                    return;
+                }
+
+                logEvent(`📤 Enviando mensaje: "${message}"`, 'info');
+
+                if (chatInstance && chatInstance.renderChatMessage) {
+                    // Simular envío de mensaje como lo hace chat-input.ts
+                    chatInstance.renderChatMessage({ 
+                        text: message, 
+                        sender: 'user',
+                        timestamp: Date.now()
+                    });
+                    
+                    input.value = '';
+                    messageCount++;
+                    
+                    logEvent(`✅ Mensaje enviado correctamente (#${messageCount})`, 'success');
+                    logEvent('🎨 Compara visualmente con mensajes cargados dinámicamente', 'info');
+                    
+                    // Respuesta automática después de 2 segundos
+                    setTimeout(() => {
+                        chatInstance.renderChatMessage({ 
+                            text: `Respuesta automática a tu mensaje #${messageCount}`, 
+                            sender: 'other',
+                            timestamp: Date.now()
+                        });
+                        logEvent('🤖 Respuesta automática agregada', 'info');
+                    }, 2000);
+                    
+                } else {
+                    logEvent('❌ No se pudo enviar el mensaje - chat no disponible', 'error');
+                }
+
+            } catch (error) {
+                logEvent(`❌ Error enviando mensaje: ${error.message}`, 'error');
+            }
+        }
+
+        function showDeveloperInfo() {
+            logEvent('🔍 Información del desarrollador:', 'info');
+            
+            const info = {
+                SDK: !!window.guiders,
+                ChatUI: !!chatInstance,
+                MessagesContainer: !!chatInstance?.getMessagesContainer?.(),
+                ModernAnimations: !!document.getElementById('modern-message-animations'),
+                LoadFunction: !!sdk?.loadChatMessagesOnOpen
+            };
+
+            logEvent(`Estado del SDK: ${JSON.stringify(info, null, 2)}`, 'info');
+            
+            // Verificar elementos en el DOM
+            const modernMessages = document.querySelectorAll('.modern-message');
+            const legacyMessages = document.querySelectorAll('.chat-message-wrapper');
+            
+            logEvent(`Mensajes modernos encontrados: ${modernMessages.length}`, 'info');
+            logEvent(`Mensajes legacy encontrados: ${legacyMessages.length}`, 'info');
+            
+            if (modernMessages.length > 0) {
+                logEvent('✅ Se están usando estilos modernos', 'success');
+            } else if (legacyMessages.length > 0) {
+                logEvent('⚠️ Se están usando estilos legacy', 'error');
+            } else {
+                logEvent('📭 No hay mensajes en el DOM', 'info');
+            }
+        }
+
+        // Permitir envío con Enter
+        document.getElementById('message-input').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendTestMessage();
+            }
+        });
+
+        // Inicializar automáticamente al cargar
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                logEvent('🌐 Página cargada, listo para pruebas', 'info');
+                logEvent('👆 Presiona "Inicializar SDK" para comenzar', 'info');
+            }, 500);
+        });
+    </script>
+</body>
+</html>

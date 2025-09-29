@@ -69,12 +69,51 @@ if (!defined('ABSPATH')) {
             </div>
             
             <div class="guiders-info-box">
+                <h3><?php _e('Información del Plugin', 'guiders-wp-plugin'); ?></h3>
+                <p><strong><?php _e('Versión actual:', 'guiders-wp-plugin'); ?></strong> v<?php echo GUIDERS_WP_PLUGIN_VERSION; ?></p>
+                
+                <?php 
+                // Check if there's an update available
+                $update_plugins = get_site_transient('update_plugins');
+                $plugin_basename = plugin_basename(GUIDERS_WP_PLUGIN_PLUGIN_FILE);
+                $has_update = isset($update_plugins->response[$plugin_basename]);
+                
+                if ($has_update) {
+                    $update_info = $update_plugins->response[$plugin_basename];
+                    echo '<div class="notice notice-warning inline" style="margin: 10px 0; padding: 8px 12px;">';
+                    printf(
+                        __('🔄 <strong>Nueva versión disponible:</strong> v%s', 'guiders-wp-plugin'),
+                        esc_html($update_info->new_version)
+                    );
+                    echo '<br><a href="' . admin_url('plugins.php') . '">' . __('Ir a actualizaciones', 'guiders-wp-plugin') . '</a>';
+                    echo '</div>';
+                } else {
+                    echo '<p style="color: #46b450;">✅ ' . __('Plugin actualizado', 'guiders-wp-plugin') . '</p>';
+                }
+                ?>
+                
+                <p>
+                    <a href="<?php echo admin_url('plugins.php?force-check=1'); ?>" class="button button-secondary">
+                        <?php _e('🔍 Verificar actualizaciones', 'guiders-wp-plugin'); ?>
+                    </a>
+                </p>
+                
+                <hr style="margin: 15px 0;">
+                
+                <p><strong><?php _e('Actualizaciones automáticas:', 'guiders-wp-plugin'); ?></strong></p>
+                <p class="description">
+                    <?php _e('Este plugin se actualiza automáticamente desde GitHub. Cuando haya una nueva versión disponible, aparecerá una notificación en tu panel de WordPress y podrás actualizar con un clic.', 'guiders-wp-plugin'); ?>
+                </p>
+            </div>
+            
+            <div class="guiders-info-box">
                 <h3><?php _e('Soporte y Documentación', 'guiders-wp-plugin'); ?></h3>
                 <p><?php _e('¿Necesitas ayuda?', 'guiders-wp-plugin'); ?></p>
                 <ul>
                     <li><a href="https://github.com/RogerPugaRuiz/guiders-sdk" target="_blank"><?php _e('📚 Documentación completa', 'guiders-wp-plugin'); ?></a></li>
                     <li><a href="https://guiders.ancoradual.com" target="_blank"><?php _e('🌐 Sitio web oficial', 'guiders-wp-plugin'); ?></a></li>
                     <li><a href="https://github.com/RogerPugaRuiz/guiders-sdk/issues" target="_blank"><?php _e('🐛 Reportar problemas', 'guiders-wp-plugin'); ?></a></li>
+                    <li><a href="https://github.com/RogerPugaRuiz/guiders-sdk/releases" target="_blank"><?php _e('📋 Ver versiones y cambios', 'guiders-wp-plugin'); ?></a></li>
                 </ul>
             </div>
         </div>

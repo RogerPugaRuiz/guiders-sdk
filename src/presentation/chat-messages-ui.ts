@@ -1,5 +1,6 @@
 import { MessagePaginationService } from '../services/message-pagination-service';
 import { MessageV2, MessageListResponse } from '../types';
+import { MessageRenderer } from './utils/message-renderer';
 
 /**
  * Componente de UI de mensajes con scroll infinito
@@ -291,43 +292,9 @@ export class ChatMessagesUI {
      * Crea un elemento HTML para un mensaje con diseño moderno
      */
     public createMessageElement(message: MessageV2): HTMLElement {
-        const messageDiv = document.createElement('div');
-        messageDiv.setAttribute('data-message-id', message.id);
-        
-        // Determinar si es mensaje del usuario o de otro
-        const isUserMessage = this.isUserMessage(message);
-        
-        // Estructura moderna unificada para todos los mensajes
-        messageDiv.className = `modern-message ${isUserMessage ? 'user-message' : 'other-message'}`;
-        
-        // Avatar/Indicador (solo para mensajes de otros)
-        const avatarHtml = !isUserMessage ? `
-            <div class="message-avatar">
-                <div class="avatar-circle">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L19 8V15.5L17.5 14L16 14L10.5 19.5L10.5 16L12 14.5L14 15V9H21ZM3 13V11L1 12V21H3V13Z" fill="currentColor"/>
-                    </svg>
-                </div>
-            </div>
-        ` : '';
-        
-        messageDiv.innerHTML = `
-            ${avatarHtml}
-            <div class="message-bubble">
-                <div class="message-content">
-                    <div class="message-text">${this.escapeHtml(message.content)}</div>
-                </div>
-                <div class="message-metadata">
-                    <span class="message-time">${this.formatMessageTime(message.createdAt)}</span>
-                    ${isUserMessage ? '<span class="message-status">✓</span>' : ''}
-                </div>
-            </div>
-        `;
-        
-        // Aplicar estilos modernos
-        this.applyModernMessageStyles(messageDiv, isUserMessage);
-        
-        return messageDiv;
+        // ✅ USAR FUNCIÓN UNIFICADA - Garantiza el mismo estilo que mensajes enviados nuevos
+        const messageData = MessageRenderer.fromMessageV2(message);
+        return MessageRenderer.createMessageElement(messageData);
     }
 
     /**

@@ -9,6 +9,7 @@ import { WelcomeMessageManager, WelcomeMessageConfig } from "../../core/welcome-
 // Importar tipos y utilidades
 import { ChatUIOptions, Sender, ChatMessageParams, ActiveInterval } from '../types/chat-types';
 import { formatTime, formatDate, isBot, generateInitials, createDateSeparator } from '../utils/chat-utils';
+import { MessageRenderer, MessageRenderData } from '../utils/message-renderer';
 
 /**
  * Clase ChatUI para renderizar mensajes en el chat.
@@ -374,14 +375,20 @@ export class ChatUI {
 				padding: 12px 16px;
 				background: #ffffff;
 				border-top: 1px solid #e1e9f1;
+				display: -webkit-flex;
 				display: flex;
+				-webkit-align-items: center;
 				align-items: center;
 				gap: 8px;
 				border-bottom-left-radius: 20px;
 				border-bottom-right-radius: 20px;
+				/* Fix Safari: Asegurar que el contenedor mantenga su altura */
+				min-height: 60px;
+				box-sizing: border-box;
 			}
 			
 			.chat-input-field {
+				-webkit-flex: 1;
 				flex: 1;
 				border: 1px solid #e1e9f1;
 				border-radius: 20px;
@@ -392,6 +399,9 @@ export class ChatUI {
 				background: #f8fafb;
 				color: #333;
 				transition: all 0.2s ease;
+				/* Fix Safari: Asegurar que el input no cause overflow */
+				min-width: 0;
+				box-sizing: border-box;
 			}
 			
 			.chat-input-field:focus {
@@ -405,6 +415,7 @@ export class ChatUI {
 			}
 			
 			.chat-send-btn {
+				background: -webkit-linear-gradient(145deg, #0084ff, #00c6fb);
 				background: linear-gradient(145deg, #0084ff, #00c6fb);
 				color: white;
 				border: none;
@@ -412,19 +423,34 @@ export class ChatUI {
 				width: 36px;
 				height: 36px;
 				cursor: pointer;
+				display: -webkit-flex;
 				display: flex;
+				-webkit-align-items: center;
 				align-items: center;
+				-webkit-justify-content: center;
 				justify-content: center;
 				transition: all 0.2s ease;
+				-webkit-flex-shrink: 0;
 				flex-shrink: 0;
+				/* Fix Safari: Asegurar dimensiones exactas y prevenir compresión */
+				min-width: 36px;
+				min-height: 36px;
+				max-width: 36px;
+				max-height: 36px;
+				box-sizing: border-box;
+				/* Asegurar que el botón mantenga su posición */
+				margin-left: auto;
 			}
 			
 			.chat-send-btn:hover {
+				background: -webkit-linear-gradient(145deg, #0090ff, #00d6fb);
 				background: linear-gradient(145deg, #0090ff, #00d6fb);
+				-webkit-transform: scale(1.05);
 				transform: scale(1.05);
 			}
 			
 			.chat-send-btn:active {
+				-webkit-transform: scale(0.95);
 				transform: scale(0.95);
 			}
 			
@@ -604,72 +630,29 @@ export class ChatUI {
 	}
 
 	private createMessageDiv(text: string, sender: Sender, timestamp?: number, senderId?: string): HTMLDivElement {
-		// Usar la MISMA estructura HTML que ChatMessagesUI.createMessageElement para consistencia
-		const wrapperDiv = document.createElement('div');
-		wrapperDiv.classList.add('chat-message-wrapper');
-
-		if (timestamp) {
-			wrapperDiv.setAttribute('data-timestamp', timestamp.toString());
+		// ✅ USAR FUNCIÓN UNIFICADA - Garantiza el mismo estilo que mensajes cargados dinámicamente
+		const messageData: MessageRenderData = {
+			content: text,
+			sender: this.mapSenderType(sender), // Mapear tipos compatibles
+			timestamp: timestamp,
+			senderId: senderId
+		};
+		
+		return MessageRenderer.createMessageElement(messageData);
+	}
+	
+	/**
+	 * Mapea el tipo Sender local al tipo MessageRenderer.Sender
+	 */
+	private mapSenderType(sender: Sender): import('../utils/message-renderer').Sender {
+		switch (sender) {
+			case 'user':
+				return 'user';
+			case 'other':
+				return 'agent';
+			default:
+				return 'agent';
 		}
-
-		if (sender === 'user') {
-			// Usar EXACTAMENTE la misma estructura que ChatMessagesUI para mensajes de usuario
-			wrapperDiv.classList.add('chat-message-user-wrapper');
-
-			const messageDiv = document.createElement('div');
-			messageDiv.classList.add('chat-message', 'chat-message-user');
-			messageDiv.textContent = text;
-			wrapperDiv.appendChild(messageDiv);
-
-			const timeDiv = document.createElement('div');
-			timeDiv.classList.add('chat-message-time');
-			timeDiv.textContent = formatTime(timestamp ? new Date(timestamp) : new Date());
-			wrapperDiv.appendChild(timeDiv);
-
-		} else {
-			// Usar la misma estructura que ChatMessagesUI para mensajes de otros
-			wrapperDiv.classList.add('chat-message-other-wrapper');
-
-			const avatarDiv = document.createElement('div');
-			avatarDiv.classList.add('chat-avatar');
-
-			const participantInitials = this.getParticipantInitials(senderId || '');
-			avatarDiv.textContent = participantInitials;
-			avatarDiv.style.display = 'flex';
-			avatarDiv.style.alignItems = 'center';
-			avatarDiv.style.justifyContent = 'center';
-			avatarDiv.style.color = '#0062cc';
-			avatarDiv.style.fontWeight = '600';
-			avatarDiv.style.fontSize = '10px';
-
-			wrapperDiv.appendChild(avatarDiv);
-
-			const contentDiv = document.createElement('div');
-
-			const nameDiv = document.createElement('div');
-			nameDiv.classList.add('chat-message-name');
-			const participantName = this.getParticipantName(senderId || '');
-			nameDiv.textContent = participantName;
-			nameDiv.style.fontSize = '11px';
-			nameDiv.style.color = '#5a6877';
-			nameDiv.style.marginBottom = '3px';
-			nameDiv.style.fontWeight = '500';
-			contentDiv.appendChild(nameDiv);
-
-			const messageDiv = document.createElement('div');
-			messageDiv.classList.add('chat-message', 'chat-message-other');
-			messageDiv.textContent = text;
-			contentDiv.appendChild(messageDiv);
-
-			const timeDiv = document.createElement('div');
-			timeDiv.classList.add('chat-message-time');
-			timeDiv.textContent = formatTime(timestamp ? new Date(timestamp) : new Date());
-			contentDiv.appendChild(timeDiv);
-
-			wrapperDiv.appendChild(contentDiv);
-		}
-
-		return wrapperDiv;
 	}
 
 	private getParticipantInitials(senderId: string): string {
@@ -691,6 +674,242 @@ export class ChatUI {
 		}
 
 		return generateInitials(participant.name);
+	}
+
+	/**
+	 * Escapa HTML para prevenir XSS (adaptado de ChatMessagesUI)
+	 */
+	private escapeHtml(text: string): string {
+		const div = document.createElement('div');
+		div.textContent = text;
+		return div.innerHTML;
+	}
+
+	/**
+	 * Aplica estilos CSS modernos a un mensaje (adaptado de ChatMessagesUI)
+	 */
+	private applyModernMessageStyles(messageDiv: HTMLElement, isUserMessage: boolean): void {
+		const avatar = messageDiv.querySelector('.message-avatar') as HTMLElement;
+		const bubble = messageDiv.querySelector('.message-bubble') as HTMLElement;
+		const content = messageDiv.querySelector('.message-content') as HTMLElement;
+		const text = messageDiv.querySelector('.message-text') as HTMLElement;
+		const metadata = messageDiv.querySelector('.message-metadata') as HTMLElement;
+		const time = messageDiv.querySelector('.message-time') as HTMLElement;
+		const status = messageDiv.querySelector('.message-status') as HTMLElement;
+
+		// Estilos base del contenedor del mensaje
+		messageDiv.style.cssText = `
+			display: flex;
+			align-items: flex-end;
+			margin-bottom: 16px;
+			${isUserMessage ? 'flex-direction: row-reverse; padding-left: 60px;' : 'flex-direction: row; padding-right: 60px;'}
+			animation: messageSlideIn 0.3s ease-out;
+		`;
+
+		// Avatar (solo para mensajes de otros)
+		if (avatar) {
+			avatar.style.cssText = `
+				margin-right: 12px;
+				margin-bottom: 4px;
+			`;
+			
+			const avatarCircle = avatar.querySelector('.avatar-circle') as HTMLElement;
+			if (avatarCircle) {
+				avatarCircle.style.cssText = `
+					width: 32px;
+					height: 32px;
+					border-radius: 50%;
+					background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					color: white;
+					font-size: 12px;
+					font-weight: 600;
+					box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+				`;
+			}
+		}
+
+		// Burbuja del mensaje
+		if (bubble) {
+			bubble.style.cssText = `
+				position: relative;
+				max-width: 85%;
+				min-width: 120px;
+			`;
+		}
+
+		// Contenido del mensaje
+		if (content) {
+			content.style.cssText = `
+				padding: 12px 16px 8px;
+				border-radius: 20px;
+				position: relative;
+				word-break: break-word;
+				${isUserMessage ? 
+					`background: linear-gradient(145deg, #0084ff 60%, #00c6fb 100%);
+					 color: white;
+					 border-bottom-right-radius: 6px;
+					 box-shadow: 0 2px 12px rgba(0, 132, 255, 0.3);` : 
+					`background: white;
+					 color: #1d1d1f;
+					 border: 1px solid rgba(0, 0, 0, 0.08);
+					 border-bottom-left-radius: 6px;
+					 box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);`
+				}
+				backdrop-filter: blur(10px);
+				transition: all 0.2s ease;
+			`;
+		}
+
+		// Texto del mensaje
+		if (text) {
+			text.style.cssText = `
+				font-size: 15px;
+				line-height: 1.4;
+				margin: 0;
+				font-weight: 400;
+				letter-spacing: -0.01em;
+				-webkit-font-smoothing: antialiased;
+				-moz-osx-font-smoothing: grayscale;
+			`;
+		}
+
+		// Metadatos (tiempo y estado)
+		if (metadata) {
+			metadata.style.cssText = `
+				display: flex;
+				align-items: center;
+				justify-content: ${isUserMessage ? 'flex-end' : 'flex-start'};
+				gap: 6px;
+				margin-top: 2px;
+				padding: 0 4px;
+			`;
+		}
+
+		// Tiempo
+		if (time) {
+			time.style.cssText = `
+				font-size: 11px;
+				color: ${isUserMessage ? 'rgba(0, 0, 0, 0.8)' : 'rgba(60, 60, 67, 0.6)'};
+				font-weight: 500;
+				letter-spacing: 0.01em;
+			`;
+		}
+
+		// Estado del mensaje (solo para mensajes del usuario)
+		if (status) {
+			status.style.cssText = `
+				font-size: 12px;
+				color: rgba(255, 255, 255, 0.8);
+				margin-left: 2px;
+			`;
+		}
+
+		// Añadir animaciones CSS
+		this.addMessageAnimations();
+
+		// Efecto hover
+		messageDiv.addEventListener('mouseenter', () => {
+			if (content) {
+				content.style.transform = 'scale(1.02)';
+				content.style.boxShadow = isUserMessage 
+					? '0 4px 20px rgba(0, 132, 255, 0.4)'
+					: '0 2px 16px rgba(0, 0, 0, 0.12)';
+			}
+		});
+
+		messageDiv.addEventListener('mouseleave', () => {
+			if (content) {
+				content.style.transform = 'scale(1)';
+				content.style.boxShadow = isUserMessage 
+					? '0 2px 12px rgba(0, 132, 255, 0.3)'
+					: '0 1px 8px rgba(0, 0, 0, 0.08)';
+			}
+		});
+	}
+
+	/**
+	 * Añade animaciones CSS globales para mensajes (adaptado de ChatMessagesUI)
+	 */
+	private addMessageAnimations(): void {
+		// Solo añadir una vez
+		if (document.getElementById('modern-message-animations')) return;
+
+		const style = document.createElement('style');
+		style.id = 'modern-message-animations';
+		style.textContent = `
+			@keyframes messageSlideIn {
+				from {
+					opacity: 0;
+					transform: translateY(10px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+
+			.modern-message .message-content:hover {
+				transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+			}
+
+			/* Mejorar tipografía */
+			.modern-message .message-text {
+				-webkit-font-smoothing: antialiased;
+				-moz-osx-font-smoothing: grayscale;
+			}
+
+			/* Estilos responsivos */
+			@media (max-width: 480px) {
+				.modern-message {
+					padding-left: 20px !important;
+					padding-right: 20px !important;
+				}
+				
+				.modern-message .message-bubble {
+					max-width: 95% !important;
+				}
+			}
+
+			/* Fix específico para Safari */
+			@media not all and (min-resolution: 0.001dpcm) {
+				@supports (-webkit-appearance: none) {
+					.chat-input-container {
+						display: -webkit-box !important;
+						display: -webkit-flex !important;
+						-webkit-box-align: center !important;
+						-webkit-align-items: center !important;
+						position: relative !important;
+					}
+					
+					.chat-send-btn {
+						position: relative !important;
+						-webkit-flex-shrink: 0 !important;
+						flex-shrink: 0 !important;
+						width: 36px !important;
+						height: 36px !important;
+						min-width: 36px !important;
+						min-height: 36px !important;
+						display: -webkit-box !important;
+						display: -webkit-flex !important;
+						-webkit-box-pack: center !important;
+						-webkit-justify-content: center !important;
+						-webkit-box-align: center !important;
+						-webkit-align-items: center !important;
+					}
+					
+					.chat-input-field {
+						-webkit-flex: 1 1 auto !important;
+						flex: 1 1 auto !important;
+						min-width: 0 !important;
+					}
+				}
+			}
+		`;
+		
+		document.head.appendChild(style);
 	}
 
 	private getParticipantName(senderId: string): string {

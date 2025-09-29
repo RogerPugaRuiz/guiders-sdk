@@ -68,6 +68,8 @@ class GuidersWPPlugin {
         // Initialize admin
         if (is_admin()) {
             new GuidersAdmin();
+            // Initialize updater
+            new GuidersUpdater();
         }
         
         // Initialize public
@@ -82,6 +84,7 @@ class GuidersWPPlugin {
     private function loadDependencies() {
         require_once GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'includes/class-guiders-admin.php';
         require_once GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'includes/class-guiders-public.php';
+        require_once GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'includes/class-guiders-updater.php';
     }
     
     /**
