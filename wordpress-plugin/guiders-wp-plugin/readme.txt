@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.4-alpha.13
+Stable tag: 1.0.5
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -150,7 +150,7 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 
 == Changelog ==
 
-= 1.0.4-alpha.13 =
+= 1.0.5 =
 * **Fix crítico**: Corregido sistema de mensajes de bienvenida que no aparecía en chats vacíos
 * **Mejora UX**: Eliminadas animaciones de hover en mensajes del chat para experiencia más estable
 * Los mensajes de bienvenida ahora aparecen automáticamente al abrir el chat por primera vez
