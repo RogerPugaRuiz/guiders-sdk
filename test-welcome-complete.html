@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Completo: Mensajes de Bienvenida</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f8ff;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-group {
+            background: #f8f9fa;
+            margin: 15px 0;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        button:hover { background: #0056b3; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #a71d2a; }
+        button.success { background: #28a745; }
+        button.success:hover { background: #1e7e34; }
+        .status {
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        .log-container {
+            background: #212529;
+            color: #ffffff;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Completo: Sistema de Mensajes de Bienvenida</h1>
+        <p>Verifica que los mensajes de bienvenida funcionen en todos los escenarios</p>
+        
+        <!-- Test 1: Chat sin chatId (nueva visita) -->
+        <div class="test-group">
+            <h3>🆕 Test 1: Chat Sin ChatId (Nueva Visita)</h3>
+            <p>Simula cuando un usuario visita por primera vez y no hay chatId previo</p>
+            <div class="controls">
+                <button onclick="testNewVisitorChat()">🚀 Test Nueva Visita</button>
+                <button onclick="clearAllStorage()" class="danger">🧹 Limpiar Storage</button>
+                <button onclick="reloadSDK()" class="warning">🔄 Recargar SDK</button>
+            </div>
+            <div id="test1-status"></div>
+        </div>
+
+        <!-- Test 2: Chat con chatId pero sin mensajes -->
+        <div class="test-group">
+            <h3>💬 Test 2: Chat Existente Sin Mensajes</h3>
+            <p>Simula cuando hay un chatId pero el chat está vacío</p>
+            <div class="controls">
+                <button onclick="testExistingEmptyChat()">🚀 Test Chat Vacío</button>
+                <button onclick="simulateChatId()">🎯 Simular ChatId</button>
+                <button onclick="clearChatMessages()" class="danger">🧹 Limpiar Mensajes</button>
+            </div>
+            <div id="test2-status"></div>
+        </div>
+
+        <!-- Test 3: Configuración personalizada -->
+        <div class="test-group">
+            <h3>🎨 Test 3: Configuración Personalizada</h3>
+            <p>Prueba diferentes estilos y configuraciones de mensajes de bienvenida</p>
+            <div class="controls">
+                <select id="style-select">
+                    <option value="friendly">😊 Friendly</option>
+                    <option value="professional">👔 Professional</option>
+                    <option value="casual">🤙 Casual</option>
+                    <option value="helpful">🌟 Helpful</option>
+                </select>
+                <select id="language-select">
+                    <option value="es">🇪🇸 Español</option>
+                    <option value="en">🇺🇸 English</option>
+                </select>
+                <label><input type="checkbox" id="emojis-check" checked> Emojis</label>
+                <label><input type="checkbox" id="tips-check" checked> Tips</label>
+                <button onclick="testCustomConfig()" class="success">🎨 Test Personalizado</button>
+            </div>
+            <div id="test3-status"></div>
+        </div>
+
+        <!-- Controles generales -->
+        <div class="test-group">
+            <h3>🎛️ Controles Generales</h3>
+            <div class="controls">
+                <button onclick="openChat()" class="success">👁️ Abrir Chat</button>
+                <button onclick="closeChat()" class="danger">❌ Cerrar Chat</button>
+                <button onclick="forceWelcomeMessage()" class="warning">⚡ Forzar Mensaje Bienvenida</button>
+                <button onclick="inspectChatState()">🔍 Inspeccionar Estado</button>
+                <button onclick="clearLog()">🗑️ Limpiar Log</button>
+            </div>
+        </div>
+
+        <!-- Log de resultados -->
+        <div class="test-group">
+            <h3>📝 Log de Resultados</h3>
+            <div id="log-container" class="log-container">
+                Inicializando tests...\n
+            </div>
+        </div>
+    </div>
+
+    <!-- SDK -->
+    <script src="dist/index.js" data-api-key="test-complete-welcome"></script>
+    
+    <script>
+        let testResults = {
+            test1: null,
+            test2: null,
+            test3: null
+        };
+
+        // Configurar logging
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logContainer = document.getElementById('log-container');
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : '📋';
+            logContainer.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function updateTestStatus(testId, message, status) {
+            const statusEl = document.getElementById(`${testId}-status`);
+            const statusClass = status === 'success' ? 'success' : status === 'error' ? 'error' : status === 'warning' ? 'warning' : 'info';
+            
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${statusClass}`;
+            statusDiv.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            statusEl.appendChild(statusDiv);
+            
+            // Mantener solo los últimos 3 mensajes por test
+            while (statusEl.children.length > 3) {
+                statusEl.removeChild(statusEl.firstChild);
+            }
+            
+            log(`[${testId.toUpperCase()}] ${message}`, status);
+            testResults[testId] = status;
+        }
+
+        function clearLog() {
+            document.getElementById('log-container').textContent = 'Log limpiado...\n';
+        }
+
+        // Test 1: Nueva visita sin chatId
+        async function testNewVisitorChat() {
+            try {
+                updateTestStatus('test1', '🚀 Iniciando test de nueva visita...', 'info');
+                
+                // Limpiar storage para simular nueva visita
+                localStorage.removeItem('guiders_recent_chats');
+                localStorage.removeItem('guiders_initial_messages');
+                sessionStorage.clear();
+                
+                updateTestStatus('test1', '🧹 Storage limpiado para simular nueva visita', 'info');
+                
+                // Verificar SDK
+                if (!window.guiders || !window.guiders.chatUI) {
+                    updateTestStatus('test1', '❌ SDK o ChatUI no disponible', 'error');
+                    return;
+                }
+                
+                const chatUI = window.guiders.chatUI;
+                
+                // Limpiar cualquier chatId existente
+                if (chatUI.setChatId) {
+                    // No establecer chatId para simular nueva visita
+                }
+                
+                // Limpiar mensajes
+                if (chatUI.clearMessages) {
+                    chatUI.clearMessages();
+                }
+                
+                // Abrir chat
+                chatUI.show();
+                updateTestStatus('test1', '👁️ Chat abierto (sin chatId)', 'info');
+                
+                // Esperar y verificar mensaje de bienvenida
+                setTimeout(() => {
+                    const messageCount = countMessages(chatUI);
+                    if (messageCount > 0) {
+                        updateTestStatus('test1', `✅ ÉXITO: ${messageCount} mensajes de bienvenida aparecieron automáticamente`, 'success');
+                    } else {
+                        updateTestStatus('test1', '❌ FALLO: No aparecieron mensajes de bienvenida automáticos', 'error');
+                    }
+                }, 1500);
+                
+            } catch (error) {
+                updateTestStatus('test1', `❌ Error en test: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 2: Chat existente pero vacío
+        async function testExistingEmptyChat() {
+            try {
+                updateTestStatus('test2', '🚀 Iniciando test de chat existente vacío...', 'info');
+                
+                if (!window.guiders || !window.guiders.chatUI) {
+                    updateTestStatus('test2', '❌ SDK o ChatUI no disponible', 'error');
+                    return;
+                }
+                
+                const chatUI = window.guiders.chatUI;
+                
+                // Simular chatId existente
+                const simulatedChatId = 'test-chat-' + Date.now();
+                if (chatUI.setChatId) {
+                    chatUI.setChatId(simulatedChatId);
+                    updateTestStatus('test2', `🎯 ChatId simulado: ${simulatedChatId}`, 'info');
+                }
+                
+                // Limpiar mensajes para simular chat vacío
+                if (chatUI.clearMessages) {
+                    chatUI.clearMessages();
+                    updateTestStatus('test2', '🧹 Mensajes limpiados', 'info');
+                }
+                
+                // Cerrar y abrir chat para simular flujo completo
+                chatUI.hide();
+                setTimeout(() => {
+                    chatUI.show();
+                    updateTestStatus('test2', '👁️ Chat reabierto con chatId existente', 'info');
+                    
+                    // Verificar mensaje de bienvenida después de un delay
+                    setTimeout(() => {
+                        const messageCount = countMessages(chatUI);
+                        if (messageCount > 0) {
+                            updateTestStatus('test2', `✅ ÉXITO: ${messageCount} mensajes de bienvenida con chatId existente`, 'success');
+                        } else {
+                            updateTestStatus('test2', '❌ FALLO: No aparecieron mensajes de bienvenida', 'error');
+                        }
+                    }, 1500);
+                }, 500);
+                
+            } catch (error) {
+                updateTestStatus('test2', `❌ Error en test: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 3: Configuración personalizada
+        async function testCustomConfig() {
+            try {
+                updateTestStatus('test3', '🚀 Iniciando test de configuración personalizada...', 'info');
+                
+                const style = document.getElementById('style-select').value;
+                const language = document.getElementById('language-select').value;
+                const includeEmojis = document.getElementById('emojis-check').checked;
+                const showTips = document.getElementById('tips-check').checked;
+                
+                const config = {
+                    style: style,
+                    language: language,
+                    includeEmojis: includeEmojis,
+                    showTips: showTips
+                };
+                
+                updateTestStatus('test3', `🎨 Config: ${JSON.stringify(config)}`, 'info');
+                
+                if (!window.guiders || !window.guiders.trackingPixelSDK) {
+                    updateTestStatus('test3', '❌ SDK no disponible', 'error');
+                    return;
+                }
+                
+                // Aplicar configuración
+                window.guiders.trackingPixelSDK.updateWelcomeMessage(config);
+                updateTestStatus('test3', '✅ Configuración aplicada', 'info');
+                
+                // Limpiar y mostrar mensaje con nueva configuración
+                const chatUI = window.guiders.chatUI;
+                if (chatUI) {
+                    chatUI.clearMessages();
+                    chatUI.show();
+                    
+                    // Forzar mensaje de bienvenida
+                    setTimeout(() => {
+                        if (chatUI.addWelcomeMessage) {
+                            chatUI.addWelcomeMessage();
+                        }
+                        
+                        setTimeout(() => {
+                            const messageCount = countMessages(chatUI);
+                            if (messageCount > 0) {
+                                updateTestStatus('test3', `✅ ÉXITO: Configuración personalizada funcionó (${messageCount} mensajes)`, 'success');
+                                // Mostrar preview del mensaje
+                                const firstMessage = getFirstMessageText(chatUI);
+                                if (firstMessage) {
+                                    const preview = firstMessage.substring(0, 50) + '...';
+                                    updateTestStatus('test3', `📝 Preview: "${preview}"`, 'info');
+                                }
+                            } else {
+                                updateTestStatus('test3', '❌ FALLO: Configuración personalizada no funcionó', 'error');
+                            }
+                        }, 500);
+                    }, 200);
+                }
+                
+            } catch (error) {
+                updateTestStatus('test3', `❌ Error en test: ${error.message}`, 'error');
+            }
+        }
+
+        // Funciones auxiliares
+        function countMessages(chatUI) {
+            if (!chatUI || !chatUI.containerMessages) return 0;
+            
+            const messageElements = Array.from(chatUI.containerMessages.children).filter(el =>
+                el.classList && (
+                    el.classList.contains('chat-message-user-wrapper') ||
+                    el.classList.contains('chat-message-other-wrapper')
+                )
+            );
+            
+            return messageElements.length;
+        }
+
+        function getFirstMessageText(chatUI) {
+            if (!chatUI || !chatUI.containerMessages) return null;
+            
+            const messageElement = chatUI.containerMessages.querySelector('.chat-message-other-wrapper, .chat-message-user-wrapper');
+            return messageElement ? messageElement.textContent : null;
+        }
+
+        function simulateChatId() {
+            try {
+                const chatId = 'simulated-' + Date.now();
+                if (window.guiders && window.guiders.chatUI && window.guiders.chatUI.setChatId) {
+                    window.guiders.chatUI.setChatId(chatId);
+                    log(`🎯 ChatId simulado: ${chatId}`, 'info');
+                }
+            } catch (error) {
+                log(`❌ Error simulando chatId: ${error.message}`, 'error');
+            }
+        }
+
+        function clearAllStorage() {
+            localStorage.clear();
+            sessionStorage.clear();
+            log('🧹 Todo el storage limpiado', 'info');
+        }
+
+        function clearChatMessages() {
+            try {
+                if (window.guiders && window.guiders.chatUI && window.guiders.chatUI.clearMessages) {
+                    window.guiders.chatUI.clearMessages();
+                    log('🧹 Mensajes del chat limpiados', 'info');
+                }
+            } catch (error) {
+                log(`❌ Error limpiando mensajes: ${error.message}`, 'error');
+            }
+        }
+
+        function openChat() {
+            try {
+                if (window.guiders && window.guiders.chatUI) {
+                    window.guiders.chatUI.show();
+                    log('👁️ Chat abierto manualmente', 'info');
+                }
+            } catch (error) {
+                log(`❌ Error abriendo chat: ${error.message}`, 'error');
+            }
+        }
+
+        function closeChat() {
+            try {
+                if (window.guiders && window.guiders.chatUI) {
+                    window.guiders.chatUI.hide();
+                    log('❌ Chat cerrado', 'info');
+                }
+            } catch (error) {
+                log(`❌ Error cerrando chat: ${error.message}`, 'error');
+            }
+        }
+
+        function forceWelcomeMessage() {
+            try {
+                if (window.guiders && window.guiders.chatUI && window.guiders.chatUI.addWelcomeMessage) {
+                    window.guiders.chatUI.addWelcomeMessage();
+                    log('⚡ Mensaje de bienvenida forzado', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Error forzando mensaje: ${error.message}`, 'error');
+            }
+        }
+
+        function inspectChatState() {
+            try {
+                const state = {
+                    sdkAvailable: !!window.guiders?.trackingPixelSDK,
+                    chatUIAvailable: !!window.guiders?.chatUI,
+                    chatVisible: window.guiders?.chatUI?.isVisible?.(),
+                    chatId: window.guiders?.chatUI?.getChatId?.(),
+                    messageCount: window.guiders?.chatUI ? countMessages(window.guiders.chatUI) : 0
+                };
+                
+                log('🔍 Estado del chat:', 'info');
+                log(JSON.stringify(state, null, 2), 'info');
+            } catch (error) {
+                log(`❌ Error inspeccionando estado: ${error.message}`, 'error');
+            }
+        }
+
+        function reloadSDK() {
+            log('🔄 Recargando página para reinicar SDK...', 'warning');
+            setTimeout(() => window.location.reload(), 1000);
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            log('📋 Página cargada, esperando SDK...', 'info');
+            
+            setTimeout(() => {
+                if (window.guiders) {
+                    log('✅ SDK disponible, listo para tests', 'success');
+                } else {
+                    log('❌ SDK no disponible después de 3 segundos', 'error');
+                }
+            }, 3000);
+        });
+
+        // Exponer funciones para debugging
+        window.welcomeTests = {
+            testNewVisitorChat,
+            testExistingEmptyChat,
+            testCustomConfig,
+            clearAllStorage,
+            inspectChatState,
+            countMessages,
+            testResults
+        };
+    </script>
+</body>
+</html>

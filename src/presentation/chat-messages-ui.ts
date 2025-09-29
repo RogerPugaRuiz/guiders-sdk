@@ -410,24 +410,7 @@ export class ChatMessagesUI {
         // Añadir animaciones CSS
         this.addMessageAnimations();
 
-        // Efecto hover
-        messageDiv.addEventListener('mouseenter', () => {
-            if (content) {
-                content.style.transform = 'scale(1.02)';
-                content.style.boxShadow = isUserMessage 
-                    ? '0 4px 20px rgba(0, 132, 255, 0.4)'
-                    : '0 2px 16px rgba(0, 0, 0, 0.12)';
-            }
-        });
-
-        messageDiv.addEventListener('mouseleave', () => {
-            if (content) {
-                content.style.transform = 'scale(1)';
-                content.style.boxShadow = isUserMessage 
-                    ? '0 2px 12px rgba(0, 132, 255, 0.3)'
-                    : '0 1px 8px rgba(0, 0, 0, 0.08)';
-            }
-        });
+        // Efecto hover deshabilitado por solicitud del usuario
     }
 
     /**
@@ -451,9 +434,7 @@ export class ChatMessagesUI {
                 }
             }
 
-            .modern-message .message-content:hover {
-                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            }
+            /* Efecto hover deshabilitado por solicitud del usuario */
 
             /* Mejorar tipografía */
             .modern-message .message-text {

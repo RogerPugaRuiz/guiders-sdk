@@ -585,6 +585,12 @@ export class ChatUI {
 		this.refreshChatDetails();
 		this.scrollToBottom(true);
 
+		// Verificar si necesitamos mostrar mensaje de bienvenida
+		// después de un breve delay para que se complete la carga
+		setTimeout(() => {
+			this.checkAndAddWelcomeMessage();
+		}, 100);
+
 		this.activeIntervals.forEach(intervalObj => {
 			if (intervalObj.id === null) {
 				intervalObj.id = window.setInterval(intervalObj.callback, intervalObj.intervalMs);
@@ -810,24 +816,7 @@ export class ChatUI {
 		// Añadir animaciones CSS
 		this.addMessageAnimations();
 
-		// Efecto hover
-		messageDiv.addEventListener('mouseenter', () => {
-			if (content) {
-				content.style.transform = 'scale(1.02)';
-				content.style.boxShadow = isUserMessage 
-					? '0 4px 20px rgba(0, 132, 255, 0.4)'
-					: '0 2px 16px rgba(0, 0, 0, 0.12)';
-			}
-		});
-
-		messageDiv.addEventListener('mouseleave', () => {
-			if (content) {
-				content.style.transform = 'scale(1)';
-				content.style.boxShadow = isUserMessage 
-					? '0 2px 12px rgba(0, 132, 255, 0.3)'
-					: '0 1px 8px rgba(0, 0, 0, 0.08)';
-			}
-		});
+		// Efecto hover deshabilitado por solicitud del usuario
 	}
 
 	/**
@@ -851,9 +840,7 @@ export class ChatUI {
 				}
 			}
 
-			.modern-message .message-content:hover {
-				transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-			}
+			/* Efecto hover deshabilitado por solicitud del usuario */
 
 			/* Mejorar tipografía */
 			.modern-message .message-text {
@@ -988,7 +975,7 @@ export class ChatUI {
 			}
 		} catch (err) {
 			console.error("Error iniciando chat:", err);
-			this.addWelcomeMessage();
+			// No agregar mensaje de bienvenida aquí ya que se maneja automáticamente en checkAndAddWelcomeMessage()
 		}
 	}
 
@@ -1013,7 +1000,7 @@ export class ChatUI {
 			}
 		} catch (error) {
 			console.error("Error al cargar el contenido del chat:", error);
-			this.addWelcomeMessage();
+			// No agregar mensaje de bienvenida aquí ya que se maneja automáticamente en checkAndAddWelcomeMessage()
 			
 			if (this.chatDetail && this.chatDetail.status === 'active') {
 				this.checkInitialCommercialStatus();
@@ -1143,6 +1130,42 @@ export class ChatUI {
 					}, 2000);
 				}
 			}
+		}
+	}
+
+	/**
+	 * Verifica si el chat está vacío y agrega el mensaje de bienvenida si es necesario
+	 * Este método se llama automáticamente cuando se abre el chat
+	 */
+	private checkAndAddWelcomeMessage(): void {
+		// Solo agregar mensaje de bienvenida si no hay mensajes y no se están cargando
+		if (!this.containerMessages) {
+			console.log('💬 [ChatUI] Container de mensajes no disponible, omitiendo verificación de bienvenida');
+			return;
+		}
+
+		// Verificar si hay indicador de carga activo
+		const hasLoadingIndicator = this.containerMessages.querySelector('.loading-messages-indicator') as HTMLElement;
+		if (hasLoadingIndicator && hasLoadingIndicator.style.display !== 'none') {
+			console.log('💬 [ChatUI] Carga de mensajes en progreso, omitiendo mensaje de bienvenida automático');
+			return;
+		}
+
+		// Contar mensajes reales (excluyendo indicadores de carga y separadores de fecha)
+		const messageElements = Array.from(this.containerMessages.children).filter(el =>
+			el.classList && (
+				el.classList.contains('chat-message-user-wrapper') ||
+				el.classList.contains('chat-message-other-wrapper')
+			)
+		);
+
+		console.log(`💬 [ChatUI] Verificación automática: ${messageElements.length} mensajes encontrados`);
+
+		if (messageElements.length === 0) {
+			console.log('💬 [ChatUI] Chat vacío detectado, agregando mensaje de bienvenida automáticamente');
+			this.addWelcomeMessage();
+		} else {
+			console.log('💬 [ChatUI] Chat tiene mensajes, omitiendo mensaje de bienvenida automático');
 		}
 	}
 

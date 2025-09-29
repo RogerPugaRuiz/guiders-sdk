@@ -282,29 +282,7 @@ export class MessageRenderer {
 
         // ✅ EFECTOS HOVER - CONSISTENTE CON COLORES DEL HEADER
         if (messageEl) {
-            messageEl.addEventListener('mouseenter', () => {
-                if (isUserMessage) {
-                    messageEl.style.background = 'linear-gradient(145deg, #0070e6 60%, #00b8e6 100%)';
-                    messageEl.style.transform = 'translateY(-1px) scale(1.02)';
-                    messageEl.style.boxShadow = '0 4px 20px rgba(0, 132, 255, 0.4)';
-                } else {
-                    messageEl.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.12)';
-                    messageEl.style.transform = 'translateY(-1px) scale(1.02)';
-                    messageEl.style.borderLeft = '3px solid #0084ff';
-                }
-            });
-            
-            messageEl.addEventListener('mouseleave', () => {
-                if (isUserMessage) {
-                    messageEl.style.background = 'linear-gradient(145deg, #0084ff 60%, #00c6fb 100%)';
-                    messageEl.style.transform = 'translateY(0) scale(1)';
-                    messageEl.style.boxShadow = '0 2px 8px rgba(0, 132, 255, 0.3)';
-                } else {
-                    messageEl.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.08)';
-                    messageEl.style.transform = 'translateY(0) scale(1)';
-                    messageEl.style.borderLeft = '3px solid #e5e7eb';
-                }
-            });
+            // Efecto hover deshabilitado por solicitud del usuario
         }
         
         // Añadir animación CSS si no existe
@@ -351,9 +329,7 @@ export class MessageRenderer {
                 transition: transform 0.2s ease;
             }
             
-            .modern-message:hover .message-avatar {
-                transform: scale(1.05);
-            }
+            /* Efecto hover del avatar deshabilitado por solicitud del usuario */
         `;
         document.head.appendChild(style);
     }
