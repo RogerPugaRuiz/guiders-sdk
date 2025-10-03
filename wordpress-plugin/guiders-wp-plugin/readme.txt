@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.8-alpha.2
+Stable tag: 1.0.8-beta.1
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -150,8 +150,8 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 
 == Changelog ==
 
-= 1.0.8-alpha.2 =
-* **[ALPHA] Filtrado de Mensajes Propios en WebSocket**: Eliminada la duplicación de mensajes del visitante en el chat
+= 1.0.8-beta.1 =
+* **[BETA] Filtrado de Mensajes Propios en WebSocket**: Eliminada la duplicación de mensajes del visitante en el chat
   * Problema resuelto: Los mensajes del visitante aparecían dos veces (optimistic UI + eco WebSocket)
   * Implementación: Filtro automático en `RealtimeMessageManager.handleNewMessage()`
   * Mensajes cuyo `senderId` coincide con `visitorId` se ignoran automáticamente
@@ -159,7 +159,7 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
   * Renderizado instantáneo de mensajes propios mantenido (optimistic UI)
   * Recepción en tiempo real de mensajes de comerciales mejorada
   * Arquitectura limpia: HTTP para envío, WebSocket para recepción
-* **[ALPHA] Logs Detallados de Conexión WebSocket**: Añadida visibilidad completa del ciclo de vida WebSocket
+* **[BETA] Logs Detallados de Conexión WebSocket**: Añadida visibilidad completa del ciclo de vida WebSocket
   * Logs exhaustivos en todas las fases de conexión
   * Inicio: URL completa, path, transports, credentials
   * Conexión exitosa: Socket ID, URL conectada, transporte usado (websocket/polling)
@@ -170,7 +170,7 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
   * Verificación inmediata de endpoints correctos (prod: `wss://guiders.es`)
   * Identificación rápida de errores de red, CORS, autenticación
   * Documentación completa en `WEBSOCKET_LOGS_GUIDE.md`
-* **Nota**: Esta es una versión alpha experimental. Las características pueden cambiar en futuras versiones. No recomendada para producción.
+* **Nota**: Esta versión está en fase beta; las características están maduras, se recomienda realizar pruebas antes de usar en producción.
 
 = 1.0.8-alpha.1 =
 * **[ALPHA] Sistema de Comunicación Bidireccional en Tiempo Real (WebSocket)**
