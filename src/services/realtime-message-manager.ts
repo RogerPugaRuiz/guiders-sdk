@@ -218,6 +218,17 @@ export class RealtimeMessageManager {
 			return;
 		}
 
+		// FILTRO CRÍTICO: Ignorar mensajes propios que vienen del WebSocket
+		// El visitante ya ve su mensaje renderizado instantáneamente al enviarlo
+		// Solo procesamos mensajes de otros participantes (comerciales, bots, etc.)
+		if (message.senderId === this.visitorId) {
+			console.log('💬 [RealtimeMessageManager] 🚫 Mensaje propio ignorado (ya renderizado):', {
+				messageId: message.messageId,
+				visitorId: this.visitorId
+			});
+			return;
+		}
+
 		// Renderizar en ChatUI
 		if (!this.chatUI) {
 			console.warn('💬 [RealtimeMessageManager] ⚠️ ChatUI no disponible');
@@ -225,9 +236,8 @@ export class RealtimeMessageManager {
 		}
 
 		try {
-			// Determinar si el mensaje es del usuario actual
-			const isUserMessage = message.senderId === this.visitorId;
-			const sender = isUserMessage ? 'user' : 'other';
+			// El mensaje es de otro participante (comercial, bot, etc.)
+			const sender = 'other';
 
 			// Renderizar usando la API de ChatUI
 			this.chatUI.renderChatMessage({

@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test WebSocket - Filtrado de Mensajes Propios</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            margin: 0 0 15px 0;
+            color: #1a202c;
+            font-size: 28px;
+        }
+
+        .description {
+            color: #718096;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .status-panel {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #2d3748;
+            margin-right: 10px;
+            min-width: 150px;
+        }
+
+        .status-value {
+            color: #4a5568;
+            font-family: 'Monaco', monospace;
+            background: white;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .indicator.connected { background: #48bb78; }
+        .indicator.disconnected { background: #f56565; }
+        .indicator.pending { background: #ed8936; }
+
+        .controls {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #cbd5e0;
+            color: #2d3748;
+        }
+
+        .log-panel {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+
+        .log-panel h2 {
+            margin: 0 0 20px 0;
+            color: #1a202c;
+            font-size: 20px;
+        }
+
+        #logOutput {
+            background: #1a202c;
+            color: #a0aec0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-left: 3px solid transparent;
+        }
+
+        .log-entry.info { border-color: #4299e1; color: #90cdf4; }
+        .log-entry.success { border-color: #48bb78; color: #9ae6b4; }
+        .log-entry.warning { border-color: #ed8936; color: #fbd38d; }
+        .log-entry.error { border-color: #f56565; color: #fc8181; }
+        .log-entry.filtered { border-color: #9f7aea; color: #d6bcfa; font-weight: bold; }
+
+        .timestamp {
+            color: #718096;
+            font-size: 11px;
+            margin-right: 8px;
+        }
+
+        .expected-result {
+            background: #fef5e7;
+            border-left: 4px solid #f39c12;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .expected-result h3 {
+            margin: 0 0 10px 0;
+            color: #e67e22;
+            font-size: 16px;
+        }
+
+        .expected-result ul {
+            margin: 10px 0 0 20px;
+            color: #5d4e00;
+            line-height: 1.8;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .badge.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .badge.danger {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚫 Test: Filtrado de Mensajes Propios en WebSocket</h1>
+            <p class="description">
+                Este test verifica que el SDK <strong>NO renderiza mensajes propios</strong> que llegan via WebSocket.
+                Los mensajes del visitante se renderizan instantáneamente al enviarlos (optimistic UI), 
+                por lo que cuando llegan desde el WebSocket deben ser ignorados para evitar duplicados.
+            </p>
+
+            <div class="status-panel">
+                <div class="status-item">
+                    <span class="status-label">Estado SDK:</span>
+                    <span class="indicator disconnected" id="sdkIndicator"></span>
+                    <span class="status-value" id="sdkStatus">No inicializado</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">WebSocket:</span>
+                    <span class="indicator disconnected" id="wsIndicator"></span>
+                    <span class="status-value" id="wsStatus">Desconectado</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Chat ID:</span>
+                    <span class="status-value" id="chatIdDisplay">-</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Visitor ID:</span>
+                    <span class="status-value" id="visitorIdDisplay">-</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Mensajes filtrados:</span>
+                    <span class="status-value" id="filteredCount">0</span>
+                    <span class="badge success" id="filterBadge" style="display: none;">✓ Funcionando</span>
+                </div>
+            </div>
+
+            <div class="expected-result">
+                <h3>✅ Resultado Esperado:</h3>
+                <ul>
+                    <li>Cuando el visitante envía un mensaje, se renderiza <strong>inmediatamente</strong> en el chat</li>
+                    <li>Cuando ese mismo mensaje llega via WebSocket, el SDK lo <strong>detecta y lo ignora</strong></li>
+                    <li>Los mensajes de comerciales/otros usuarios SÍ se renderizan normalmente</li>
+                    <li>En la consola verás: <code>🚫 Mensaje propio ignorado (ya renderizado)</code></li>
+                    <li>El contador "Mensajes filtrados" debe incrementarse cada vez que envías un mensaje</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="controls">
+            <h2>Controles de Test</h2>
+            
+            <div class="control-group">
+                <label for="messageInput">Mensaje a enviar:</label>
+                <textarea id="messageInput" placeholder="Escribe tu mensaje aquí...">Hola, este es un mensaje de prueba para verificar el filtrado de mensajes propios.</textarea>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="initSDK()">
+                    🚀 Inicializar SDK
+                </button>
+                <button class="btn-success" onclick="sendTestMessage()" id="sendBtn" disabled>
+                    📤 Enviar Mensaje
+                </button>
+                <button class="btn-danger" onclick="clearLog()">
+                    🗑️ Limpiar Log
+                </button>
+                <button class="btn-secondary" onclick="location.reload()">
+                    🔄 Reiniciar Test
+                </button>
+            </div>
+        </div>
+
+        <div class="log-panel">
+            <h2>📊 Log de Eventos</h2>
+            <div id="logOutput"></div>
+        </div>
+    </div>
+
+    <!-- SDK -->
+    <script src="dist/index.js" data-api-key="test-api-key-2024"></script>
+
+    <script>
+        let sdk = null;
+        let chatId = null;
+        let visitorId = null;
+        let filteredMessagesCount = 0;
+
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit', 
+                fractionalSecondDigits: 3 
+            });
+            
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
+            
+            logOutput.appendChild(entry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        function updateStatus(element, text, connected = false) {
+            document.getElementById(element).textContent = text;
+            const indicator = document.getElementById(element.replace('Status', 'Indicator'));
+            if (indicator) {
+                indicator.className = 'indicator ' + (connected ? 'connected' : 'disconnected');
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('logOutput').innerHTML = '';
+        }
+
+        // Interceptar console.log para capturar mensajes filtrados
+        const originalConsoleLog = console.log;
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            
+            const message = args.join(' ');
+            
+            // Detectar mensaje filtrado
+            if (message.includes('🚫 Mensaje propio ignorado')) {
+                filteredMessagesCount++;
+                document.getElementById('filteredCount').textContent = filteredMessagesCount;
+                
+                const badge = document.getElementById('filterBadge');
+                badge.style.display = 'inline-block';
+                badge.className = 'badge success';
+                badge.innerHTML = '✓ Funcionando';
+                
+                log(`🚫 FILTRADO: El SDK detectó y bloqueó un mensaje propio (total: ${filteredMessagesCount})`, 'filtered');
+            }
+            
+            // Detectar mensaje renderizado
+            if (message.includes('📨 Nuevo mensaje recibido') || message.includes('Procesando mensaje nuevo')) {
+                log('📨 WebSocket: Mensaje recibido desde el servidor', 'info');
+            }
+            
+            // Detectar envío de mensaje
+            if (message.includes('📤 Enviando mensaje via HTTP')) {
+                log('📤 Enviando mensaje via HTTP POST...', 'info');
+            }
+        };
+
+        async function initSDK() {
+            try {
+                log('🚀 Inicializando SDK...', 'info');
+                
+                if (!window.guiders || !window.guiders.trackingPixelSDK) {
+                    throw new Error('SDK no encontrado en window.guiders');
+                }
+
+                sdk = window.guiders.trackingPixelSDK;
+                
+                // Obtener visitor ID
+                visitorId = sdk.getVisitorId();
+                document.getElementById('visitorIdDisplay').textContent = visitorId;
+                log(`👤 Visitor ID: ${visitorId}`, 'success');
+
+                updateStatus('sdkStatus', 'Inicializado', true);
+                
+                // Esperar un momento para que el WebSocket se conecte
+                setTimeout(() => {
+                    const wsService = window.guiders.webSocket;
+                    if (wsService && wsService.isConnected()) {
+                        updateStatus('wsStatus', 'Conectado', true);
+                        log('📡 WebSocket conectado correctamente', 'success');
+                    } else {
+                        updateStatus('wsStatus', 'Desconectado', false);
+                        log('⚠️ WebSocket no conectado (esperando...)', 'warning');
+                    }
+                }, 2000);
+
+                log('✅ SDK listo para enviar mensajes', 'success');
+                document.getElementById('sendBtn').disabled = false;
+
+            } catch (error) {
+                log(`❌ Error inicializando SDK: ${error.message}`, 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        async function sendTestMessage() {
+            try {
+                const messageInput = document.getElementById('messageInput');
+                const message = messageInput.value.trim();
+
+                if (!message) {
+                    log('⚠️ Por favor escribe un mensaje', 'warning');
+                    return;
+                }
+
+                if (!sdk) {
+                    log('❌ SDK no inicializado', 'error');
+                    return;
+                }
+
+                log(`📝 Preparando envío: "${message.substring(0, 50)}..."`, 'info');
+
+                // Abrir chat si no está abierto
+                const chatUI = window.guiders.chatUI;
+                if (chatUI && !chatUI.isVisible()) {
+                    log('📂 Abriendo chat...', 'info');
+                    chatUI.show();
+                }
+
+                // Pequeño delay para asegurar que todo está listo
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Simular envío desde el input del chat
+                const chatInput = chatUI?.chatInput;
+                if (chatInput) {
+                    // Trigger manual del submit
+                    await chatInput.submitHandler(message);
+                    
+                    log('✅ Mensaje enviado. Esperando eco del WebSocket...', 'success');
+                    log('👀 Observa: El mensaje se renderizó inmediatamente (optimistic UI)', 'info');
+                    log('⏳ Cuando llegue via WebSocket, debería ser filtrado y NO renderizarse de nuevo', 'info');
+
+                    // Limpiar input
+                    messageInput.value = '';
+                    
+                    // Obtener chat ID si es nuevo
+                    setTimeout(() => {
+                        if (chatUI) {
+                            const newChatId = chatUI.getChatId();
+                            if (newChatId && newChatId !== chatId) {
+                                chatId = newChatId;
+                                document.getElementById('chatIdDisplay').textContent = chatId;
+                                log(`💬 Chat ID actualizado: ${chatId}`, 'info');
+                            }
+                        }
+                    }, 1000);
+
+                } else {
+                    log('❌ Chat input no disponible', 'error');
+                }
+
+            } catch (error) {
+                log(`❌ Error enviando mensaje: ${error.message}`, 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        // Auto-init en 1 segundo
+        setTimeout(() => {
+            log('ℹ️ Haz clic en "Inicializar SDK" para comenzar el test', 'info');
+        }, 500);
+    </script>
+</body>
+</html>
