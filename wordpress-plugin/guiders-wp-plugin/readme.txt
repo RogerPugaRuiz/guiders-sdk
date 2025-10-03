@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.8-alpha.1
+Stable tag: 1.0.8-alpha.2
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,28 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.0.8-alpha.2 =
+* **[ALPHA] Filtrado de Mensajes Propios en WebSocket**: Eliminada la duplicación de mensajes del visitante en el chat
+  * Problema resuelto: Los mensajes del visitante aparecían dos veces (optimistic UI + eco WebSocket)
+  * Implementación: Filtro automático en `RealtimeMessageManager.handleNewMessage()`
+  * Mensajes cuyo `senderId` coincide con `visitorId` se ignoran automáticamente
+  * Solo se renderizan mensajes de comerciales, bots y otros participantes
+  * Renderizado instantáneo de mensajes propios mantenido (optimistic UI)
+  * Recepción en tiempo real de mensajes de comerciales mejorada
+  * Arquitectura limpia: HTTP para envío, WebSocket para recepción
+* **[ALPHA] Logs Detallados de Conexión WebSocket**: Añadida visibilidad completa del ciclo de vida WebSocket
+  * Logs exhaustivos en todas las fases de conexión
+  * Inicio: URL completa, path, transports, credentials
+  * Conexión exitosa: Socket ID, URL conectada, transporte usado (websocket/polling)
+  * Errores: URL intentada, mensaje detallado, stack trace completo
+  * Desconexión: Razón específica, URL que estaba conectada
+  * Reintentos: Número de intento, URL de reconexión
+  * Debugging simplificado con información necesaria en consola
+  * Verificación inmediata de endpoints correctos (prod: `wss://guiders.es`)
+  * Identificación rápida de errores de red, CORS, autenticación
+  * Documentación completa en `WEBSOCKET_LOGS_GUIDE.md`
+* **Nota**: Esta es una versión alpha experimental. Las características pueden cambiar en futuras versiones. No recomendada para producción.
 
 = 1.0.8-alpha.1 =
 * **[ALPHA] Sistema de Comunicación Bidireccional en Tiempo Real (WebSocket)**
