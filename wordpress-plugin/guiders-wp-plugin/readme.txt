@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.7
+Stable tag: 1.0.8-alpha.1
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,36 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.0.8-alpha.1 =
+* **[ALPHA] Sistema de Comunicación Bidireccional en Tiempo Real (WebSocket)**
+  * Arquitectura híbrida implementada: envío HTTP POST + recepción WebSocket
+  * `WebSocketService`: Gestión centralizada de conexiones Socket.IO con patrón Singleton
+  * `RealtimeMessageManager`: Coordinador entre WebSocket y ChatUI
+  * Reconexión automática tras desconexiones
+  * Eventos soportados: `message:new`, `chat:status`, `user:typing`
+  * Integración automática en TrackingPixelSDK
+  * API pública: `isWebSocketConnected()`, `getWebSocketState()`, `sendRealtimeMessage()`
+  * Demo completa: `examples/websocket-realtime-chat-demo.html`
+  * Documentación: `docs/WEBSOCKET_REALTIME_CHAT.md`
+* **[ALPHA] Mejoras en el Avatar del Bot**
+  * Avatar del bot ahora muestra "BOT" en lugar de "AI" para mayor claridad
+  * Diseño refinado: eliminado box-shadow para aspecto más limpio
+  * Esfera perfecta: dimensiones exactas (32x32px) con `box-sizing: border-box`
+  * Bordes optimizados: removido border para acabado más suave
+* **[ALPHA] Rediseño de la Visualización de Hora**
+  * La hora ahora aparece dentro de la burbuja del mensaje
+  * En mensajes propios: texto blanco semitransparente dentro del área azul
+  * En mensajes de otros: texto gris sutil dentro del área blanca
+  * Tipografía unificada: 10px, font-weight 400, opacity 0.9
+  * Layout optimizado con estructura en columna (texto + hora)
+  * Alineación consistente a la derecha con margin-top de 4px
+* **[ALPHA] Mejoras Técnicas del Sistema de Mensajes**
+  * Estructura HTML unificada: `message-content-wrapper` consistente
+  * CSS optimizado: layout flexbox para mejor control
+  * Padding ajustado: 8x12px para mejor respiración del contenido
+  * Cambios aplicados en `message-renderer.ts` (sistema unificado)
+* **Nota**: Esta es una versión alpha experimental. Las características pueden cambiar en futuras versiones. No recomendada para producción.
 
 = 1.0.7 =
 * **Mejoras en el Avatar del Bot**: Avatar del bot ahora muestra "BOT" en lugar de "AI" para mayor claridad
