@@ -29,6 +29,8 @@ import { ChatMemoryStore } from "./chat-memory-store";
 import { IdentitySignal } from "./identity-signal";
 import { ActiveHoursValidator } from "./active-hours-validator";
 import { ActiveHoursConfig } from "../types";
+import { WebSocketService } from "../services/websocket-service";
+import { RealtimeMessageManager } from "../services/realtime-message-manager";
 
 
 interface SDKOptions {
@@ -144,6 +146,8 @@ export class TrackingPixelSDK {
 	private identitySignal: IdentitySignal;
 	private welcomeMessageConfig?: Partial<WelcomeMessageConfig>;
 	private activeHoursValidator?: ActiveHoursValidator;
+	private wsService: WebSocketService;
+	private realtimeMessageManager: RealtimeMessageManager;
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -192,6 +196,10 @@ export class TrackingPixelSDK {
 
 		// Inicializar el signal de identity
 		this.identitySignal = IdentitySignal.getInstance();
+
+		// Inicializar servicios de WebSocket y mensajería en tiempo real
+		this.wsService = WebSocketService.getInstance();
+		this.realtimeMessageManager = RealtimeMessageManager.getInstance();
 
 		// Crear la instancia de SessionInjectionStage
 		this.sessionInjectionStage = new SessionInjectionStage();
@@ -382,6 +390,9 @@ export class TrackingPixelSDK {
 					chatId: chat.getChatId(),
 				});
 
+				// 📡 Inicializar WebSocket si no está conectado
+				this.initializeWebSocketConnection(chat);
+
 				// Cargar mensajes del chat si existe un chatId
 				this.loadChatMessagesOnOpen(chat);
 			});
@@ -463,18 +474,25 @@ export class TrackingPixelSDK {
 				let result;
 
 				if (currentChatId) {
-					// Ya existe un chat activo, enviar mensaje directamente
-					console.log('💬 [TrackingPixelSDK] 📋 Enviando mensaje a chat existente:', currentChatId);
+					// Ya existe un chat activo, usar sistema de tiempo real (WebSocket)
+					console.log('💬 [TrackingPixelSDK] 📋 Enviando mensaje a chat existente (WebSocket):', currentChatId);
 					
-					const message_sent = await ChatV2Service.getInstance().sendMessage(
-						currentChatId,
-						message,
-						'text'
-					);
+					// Asegurarse de que WebSocket esté inicializado
+					if (!this.wsService.isConnected()) {
+						this.initializeWebSocketConnection(chat);
+					}
+					
+					// Asegurarse de que el chat esté configurado en el manager
+					if (this.realtimeMessageManager.getCurrentChatId() !== currentChatId) {
+						this.realtimeMessageManager.setCurrentChat(currentChatId);
+					}
+					
+					// Enviar mensaje via RealtimeMessageManager (HTTP POST + notificación WebSocket)
+					await this.realtimeMessageManager.sendMessage(message, 'text');
 
 					result = {
 						chat: { id: currentChatId },
-						message: message_sent,
+						message: { id: 'pending' }, // El ID real llegará via WebSocket
 						isNewChat: false
 					};
 				} else {
@@ -517,6 +535,10 @@ export class TrackingPixelSDK {
 							if (newChatId) {
 								chat.setChatId(newChatId);
 								console.log('💬 [TrackingPixelSDK] 🆕 Chat ID asignado:', newChatId);
+								
+								// 📡 Inicializar WebSocket para el nuevo chat
+								this.initializeWebSocketConnection(chat);
+								this.realtimeMessageManager.setCurrentChat(newChatId);
 							}
 
 							result = {
@@ -1653,5 +1675,111 @@ export class TrackingPixelSDK {
 			
 			console.log('[TrackingPixelSDK] 🕐 ' + statusMessage);
 		}
+	}
+
+	// ========== Métodos WebSocket para Comunicación Bidireccional ==========
+
+	/**
+	 * Inicializa la conexión WebSocket para comunicación en tiempo real
+	 * @param chat Instancia del ChatUI
+	 */
+	private initializeWebSocketConnection(chat: ChatUI): void {
+		const visitorId = this.getVisitorId();
+		
+		if (!visitorId) {
+			console.warn('📡 [TrackingPixelSDK] ⚠️ No se puede conectar WebSocket sin visitorId');
+			return;
+		}
+
+		// Verificar si ya está conectado
+		if (this.wsService.isConnected()) {
+			console.log('📡 [TrackingPixelSDK] ✅ WebSocket ya conectado');
+			// Actualizar chat actual si cambió
+			const currentChatId = chat.getChatId();
+			if (currentChatId && this.realtimeMessageManager.getCurrentChatId() !== currentChatId) {
+				this.realtimeMessageManager.setCurrentChat(currentChatId);
+			}
+			return;
+		}
+
+		console.log('📡 [TrackingPixelSDK] 🚀 Inicializando conexión WebSocket...');
+
+		try {
+			// Obtener sessionId para autenticación
+			const sessionId = sessionStorage.getItem('guiders_backend_session_id');
+			
+			// Configurar y conectar WebSocket
+			this.wsService.connect(
+				{
+					sessionId: sessionId || undefined,
+					// La URL se resuelve automáticamente en WebSocketService usando EndpointManager
+				},
+				{
+					onConnect: () => {
+						console.log('📡 [TrackingPixelSDK] ✅ WebSocket conectado exitosamente');
+					},
+					onDisconnect: (reason) => {
+						console.log('📡 [TrackingPixelSDK] ⚠️ WebSocket desconectado:', reason);
+					},
+					onError: (error) => {
+						console.error('📡 [TrackingPixelSDK] ❌ Error WebSocket:', error.message);
+					}
+				}
+			);
+
+			// Inicializar RealtimeMessageManager con ChatUI
+			this.realtimeMessageManager.initialize({
+				chatUI: chat,
+				visitorId: visitorId,
+				enableTypingIndicators: true
+			});
+
+			// Establecer chat actual si existe
+			const currentChatId = chat.getChatId();
+			if (currentChatId) {
+				this.realtimeMessageManager.setCurrentChat(currentChatId);
+			}
+
+			console.log('📡 [TrackingPixelSDK] ✅ Sistema de mensajería en tiempo real inicializado');
+		} catch (error) {
+			console.error('📡 [TrackingPixelSDK] ❌ Error inicializando WebSocket:', error);
+		}
+	}
+
+	/**
+	 * Envía un mensaje usando el sistema de tiempo real
+	 * @param content Contenido del mensaje
+	 * @param type Tipo de mensaje (default: 'text')
+	 */
+	public async sendRealtimeMessage(content: string, type: string = 'text'): Promise<void> {
+		try {
+			await this.realtimeMessageManager.sendMessage(content, type);
+		} catch (error) {
+			console.error('📡 [TrackingPixelSDK] ❌ Error enviando mensaje en tiempo real:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Obtiene el estado de la conexión WebSocket
+	 */
+	public getWebSocketState(): string {
+		return this.wsService.getState();
+	}
+
+	/**
+	 * Verifica si WebSocket está conectado
+	 */
+	public isWebSocketConnected(): boolean {
+		return this.wsService.isConnected();
+	}
+
+	/**
+	 * Desconecta el WebSocket manualmente
+	 */
+	public disconnectWebSocket(): void {
+		this.wsService.disconnect();
+		this.realtimeMessageManager.cleanup();
+		console.log('📡 [TrackingPixelSDK] 🔌 WebSocket desconectado');
 	}
 }

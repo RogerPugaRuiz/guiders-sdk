@@ -14,6 +14,9 @@ export { WelcomeMessageManager, BUSINESS_WELCOME_TEMPLATES } from '../core/welco
 // Active Hours (utilities)
 export { ActiveHoursValidator, createActiveHoursConfig, COMMON_ACTIVE_HOURS } from '../core/active-hours-validator';
 
+// WebSocket y Tiempo Real
+export * from './websocket-types';
+
 export interface PixelEvent<T = Record<string, unknown>> {
 	type: string;
 	data: T;

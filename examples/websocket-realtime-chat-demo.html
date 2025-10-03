@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo: Chat en Tiempo Real con WebSocket</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .status-indicator.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-indicator.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-indicator .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected .dot {
+            background: #28a745;
+        }
+
+        .status-indicator.disconnected .dot {
+            background: #dc3545;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .info-item .label {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .info-item .value {
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        button.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button.secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        button.danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        button.danger:hover {
+            background: #c82333;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .message-form {
+            margin-top: 15px;
+        }
+
+        .message-form input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 10px;
+            transition: border-color 0.3s;
+        }
+
+        .message-form input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .events-log {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .event-item {
+            padding: 8px;
+            margin: 4px 0;
+            border-left: 3px solid #667eea;
+            background: white;
+            border-radius: 4px;
+        }
+
+        .event-item .timestamp {
+            color: #6c757d;
+            font-size: 11px;
+        }
+
+        .event-item .type {
+            font-weight: 600;
+            color: #667eea;
+            margin: 4px 0;
+        }
+
+        .event-item .data {
+            color: #495057;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .architecture-diagram {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .architecture-diagram pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            padding: 20px;
+            opacity: 0.9;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Demo: Chat en Tiempo Real con WebSocket</h1>
+        
+        <!-- Diagrama de arquitectura -->
+        <div class="architecture-diagram">
+            <h2 style="color: #667eea; margin-bottom: 15px;">📊 Arquitectura del Sistema</h2>
+            <pre>
+Cliente (Visitante)
+    │
+    ├─── HTTP POST ────► /v2/messages ────► SendMessageCommandHandler
+    │                                              │
+    │                                              ▼
+    │                                     MessageSentEvent (Domain)
+    │                                              │
+    │                                              ▼
+    │                           NotifyMessageSentOnMessageSentEventHandler
+    │                                              │
+    │                                              ▼
+    │                                      WebSocket Gateway
+    │                                              │
+    └─── WebSocket ◄────────────────────────── Sala: chat:{chatId}
+              (Recepción instantánea)
+
+✅ Envío: HTTP POST (RESTful)
+✅ Recepción: WebSocket (Tiempo Real)
+✅ Sin polling, sin duplicados
+            </pre>
+        </div>
+
+        <!-- Grid de tarjetas informativas -->
+        <div class="demo-grid">
+            <!-- Estado de la conexión -->
+            <div class="card">
+                <h2>📡 Estado WebSocket</h2>
+                <div id="connectionStatus" class="status-indicator disconnected">
+                    <span class="dot"></span>
+                    <span>Desconectado</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="label">Socket ID:</span>
+                    <span class="value" id="socketId">-</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="label">Estado:</span>
+                    <span class="value" id="wsState">DISCONNECTED</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="label">Sala Actual:</span>
+                    <span class="value" id="currentRoom">-</span>
+                </div>
+
+                <div class="button-group">
+                    <button class="primary" onclick="connectWebSocket()">Conectar</button>
+                    <button class="danger" onclick="disconnectWebSocket()">Desconectar</button>
+                </div>
+            </div>
+
+            <!-- Información del visitante -->
+            <div class="card">
+                <h2>👤 Información del Visitante</h2>
+                
+                <div class="info-item">
+                    <span class="label">Visitor ID:</span>
+                    <span class="value" id="visitorId">-</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="label">Chat ID:</span>
+                    <span class="value" id="chatId">-</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="label">Session ID:</span>
+                    <span class="value" id="sessionId">-</span>
+                </div>
+
+                <div class="button-group">
+                    <button class="primary" onclick="identifyVisitor()">Identificar</button>
+                    <button class="secondary" onclick="openChat()">Abrir Chat</button>
+                </div>
+            </div>
+
+            <!-- Envío de mensajes -->
+            <div class="card">
+                <h2>💬 Enviar Mensaje</h2>
+                
+                <form class="message-form" onsubmit="sendTestMessage(event)">
+                    <input 
+                        type="text" 
+                        id="messageInput" 
+                        placeholder="Escribe tu mensaje aquí..." 
+                        required
+                    />
+                    <button type="submit" class="primary" style="width: 100%;">
+                        📤 Enviar Mensaje
+                    </button>
+                </form>
+
+                <div class="info-item" style="margin-top: 15px;">
+                    <span class="label">Mensajes Enviados:</span>
+                    <span class="value" id="messageCount">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log de eventos -->
+        <div class="card">
+            <h2>📋 Log de Eventos en Tiempo Real</h2>
+            <div id="eventsLog" class="events-log">
+                <p style="color: #6c757d; text-align: center; padding: 20px;">
+                    Los eventos aparecerán aquí cuando se conecte el WebSocket...
+                </p>
+            </div>
+            <div class="button-group" style="margin-top: 15px;">
+                <button class="secondary" onclick="clearLog()">🗑️ Limpiar Log</button>
+                <button class="primary" onclick="simulateMessage()">🤖 Simular Mensaje</button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>
+                <strong>Guiders SDK v1.0</strong> - Sistema de Chat en Tiempo Real<br>
+                Documentación completa en <a href="../docs/WEBSOCKET_REALTIME_CHAT.md">WEBSOCKET_REALTIME_CHAT.md</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Cargar el SDK -->
+    <script src="../dist/index.js"></script>
+    
+    <script>
+        // Variables globales
+        let sdk = null;
+        let messageCount = 0;
+
+        // Inicializar SDK
+        function initSDK() {
+            if (window.guiders && window.guiders.trackingPixelSDK) {
+                sdk = window.guiders.trackingPixelSDK;
+                logEvent('✅ SDK Inicializado', 'SDK cargado correctamente');
+                
+                // Actualizar UI con información inicial
+                updateVisitorInfo();
+                
+                return true;
+            }
+            return false;
+        }
+
+        // Conectar WebSocket
+        function connectWebSocket() {
+            if (!sdk) {
+                if (!initSDK()) {
+                    logEvent('❌ Error', 'SDK no disponible');
+                    return;
+                }
+            }
+
+            const chatId = sdk.chatUI?.getChatId();
+            if (!chatId) {
+                logEvent('⚠️ Advertencia', 'No hay chatId disponible. Abre el chat primero.');
+                return;
+            }
+
+            // El WebSocket se inicializa automáticamente al abrir el chat
+            // Aquí solo actualizamos la UI
+            logEvent('📡 Conectando', 'Iniciando conexión WebSocket...');
+            
+            setTimeout(() => {
+                updateConnectionStatus();
+            }, 1000);
+        }
+
+        // Desconectar WebSocket
+        function disconnectWebSocket() {
+            if (!sdk) return;
+            
+            try {
+                sdk.disconnectWebSocket();
+                logEvent('🔌 Desconectado', 'WebSocket desconectado manualmente');
+                updateConnectionStatus();
+            } catch (error) {
+                logEvent('❌ Error', `Error desconectando: ${error.message}`);
+            }
+        }
+
+        // Identificar visitante
+        async function identifyVisitor() {
+            if (!sdk) {
+                if (!initSDK()) {
+                    logEvent('❌ Error', 'SDK no disponible');
+                    return;
+                }
+            }
+
+            logEvent('🔍 Identificando', 'Ejecutando identify...');
+            
+            try {
+                // El SDK ya ejecuta identify automáticamente
+                // Solo actualizamos la UI
+                setTimeout(() => {
+                    updateVisitorInfo();
+                    logEvent('✅ Identificado', 'Visitante identificado correctamente');
+                }, 500);
+            } catch (error) {
+                logEvent('❌ Error', `Error identificando: ${error.message}`);
+            }
+        }
+
+        // Abrir chat
+        function openChat() {
+            if (!sdk) {
+                if (!initSDK()) return;
+            }
+
+            if (sdk.chatUI) {
+                sdk.chatUI.show();
+                logEvent('💬 Chat Abierto', 'Chat mostrado en pantalla');
+                
+                // Actualizar información
+                setTimeout(() => {
+                    updateVisitorInfo();
+                    updateConnectionStatus();
+                }, 500);
+            }
+        }
+
+        // Enviar mensaje de prueba
+        async function sendTestMessage(event) {
+            event.preventDefault();
+            
+            if (!sdk) {
+                if (!initSDK()) return;
+            }
+
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            const chatId = sdk.chatUI?.getChatId();
+            if (!chatId) {
+                logEvent('⚠️ Advertencia', 'No hay chat activo. Abre el chat primero.');
+                return;
+            }
+
+            try {
+                logEvent('📤 Enviando', `Mensaje: "${message}"`);
+                
+                // Enviar via el sistema de tiempo real
+                await sdk.sendRealtimeMessage(message, 'text');
+                
+                messageCount++;
+                document.getElementById('messageCount').textContent = messageCount;
+                input.value = '';
+                
+                logEvent('✅ Enviado', 'Mensaje enviado correctamente. Esperando notificación WebSocket...');
+            } catch (error) {
+                logEvent('❌ Error', `Error enviando mensaje: ${error.message}`);
+            }
+        }
+
+        // Simular recepción de mensaje
+        function simulateMessage() {
+            const messages = [
+                '¡Hola! ¿En qué puedo ayudarte?',
+                'Recibido, déjame verificar eso...',
+                'Perfecto, estoy aquí para ayudarte.',
+                'Gracias por tu mensaje.'
+            ];
+            
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            
+            logEvent('📨 Mensaje Recibido (Simulado)', {
+                content: randomMessage,
+                sender: 'Comercial',
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        // Actualizar estado de conexión
+        function updateConnectionStatus() {
+            if (!sdk) return;
+
+            const isConnected = sdk.isWebSocketConnected();
+            const state = sdk.getWebSocketState();
+            
+            const statusEl = document.getElementById('connectionStatus');
+            const stateEl = document.getElementById('wsState');
+            
+            if (isConnected) {
+                statusEl.className = 'status-indicator connected';
+                statusEl.innerHTML = '<span class="dot"></span><span>Conectado</span>';
+            } else {
+                statusEl.className = 'status-indicator disconnected';
+                statusEl.innerHTML = '<span class="dot"></span><span>Desconectado</span>';
+            }
+            
+            stateEl.textContent = state.toUpperCase();
+            
+            // Actualizar sala actual
+            const chatId = sdk.chatUI?.getChatId();
+            document.getElementById('currentRoom').textContent = chatId ? `chat:${chatId.slice(0, 8)}...` : '-';
+        }
+
+        // Actualizar información del visitante
+        function updateVisitorInfo() {
+            if (!sdk) return;
+
+            const visitorId = sdk.getVisitorId();
+            const chatId = sdk.chatUI?.getChatId();
+            const sessionId = sessionStorage.getItem('guiders_backend_session_id');
+            
+            document.getElementById('visitorId').textContent = visitorId ? visitorId.slice(0, 12) + '...' : '-';
+            document.getElementById('chatId').textContent = chatId ? chatId.slice(0, 12) + '...' : '-';
+            document.getElementById('sessionId').textContent = sessionId ? sessionId.slice(0, 12) + '...' : '-';
+        }
+
+        // Logging de eventos
+        function logEvent(type, data) {
+            const logEl = document.getElementById('eventsLog');
+            const eventEl = document.createElement('div');
+            eventEl.className = 'event-item';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const dataStr = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+            
+            eventEl.innerHTML = `
+                <div class="timestamp">${timestamp}</div>
+                <div class="type">${type}</div>
+                <div class="data">${dataStr}</div>
+            `;
+            
+            logEl.appendChild(eventEl);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        // Limpiar log
+        function clearLog() {
+            document.getElementById('eventsLog').innerHTML = '';
+            logEvent('🗑️ Log Limpiado', 'Eventos eliminados');
+        }
+
+        // Inicializar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', () => {
+            logEvent('🚀 Página Cargada', 'Demo iniciada');
+            
+            // Intentar inicializar SDK
+            setTimeout(() => {
+                if (initSDK()) {
+                    // Actualizar info periódicamente
+                    setInterval(() => {
+                        updateVisitorInfo();
+                        updateConnectionStatus();
+                    }, 2000);
+                }
+            }, 1000);
+        });
+
+        // Escuchar evento de mensaje enviado
+        window.addEventListener('guidersMessageSent', (event) => {
+            logEvent('📨 Mensaje Enviado (Evento)', event.detail);
+        });
+    </script>
+</body>
+</html>
