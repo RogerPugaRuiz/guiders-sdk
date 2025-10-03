@@ -4,15 +4,15 @@ Este archivo contiene los cambios pendientes de agregar al readme.txt del plugin
 
 ## Versión en Desarrollo: [Por definir]
 
-### 🎯 Cambios Realizados
+### Cambios Realizados
 
-_Aquí se irán agregando los siguientes cambios que se realicen..._
+_Aquí se irán agregando los cambios que se realicen..._
 
 ---
 
 ## Próximos Cambios Pendientes
 
-_Aquí se irán agregando los siguientes cambios que se realicen..._
+_Aquí se irán agregando los cambios que se realicen..._
 
 ---
 
