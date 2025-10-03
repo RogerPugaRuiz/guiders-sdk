@@ -26,7 +26,7 @@
         showTips: false
       },
       activeHours: {
-        enabled: true,
+        enabled: false,
         timezone: 'Europe/Madrid',
         ranges: [
           { start: '08:00', end: '17:00' }

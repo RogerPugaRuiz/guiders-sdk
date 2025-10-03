@@ -336,9 +336,14 @@ export class ChatMessagesUI {
                     align-items: center;
                     justify-content: center;
                     color: white;
-                    font-size: 12px;
+                    font-size: 11px;
                     font-weight: 600;
-                    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+                    border: none;
+                    box-sizing: border-box;
+                    min-width: 32px;
+                    min-height: 32px;
+                    max-width: 32px;
+                    max-height: 32px;
                 `;
             }
         }

@@ -60,4 +60,5 @@
         - generic [ref=e49]:
           - heading "Soporte 24/7" [level=4] [ref=e50]
           - paragraph [ref=e51]: Nuestro equipo está disponible cuando lo necesites
+  - button [ref=e52] [cursor=pointer]
 ```

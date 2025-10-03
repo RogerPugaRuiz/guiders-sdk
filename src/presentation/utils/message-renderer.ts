@@ -40,15 +40,17 @@ export class MessageRenderer {
         
         // Crear estructura compatible con ChatUI pero con estilos modernos
         if (isUserMessage) {
-            // Estructura para mensajes del usuario
+            // Estructura para mensajes del usuario - hora dentro de la burbuja
             messageDiv.innerHTML = `
-                <div class="chat-message chat-message-user">
-                    <div class="message-text">${this.escapeHtml(data.content)}</div>
+                <div class="message-content-wrapper">
+                    <div class="chat-message chat-message-user">
+                        <div class="message-text">${this.escapeHtml(data.content)}</div>
+                        <div class="chat-message-time">${this.formatTime(data.timestamp)} ✓</div>
+                    </div>
                 </div>
-                <div class="chat-message-time">${this.formatTime(data.timestamp)} ✓</div>
             `;
         } else {
-            // Estructura para mensajes de otros con avatar
+            // Estructura para mensajes de otros con avatar - hora dentro de la burbuja
             messageDiv.innerHTML = `
                 <div class="chat-avatar">
                     <div class="avatar-circle">
@@ -58,8 +60,8 @@ export class MessageRenderer {
                 <div class="message-content-wrapper">
                     <div class="chat-message chat-message-other">
                         <div class="message-text">${this.escapeHtml(data.content)}</div>
+                        <div class="chat-message-time">${this.formatTime(data.timestamp)}</div>
                     </div>
-                    <div class="chat-message-time">${this.formatTime(data.timestamp)}</div>
                 </div>
             `;
         }
@@ -114,7 +116,7 @@ export class MessageRenderer {
      */
     private static getParticipantInitials(senderId: string): string {
         if (!senderId) {
-            return 'AI';
+            return 'BOT';
         }
         
         // Si es un ID simple, usar las primeras letras
@@ -204,34 +206,40 @@ export class MessageRenderer {
                     align-items: center;
                     justify-content: center;
                     color: white;
-                    font-size: 12px;
+                    font-size: 11px;
                     font-weight: 600;
                     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
-                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border: none;
+                    box-sizing: border-box;
+                    min-width: 32px;
+                    min-height: 32px;
+                    max-width: 32px;
+                    max-height: 32px;
                 `;
             }
         }
 
-        // ✅ WRAPPER DE CONTENIDO (para mensajes de otros)
+        // ✅ WRAPPER DE CONTENIDO - Unificado para ambos tipos de mensaje
         if (contentWrapper) {
             contentWrapper.style.cssText = `
                 display: flex;
                 flex-direction: column;
-                max-width: 65%;
+                ${isUserMessage ? 'align-items: flex-end; max-width: 70%;' : 'align-items: flex-start; max-width: 65%;'}
+                min-width: 120px;
             `;
         }
 
-        // ✅ MENSAJE PRINCIPAL - ESTILO ULTRA COMPACTO ADAPTADO AL CONTENIDO
+        // ✅ MENSAJE PRINCIPAL - Con layout en columna para texto + hora
         if (messageEl) {
             messageEl.style.cssText = `
-                padding: 6px 10px;
+                padding: 8px 12px;
                 border-radius: 10px;
                 position: relative;
                 word-break: break-word;
                 white-space: normal;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                display: inline-block;
+                display: flex;
+                flex-direction: column;
                 ${isUserMessage ? 
                     `background: linear-gradient(145deg, #0084ff 60%, #00c6fb 100%);
                      color: white;
@@ -242,24 +250,24 @@ export class MessageRenderer {
                     `background: white;
                      color: #1f2937;
                      border-bottom-left-radius: 3px;
-                     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);`
+                     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+                     max-width: 85%;`
                 }
                 transition: all 0.2s ease;
             `;
         }
 
-        // ✅ TEXTO DEL MENSAJE - TIPOGRAFÍA ULTRA COMPACTA
+                // ✅ TEXTO DEL MENSAJE - TIPOGRAFÍA OPTIMIZADA
         if (text) {
             text.style.cssText = `
-                font-size: 13px;
-                line-height: 1.2;
+                font-size: 14px;
+                line-height: 1.4;
                 margin: 0;
-                padding: 0;
-                font-weight: 400;
-                letter-spacing: -0.01em;
+                word-break: break-word;
                 -webkit-font-smoothing: antialiased;
                 -moz-osx-font-smoothing: grayscale;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                flex: 1;
                 ${isUserMessage ? 
                     'color: rgba(255, 255, 255, 0.95);' : 
                     'color: #374151;'
@@ -267,16 +275,18 @@ export class MessageRenderer {
             `;
         }
 
-                // ✅ TIEMPO - Diseño minimalista
+        // ✅ TIEMPO - Dentro de la burbuja del mensaje
         if (time) {
             time.style.cssText = `
                 font-size: 10px;
-                color: ${isUserMessage ? 'rgba(0, 132, 255, 0.7)' : '#9ca3af'};
+                color: ${isUserMessage ? 'rgba(255, 255, 255, 0.8)' : 'rgba(60, 60, 67, 0.5)'};
                 font-weight: 400;
-                letter-spacing: 0.02em;
+                letter-spacing: 0.01em;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                margin-top: 2px;
-                ${isUserMessage ? 'text-align: right;' : 'text-align: left;'}
+                margin-top: 4px;
+                text-align: right;
+                display: block;
+                opacity: 0.9;
             `;
         }
 
