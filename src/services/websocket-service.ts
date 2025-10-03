@@ -62,6 +62,15 @@ export class WebSocketService {
 		const endpoints = EndpointManager.getInstance();
 		const wsEndpoint = endpoints.getWebSocketEndpoint();
 
+		console.log('📡 [WebSocketService] 🔍 INICIO DE CONEXIÓN WebSocket');
+		console.log('📡 [WebSocketService] 📋 Endpoint resuelto:', wsEndpoint);
+		console.log('📡 [WebSocketService] 📋 Config recibida:', {
+			url: config.url,
+			path: config.path,
+			hasAuthToken: !!config.authToken,
+			hasSessionId: !!config.sessionId
+		});
+
 		// Configuración completa con defaults
 		this.config = {
 			url: config.url || wsEndpoint,
@@ -77,12 +86,18 @@ export class WebSocketService {
 
 		this.callbacks = callbacks;
 
-		console.log('📡 [WebSocketService] 🚀 Conectando a:', {
+		console.log('📡 [WebSocketService] 🚀 INTENTANDO CONECTAR a:', {
 			url: this.config.url,
+			fullUrl: this.config.url + this.config.path,
 			path: this.config.path,
+			transports: this.config.transports,
+			withCredentials: this.config.withCredentials,
+			reconnection: this.config.reconnection,
+			reconnectionAttempts: this.config.reconnectionAttempts,
 			hasToken: !!this.config.authToken,
 			hasSessionId: !!this.config.sessionId
 		});
+		console.log('📡 [WebSocketService] 🌐 URL COMPLETA WebSocket:', `${this.config.url}${this.config.path}`);
 
 		// Crear socket con configuración
 		const socketOptions: any = {
@@ -103,6 +118,9 @@ export class WebSocketService {
 
 		this.socket = io(this.config.url, socketOptions);
 
+		console.log('📡 [WebSocketService] ✅ Socket.IO cliente creado');
+		console.log('📡 [WebSocketService] 🔌 Esperando conexión...');
+
 		// Registrar event listeners
 		this.registerEventListeners();
 	}
@@ -116,7 +134,11 @@ export class WebSocketService {
 		// Eventos de conexión
 		this.socket.on('connect', () => {
 			this.state = WebSocketState.CONNECTED;
-			console.log('📡 [WebSocketService] ✅ Conectado con ID:', this.socket?.id);
+			console.log('📡 [WebSocketService] ✅✅✅ CONEXIÓN EXITOSA! ✅✅✅');
+			console.log('📡 [WebSocketService] 🆔 Socket ID:', this.socket?.id);
+			console.log('📡 [WebSocketService] 🌐 URL conectada:', this.config?.url);
+			console.log('📡 [WebSocketService] 📍 Path:', this.config?.path);
+			console.log('📡 [WebSocketService] 🚀 Transporte usado:', this.socket?.io?.engine?.transport?.name);
 
 			// Re-unirse a salas activas después de reconectar
 			if (this.currentRooms.size > 0) {
@@ -133,7 +155,9 @@ export class WebSocketService {
 
 		this.socket.on('disconnect', (reason: string) => {
 			this.state = WebSocketState.DISCONNECTED;
-			console.log('📡 [WebSocketService] ⚠️ Desconectado. Razón:', reason);
+			console.log('📡 [WebSocketService] ⚠️⚠️ DESCONECTADO ⚠️⚠️');
+			console.log('📡 [WebSocketService] 📋 Razón:', reason);
+			console.log('📡 [WebSocketService] 🌐 URL que estaba conectada:', this.config?.url);
 
 			if (this.callbacks.onDisconnect) {
 				this.callbacks.onDisconnect(reason);
@@ -142,16 +166,26 @@ export class WebSocketService {
 
 		this.socket.on('connect_error', (error: Error) => {
 			this.state = WebSocketState.ERROR;
-			console.error('📡 [WebSocketService] ❌ Error de conexión:', error.message);
+			console.error('📡 [WebSocketService] ❌❌❌ ERROR DE CONEXIÓN ❌❌❌');
+			console.error('📡 [WebSocketService] 🌐 URL intentada:', this.config?.url);
+			console.error('📡 [WebSocketService] 📍 Path:', this.config?.path);
+			console.error('📡 [WebSocketService] 🚨 Mensaje de error:', error.message);
+			console.error('📡 [WebSocketService] 📊 Error completo:', error);
+			console.error('📡 [WebSocketService] 🔍 Stack trace:', error.stack);
 
 			if (this.callbacks.onError) {
 				this.callbacks.onError(error);
 			}
 		});
 
-		this.socket.io.on('reconnect_attempt', () => {
+		this.socket.on('error', (error: any) => {
+			console.error('📡 [WebSocketService] ❌ ERROR GENÉRICO del socket:', error);
+		});
+
+		this.socket.io.on('reconnect_attempt', (attemptNumber: number) => {
 			this.state = WebSocketState.RECONNECTING;
-			console.log('📡 [WebSocketService] 🔄 Intentando reconectar...');
+			console.log('📡 [WebSocketService] 🔄 INTENTO DE RECONEXIÓN #' + attemptNumber);
+			console.log('📡 [WebSocketService] 🌐 URL:', this.config?.url);
 		});
 
 		this.socket.io.on('reconnect', (attemptNumber: number) => {
