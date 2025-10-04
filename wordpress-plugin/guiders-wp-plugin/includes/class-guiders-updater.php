@@ -14,9 +14,19 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Load Plugin Update Checker library
-require_once GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'vendor/plugin-update-checker/plugin-update-checker.php';
-use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
+// Load Plugin Update Checker library (with safety check)
+$puc_path = GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'vendor/plugin-update-checker/plugin-update-checker.php';
+$puc_available = false;
+if (file_exists($puc_path)) {
+    require_once $puc_path;
+    $puc_available = true;
+} else {
+    // Log error but don't break the plugin
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log('❌ [Guiders Plugin] Plugin Update Checker library not found at: ' . $puc_path);
+        error_log('⚠️ [Guiders Plugin] Automatic updates will not be available. Please reinstall the plugin.');
+    }
+}
 
 class GuidersUpdater {
     
@@ -35,16 +45,25 @@ class GuidersUpdater {
      * Constructor - Initialize Plugin Update Checker
      */
     public function __construct() {
-        $this->initUpdateChecker();
-        $this->setupCustomizations();
+        // Only initialize if PUC library is available
+        global $puc_available;
+        if ($puc_available && class_exists('YahnisElsts\PluginUpdateChecker\v5\PucFactory')) {
+            $this->initUpdateChecker();
+            $this->setupCustomizations();
+        } else {
+            // PUC not available - disable automatic updates
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('⚠️ [Guiders Plugin] Updater initialized but Plugin Update Checker library not available');
+            }
+        }
     }
     
     /**
      * Initialize the update checker using Plugin Update Checker library
      */
     private function initUpdateChecker() {
-        // Create update checker instance
-        $this->updateChecker = PucFactory::buildUpdateChecker(
+        // Use fully qualified class name to avoid use statement
+        $this->updateChecker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
             self::GITHUB_REPO_URL,
             GUIDERS_WP_PLUGIN_PLUGIN_FILE,
             'guiders-wp-plugin'
