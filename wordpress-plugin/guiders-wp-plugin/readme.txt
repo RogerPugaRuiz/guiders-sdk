@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.8-beta.1
+Stable tag: 1.1.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,15 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.1.0 =
+* **📱 Chat Pantalla Completa en Móviles**: El chat ahora ocupa el 100% del viewport en dispositivos ≤768px para una experiencia inmersiva
+* **❌ Botón de Cierre Mejorado**: Añadido icono SVG de cruz (X) visible en el header, más grande y destacado en móvil (36x36px)
+* **🔄 Sincronización Toggle Button**: Corregido bug crítico donde el botón toggle flotante no se sincronizaba al cerrar el chat desde el botón X
+* **📐 Diseño Responsivo Optimizado**: Sin border-radius en móvil para aprovechar toda la pantalla, manteniendo diseño widget en desktop
+* **🛠️ Mejoras Técnicas**: Media query automática, callbacks mejorados, arquitectura de sincronización bidireccional
+* **♿ Accesibilidad Mejorada**: Animaciones hover/active optimizadas, aria-label para navegación por teclado
+* **🧪 Archivos de Prueba**: Demos específicos para móvil y sincronización (mobile-fullscreen-demo.html, test-toggle-sync.html)
 
 = 1.0.8-beta.1 =
 * **[BETA] Filtrado de Mensajes Propios en WebSocket**: Eliminada la duplicación de mensajes del visitante en el chat

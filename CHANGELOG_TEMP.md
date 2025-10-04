@@ -26,10 +26,12 @@ _Aquí se irán agregando los cambios que se realicen..._
 
 ## Validaciones Antes del Release
 
-* [ ] Compilación exitosa del SDK (`npm run build`)
-* [ ] Tests de funcionalidad pasando
+* [x] Compilación exitosa del SDK (`npm run build`)
+* [x] Tests de funcionalidad pasando
 * [ ] Verificación en navegadores principales
 * [ ] Pruebas con diferentes configuraciones
 * [ ] Documentación actualizada
+
+
 
 
