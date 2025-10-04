@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,18 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.2.0 =
+* **🔄 Sistema de Actualizaciones Automáticas**: Integración de Plugin Update Checker v5.6 (estándar de la industria)
+* **✅ Actualizaciones Desde GitHub**: El plugin ahora detecta automáticamente nuevas versiones desde GitHub Releases cada 12 horas
+* **🎯 Detección Inteligente**: Solo muestra versiones estables a usuarios finales (pre-releases filtradas automáticamente)
+* **📦 Descarga Directa**: Actualización con 1 clic desde el panel de WordPress, descargando directamente desde GitHub
+* **🔔 Notificaciones Nativas**: Usa la UI estándar de WordPress para avisos de actualización (experiencia familiar para administradores)
+* **🛠️ Debugging Mejorado**: Logs detallados para troubleshooting con emojis (🚀 para éxito, ❌ para errores)
+* **📝 Changelog Integrado**: Las notas del release de GitHub se muestran en el modal de información del plugin
+* **♻️ Código Simplificado**: ~100 líneas menos de código gracias a la librería robusta y mantenida por la comunidad
+* **🔒 Seguridad**: Sin necesidad de tokens o credenciales, descarga segura vía HTTPS desde GitHub
+* **📚 Documentación Completa**: Nueva guía `PLUGIN_UPDATES.md` con arquitectura, workflows y debugging
 
 = 1.1.0 =
 * **📱 Chat Pantalla Completa en Móviles**: El chat ahora ocupa el 100% del viewport en dispositivos ≤768px para una experiencia inmersiva

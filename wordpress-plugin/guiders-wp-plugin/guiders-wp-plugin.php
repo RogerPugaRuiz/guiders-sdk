@@ -3,7 +3,7 @@
  * Plugin Name: Guiders SDK
  * Plugin URI: https://github.com/RogerPugaRuiz/guiders-sdk
  * Description: Integra el SDK de Guiders para tracking inteligente, chat en vivo y notificaciones en tu sitio WordPress. Con detección heurística automática de elementos sin necesidad de modificar el HTML.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Guiders
  * Author URI: https://guiders.ancoradual.com
  * License: ISC
@@ -14,6 +14,14 @@
  * Requires PHP: 7.4
  * Network: false
  */
+
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Define plugin constants
+define('GUIDERS_WP_PLUGIN_VERSION', '1.2.0');
 
 // Prevent direct access
 if (!defined('ABSPATH')) {
