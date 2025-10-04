@@ -402,4 +402,20 @@ export class ChatToggleButtonUI {
 		const safeCount = count ?? 0;
 		this.updateUnreadBadge(safeCount);
 	}
+
+	/**
+	 * Actualiza el estado visual del botón para reflejar si el chat está abierto o cerrado
+	 * @param isOpen true si el chat está abierto, false si está cerrado
+	 */
+	public updateState(isOpen: boolean): void {
+		this.isVisible = isOpen;
+		
+		if (isOpen) {
+			this.button.classList.add('open');
+		} else {
+			this.button.classList.remove('open');
+		}
+		
+		console.log(`🔘 Estado del toggle button actualizado: ${isOpen ? 'abierto' : 'cerrado'}`);
+	}
 }

@@ -153,6 +153,11 @@ export class ChatUI {
 		const closeBtn = document.createElement('button');
 		closeBtn.className = 'chat-close-btn';
 		closeBtn.setAttribute('aria-label', 'Cerrar chat');
+		closeBtn.innerHTML = `
+			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+			</svg>
+		`;
 		closeBtn.addEventListener('click', () => {
 			this.hide();
 		});
@@ -242,6 +247,21 @@ export class ChatUI {
 				flex-direction: column;
 			}
 			
+			/* 📱 ESTILOS MÓVIL - Chat pantalla completa */
+			@media (max-width: 768px) {
+				.chat-widget-fixed {
+					width: 100% !important;
+					height: 100% !important;
+					top: 0 !important;
+					left: 0 !important;
+					right: 0 !important;
+					bottom: 0 !important;
+					border-radius: 0 !important;
+					max-width: 100vw;
+					max-height: 100vh;
+				}
+			}
+			
 			.chat-header {
 				background: linear-gradient(145deg, #0084ff 60%, #00c6fb 100%);
 				color: #fff;
@@ -252,6 +272,15 @@ export class ChatUI {
 				border-top-left-radius: 20px;
 				border-top-right-radius: 20px;
 				box-shadow: 0 2px 8px rgba(0,132,255,0.08);
+			}
+			
+			/* 📱 Header móvil sin border-radius superior */
+			@media (max-width: 768px) {
+				.chat-header {
+					border-top-left-radius: 0 !important;
+					border-top-right-radius: 0 !important;
+					padding: 20px 20px 16px 20px;
+				}
 			}
 			
 			.chat-header-title {
@@ -272,19 +301,59 @@ export class ChatUI {
 				color: #e3f2fd;
 			}
 			
+			.chat-header-actions {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+			}
+			
 			.chat-close-btn {
 				background: transparent;
 				border: none;
 				color: white;
 				cursor: pointer;
-				width: 24px;
-				height: 24px;
+				width: 32px;
+				height: 32px;
 				display: flex;
 				align-items: center;
 				justify-content: center;
 				padding: 0;
-				opacity: 0.8;
-				transition: opacity 0.2s;
+				opacity: 0.9;
+				transition: all 0.2s ease;
+				border-radius: 50%;
+			}
+			
+			.chat-close-btn:hover {
+				opacity: 1;
+				background: rgba(255, 255, 255, 0.1);
+			}
+			
+			.chat-close-btn:active {
+				transform: scale(0.95);
+				background: rgba(255, 255, 255, 0.15);
+			}
+			
+			.chat-close-btn svg {
+				width: 20px;
+				height: 20px;
+			}
+			
+			/* 📱 Botón de cierre más visible en móvil */
+			@media (max-width: 768px) {
+				.chat-close-btn {
+					width: 36px;
+					height: 36px;
+					background: rgba(255, 255, 255, 0.15);
+				}
+				
+				.chat-close-btn:hover {
+					background: rgba(255, 255, 255, 0.25);
+				}
+				
+				.chat-close-btn svg {
+					width: 22px;
+					height: 22px;
+				}
 			}
 			
 			.chat-messages {
@@ -385,6 +454,15 @@ export class ChatUI {
 				/* Fix Safari: Asegurar que el contenedor mantenga su altura */
 				min-height: 60px;
 				box-sizing: border-box;
+			}
+			
+			/* 📱 Input móvil sin border-radius inferior */
+			@media (max-width: 768px) {
+				.chat-input-container {
+					border-bottom-left-radius: 0 !important;
+					border-bottom-right-radius: 0 !important;
+					padding: 14px 16px;
+				}
 			}
 			
 			.chat-input-field {

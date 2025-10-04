@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test: Sincronización Toggle Button</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .test-panel {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: 24px;
+            color: #333;
+        }
+
+        .subtitle {
+            color: #666;
+            margin: 0 0 30px;
+            font-size: 14px;
+        }
+
+        .test-case {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .test-case h3 {
+            margin: 0 0 10px;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .test-case p {
+            margin: 0 0 15px;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .test-case .expected {
+            background: #e7f5e7;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+            color: #2e7d32;
+        }
+
+        .test-case .expected strong {
+            color: #1b5e20;
+        }
+
+        button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 5px 0;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button.secondary {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        button.danger {
+            background: linear-gradient(135deg, #ff5146 0%, #e53a30 100%);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ccc;
+            transition: all 0.3s;
+        }
+
+        .status-dot.chat-open {
+            background: #4CAF50;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        .status-dot.toggle-active {
+            background: #2196F3;
+            box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+        }
+
+        .status-text {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .status-text strong {
+            color: #667eea;
+        }
+
+        .instructions {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+
+        .instructions h3 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            color: #e65100;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .instructions ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            margin: 8px 0;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .console-log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .console-log .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .console-log .log-entry.success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+
+        .console-log .log-entry.info {
+            color: #2196F3;
+        }
+
+        .console-log .log-entry.error {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-panel">
+        <h1>🔄 Test: Sincronización Toggle Button</h1>
+        <p class="subtitle">Verifica que el botón toggle se sincroniza correctamente con el estado del chat</p>
+
+        <div class="status-indicator">
+            <div class="status-dot" id="chatStatusDot"></div>
+            <div class="status-text">
+                <strong>Estado del Chat:</strong> <span id="chatStatus">Cerrado</span>
+            </div>
+        </div>
+
+        <div class="status-indicator">
+            <div class="status-dot toggle-active" id="toggleStatusDot"></div>
+            <div class="status-text">
+                <strong>Estado del Toggle:</strong> <span id="toggleStatus">Inactivo</span>
+            </div>
+        </div>
+
+        <div class="test-case">
+            <h3>🧪 Test 1: Cerrar desde el botón X</h3>
+            <p>Este es el bug que estamos solucionando. Al cerrar el chat desde el botón X en el header, el toggle button debe actualizarse.</p>
+            <div class="expected">
+                <strong>✅ Resultado esperado:</strong> Al hacer click en la X del chat, el toggle button debe cambiar de ícono X a ícono de chat (💬).
+            </div>
+            <button onclick="openChat()">1. Abrir Chat</button>
+            <button class="danger" onclick="simulateXButtonClick()">2. Simular Click en X (cerrar desde header)</button>
+        </div>
+
+        <div class="test-case">
+            <h3>🧪 Test 2: Toggle normal</h3>
+            <p>Verifica que el toggle funciona correctamente cuando se usa el botón flotante.</p>
+            <div class="expected">
+                <strong>✅ Resultado esperado:</strong> El chat se abre/cierra y el ícono del toggle cambia entre 💬 y X.
+            </div>
+            <button class="secondary" onclick="toggleChat()">Toggle Chat (usar botón flotante)</button>
+        </div>
+
+        <div class="test-case">
+            <h3>🧪 Test 3: Sincronización completa</h3>
+            <p>Prueba una secuencia completa de apertura y cierre desde diferentes métodos.</p>
+            <div class="expected">
+                <strong>✅ Resultado esperado:</strong> El estado del toggle button siempre coincide con el estado del chat.
+            </div>
+            <button onclick="runFullTest()">▶️ Ejecutar Test Completo</button>
+        </div>
+
+        <div class="instructions">
+            <h3>📋 Instrucciones</h3>
+            <ul>
+                <li><strong>Test 1:</strong> Haz click en "Abrir Chat", luego en la X del header del chat. Verifica que el toggle button cambia de X a 💬.</li>
+                <li><strong>Test 2:</strong> Usa el botón flotante para abrir/cerrar el chat. Verifica la sincronización.</li>
+                <li><strong>Test 3:</strong> Ejecuta la secuencia automática y verifica que los estados se mantienen sincronizados.</li>
+                <li><strong>Consola:</strong> Abre las DevTools (F12) para ver los logs detallados de sincronización.</li>
+            </ul>
+        </div>
+
+        <div class="console-log" id="consoleLog"></div>
+    </div>
+
+    <!-- SDK de Guiders -->
+    <script 
+        src="../dist/index.js" 
+        data-api-key="test-sync-key"
+    ></script>
+
+    <script>
+        // Referencias a elementos del DOM
+        const chatStatusDot = document.getElementById('chatStatusDot');
+        const chatStatus = document.getElementById('chatStatus');
+        const toggleStatusDot = document.getElementById('toggleStatusDot');
+        const toggleStatus = document.getElementById('toggleStatus');
+        const consoleLog = document.getElementById('consoleLog');
+
+        // Función para agregar logs visuales
+        function addLog(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleLog.appendChild(entry);
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+            
+            // También log en consola del navegador
+            console.log(`[TEST] ${message}`);
+        }
+
+        // Actualizar indicadores visuales
+        function updateStatus() {
+            setTimeout(() => {
+                const isChatOpen = window.guiders?.chatUI?.isVisible() || false;
+                const isToggleActive = window.guiders?.chatToggleButton?.isButtonVisible() || false;
+                
+                // Actualizar chat status
+                if (isChatOpen) {
+                    chatStatusDot.classList.add('chat-open');
+                    chatStatus.textContent = 'Abierto ✅';
+                    chatStatus.style.color = '#4CAF50';
+                } else {
+                    chatStatusDot.classList.remove('chat-open');
+                    chatStatus.textContent = 'Cerrado ❌';
+                    chatStatus.style.color = '#f44336';
+                }
+
+                // Actualizar toggle status
+                if (isToggleActive) {
+                    toggleStatusDot.classList.add('toggle-active');
+                    toggleStatus.textContent = 'Visible';
+                } else {
+                    toggleStatusDot.classList.remove('toggle-active');
+                    toggleStatus.textContent = 'Oculto';
+                }
+
+                addLog(`Estado actualizado - Chat: ${isChatOpen ? 'abierto' : 'cerrado'}, Toggle: ${isToggleActive ? 'visible' : 'oculto'}`, 'info');
+            }, 100);
+        }
+
+        // Funciones de prueba
+        function openChat() {
+            if (window.guiders && window.guiders.trackingPixelSDK) {
+                window.guiders.trackingPixelSDK.openChat();
+                addLog('✅ Chat abierto programáticamente', 'success');
+                updateStatus();
+            }
+        }
+
+        function toggleChat() {
+            if (window.guiders && window.guiders.trackingPixelSDK) {
+                window.guiders.trackingPixelSDK.toggleChat();
+                addLog('🔄 Toggle ejecutado desde botón flotante', 'info');
+                updateStatus();
+            }
+        }
+
+        function simulateXButtonClick() {
+            // Simular click en el botón X del header
+            if (window.guiders && window.guiders.chatUI) {
+                window.guiders.chatUI.hide();
+                addLog('❌ Chat cerrado desde botón X (simulado)', 'success');
+                updateStatus();
+            }
+        }
+
+        async function runFullTest() {
+            addLog('🧪 Iniciando test completo...', 'info');
+            
+            // Step 1: Abrir chat
+            addLog('Step 1: Abriendo chat...', 'info');
+            openChat();
+            await sleep(1500);
+            
+            // Step 2: Cerrar desde X
+            addLog('Step 2: Cerrando desde botón X...', 'info');
+            simulateXButtonClick();
+            await sleep(1500);
+            
+            // Step 3: Toggle para abrir
+            addLog('Step 3: Abriendo con toggle...', 'info');
+            toggleChat();
+            await sleep(1500);
+            
+            // Step 4: Toggle para cerrar
+            addLog('Step 4: Cerrando con toggle...', 'info');
+            toggleChat();
+            await sleep(1500);
+            
+            addLog('✅ Test completo finalizado. Verifica que los estados coincidan.', 'success');
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Escuchar eventos del SDK
+        window.addEventListener('load', function() {
+            addLog('SDK cargado', 'info');
+            
+            // Esperar a que el SDK se inicialice
+            setTimeout(() => {
+                if (window.guiders && window.guiders.chatUI) {
+                    // Conectar listeners a los eventos del chat
+                    window.guiders.chatUI.onOpen(() => {
+                        addLog('📡 Evento: Chat abierto', 'success');
+                        updateStatus();
+                    });
+
+                    window.guiders.chatUI.onClose(() => {
+                        addLog('📡 Evento: Chat cerrado', 'success');
+                        updateStatus();
+                    });
+
+                    addLog('✅ Listeners conectados correctamente', 'success');
+                } else {
+                    addLog('⚠️ SDK no disponible aún', 'error');
+                }
+                
+                updateStatus();
+            }, 1000);
+        });
+
+        // Actualizar estado cada 2 segundos
+        setInterval(updateStatus, 2000);
+    </script>
+</body>
+</html>

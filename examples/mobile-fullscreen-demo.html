@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Demo Chat Móvil - Pantalla Completa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+
+        .device-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .device-info h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .device-info p {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .device-info .value {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .instructions {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+
+        .instructions h3 {
+            color: #1976D2;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .instructions ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .instructions li {
+            color: #333;
+            padding: 8px 0;
+            padding-left: 28px;
+            position: relative;
+            line-height: 1.5;
+        }
+
+        .instructions li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #2196F3;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .action-button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .action-button:active {
+            transform: translateY(0);
+        }
+
+        .mobile-indicator {
+            display: none;
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .desktop-indicator {
+            display: none;
+            background: #FF9800;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-indicator {
+                display: block;
+            }
+
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .desktop-indicator {
+                display: block;
+            }
+        }
+
+        .feature-list {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .feature-list h3 {
+            color: #333;
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+
+        .feature-list ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            color: #666;
+            padding: 10px 0;
+            padding-left: 32px;
+            position: relative;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-list li::before {
+            content: "📱";
+            position: absolute;
+            left: 0;
+            font-size: 20px;
+        }
+
+        @media (min-width: 769px) {
+            .feature-list li::before {
+                content: "💻";
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Demo Chat Móvil</h1>
+        <p class="subtitle">Prueba la nueva experiencia de chat a pantalla completa</p>
+
+        <div class="device-info">
+            <h3>Información del Dispositivo</h3>
+            <p><strong>Ancho de pantalla:</strong> <span class="value" id="screenWidth"></span></p>
+            <p><strong>Alto de pantalla:</strong> <span class="value" id="screenHeight"></span></p>
+            <p><strong>Modo:</strong> <span class="value" id="deviceMode"></span></p>
+        </div>
+
+        <div class="feature-list">
+            <h3>✨ Características Implementadas</h3>
+            <ul>
+                <li><strong>Pantalla completa en móvil:</strong> El chat ocupa el 100% del viewport (≤768px)</li>
+                <li><strong>Botón de cierre visible:</strong> Cruz en la esquina superior derecha</li>
+                <li><strong>Sin border-radius:</strong> Bordes cuadrados en móvil para máximo aprovechamiento</li>
+                <li><strong>Botón toggle oculto:</strong> No se ve cuando el chat está abierto</li>
+                <li><strong>Responsive:</strong> En desktop mantiene el diseño widget original</li>
+            </ul>
+        </div>
+
+        <div class="instructions">
+            <h3>📋 Instrucciones de Prueba</h3>
+            <ul>
+                <li>Haz clic en el botón "Abrir Chat" abajo</li>
+                <li>En <strong>móvil (≤768px)</strong>: el chat ocupará toda la pantalla</li>
+                <li>En <strong>desktop (>768px)</strong>: el chat aparece como widget flotante</li>
+                <li>Usa la cruz (X) en la esquina superior derecha para cerrar</li>
+                <li>Redimensiona la ventana para ver los cambios responsivos</li>
+            </ul>
+        </div>
+
+        <button class="action-button" onclick="openChat()">
+            💬 Abrir Chat
+        </button>
+
+        <div class="mobile-indicator">
+            ✅ Modo Móvil Detectado - Chat a pantalla completa activo
+        </div>
+
+        <div class="desktop-indicator">
+            💻 Modo Desktop - Chat en formato widget
+        </div>
+    </div>
+
+    <!-- SDK de Guiders -->
+    <script 
+        src="../dist/index.js" 
+        data-api-key="demo-api-key-123"
+    ></script>
+
+    <script>
+        // Actualizar información del dispositivo
+        function updateDeviceInfo() {
+            document.getElementById('screenWidth').textContent = window.innerWidth + 'px';
+            document.getElementById('screenHeight').textContent = window.innerHeight + 'px';
+            
+            const isMobile = window.innerWidth <= 768;
+            document.getElementById('deviceMode').textContent = isMobile ? '📱 Móvil' : '💻 Desktop';
+        }
+
+        // Función para abrir el chat
+        function openChat() {
+            if (window.guiders && window.guiders.trackingPixelSDK) {
+                window.guiders.trackingPixelSDK.openChat();
+                console.log('Chat abierto');
+            } else {
+                console.error('SDK no inicializado');
+                alert('Error: El SDK de Guiders no está disponible');
+            }
+        }
+
+        // Actualizar información al cargar y al redimensionar
+        updateDeviceInfo();
+        window.addEventListener('resize', updateDeviceInfo);
+
+        // Log de inicialización
+        window.addEventListener('load', function() {
+            console.log('Demo de chat móvil cargada');
+            console.log('Ancho de pantalla:', window.innerWidth);
+            console.log('Es móvil:', window.innerWidth <= 768);
+            
+            if (window.guiders && window.guiders.trackingPixelSDK) {
+                console.log('✅ SDK inicializado correctamente');
+            } else {
+                console.warn('⚠️ Esperando inicialización del SDK...');
+            }
+        });
+
+        // Detectar cuando el chat se abre/cierra
+        setTimeout(function() {
+            if (window.guiders && window.guiders.chatUI) {
+                window.guiders.chatUI.onOpen(function() {
+                    console.log('💬 Chat abierto - Modo:', window.innerWidth <= 768 ? 'Móvil (pantalla completa)' : 'Desktop (widget)');
+                });
+
+                window.guiders.chatUI.onClose(function() {
+                    console.log('❌ Chat cerrado');
+                });
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -390,6 +390,9 @@ export class TrackingPixelSDK {
 					chatId: chat.getChatId(),
 				});
 
+				// 📡 Actualizar estado del toggle button
+				chatToggleButton.updateState(true);
+
 				// 📡 Inicializar WebSocket si no está conectado
 				this.initializeWebSocketConnection(chat);
 
@@ -401,6 +404,9 @@ export class TrackingPixelSDK {
 					timestamp: new Date().getTime(),
 					chatId: chat.getChatId(),
 				});
+
+				// 📡 Actualizar estado del toggle button
+				chatToggleButton.updateState(false);
 			});
 		
 			chat.onActiveInterval(() => {
