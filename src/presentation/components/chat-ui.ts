@@ -28,6 +28,7 @@ export class ChatUI {
 	private lastKnownChatStatus: string | null = null;
 	private lastNotificationType: 'online' | 'offline' | null = null;
 	private messagesLoaded: boolean = false;
+	private isLoadingInitialMessages: boolean = false;
 
 	// Callbacks para eventos
 	private openCallbacks: Array<() => void> = [];
@@ -663,11 +664,9 @@ export class ChatUI {
 		this.refreshChatDetails();
 		this.scrollToBottom(true);
 
-		// Verificar si necesitamos mostrar mensaje de bienvenida
-		// después de un breve delay para que se complete la carga
-		setTimeout(() => {
-			this.checkAndAddWelcomeMessage();
-		}, 100);
+		// 🔧 RACE CONDITION FIX: Ya no usar timeout arbitrario
+		// La verificación del mensaje de bienvenida ahora se maneja en loadChatMessagesOnOpen()
+		// después de que termine la carga asíncrona de mensajes, eliminando la condición de carrera
 
 		this.activeIntervals.forEach(intervalObj => {
 			if (intervalObj.id === null) {
@@ -1219,18 +1218,25 @@ export class ChatUI {
 	/**
 	 * Verifica si el chat está vacío y agrega el mensaje de bienvenida si es necesario
 	 * Este método se llama automáticamente cuando se abre el chat
+	 * Ahora es público para ser llamado desde TrackingPixelSDK después de cargar mensajes
 	 */
-	private checkAndAddWelcomeMessage(): void {
+	public checkAndAddWelcomeMessage(): void {
 		// Solo agregar mensaje de bienvenida si no hay mensajes y no se están cargando
 		if (!this.containerMessages) {
 			console.log('💬 [ChatUI] Container de mensajes no disponible, omitiendo verificación de bienvenida');
 			return;
 		}
 
+		// 🔒 PROTECCIÓN CONTRA RACE CONDITION: Verificar si se está cargando mensajes iniciales
+		if (this.isLoadingInitialMessages) {
+			console.log('💬 [ChatUI] 🔒 Carga inicial de mensajes en progreso, omitiendo verificación de bienvenida para evitar race condition');
+			return;
+		}
+
 		// Verificar si hay indicador de carga activo
 		const hasLoadingIndicator = this.containerMessages.querySelector('.loading-messages-indicator') as HTMLElement;
 		if (hasLoadingIndicator && hasLoadingIndicator.style.display !== 'none') {
-			console.log('💬 [ChatUI] Carga de mensajes en progreso, omitiendo mensaje de bienvenida automático');
+			console.log('💬 [ChatUI] Indicador de carga visible, omitiendo mensaje de bienvenida automático');
 			return;
 		}
 
@@ -1245,7 +1251,7 @@ export class ChatUI {
 		console.log(`💬 [ChatUI] Verificación automática: ${messageElements.length} mensajes encontrados`);
 
 		if (messageElements.length === 0) {
-			console.log('💬 [ChatUI] Chat vacío detectado, agregando mensaje de bienvenida automáticamente');
+			console.log('💬 [ChatUI] ✅ Chat vacío confirmado, agregando mensaje de bienvenida automáticamente');
 			this.addWelcomeMessage();
 		} else {
 			console.log('💬 [ChatUI] Chat tiene mensajes, omitiendo mensaje de bienvenida automático');
@@ -1417,5 +1423,21 @@ export class ChatUI {
 				console.log('💬 [ChatUI] Scroll al bottom realizado (V2)');
 			}
 		});
+	}
+
+	/**
+	 * Establece el estado de carga inicial de mensajes
+	 * Usado por TrackingPixelSDK para coordinar la carga de mensajes
+	 */
+	public setLoadingInitialMessages(loading: boolean): void {
+		this.isLoadingInitialMessages = loading;
+		console.log(`💬 [ChatUI] 🔒 Estado isLoadingInitialMessages cambiado a: ${loading}`);
+	}
+
+	/**
+	 * Obtiene el estado de carga inicial de mensajes
+	 */
+	public isLoadingMessages(): boolean {
+		return this.isLoadingInitialMessages;
 	}
 }

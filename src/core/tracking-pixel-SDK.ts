@@ -1425,25 +1425,36 @@ export class TrackingPixelSDK {
 	 * @param chat Instancia del ChatUI
 	 */
 	private async loadChatMessagesOnOpen(chat: any): Promise<void> {
+		// 🔒 PROTECCIÓN CONTRA RACE CONDITION: Establecer bandera de carga
+		chat.setLoadingInitialMessages(true);
+
 		try {
 			const chatId = chat.getChatId();
 			if (!chatId) {
 				console.log('[TrackingPixelSDK] 💬 No hay chatId, omitiendo carga de mensajes');
+				// Verificar si mostrar mensaje de bienvenida al no haber chat
+				chat.checkAndAddWelcomeMessage?.();
 				return;
 			}
 
-			console.log('[TrackingPixelSDK] 💬 Delegando carga de mensajes a ChatMessagesUI para chat:', chatId);
-			
+			console.log('[TrackingPixelSDK] 💬 🔒 Iniciando carga de mensajes con protección de race condition para chat:', chatId);
+
 			// 🔧 UNIFICACIÓN: Delegar completamente a ChatMessagesUI si está disponible
 			if (this.chatMessagesUI) {
 				console.log('[TrackingPixelSDK] ✅ Usando ChatMessagesUI para carga unificada');
 				await this.chatMessagesUI.initializeChat(chatId);
+
+				// ✅ Después de cargar exitosamente, verificar si mostrar mensaje de bienvenida
+				console.log('[TrackingPixelSDK] 💬 Carga completa, verificando necesidad de mensaje de bienvenida');
+				if (chat.checkAndAddWelcomeMessage) {
+					chat.checkAndAddWelcomeMessage();
+				}
 				return;
 			}
 
 			// 🔧 FALLBACK: Sistema legacy solo si ChatMessagesUI no está disponible
 			console.log('[TrackingPixelSDK] ⚠️ ChatMessagesUI no disponible, usando sistema legacy');
-			
+
 			// Mostrar indicador de carga
 			chat.showLoadingMessages();
 
@@ -1460,7 +1471,7 @@ export class TrackingPixelSDK {
 			if (messageList.messages && messageList.messages.length > 0) {
 				// Agregar mensajes en orden cronológico (invertir el array ya que vienen DESC)
 				const messagesInOrder = messageList.messages.reverse();
-				
+
 				for (const message of messagesInOrder) {
 					// Extraer el texto del contenido (puede ser string u objeto)
 					let messageText = '';
@@ -1483,12 +1494,7 @@ export class TrackingPixelSDK {
 
 				console.log(`[TrackingPixelSDK] ✅ Cargados ${messagesInOrder.length} mensajes del chat (sistema legacy)`);
 			} else {
-				console.log('[TrackingPixelSDK] 📭 No hay mensajes en el chat');
-				
-				// Si no hay mensajes existentes, mostrar mensaje de bienvenida
-				if (chat.addWelcomeMessage) {
-					chat.addWelcomeMessage();
-				}
+				console.log('[TrackingPixelSDK] 📭 No hay mensajes en el chat (sistema legacy)');
 			}
 
 			// Ocultar indicador de carga
@@ -1503,9 +1509,26 @@ export class TrackingPixelSDK {
 				}
 			}, 100);
 
+			// ✅ CONSOLIDACIÓN: Después de cargar, verificar si mostrar mensaje de bienvenida
+			// Esto reemplaza la lógica duplicada anterior
+			console.log('[TrackingPixelSDK] 💬 Carga legacy completa, verificando necesidad de mensaje de bienvenida');
+			if (chat.checkAndAddWelcomeMessage) {
+				chat.checkAndAddWelcomeMessage();
+			}
+
 		} catch (error) {
 			console.error('[TrackingPixelSDK] ❌ Error cargando mensajes del chat:', error);
 			chat.hideLoadingMessages();
+
+			// En caso de error, también verificar si mostrar mensaje de bienvenida
+			console.log('[TrackingPixelSDK] ⚠️ Error en carga, verificando mensaje de bienvenida como fallback');
+			if (chat.checkAndAddWelcomeMessage) {
+				chat.checkAndAddWelcomeMessage();
+			}
+		} finally {
+			// 🔒 PROTECCIÓN CONTRA RACE CONDITION: Limpiar bandera de carga
+			chat.setLoadingInitialMessages(false);
+			console.log('[TrackingPixelSDK] 💬 🔒 Bandera de carga limpiada, race condition protection finalizada');
 		}
 	}
 
