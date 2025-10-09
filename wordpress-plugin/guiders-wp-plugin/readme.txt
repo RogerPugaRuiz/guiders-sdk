@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0-alpha.1
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,37 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.2.0-alpha.1 =
+* **🛡️ Protección Robusta contra Errores Fatales**: El plugin ahora maneja gracefully todos los errores críticos
+  * Sistema completo de try-catch en puntos críticos del código
+  * Verificación defensiva de archivos antes de require_once
+  * Validación de datos de arrays externos (GitHub API) antes de acceder
+  * El admin de WordPress NUNCA se bloqueará por errores del plugin
+  * Degradación graceful: funcionalidades no críticas pueden fallar sin afectar WordPress
+* **📝 Sistema de Logging Mejorado**: Logs descriptivos con emojis para debugging rápido
+  * Mensajes claros cuando falta un archivo
+  * Información detallada sobre errores en constructores
+  * Logs específicos por componente ([Guiders Admin], [Guiders Updater], etc.)
+* **🔧 Nueva Clase Guiders_Error_Handler**: Gestión centralizada de errores
+  * Métodos safeRequire() y safeInstantiate() para carga segura
+  * Admin notices informativos (no bloquean WordPress)
+  * Detalles técnicos visibles solo con WP_DEBUG activo
+* **✅ Garantía de Estabilidad**: Múltiples capas de protección contra escenarios de fallo
+  * Validación de existencia de archivos antes de cargarlos
+  * Protección en constructores de todas las clases
+  * Acceso seguro a arrays con isset() siempre
+  * Templates verificados antes de incluir
+* **🔒 Seguridad Mejorada**: Nunca bloquea WordPress
+  * Si falta un archivo → Admin notice + WordPress funciona
+  * Si falla un componente → Ese componente se desactiva + resto funciona
+  * Si API GitHub falla → Updater falla silenciosamente + plugin funciona
+  * Errores siempre logueados para troubleshooting
+* **📊 Acceso Seguro a API GitHub**: Validación completa de respuestas
+  * Verificación de estructura de datos antes de acceder
+  * Protección contra cambios en formato de API
+  * Manejo de errores de red sin afectar el plugin
+* **🎯 Compatible con WordPress Recovery Mode**: Funciona con el modo de recuperación de WordPress 5.2+
 
 = 1.1.0 =
 * **📱 Chat Pantalla Completa en Móviles**: El chat ahora ocupa el 100% del viewport en dispositivos ≤768px para una experiencia inmersiva

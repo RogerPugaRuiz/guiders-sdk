@@ -1,6 +1,9 @@
 <?php
 /**
- * Public functionality for Guiders WP Plugin
+ * Public functionality for Guiders WP Plugin with error protection
+ *
+ * @since 1.0.0
+ * @version 1.2.0 - Added error handling
  */
 
 // Prevent direct access
@@ -9,19 +12,24 @@ if (!defined('ABSPATH')) {
 }
 
 class GuidersPublic {
-    
+
     /**
      * Plugin settings
      * @var array
      */
     private $settings;
-    
+
     /**
-     * Constructor
+     * Constructor with error protection
      */
     public function __construct() {
-        $this->settings = get_option('guiders_wp_plugin_settings', array());
-        $this->initHooks();
+        try {
+            $this->settings = get_option('guiders_wp_plugin_settings', array());
+            $this->initHooks();
+        } catch (Throwable $e) {
+            error_log('[Guiders Public] Error in constructor: ' . $e->getMessage());
+            // Don't throw - allow WordPress to continue without frontend functionality
+        }
     }
     
     /**
@@ -49,24 +57,40 @@ class GuidersPublic {
     }
     
     /**
-     * Enqueue scripts and styles
+     * Enqueue scripts and styles with error protection
      */
     public function enqueueAssets() {
-        // Enqueue the Guiders SDK
-        wp_enqueue_script(
-            'guiders-sdk',
-            GUIDERS_WP_PLUGIN_PLUGIN_URL . 'assets/js/guiders-sdk.js',
-            array(),
-            GUIDERS_WP_PLUGIN_VERSION,
-            true // Load in footer
-        );
-        
-    // Add SDK configuration (exponer exactamente como GUIDERS_CONFIG porque el bundle lo busca con ese nombre)
-    $config = $this->getSDKConfig();
-    wp_localize_script('guiders-sdk', 'GUIDERS_CONFIG', $config);
-        
-        // Add inline styles for better chat appearance if needed
-        $this->addInlineStyles();
+        try {
+            $sdk_file = GUIDERS_WP_PLUGIN_PLUGIN_URL . 'assets/js/guiders-sdk.js';
+
+            // Verify SDK file exists
+            $sdk_file_path = GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'assets/js/guiders-sdk.js';
+            if (!file_exists($sdk_file_path)) {
+                error_log('[Guiders Public] SDK file not found: ' . $sdk_file_path);
+                // Don't enqueue if file doesn't exist
+                return;
+            }
+
+            // Enqueue the Guiders SDK
+            wp_enqueue_script(
+                'guiders-sdk',
+                $sdk_file,
+                array(),
+                GUIDERS_WP_PLUGIN_VERSION,
+                true // Load in footer
+            );
+
+            // Add SDK configuration (exponer exactamente como GUIDERS_CONFIG porque el bundle lo busca con ese nombre)
+            $config = $this->getSDKConfig();
+            wp_localize_script('guiders-sdk', 'GUIDERS_CONFIG', $config);
+
+            // Add inline styles for better chat appearance if needed
+            $this->addInlineStyles();
+
+        } catch (Throwable $e) {
+            error_log('[Guiders Public] Error enqueuing assets: ' . $e->getMessage());
+            // Continue without SDK - WordPress still works
+        }
     }
     
     /**

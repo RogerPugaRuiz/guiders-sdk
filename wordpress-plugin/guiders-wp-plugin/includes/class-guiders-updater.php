@@ -1,11 +1,12 @@
 <?php
 /**
  * Guiders Plugin Updater
- * 
- * Handles automatic updates from GitHub releases
- * 
+ *
+ * Handles automatic updates from GitHub releases with error protection
+ *
  * @package GuidersWPPlugin
  * @since 1.0.0
+ * @version 1.2.0 - Added robust error handling
  */
 
 // Prevent direct access
@@ -30,14 +31,19 @@ class GuidersUpdater {
     private $update_transient_key;
     
     /**
-     * Constructor
+     * Constructor with error protection
      */
     public function __construct() {
-        $this->plugin_file = GUIDERS_WP_PLUGIN_PLUGIN_FILE;
-        $this->plugin_basename = GUIDERS_WP_PLUGIN_PLUGIN_BASENAME;
-        $this->update_transient_key = 'guiders_wp_plugin_update_check';
-        
-        $this->initHooks();
+        try {
+            $this->plugin_file = GUIDERS_WP_PLUGIN_PLUGIN_FILE;
+            $this->plugin_basename = GUIDERS_WP_PLUGIN_PLUGIN_BASENAME;
+            $this->update_transient_key = 'guiders_wp_plugin_update_check';
+
+            $this->initHooks();
+        } catch (Throwable $e) {
+            error_log('[Guiders Updater] Error in constructor: ' . $e->getMessage());
+            // Don't throw - allow plugin to continue without updater
+        }
     }
     
     /**
@@ -68,20 +74,33 @@ class GuidersUpdater {
     }
     
     /**
-     * Check for plugin updates
+     * Check for plugin updates with error protection
      */
     public function checkForUpdate($transient) {
-        if (empty($transient->checked)) {
-            return $transient;
-        }
-        
-        // Get plugin data
-        if (!function_exists('get_plugin_data')) {
-            require_once ABSPATH . 'wp-admin/includes/plugin.php';
-        }
-        
-        $this->plugin_data = get_plugin_data($this->plugin_file);
-        $current_version = $this->plugin_data['Version'];
+        try {
+            if (empty($transient->checked)) {
+                return $transient;
+            }
+
+            // Get plugin data (with safety check)
+            if (!function_exists('get_plugin_data')) {
+                $plugin_file = ABSPATH . 'wp-admin/includes/plugin.php';
+                if (!file_exists($plugin_file)) {
+                    error_log('[Guiders Updater] WordPress plugin.php not found');
+                    return $transient;
+                }
+                require_once $plugin_file;
+            }
+
+            $this->plugin_data = get_plugin_data($this->plugin_file);
+
+            // Validate plugin data
+            if (!isset($this->plugin_data['Version'])) {
+                error_log('[Guiders Updater] Could not read plugin version');
+                return $transient;
+            }
+
+            $current_version = $this->plugin_data['Version'];
         
         // Check cached version info
         $version_info = get_transient($this->update_transient_key);
@@ -95,146 +114,198 @@ class GuidersUpdater {
             }
         }
         
-        // Compare versions
-        if ($version_info && version_compare($current_version, $version_info['version'], '<')) {
-            $transient->response[$this->plugin_basename] = (object) array(
+            // Compare versions
+            if ($version_info && version_compare($current_version, $version_info['version'], '<')) {
+                $transient->response[$this->plugin_basename] = (object) array(
+                    'slug'          => dirname($this->plugin_basename),
+                    'plugin'        => $this->plugin_basename,
+                    'new_version'   => $version_info['version'],
+                    'url'           => isset($this->plugin_data['PluginURI']) ? $this->plugin_data['PluginURI'] : '',
+                    'package'       => $version_info['download_url'],
+                    'tested'        => isset($version_info['tested']) ? $version_info['tested'] : '6.4',
+                    'requires_php'  => isset($version_info['requires_php']) ? $version_info['requires_php'] : '7.4',
+                    'compatibility' => new stdClass(),
+                    'icons'         => array(
+                        '1x' => 'https://github.com/RogerPugaRuiz/guiders-sdk/raw/main/wordpress-plugin/icon-128x128.png',
+                        '2x' => 'https://github.com/RogerPugaRuiz/guiders-sdk/raw/main/wordpress-plugin/icon-256x256.png'
+                    ),
+                    'banners'       => array(
+                        'low'  => 'https://github.com/RogerPugaRuiz/guiders-sdk/raw/main/wordpress-plugin/banner-772x250.png',
+                        'high' => 'https://github.com/RogerPugaRuiz/guiders-sdk/raw/main/wordpress-plugin/banner-1544x500.png'
+                    )
+                );
+
+                // Log update available
+                error_log(sprintf(
+                    '[Guiders Plugin] Update available: %s -> %s',
+                    $current_version,
+                    $version_info['version']
+                ));
+            }
+
+            return $transient;
+
+        } catch (Throwable $e) {
+            error_log('[Guiders Updater] Error checking for updates: ' . $e->getMessage());
+            return $transient; // Return unmodified transient on error
+        }
+    }
+    
+    /**
+     * Get latest version information from GitHub with robust error handling
+     */
+    private function getLatestVersionInfo() {
+        try {
+            $response = wp_remote_get(self::GITHUB_API_URL, array(
+                'timeout' => 15,
+                'headers' => array(
+                    'Accept' => 'application/vnd.github+json',
+                    'User-Agent' => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url')
+                )
+            ));
+
+            if (is_wp_error($response)) {
+                error_log('[Guiders Plugin] Failed to check for updates: ' . $response->get_error_message());
+                return false;
+            }
+
+            $body = wp_remote_retrieve_body($response);
+            $releases = json_decode($body, true);
+
+            if (!is_array($releases) || empty($releases)) {
+                error_log('[Guiders Plugin] No releases found in GitHub API response');
+                return false;
+            }
+
+            // Find the latest stable release (non-prerelease) - WITH SAFE ARRAY ACCESS
+            $latest_release = null;
+            foreach ($releases as $release) {
+                // Safe array access - check keys exist before using
+                if (!is_array($release)) {
+                    continue;
+                }
+
+                $is_draft = isset($release['draft']) && $release['draft'];
+                $is_prerelease = isset($release['prerelease']) && $release['prerelease'];
+
+                if (!$is_draft && !$is_prerelease) {
+                    $latest_release = $release;
+                    break;
+                }
+            }
+
+            if (!$latest_release) {
+                error_log('[Guiders Plugin] No stable releases found');
+                return false;
+            }
+
+            // Find the plugin ZIP asset - WITH SAFE ARRAY ACCESS
+            $download_url = null;
+
+            if (!isset($latest_release['assets']) || !is_array($latest_release['assets'])) {
+                error_log('[Guiders Plugin] No assets found in release');
+                return false;
+            }
+
+            foreach ($latest_release['assets'] as $asset) {
+                if (!is_array($asset)) {
+                    continue;
+                }
+
+                $asset_name = isset($asset['name']) ? $asset['name'] : '';
+                $asset_url = isset($asset['browser_download_url']) ? $asset['browser_download_url'] : '';
+
+                if ($asset_name && preg_match('/guiders-wp-plugin.*\.zip$/i', $asset_name)) {
+                    $download_url = $asset_url;
+                    break;
+                }
+            }
+
+            if (!$download_url) {
+                error_log('[Guiders Plugin] No plugin ZIP found in release assets');
+                return false;
+            }
+
+            // Safe extraction of version
+            $tag_name = isset($latest_release['tag_name']) ? $latest_release['tag_name'] : '';
+            if (!$tag_name) {
+                error_log('[Guiders Plugin] No tag_name found in release');
+                return false;
+            }
+
+            $version = ltrim($tag_name, 'v');
+
+            // Build return array with safe defaults
+            return array(
+                'version'      => $version,
+                'download_url' => $download_url,
+                'details_url'  => isset($latest_release['html_url']) ? $latest_release['html_url'] : '',
+                'changelog'    => isset($latest_release['body']) ? $latest_release['body'] : '',
+                'tested'       => '6.4',
+                'requires_php' => '7.4'
+            );
+
+        } catch (Throwable $e) {
+            error_log('[Guiders Plugin] Exception in getLatestVersionInfo: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Plugin information popup with error protection
+     */
+    public function pluginInfoPopup($result, $action, $args) {
+        try {
+            if ($action !== 'plugin_information') {
+                return $result;
+            }
+
+            if (!isset($args->slug) || $args->slug !== dirname($this->plugin_basename)) {
+                return $result;
+            }
+
+            $version_info = get_transient($this->update_transient_key);
+
+            if (!$version_info) {
+                $version_info = $this->getLatestVersionInfo();
+            }
+
+            if (!$version_info) {
+                return $result;
+            }
+
+            // Safe access to plugin_data with defaults
+            $plugin_name = isset($this->plugin_data['Name']) ? $this->plugin_data['Name'] : 'Guiders SDK';
+            $author = isset($this->plugin_data['Author']) ? $this->plugin_data['Author'] : 'Guiders';
+            $homepage = isset($this->plugin_data['PluginURI']) ? $this->plugin_data['PluginURI'] : '';
+            $description = isset($this->plugin_data['Description']) ? $this->plugin_data['Description'] : '';
+
+            return (object) array(
                 'slug'          => dirname($this->plugin_basename),
-                'plugin'        => $this->plugin_basename,
-                'new_version'   => $version_info['version'],
-                'url'           => $this->plugin_data['PluginURI'],
-                'package'       => $version_info['download_url'],
-                'tested'        => $version_info['tested'] ?? '6.4',
-                'requires_php'  => $version_info['requires_php'] ?? '7.4',
-                'compatibility' => new stdClass(),
-                'icons'         => array(
-                    '1x' => 'https://github.com/RogerPugaRuiz/guiders-sdk/raw/main/wordpress-plugin/icon-128x128.png',
-                    '2x' => 'https://github.com/RogerPugaRuiz/guiders-sdk/raw/main/wordpress-plugin/icon-256x256.png'
+                'plugin_name'   => $plugin_name,
+                'version'       => $version_info['version'],
+                'author'        => $author,
+                'homepage'      => $homepage,
+                'requires'      => '5.0',
+                'tested'        => '6.4',
+                'requires_php'  => '7.4',
+                'downloaded'    => 0,
+                'last_updated'  => date('Y-m-d'),
+                'sections'      => array(
+                    'description' => $description,
+                    'changelog'   => isset($version_info['changelog']) ? $version_info['changelog'] : 'Ver cambios en GitHub'
                 ),
+                'download_link' => $version_info['download_url'],
                 'banners'       => array(
                     'low'  => 'https://github.com/RogerPugaRuiz/guiders-sdk/raw/main/wordpress-plugin/banner-772x250.png',
                     'high' => 'https://github.com/RogerPugaRuiz/guiders-sdk/raw/main/wordpress-plugin/banner-1544x500.png'
                 )
             );
-            
-            // Log update available
-            error_log(sprintf(
-                '[Guiders Plugin] Update available: %s -> %s', 
-                $current_version, 
-                $version_info['version']
-            ));
-        }
-        
-        return $transient;
-    }
-    
-    /**
-     * Get latest version information from GitHub
-     */
-    private function getLatestVersionInfo() {
-        $response = wp_remote_get(self::GITHUB_API_URL, array(
-            'timeout' => 15,
-            'headers' => array(
-                'Accept' => 'application/vnd.github+json',
-                'User-Agent' => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url')
-            )
-        ));
-        
-        if (is_wp_error($response)) {
-            error_log('[Guiders Plugin] Failed to check for updates: ' . $response->get_error_message());
-            return false;
-        }
-        
-        $body = wp_remote_retrieve_body($response);
-        $releases = json_decode($body, true);
-        
-        if (!is_array($releases) || empty($releases)) {
-            error_log('[Guiders Plugin] No releases found in GitHub API response');
-            return false;
-        }
-        
-        // Find the latest stable release (non-prerelease)
-        $latest_release = null;
-        foreach ($releases as $release) {
-            if (!$release['draft'] && !$release['prerelease']) {
-                $latest_release = $release;
-                break;
-            }
-        }
-        
-        if (!$latest_release) {
-            error_log('[Guiders Plugin] No stable releases found');
-            return false;
-        }
-        
-        // Find the plugin ZIP asset
-        $download_url = null;
-        foreach ($latest_release['assets'] as $asset) {
-            if (preg_match('/guiders-wp-plugin.*\.zip$/', $asset['name'])) {
-                $download_url = $asset['browser_download_url'];
-                break;
-            }
-        }
-        
-        if (!$download_url) {
-            error_log('[Guiders Plugin] No plugin ZIP found in release assets');
-            return false;
-        }
-        
-        $version = ltrim($latest_release['tag_name'], 'v');
-        
-        return array(
-            'version'      => $version,
-            'download_url' => $download_url,
-            'details_url'  => $latest_release['html_url'],
-            'changelog'    => $latest_release['body'],
-            'tested'       => '6.4',
-            'requires_php' => '7.4'
-        );
-    }
-    
-    /**
-     * Plugin information popup
-     */
-    public function pluginInfoPopup($result, $action, $args) {
-        if ($action !== 'plugin_information') {
+
+        } catch (Throwable $e) {
+            error_log('[Guiders Updater] Error in pluginInfoPopup: ' . $e->getMessage());
             return $result;
         }
-        
-        if (!isset($args->slug) || $args->slug !== dirname($this->plugin_basename)) {
-            return $result;
-        }
-        
-        $version_info = get_transient($this->update_transient_key);
-        
-        if (!$version_info) {
-            $version_info = $this->getLatestVersionInfo();
-        }
-        
-        if (!$version_info) {
-            return $result;
-        }
-        
-        return (object) array(
-            'slug'          => dirname($this->plugin_basename),
-            'plugin_name'   => $this->plugin_data['Name'],
-            'version'       => $version_info['version'],
-            'author'        => $this->plugin_data['Author'],
-            'homepage'      => $this->plugin_data['PluginURI'],
-            'requires'      => '5.0',
-            'tested'        => '6.4',
-            'requires_php'  => '7.4',
-            'downloaded'    => 0,
-            'last_updated'  => date('Y-m-d'),
-            'sections'      => array(
-                'description' => $this->plugin_data['Description'],
-                'changelog'   => $version_info['changelog'] ?? 'Ver cambios en GitHub'
-            ),
-            'download_link' => $version_info['download_url'],
-            'banners'       => array(
-                'low'  => 'https://github.com/RogerPugaRuiz/guiders-sdk/raw/main/wordpress-plugin/banner-772x250.png',
-                'high' => 'https://github.com/RogerPugaRuiz/guiders-sdk/raw/main/wordpress-plugin/banner-1544x500.png'
-            )
-        );
     }
     
     /**
