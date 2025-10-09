@@ -1,6 +1,9 @@
 <?php
 /**
- * Admin functionality for Guiders WP Plugin
+ * Admin functionality for Guiders WP Plugin with error protection
+ *
+ * @since 1.0.0
+ * @version 1.2.0 - Added error handling
  */
 
 // Prevent direct access
@@ -9,12 +12,17 @@ if (!defined('ABSPATH')) {
 }
 
 class GuidersAdmin {
-    
+
     /**
-     * Constructor
+     * Constructor with error protection
      */
     public function __construct() {
-        $this->initHooks();
+        try {
+            $this->initHooks();
+        } catch (Throwable $e) {
+            error_log('[Guiders Admin] Error in constructor: ' . $e->getMessage());
+            // Don't throw - allow plugin to continue without admin functionality
+        }
     }
     
     /**
@@ -416,14 +424,49 @@ class GuidersAdmin {
     }
     
     /**
-     * Display settings page
+     * Display settings page with error protection
      */
     public function displaySettingsPage() {
         if (!current_user_can('manage_options')) {
             wp_die(__('No tienes permisos suficientes para acceder a esta página.', 'guiders-wp-plugin'));
         }
-        
-        include GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'admin/partials/admin-display.php';
+
+        try {
+            $template_file = GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'admin/partials/admin-display.php';
+
+            // Verify template file exists before including
+            if (!file_exists($template_file)) {
+                echo '<div class="wrap">';
+                echo '<h1>' . esc_html__('Guiders SDK - Error', 'guiders-wp-plugin') . '</h1>';
+                echo '<div class="notice notice-error">';
+                echo '<p><strong>' . esc_html__('Error:', 'guiders-wp-plugin') . '</strong> ';
+                echo esc_html__('No se pudo cargar la página de configuración. El archivo de template no existe.', 'guiders-wp-plugin');
+                echo '</p>';
+                echo '<p>' . esc_html__('Por favor, reinstala el plugin desde GitHub.', 'guiders-wp-plugin') . '</p>';
+                echo '</div>';
+                echo '</div>';
+
+                error_log('[Guiders Admin] Settings template file not found: ' . $template_file);
+                return;
+            }
+
+            include $template_file;
+
+        } catch (Throwable $e) {
+            echo '<div class="wrap">';
+            echo '<h1>' . esc_html__('Guiders SDK - Error', 'guiders-wp-plugin') . '</h1>';
+            echo '<div class="notice notice-error">';
+            echo '<p><strong>' . esc_html__('Error:', 'guiders-wp-plugin') . '</strong> ';
+            echo esc_html__('Ocurrió un error al cargar la página de configuración.', 'guiders-wp-plugin');
+            echo '</p>';
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                echo '<p><code>' . esc_html($e->getMessage()) . '</code></p>';
+            }
+            echo '</div>';
+            echo '</div>';
+
+            error_log('[Guiders Admin] Error loading settings page: ' . $e->getMessage());
+        }
     }
     
     /**

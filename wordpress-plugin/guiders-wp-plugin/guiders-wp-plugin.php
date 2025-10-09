@@ -3,7 +3,7 @@
  * Plugin Name: Guiders SDK
  * Plugin URI: https://github.com/RogerPugaRuiz/guiders-sdk
  * Description: Integra el SDK de Guiders para tracking inteligente, chat en vivo y notificaciones en tu sitio WordPress. Con detección heurística automática de elementos sin necesidad de modificar el HTML.
- * Version: 1.1.0
+ * Version: 1.2.0-alpha.1
  * Author: Guiders
  * Author URI: https://guiders.ancoradual.com
  * License: ISC
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('GUIDERS_WP_PLUGIN_VERSION', '1.1.0');
+define('GUIDERS_WP_PLUGIN_VERSION', '1.2.0-alpha.1');
 define('GUIDERS_WP_PLUGIN_PLUGIN_FILE', __FILE__);
 define('GUIDERS_WP_PLUGIN_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('GUIDERS_WP_PLUGIN_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -56,35 +56,70 @@ class GuidersWPPlugin {
     }
     
     /**
-     * Initialize plugin
+     * Initialize plugin with error protection
      */
     private function init() {
-        // Load dependencies
-        $this->loadDependencies();
-        
-        // Initialize hooks
-        $this->initHooks();
-        
-        // Initialize admin
-        if (is_admin()) {
-            new GuidersAdmin();
-            // Initialize updater
-            new GuidersUpdater();
+        // Load dependencies (returns false if critical error)
+        if (!$this->loadDependencies()) {
+            return; // Exit early if error handler couldn't load
         }
-        
-        // Initialize public
+
+        // Check if we can continue (error handler is available now)
+        if (class_exists('Guiders_Error_Handler') && !Guiders_Error_Handler::isPluginFunctional()) {
+            error_log('[Guiders Plugin] Plugin initialization aborted due to critical errors');
+            return; // Exit early if critical files failed to load
+        }
+
+        // Initialize hooks (safe - no external dependencies)
+        $this->initHooks();
+
+        // Initialize admin components (with error protection)
+        if (is_admin()) {
+            // Safe instantiation - won't crash if class fails
+            Guiders_Error_Handler::safeInstantiate('GuidersAdmin', false);
+            Guiders_Error_Handler::safeInstantiate('GuidersUpdater', false);
+        }
+
+        // Initialize public components (with error protection)
         if (!is_admin()) {
-            new GuidersPublic();
+            Guiders_Error_Handler::safeInstantiate('GuidersPublic', false);
         }
     }
     
     /**
-     * Load plugin dependencies
+     * Load plugin dependencies with error protection
      */
     private function loadDependencies() {
-        require_once GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'includes/class-guiders-admin.php';
-        require_once GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'includes/class-guiders-public.php';
-        require_once GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'includes/class-guiders-updater.php';
+        // Load error handler FIRST (critical - must exist)
+        $error_handler_file = GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'includes/class-guiders-error-handler.php';
+
+        if (!file_exists($error_handler_file)) {
+            // Fallback: if error handler doesn't exist, log and show basic notice
+            error_log('[Guiders Plugin] CRITICAL: Error handler file not found. Plugin cannot load safely.');
+            add_action('admin_notices', function() {
+                echo '<div class="notice notice-error"><p>';
+                echo '<strong>Guiders SDK Plugin Error:</strong> Archivos críticos del plugin no encontrados. ';
+                echo 'Por favor reinstala el plugin. WordPress sigue funcionando normalmente.';
+                echo '</p></div>';
+            });
+            return false;
+        }
+
+        require_once $error_handler_file;
+
+        // Now use error handler for remaining files
+        $files = array(
+            'includes/class-guiders-admin.php' => false,    // Not critical - only affects admin
+            'includes/class-guiders-public.php' => false,   // Not critical - only affects frontend
+            'includes/class-guiders-updater.php' => false   // Not critical - only affects updates
+        );
+
+        foreach ($files as $file => $critical) {
+            $full_path = GUIDERS_WP_PLUGIN_PLUGIN_DIR . $file;
+            Guiders_Error_Handler::safeRequire($full_path, $critical);
+        }
+
+        return true;
     }
     
     /**
