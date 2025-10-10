@@ -664,10 +664,22 @@ export class TrackingPixelSDK {
 					localStorage.setItem('guiders_recent_chats', JSON.stringify(result.chats.chats));
 					ChatMemoryStore.getInstance().setChatId(result.chats.chats[0].id);
 					console.log('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) guardado en memoria:', result.chats.chats[0].id);
-					
+
 					// 🔧 ELIMINADO: No cargar mensajes automáticamente al identificar visitante
 					// Solo cargar cuando el usuario abra el chat para evitar peticiones innecesarias
 					// this.loadInitialMessagesFromFirstChat(result.chats.chats[0]);
+				} else {
+					// No hay chats previos, mostrar mensaje de bienvenida automáticamente
+					console.log('[TrackingPixelSDK] 💬 No hay chats previos, mostrando mensaje de bienvenida automáticamente');
+					if (this.chatUI && this.chatUI.checkAndAddWelcomeMessage) {
+						// Pequeño delay para asegurar que el chat esté completamente inicializado
+						setTimeout(() => {
+							if (this.chatUI && this.chatUI.checkAndAddWelcomeMessage) {
+								this.chatUI.checkAndAddWelcomeMessage();
+								console.log('[TrackingPixelSDK] ✅ Mensaje de bienvenida mostrado automáticamente');
+							}
+						}, 500);
+					}
 				}
 			}
 		} catch (e) {
