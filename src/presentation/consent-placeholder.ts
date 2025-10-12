@@ -36,10 +36,6 @@ export class ConsentPlaceholder {
             <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z" fill="currentColor"/>
           </svg>
         </div>
-        <div class="guiders-placeholder-text">
-          <strong>Chat disponible</strong>
-          <p>Acepta cookies para chatear con nosotros</p>
-        </div>
         <button id="guiders-placeholder-button" class="guiders-placeholder-button">
           Gestionar cookies
         </button>
@@ -142,26 +138,6 @@ export class ConsentPlaceholder {
         background: #f0f0f0;
         border-radius: 50%;
         color: #666;
-      }
-
-      .guiders-placeholder-text {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-
-      .guiders-placeholder-text strong {
-        font-size: 16px;
-        font-weight: 600;
-        color: #333;
-        margin: 0;
-      }
-
-      .guiders-placeholder-text p {
-        font-size: 14px;
-        color: #666;
-        margin: 0;
-        line-height: 1.4;
       }
 
       .guiders-placeholder-button {
