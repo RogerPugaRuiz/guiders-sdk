@@ -1,6 +1,12 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+---
+
 # Guiders SDK - Architecture Guide
 
-This document provides essential context for AI agents (Claude Code, GitHub Copilot, etc.) working on this codebase.
+This document provides essential context for AI agents working on this codebase.
 
 ## Project Overview
 
@@ -18,36 +24,38 @@ This document provides essential context for AI agents (Claude Code, GitHub Copi
 ### Key Commands
 
 ```bash
-# Development build (watch mode)
-npm run dev
+# Development server (webpack dev server with hot reload)
+npm start
 
 # Production build
 npm run build
 
-# Demo server (serves built SDK)
-npm run demo
-
 # Testing
-npm test                    # Run all tests
-npm run test:unit          # Unit tests only
-npm run test:e2e           # E2E tests only
-npm run test:coverage      # Coverage report
+npm test                    # Run all Playwright tests
+npm run test:ui            # Interactive test UI
+npm run test:debug         # Run tests in debug mode
+npm run test:headed        # Run tests with browser visible
+npm run test:report        # Show last test report
+
+# WordPress plugin release
+npm run release:wp          # Build SDK + package plugin ZIP
+npm run release:wp:skip     # Package plugin ZIP (skip build)
+npm run release:wp:publish  # Full release: build + ZIP + git commit/tag/push
 ```
 
 ### Build Output
 
-- **Development**: `demo/app/public/guiders-sdk.js` (unminified, with source maps)
-- **Production**: `dist/guiders-sdk.js` (minified, optimized)
-- Build tool: **Rollup** with TypeScript, Terser for minification
+- **Production**: `dist/index.js` (UMD bundle, minified, TypeScript declarations included)
+- **WordPress**: `wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js` (copied from dist)
+- Build tool: **Webpack 5** with TypeScript, production mode optimization
 
 ### Demo Environment
 
-The SDK includes a complete PHP-based demo app at `demo/app/` that simulates a real website integration:
-- Consent banner UI (`demo/app/partials/gdpr-banner.php`)
-- Header integration (`demo/app/partials/header.php`)
-- Test pages: Home, About, Contact, Product
-
-**Run demo**: `npm run demo` then visit `http://localhost:8087`
+The SDK includes a PHP-based demo app at `demo/app/` for testing integration:
+- GDPR consent banner (`demo/app/partials/gdpr-banner.php`)
+- Example pages with tracking and chat
+- Manual testing server: `php -S 127.0.0.1:8083 -t demo/app`
+- Quick tests: `examples/quick-test.html`, `examples/websocket-realtime-chat-demo.html`
 
 ## Architecture
 
@@ -55,31 +63,47 @@ The SDK includes a complete PHP-based demo app at `demo/app/` that simulates a r
 
 ```
 src/
-├── core/                    # Core SDK initialization and orchestration
-│   ├── tracking-pixel-SDK.ts   # Main SDK class (entry point)
-│   └── consent-manager.ts      # Local consent state management
+├── core/                        # Core SDK initialization and orchestration
+│   ├── tracking-pixel-SDK.ts       # Main SDK class (entry point)
+│   ├── consent-manager.ts          # Local consent state management
+│   ├── session-tracking-manager.ts # Session lifecycle (prevents false session_end)
+│   ├── heuristic-element-detector.ts # Intelligent element detection
+│   ├── bot-detector.ts             # Bot detection before initialization
+│   ├── active-hours-validator.ts   # Chat availability by schedule
+│   ├── endpoint-resolver.ts        # Centralized endpoint configuration
+│   └── token-manager.ts            # JWT token lifecycle (if authMode='jwt')
 │
-├── services/                # Backend integrations and business logic
-│   ├── visitors-v2-service.ts    # Visitor identification (fingerprinting)
-│   ├── consent-backend-service.ts # Consent API integration
-│   ├── chat-service.ts           # WebSocket chat client
-│   └── events-service.ts         # Event tracking API
+├── services/                    # Backend integrations and business logic
+│   ├── visitors-v2-service.ts      # Visitor identification (fingerprinting)
+│   ├── consent-backend-service.ts  # Consent API integration
+│   ├── websocket-service.ts        # Socket.IO client (singleton)
+│   ├── chat-v2-service.ts          # Chat API v2 with fallback to v1
+│   ├── realtime-message-manager.ts # WebSocket message handling + deduplication
+│   └── message-pagination-service.ts # Message history pagination
 │
-├── pipeline/                # Event processing and queuing
-│   ├── queue-system.ts          # Persistent event queue (localStorage)
-│   └── event-pipeline.ts        # Event batching and retry logic
+├── pipeline/                    # Event processing pipeline
+│   ├── stages/                     # Immutable processing stages
+│   │   ├── time-stamp-stage.ts
+│   │   ├── token-injection-stage.ts
+│   │   ├── session-injection-stage.ts
+│   │   ├── validation-stage.ts
+│   │   └── side-effect-stage.ts    # ONLY stage allowed to do I/O
+│   └── event-pipeline.ts           # Pipeline orchestration
 │
-└── presentation/            # UI components
-    ├── chat-ui.ts              # Chat widget UI
-    ├── consent-placeholder.ts   # GDPR placeholder (pre-consent)
-    └── components/             # Reusable UI components
+└── presentation/                # UI components (lazy-loaded)
+    ├── components/
+    │   ├── chat-ui.ts              # Main chat widget
+    │   ├── chat-input-ui.ts        # Message input + file upload
+    │   ├── chat-messages-ui.ts     # Message list renderer
+    │   └── message-renderer.ts     # Individual message formatting
+    └── consent-banner-ui.ts        # GDPR consent banner UI
 ```
 
 ### Key Design Patterns
 
 #### 1. GDPR-First Architecture
 
-**Principle**: No data processing without explicit consent.
+**Principle**: Consent management is OPTIONAL by default. Sites can enable GDPR controls when needed.
 
 **Implementation**:
 - **ConsentManager** (`src/core/consent-manager.ts`): Manages consent state in localStorage
@@ -87,26 +111,28 @@ src/
   - Categories: `analytics`, `functional`, `personalization`
   - Emits events on state change
 
-- **Consent Placeholder** (`src/presentation/consent-placeholder.ts`):
-  - Shows static HTML/CSS widget when consent is `pending`
-  - NO JavaScript execution, NO cookies, NO fingerprinting
-  - User clicks "Gestionar cookies" → banner appears → consent granted → placeholder hides → SDK initializes
+- **requireConsent Configuration** (`src/core/tracking-pixel-SDK.ts`):
+  - **Default: `false`** - SDK initializes immediately without consent barriers
+  - Set `requireConsent: true` to enforce GDPR consent requirements
+  - When `false`: SDK sets `defaultStatus: 'granted'` automatically
+  - When `true`: SDK waits for consent, shows banner (if configured)
+
+- **Consent Banner** (`src/presentation/consent-banner-ui.ts`):
+  - ONLY shown when `requireConsent: true` and `consentBanner.enabled: true`
+  - Provides UI for users to grant/deny consent
+  - Fully customizable via configuration
 
 - **Automatic Consent Registration** (`src/services/visitors-v2-service.ts`):
   - Backend automatically registers ALL consents when `identify()` is called
   - Frontend sends `hasAcceptedPrivacyPolicy: true/false` in the identify payload
-  - If `true` (HTTP 200): Backend creates visitor with session and registers consent as `granted`
-  - If `false` (HTTP 400): Backend creates anonymous visitor WITHOUT session and registers consent as `denied`
-  - No manual consent registration needed after identify (backend handles everything)
+  - HTTP 200: Visitor with session, consent `granted`
+  - HTTP 400: Anonymous visitor, consent `denied`
 
-- **Consent Synchronization** (`src/core/tracking-pixel-SDK.ts` lines 753-786):
-  - For NEW visitors (consentAge < 5s): Backend has latest state from identify, no sync needed
-  - For RETURNING visitors (consentAge > 5s): Sync local state with backend state to detect changes
+- **Consent Synchronization**:
+  - For NEW visitors (consentAge < 5s): Backend has latest state
+  - For RETURNING visitors (consentAge > 5s): Sync local state with backend
 
-**Critical**: SDK initialization (`init()`) ONLY runs when consent status is `granted`. Constructor checks initial state and either:
-- Shows placeholder (pending)
-- Initializes SDK (granted)
-- Does nothing (denied)
+**Critical**: `requireConsent: false` (default) allows SDK to work globally without GDPR barriers. European sites should set `requireConsent: true`.
 
 #### 2. Visitor Identity System
 
@@ -119,9 +145,9 @@ src/
 **Identity Resolution**:
 ```
 1. User visits site → SDK checks localStorage for fingerprint
-2. If no fingerprint → SDK checks consent status
-3. If consent pending → Show placeholder, STOP
-4. If consent granted → Generate fingerprint via ClientJS
+2. If no fingerprint → SDK checks consent status (if requireConsent=true)
+3. If consent pending (and required) → Wait for consent
+4. If consent granted (or not required) → Generate fingerprint via ClientJS
 5. Call identify() → Backend matches fingerprint to existing visitor or creates new
 6. Store visitorId in localStorage
 7. Use visitorId for all chat/events/consent operations
@@ -154,37 +180,62 @@ trackEvent() → EventPipeline.enqueue() → QueueSystem.add() → localStorage
 
 #### 4. Chat System
 
-**WebSocket Client** (`src/services/chat-service.ts`):
-- Connects to `wss://chat.guiders.app`
+**WebSocket Client** (`src/services/websocket-service.ts`):
+- Singleton Socket.IO client
+- Connects to `wss://chat.guiders.app` (or configured endpoint)
 - Handles:
-  - Message sending/receiving
+  - Message sending (HTTP POST) + receiving (WebSocket)
   - Typing indicators
   - Read receipts
-  - File uploads (via presigned S3 URLs)
-  - Reconnection logic
+  - Room join/leave
+  - Automatic reconnection
+  - Dual authentication (JWT Bearer + HttpOnly cookies)
+
+**Message Deduplication** (`src/services/realtime-message-manager.ts`):
+- Filters out visitor's own messages from WebSocket (prevents duplicates)
+- Visitor sees instant optimistic UI, WebSocket echo is ignored
+- Only renders messages from commercials/bots/other participants
+
+**API v2 with Fallback** (`src/services/chat-v2-service.ts`):
+- Tries `/api/v2/chats` endpoints first
+- Falls back to v1 endpoints if v2 unavailable
+- Adapts response formats transparently
+- Supports pagination, filters, metrics, assignment
 
 **UI Components**:
-- `ChatUI` (`src/presentation/components/chat-ui.ts`): Main widget
-- `ChatInputUI` (`src/presentation/components/chat-input-ui.ts`): Message input with file upload
+- `ChatUI`: Main widget structure
+- `ChatInputUI`: Message input with file upload
+- `ChatMessagesUI`: Message list renderer
+- `MessageRenderer`: Individual message formatting
 
 **State Management**:
-- Messages stored in memory (not persisted)
+- Messages paginated and stored in `ChatMemoryStore`
 - UI auto-scrolls on new message
-- Welcome message shown on first load (stored in localStorage flag)
+- Welcome message shown on first open (localStorage flag)
+- Active hours validation before showing chat
 
 ### API Integration
 
-**Base URL**: `https://app.guiders.app` (or staging: `https://staging.guiders.app`)
+**Endpoint Resolution** (`src/core/endpoint-resolver.ts`):
+- Centralized configuration via `EndpointManager` singleton
+- Order: `window.GUIDERS_CONFIG` > environment vars > defaults
+- Production: `https://app.guiders.app/api` and `wss://chat.guiders.app`
+- Development: Detected by `?dev` query param in page or script URL
+- Dev defaults: `http://localhost:3000/api` and `ws://localhost:3000`
 
 **Authentication**:
+- **Default mode: `session`** - HttpOnly cookie from `/api/visitors/identify`
+- **Optional mode: `jwt`** - Bearer token from `/api/pixel/token`
 - API Key in request body: `apiKey: "gds_xxx"`
-- Session ID in header: `X-Guiders-SID: <visitorId>`
+- Visitor ID in header: `X-Guiders-SID: <visitorId>`
 
 **Key Endpoints**:
-- `POST /visitors/v2/identify` - Register/identify visitor
-- `POST /events/v2/track-batch` - Send event batch
-- `POST /consent/visitors/{id}` - Register consent
-- `GET /consent/visitors/{id}` - Fetch consent status
+- `POST /api/visitors/v2/identify` - Register/identify visitor
+- `POST /api/events/v2/track-batch` - Send event batch
+- `POST /api/consent/visitors/{id}` - Register consent
+- `GET /api/consent/visitors/{id}` - Fetch consent status
+- `POST /api/pixel/token` - Get JWT token (if authMode='jwt')
+- Chat API v2: `/api/v2/chats/*` (with v1 fallback)
 - WebSocket: `wss://chat.guiders.app` - Real-time chat
 
 ## Important Technical Decisions
@@ -215,25 +266,40 @@ trackEvent() → EventPipeline.enqueue() → QueueSystem.add() → localStorage
 - Better GDPR audit trail (consent recorded at visitor creation)
 - Clearer error handling (HTTP 400 for denied consent is not a failure)
 
-**Location**: `src/services/visitors-v2-service.ts` lines 72-151
+**Location**: `src/services/visitors-v2-service.ts`
 
-### Why Placeholder Instead of Disabled Chat?
+### Why `requireConsent: false` by Default?
 
-**Rejected Approach**: Show full chat UI but disable functionality until consent.
+**Evolution**: Consent requirement changed from mandatory to optional in v1.2.3 (January 2025).
 
-**Why rejected**:
-- Loading SDK JavaScript = processing data (fingerprint, userAgent, localStorage writes)
-- Showing functional UI = implied consent (GDPR violation - Article 7, Consideration 32)
+**Old approach (v1.2.2 and earlier)**:
+- SDK always required consent before initialization
+- ConsentPlaceholder component blocked chat UI
+- Mandatory GDPR flow for all sites globally
 
-**Chosen Approach**: Static HTML/CSS placeholder.
+**New approach (v1.2.3+)**:
+- SDK initializes immediately by default (`requireConsent: false`)
+- No consent barriers unless explicitly enabled
+- GDPR controls opt-in via configuration
 
-**Why chosen**:
-- GDPR compliant (no processing before consent)
-- User knows chat is available (UX benefit)
-- Clear call-to-action ("Gestionar cookies")
-- Industry standard (Drift, LiveChat, etc. use this pattern)
+**Rationale**:
+- **Global usability**: Sites outside EU don't need GDPR barriers
+- **Easier onboarding**: SDK works immediately after installation
+- **Flexibility**: Sites can enable GDPR when needed
+- **Better UX**: Non-EU users don't see unnecessary consent prompts
 
-**Location**: `src/presentation/consent-placeholder.ts`
+**How to enable GDPR**:
+```typescript
+const sdk = new TrackingPixelSDK({
+  apiKey: 'YOUR_API_KEY',
+  requireConsent: true,  // Enable GDPR consent requirement
+  consentBanner: {
+    enabled: true  // Show consent banner UI
+  }
+});
+```
+
+**Location**: `src/core/tracking-pixel-SDK.ts`
 
 ### Why ClientJS for Fingerprinting?
 
@@ -245,36 +311,91 @@ trackEvent() → EventPipeline.enqueue() → QueueSystem.add() → localStorage
 - Covers: canvas, WebGL, fonts, timezone, screen resolution, plugins, etc.
 - Good enough accuracy for visitor identification (not security use case)
 
-**Location**: `src/services/visitors-v2-service.ts` lines 13-14 (import)
+**Location**: `src/services/visitors-v2-service.ts`
 
-## Common Development Tasks
+### Why Session-Based Auth by Default?
 
-### Adding a New Event Type
+**Evolution**: Auth mode changed from JWT-based to session-based in late 2024.
 
-1. Define event type in `src/pipeline/types/event-types.ts`:
-   ```typescript
-   export interface CustomEvent extends BaseEvent {
-     type: 'custom';
-     properties: {
-       category: string;
-       action: string;
-       value?: number;
-     };
-   }
-   ```
+**Old approach**:
+- SDK always requested JWT tokens via `/api/pixel/token`
+- Tokens stored in localStorage
+- Manual refresh logic with `/api/pixel/token/refresh`
 
-2. Add tracking method in `src/core/tracking-pixel-SDK.ts`:
-   ```typescript
-   public trackCustomEvent(category: string, action: string, value?: number): void {
-     this.eventPipeline.enqueue({
-       type: 'custom',
-       properties: { category, action, value },
-       timestamp: Date.now()
-     });
-   }
-   ```
+**New approach**:
+- **Default: `authMode: 'session'`** - Uses HttpOnly cookie from identify
+- Optional: `authMode: 'jwt'` - Legacy JWT token mode
+- Simplified token renewal (no refresh endpoint)
 
-3. Test in demo: `demo/app/public/test-events.html`
+**Benefits**:
+- **More secure**: HttpOnly cookies can't be accessed by JavaScript (XSS protection)
+- **Simpler client code**: No token management needed
+- **Better performance**: No localStorage reads/writes per request
+- **Easier debugging**: No token expiration issues
+
+**Location**: `src/core/tracking-pixel-SDK.ts`, `src/core/token-manager.ts`
+
+### Why Heuristic Detection?
+
+**Problem**: Manually adding `data-track-event` attributes to client websites is error-prone and requires HTML modifications.
+
+**Solution**: Intelligent element detection using CSS patterns, text content, and context.
+
+**Benefits**:
+- **Zero HTML changes**: Works with existing markup
+- **WordPress/CMS friendly**: No theme modifications needed
+- **Auto-adapts**: Detects common e-commerce patterns automatically
+- **Configurable**: Confidence thresholds and custom rules
+
+**Method**: `enableAutomaticTracking()` (replaces legacy `enableDOMTracking()`)
+
+**Location**: `src/core/heuristic-element-detector.ts`
+
+## Important Development Patterns
+
+### Pipeline Architecture
+
+**Critical Rule**: Only `side-effect-stage.ts` can perform I/O (network, console, localStorage).
+
+**Adding a New Pipeline Stage**:
+1. Implement `PipelineStage<I, O>` interface
+2. Keep stage pure (no side effects)
+3. Return `null` to abort pipeline (document reason in log)
+4. Add stage BEFORE `validation-stage.ts` for enrichment
+5. Register in pipeline order
+
+**Example**:
+```typescript
+class GeoEnrichmentStage implements PipelineStage<Event, Event> {
+  process(event: Event): Event {
+    // PURE: No fetch, no localStorage, no DOM
+    return {
+      ...event,
+      geo: { /* derived from existing data */ }
+    };
+  }
+}
+```
+
+### Bot Detection Pattern
+
+**Always run before initialization**:
+```typescript
+const detector = new BotDetector();
+const result = await detector.detect();
+if (result.isBot) {
+  console.log('❌ Bot detected, skipping SDK');
+  return;
+}
+// Safe to initialize SDK
+```
+
+### Session Tracking
+
+**Prevents false `session_end` events on page refresh**:
+- Uses `SessionTrackingManager` with heartbeat
+- Configurable inactivity timeout
+- Test with `examples/quick-test.html`
 
 ### Adding a New Consent Category
 
@@ -300,103 +421,179 @@ trackEvent() → EventPipeline.enqueue() → QueueSystem.add() → localStorage
 
 3. Update banner UI: `demo/app/partials/gdpr-banner.php`
 
-### Modifying Chat UI
+### Active Hours Validation
 
-**Files to edit**:
-- `src/presentation/components/chat-ui.ts` - Main widget structure
-- `src/presentation/components/chat-input-ui.ts` - Input area
-- Styles are inline (look for `injectStyles()` methods)
+**Configure chat availability by schedule**:
+```typescript
+window.GUIDERS_CONFIG = {
+  activeHours: {
+    enabled: true,
+    timezone: 'auto',  // or 'Europe/Madrid'
+    ranges: [
+      { start: '08:00', end: '14:00' },
+      { start: '15:00', end: '17:00' }
+    ],
+    fallbackMessage: 'Chat available 8-14h and 15-17h'
+  }
+};
+```
 
-**Key methods**:
-- `showWelcomeMessage()` - Initial bot message
-- `addMessage()` - Append new message to chat
-- `scrollToBottom()` - Auto-scroll behavior
+**Test demos**: `demo/app/timezone-comparison.html`, `examples/timezone-auto-demo.html`
 
-### Debugging GDPR Flow
+### WebSocket Message Handling
 
-**Clear state and test**:
+**Hybrid architecture**:
+- **SEND**: HTTP POST to `/api/chats/{id}/messages`
+- **RECEIVE**: WebSocket event `message:new`
+
+**Deduplication**: `RealtimeMessageManager` filters visitor's own messages (prevents duplicates from WebSocket echo)
+
+**Test demo**: `examples/websocket-realtime-chat-demo.html`
+
+### Debugging Common Issues
+
+**Check SDK state**:
 ```javascript
-// In browser console
+console.log({
+  tokens: TokenManager.hasValidTokens(),
+  ws: window.guiders.webSocket?.isConnected(),
+  chatVisible: window.guiders.chatUI?.isVisible(),
+  heuristic: window.guiders.heuristicEnabled,
+  activeHours: window.guiders.trackingPixelSDK.getActiveHoursConfig(),
+  chatActive: window.guiders.trackingPixelSDK.isChatActive(),
+  consent: window.guiders.trackingPixelSDK.getConsentStatus()
+});
+```
+
+**Check endpoint configuration**:
+```javascript
+import { resolveDefaultEndpoints } from '@/core/endpoint-resolver';
+console.log(resolveDefaultEndpoints());
+```
+
+**Clear all SDK state**:
+```javascript
 localStorage.clear();
 sessionStorage.clear();
 location.reload();
-
-// Check consent state
-const state = JSON.parse(localStorage.getItem('guiders_consent_state'));
-console.log('Consent state:', state);
-
-// Manual grant
-window.guiders.grantConsent();
-
-// Check if placeholder is visible
-document.getElementById('guiders-consent-placeholder');
 ```
-
-**Common issues**:
-- Placeholder doesn't appear → Check initial consent state (might be `granted` from previous session)
-- SDK initializes without consent → Check constructor logic in `src/core/tracking-pixel-SDK.ts` line 322
-- Consents not reaching backend → Check Network tab for `POST /consent/visitors/{id}` calls
-
-**Debug script**: See `DEBUG_GDPR_BANNER.md` for comprehensive troubleshooting steps.
 
 ## Testing Strategy
 
-### Unit Tests (`tests/unit/`)
-- ConsentManager state transitions
-- Event queue operations
-- Fingerprint generation
-- Message formatting utilities
+**Test Framework**: Playwright (E2E tests)
 
-### E2E Tests (`tests/e2e/`)
-- Full SDK initialization flow
-- Consent grant/deny scenarios
-- Chat message sending
-- Event tracking end-to-end
+**Test Files**: Located in `tests/` directory
 
-**Run specific suite**:
+**Key Test Coverage**:
+- SDK initialization and configuration
+- Chat message loading and rendering
+- WebSocket connection and message handling
+- Consent flow (if enabled)
+- Event tracking pipeline
+- Session management
+
+**Running Tests**:
 ```bash
-npm test -- --grep "ConsentManager"
+npm test              # Run all tests
+npm run test:ui       # Interactive UI mode (recommended for debugging)
+npm run test:debug    # Step-by-step debugging
+npm run test:headed   # See browser while testing
+```
+
+**Demo Server**: Tests require PHP demo server running on port 8083:
+```bash
+php -S 127.0.0.1:8083 -t demo/app
 ```
 
 ## File Naming Conventions
 
-- **Services**: `*-service.ts` (e.g., `chat-service.ts`)
-- **Types**: `*-types.ts` (e.g., `consent-types.ts`)
+- **Services**: `*-service.ts` (e.g., `websocket-service.ts`)
+- **Managers**: `*-manager.ts` (e.g., `session-tracking-manager.ts`)
 - **UI Components**: `*-ui.ts` (e.g., `chat-ui.ts`)
+- **Types**: `*-types.ts` (e.g., `websocket-types.ts`)
 - **Tests**: `*.test.ts` or `*.spec.ts`
 
-## Documentation
+## Key Documentation Files
 
-- `README.md` - User-facing SDK documentation
-- `GDPR_PLACEHOLDER_GUIDE.md` - Deep dive on consent placeholder system
-- `DEBUG_GDPR_BANNER.md` - Troubleshooting guide for consent banner
-- `.github/copilot-instructions.md` - Development guidelines for AI agents
+- `README.md` - User-facing SDK documentation with installation and features
+- `CLAUDE.md` - This file (architecture and development guide)
+- `.github/copilot-instructions.md` - Detailed development patterns for AI agents
+- `GDPR_CONSENT.md` - Complete GDPR consent implementation guide
+- `wordpress-plugin/WORDPRESS_GDPR_GUIDE.md` - WordPress-specific GDPR integration
+- `wordpress-plugin/PLUGIN_UPDATES.md` - Plugin update system documentation
+- `MIGRATION_GUIDE_V2.md` - API v2 migration guide
+- `README_V2.md` - Chat API v2 features and usage
 
 ## Key Dependencies
 
-- **ClientJS** (`client-js`): Browser fingerprinting
-- **uuid**: UUID generation for visitor IDs
-- **Rollup**: Build system
+- **ClientJS** (`clientjs`): Browser fingerprinting for visitor identification
+- **uuid**: UUID generation for visitor IDs and message IDs
+- **socket.io-client**: WebSocket client for real-time chat
+- **Webpack 5**: Build system (UMD bundle)
 - **TypeScript**: Type safety and modern JavaScript features
+- **Playwright**: E2E testing framework
 
 ## Performance Considerations
 
-- **Bundle size**: ~323 KiB (production build)
-- **Lazy loading**: Chat UI components only load after consent granted
+- **Bundle size**: ~330 KB (production build, optimized)
+- **Lazy loading**: Chat UI components load on first interaction
 - **Event batching**: Max 10 events per request, 50KB payload limit
-- **WebSocket**: Single persistent connection for chat (not polling)
-- **localStorage**: Used for persistence (fingerprint, visitorId, consent state, event queue)
+- **WebSocket**: Single persistent Socket.IO connection (not polling)
+- **localStorage**: Used for persistence (fingerprint, visitorId, consent state, event queue, chat history)
+- **Session-based auth**: No token storage overhead (HttpOnly cookies)
+- **Message pagination**: Efficient memory usage with cursor-based pagination
 
 ## Security Notes
 
 - **API Keys**: Client-side keys (`gds_xxx`) are public by design (scoped to domain)
+- **Session auth**: HttpOnly cookies prevent XSS token theft
 - **CORS**: Backend validates origin headers
-- **XSS Protection**: All user input is sanitized before rendering
+- **XSS Protection**: All user input sanitized before rendering
 - **No sensitive data**: SDK never stores passwords, payment info, or PII beyond fingerprint
+- **Bot detection**: Prevents SDK initialization for detected bots/crawlers
+
+## WordPress Plugin Release Workflow
+
+**Versioning**: Follow SemVer with pre-release stages: `alpha` → `beta` → `rc` → `stable`
+
+**Automated Release** (recommended):
+```bash
+# Full workflow: build SDK + package plugin + commit + tag + push
+bash wordpress-plugin/release-wp-publish.sh "chore(wp-plugin): release X.Y.Z-beta.N"
+```
+
+**GitHub Actions** (automatic):
+- Detects version from git tag
+- Validates tag matches plugin header version
+- Generates changelog from `readme.txt`
+- Packages and uploads ZIP to GitHub Release
+- Marks pre-releases (`-alpha`, `-beta`, `-rc`) appropriately
+
+**Plugin Update Checker**:
+- Checks GitHub Releases every 12 hours
+- **Stable releases**: Auto-detected, users get update notifications
+- **Pre-releases**: NOT auto-detected (manual download only)
+- Requires ZIP asset matching pattern `/guiders-wp-plugin.*\.zip$/i`
+
+**Manual Steps** (if needed):
+1. Update version in `wordpress-plugin/guiders-wp-plugin/guiders-wp-plugin.php` (header + constant)
+2. Update `Stable tag` and changelog in `readme.txt`
+3. Build SDK: `npm run build`
+4. Copy bundle: `cp dist/index.js wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js`
+5. Run: `bash wordpress-plugin/build-plugin.sh` to generate ZIP
+6. Commit, tag, and push
+
+**Important**:
+- Tag must match version exactly (e.g., tag `v1.2.3-beta.1` requires `Version: 1.2.3-beta.1`)
+- Always include changelog entry with proper format
+- Pre-release changelogs use `[ALPHA]`, `[BETA]`, `[RC]` prefixes
+- GitHub Release MUST include ZIP asset for auto-updates to work
+
+**See also**: `wordpress-plugin/PLUGIN_UPDATES.md`, `.github/copilot-instructions.md`
 
 ---
 
-**Last updated**: 2025-10-11
-**Current version**: 1.2.2-alpha.1
+**Last updated**: 2025-10-12
+**Current version**: 1.2.3-beta.1
 
-For questions or issues, refer to the issue tracker at: https://github.com/anthropics/claude-code/issues
+For SDK issues: https://github.com/RogerPugaRuiz/guiders-sdk/issues
