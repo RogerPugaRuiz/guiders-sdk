@@ -124,6 +124,7 @@ class GuidersPublic {
             ),
             'welcomeMessage' => $this->getWelcomeMessageConfig(),
             'activeHours' => $this->getActiveHoursConfig(),
+            'requireConsent' => isset($this->settings['require_consent']) ? $this->settings['require_consent'] : false,
             'consentBanner' => $this->getConsentBannerConfig()
         );
 

@@ -69,10 +69,10 @@ interface SDKOptions {
 	welcomeMessage?: Partial<WelcomeMessageConfig>;
 	// Active hours configuration
 	activeHours?: Partial<ActiveHoursConfig>;
-	// Consent management for GDPR compliance
-	consent?: Partial<ConsentManagerConfig>;
-	// Consent banner UI (auto-render banner for GDPR)
-	consentBanner?: ConsentBannerConfig;
+	// GDPR Consent Configuration
+	requireConsent?: boolean; // If false, SDK initializes without consent (default: true)
+	consent?: Partial<ConsentManagerConfig>; // Advanced consent options
+	consentBanner?: ConsentBannerConfig; // Consent banner UI (auto-render banner for GDPR)
 }
 
 
@@ -212,10 +212,16 @@ export class TrackingPixelSDK {
 		this.realtimeMessageManager = RealtimeMessageManager.getInstance();
 
 		// Inicializar el gestor de consentimiento GDPR
+		// requireConsent (default: false) controla si se requiere consentimiento
+		// Si requireConsent es false, el SDK se inicializa sin esperar consentimiento
+		const requireConsent = options.requireConsent ?? false;
+		const waitForConsent = options.consent?.waitForConsent ?? requireConsent;
+		const defaultStatus = requireConsent ? (options.consent?.defaultStatus || 'pending') : 'granted';
+
 		this.consentManager = ConsentManager.getInstance({
 			version: '1.2.2-alpha.1',
-			waitForConsent: options.consent?.waitForConsent ?? true,
-			defaultStatus: options.consent?.defaultStatus || 'pending',
+			waitForConsent: waitForConsent,
+			defaultStatus: defaultStatus,
 			onConsentChange: (state) => {
 				console.log('[TrackingPixelSDK] 🔐 Estado de consentimiento cambiado:', state);
 
@@ -248,7 +254,8 @@ export class TrackingPixelSDK {
 		console.log('[TrackingPixelSDK] 🔐 ConsentBackendService inicializado');
 
 		// Inicializar el banner de consentimiento si está configurado
-		if (options.consentBanner && options.consentBanner.enabled !== false) {
+		// Solo mostrar el banner si se requiere consentimiento
+		if (requireConsent && options.consentBanner && options.consentBanner.enabled !== false) {
 			this.initConsentBanner(options.consentBanner);
 		}
 

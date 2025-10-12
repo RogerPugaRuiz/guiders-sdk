@@ -294,6 +294,15 @@ class GuidersAdmin {
             'guiders_gdpr_section'
         );
 
+        // Require consent
+        add_settings_field(
+            'require_consent',
+            __('Requerir Consentimiento GDPR', 'guiders-wp-plugin'),
+            array($this, 'requireConsentFieldCallback'),
+            'guiders-settings',
+            'guiders_gdpr_section'
+        );
+
         // Consent banner style
         add_settings_field(
             'consent_banner_style',
@@ -493,6 +502,7 @@ class GuidersAdmin {
 
         // Validate GDPR & Consent Banner settings
         $validated['consent_banner_enabled'] = isset($input['consent_banner_enabled']) ? true : false;
+        $validated['require_consent'] = isset($input['require_consent']) ? true : false;
 
         // Validate banner style
         $valid_styles = array('bottom_bar', 'modal', 'corner');
@@ -1010,6 +1020,24 @@ class GuidersAdmin {
         echo '<input type="checkbox" id="consent_banner_enabled" name="guiders_wp_plugin_settings[consent_banner_enabled]" value="1" ' . checked($enabled, true, false) . ' />';
         echo '<label for="consent_banner_enabled">' . __('Mostrar banner de consentimiento automáticamente', 'guiders-wp-plugin') . '</label>';
         echo '<p class="description">' . __('Si está desactivado, deberás implementar tu propio banner o usar un plugin de terceros.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Require consent field callback
+     */
+    public function requireConsentFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $require_consent = isset($settings['require_consent']) ? $settings['require_consent'] : false;
+
+        echo '<input type="checkbox" id="require_consent" name="guiders_wp_plugin_settings[require_consent]" value="1" ' . checked($require_consent, true, false) . ' />';
+        echo '<label for="require_consent">' . __('Requerir consentimiento del usuario antes de inicializar el SDK', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">';
+        echo '<strong>' . __('✅ Activado (recomendado para sitios en EU):', 'guiders-wp-plugin') . '</strong> ';
+        echo __('El SDK no se inicializará hasta que el usuario otorgue consentimiento. Cumple con GDPR/LOPDGDD.', 'guiders-wp-plugin');
+        echo '<br>';
+        echo '<strong>' . __('❌ Desactivado:', 'guiders-wp-plugin') . '</strong> ';
+        echo __('El SDK se inicializa inmediatamente sin esperar consentimiento. Útil para sitios fuera de la UE o que usan otro sistema de consentimiento.', 'guiders-wp-plugin');
+        echo '</p>';
     }
 
     /**

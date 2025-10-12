@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.2.3-alpha.3
+Stable tag: 1.2.3-alpha.4
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,24 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.2.3-alpha.4 =
+* **⚙️ Nueva Opción: Requerir Consentimiento (requireConsent)**: Control total sobre el comportamiento GDPR
+  * Nuevo campo en la sección GDPR del panel de administración
+  * **Desactivado (por defecto)**: El SDK se inicializa inmediatamente sin esperar consentimiento
+  * **Activado**: El SDK espera consentimiento antes de inicializar (cumplimiento GDPR)
+  * Útil para sitios fuera de la UE o que usan otros sistemas de consentimiento
+  * Se pasa automáticamente desde WordPress al SDK como `requireConsent: true/false`
+  * El banner de consentimiento solo se muestra si requireConsent está activado
+* **🔧 Mejoras en la API del SDK**: Nueva opción pública `requireConsent` en SDKOptions
+  * Más fácil de entender que `consent.waitForConsent`
+  * Controla el comportamiento global del consentimiento de forma clara
+  * Si `requireConsent: false`, el SDK actúa como si el consentimiento estuviera siempre granted
+  * Documentación inline mejorada para desarrolladores
+* **📝 Mejoras en la UX del Admin**: Campo con descripción detallada
+  * Explicación clara de cuándo activar/desactivar el requisito de consentimiento
+  * Recomendaciones específicas para sitios en la UE vs fuera de la UE
+  * Checkbox intuitivo con íconos visuales (✅ Activado / ❌ Desactivado)
 
 = 1.2.3-alpha.3 =
 * **🗑️ Eliminación Completa del ConsentPlaceholder**: Removido componente que tapaba el banner
