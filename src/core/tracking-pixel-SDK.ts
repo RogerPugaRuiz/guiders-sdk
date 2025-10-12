@@ -33,7 +33,6 @@ import { WebSocketService } from "../services/websocket-service";
 import { RealtimeMessageManager } from "../services/realtime-message-manager";
 import { ConsentManager, ConsentManagerConfig } from "./consent-manager";
 import { ConsentBackendService } from "../services/consent-backend-service";
-import { ConsentPlaceholder } from "../presentation/consent-placeholder";
 import { ConsentBannerUI, ConsentBannerConfig } from "../presentation/consent-banner-ui";
 
 
@@ -158,7 +157,6 @@ export class TrackingPixelSDK {
 	private realtimeMessageManager: RealtimeMessageManager;
 	private consentManager: ConsentManager;
 	private consentBackendService: ConsentBackendService;
-	private consentPlaceholder: ConsentPlaceholder | null = null;
 	private consentBanner: ConsentBannerUI | null = null;
 
 	constructor(options: SDKOptions) {
@@ -225,12 +223,6 @@ export class TrackingPixelSDK {
 				if (state.status === 'granted') {
 					console.log('[TrackingPixelSDK] ✅ Consentimiento otorgado - habilitando tracking');
 					console.log('[TrackingPixelSDK] 📝 El backend registrará automáticamente el consentimiento en identify()');
-
-					// Ocultar placeholder si estaba visible
-					if (this.consentPlaceholder && this.consentPlaceholder.isVisible()) {
-						this.consentPlaceholder.hide();
-						console.log('[TrackingPixelSDK] 🔄 Placeholder removido, inicializando SDK completo...');
-					}
 
 					// Inicializar el SDK completo
 					this.init().catch(error => {
@@ -332,14 +324,8 @@ export class TrackingPixelSDK {
 		const initialState = this.consentManager.getState();
 
 		if (initialState.status === 'pending') {
-			// Mostrar placeholder, NO inicializar SDK
-			console.log('[TrackingPixelSDK] 🔐 Estado inicial: pending - Mostrando placeholder');
-			this.consentPlaceholder = new ConsentPlaceholder({
-				onConsentRequest: () => {
-					console.log('[TrackingPixelSDK] 👆 Usuario solicitó gestionar cookies desde placeholder');
-				}
-			});
-			this.consentPlaceholder.show();
+			// NO inicializar SDK - esperar a que se otorgue consentimiento
+			console.log('[TrackingPixelSDK] 🔐 Estado inicial: pending - SDK pausado');
 			console.log('[TrackingPixelSDK] ⏸️ SDK pausado hasta que se otorgue consentimiento');
 		} else if (initialState.status === 'granted') {
 			// Inicializar inmediatamente

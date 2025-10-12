@@ -6,7 +6,6 @@ export * from './chat';
 // También permitir importaciones directas de componentes específicos
 export { ChatUI } from './components/chat-ui';
 export { ChatInputUI } from './components/chat-input-ui';
-export { ConsentPlaceholder } from './consent-placeholder';
 
 // Re-exportar tipos
 export type { 

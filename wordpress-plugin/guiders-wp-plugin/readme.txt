@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.2.3-alpha.2
+Stable tag: 1.2.3-alpha.3
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,22 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.2.3-alpha.3 =
+* **🗑️ Eliminación Completa del ConsentPlaceholder**: Removido componente que tapaba el banner
+  * Eliminado archivo `consent-placeholder.ts` y todas sus referencias
+  * El banner de consentimiento ahora se muestra sin obstrucciones
+  * Removidas 4 referencias en `tracking-pixel-SDK.ts`
+  * Eliminada exportación en `presentation/index.ts`
+  * Simplificación de la lógica de inicialización del SDK
+* **📉 Bundle Size Optimizado**: Reducción de tamaño del SDK
+  * De 335 KB → 330 KB (reducción de ~5 KB)
+  * Código más limpio sin componente innecesario
+  * Mejor rendimiento de carga
+* **✨ Mejor UX**: Sin elementos que interfieran con el banner GDPR
+  * Banner de consentimiento visible sin bloqueos
+  * Experiencia de usuario más directa
+  * Sin elementos redundantes en la interfaz
 
 = 1.2.3-alpha.2 =
 * **🎨 Placeholder del Chat Simplificado**: Removido mensaje innecesario del placeholder
