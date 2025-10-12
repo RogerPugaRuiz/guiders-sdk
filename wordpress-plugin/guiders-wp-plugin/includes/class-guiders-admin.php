@@ -276,6 +276,77 @@ class GuidersAdmin {
             'guiders-settings',
             'guiders_active_hours_section'
         );
+
+        // GDPR & Consent Banner section
+        add_settings_section(
+            'guiders_gdpr_section',
+            __('GDPR & Banner de Consentimiento', 'guiders-wp-plugin'),
+            array($this, 'gdprSectionCallback'),
+            'guiders-settings'
+        );
+
+        // Consent banner enabled
+        add_settings_field(
+            'consent_banner_enabled',
+            __('Habilitar Banner de Consentimiento', 'guiders-wp-plugin'),
+            array($this, 'consentBannerEnabledFieldCallback'),
+            'guiders-settings',
+            'guiders_gdpr_section'
+        );
+
+        // Consent banner style
+        add_settings_field(
+            'consent_banner_style',
+            __('Estilo del Banner', 'guiders-wp-plugin'),
+            array($this, 'consentBannerStyleFieldCallback'),
+            'guiders-settings',
+            'guiders_gdpr_section'
+        );
+
+        // Consent banner text
+        add_settings_field(
+            'consent_banner_text',
+            __('Texto del Banner', 'guiders-wp-plugin'),
+            array($this, 'consentBannerTextFieldCallback'),
+            'guiders-settings',
+            'guiders_gdpr_section'
+        );
+
+        // Consent accept button text
+        add_settings_field(
+            'consent_accept_text',
+            __('Texto Botón Aceptar', 'guiders-wp-plugin'),
+            array($this, 'consentAcceptTextFieldCallback'),
+            'guiders-settings',
+            'guiders_gdpr_section'
+        );
+
+        // Consent deny button text
+        add_settings_field(
+            'consent_deny_text',
+            __('Texto Botón Rechazar', 'guiders-wp-plugin'),
+            array($this, 'consentDenyTextFieldCallback'),
+            'guiders-settings',
+            'guiders_gdpr_section'
+        );
+
+        // Show preferences button
+        add_settings_field(
+            'consent_show_preferences',
+            __('Mostrar Botón Preferencias', 'guiders-wp-plugin'),
+            array($this, 'consentShowPreferencesFieldCallback'),
+            'guiders-settings',
+            'guiders_gdpr_section'
+        );
+
+        // Banner colors
+        add_settings_field(
+            'consent_banner_colors',
+            __('Colores del Banner', 'guiders-wp-plugin'),
+            array($this, 'consentBannerColorsFieldCallback'),
+            'guiders-settings',
+            'guiders_gdpr_section'
+        );
     }
     
     /**
@@ -419,7 +490,51 @@ class GuidersAdmin {
         } else {
             $validated['active_hours_ranges'] = '[]';
         }
-        
+
+        // Validate GDPR & Consent Banner settings
+        $validated['consent_banner_enabled'] = isset($input['consent_banner_enabled']) ? true : false;
+
+        // Validate banner style
+        $valid_styles = array('bottom_bar', 'modal', 'corner');
+        if (isset($input['consent_banner_style']) && in_array($input['consent_banner_style'], $valid_styles)) {
+            $validated['consent_banner_style'] = $input['consent_banner_style'];
+        } else {
+            $validated['consent_banner_style'] = 'bottom_bar';
+        }
+
+        // Validate banner text
+        if (isset($input['consent_banner_text'])) {
+            $validated['consent_banner_text'] = sanitize_textarea_field($input['consent_banner_text']);
+        } else {
+            $validated['consent_banner_text'] = '🍪 Usamos cookies para mejorar tu experiencia y proporcionar chat en vivo.';
+        }
+
+        // Validate button texts
+        $validated['consent_accept_text'] = isset($input['consent_accept_text']) ? sanitize_text_field($input['consent_accept_text']) : 'Aceptar Todo';
+        $validated['consent_deny_text'] = isset($input['consent_deny_text']) ? sanitize_text_field($input['consent_deny_text']) : 'Rechazar';
+        $validated['consent_preferences_text'] = isset($input['consent_preferences_text']) ? sanitize_text_field($input['consent_preferences_text']) : 'Preferencias';
+
+        // Validate show preferences
+        $validated['consent_show_preferences'] = isset($input['consent_show_preferences']) ? true : false;
+
+        // Validate colors
+        $validated['consent_banner_bg_color'] = isset($input['consent_banner_bg_color']) ? sanitize_hex_color($input['consent_banner_bg_color']) : '#2c3e50';
+        $validated['consent_banner_text_color'] = isset($input['consent_banner_text_color']) ? sanitize_hex_color($input['consent_banner_text_color']) : '#ffffff';
+        $validated['consent_accept_color'] = isset($input['consent_accept_color']) ? sanitize_hex_color($input['consent_accept_color']) : '#27ae60';
+        $validated['consent_deny_color'] = isset($input['consent_deny_color']) ? sanitize_hex_color($input['consent_deny_color']) : '#95a5a6';
+        $validated['consent_preferences_color'] = isset($input['consent_preferences_color']) ? sanitize_hex_color($input['consent_preferences_color']) : '#3498db';
+
+        // Validate position
+        $valid_positions = array('bottom', 'top');
+        if (isset($input['consent_banner_position']) && in_array($input['consent_banner_position'], $valid_positions)) {
+            $validated['consent_banner_position'] = $input['consent_banner_position'];
+        } else {
+            $validated['consent_banner_position'] = 'bottom';
+        }
+
+        // Validate auto show
+        $validated['consent_auto_show'] = isset($input['consent_auto_show']) ? true : false;
+
         return $validated;
     }
     
@@ -874,7 +989,147 @@ class GuidersAdmin {
         echo '<textarea id="active_hours_fallback_message" name="guiders_wp_plugin_settings[active_hours_fallback_message]" rows="3" cols="50" class="large-text">' . esc_textarea($message) . '</textarea>';
         echo '<p class="description">' . __('Mensaje que se mostrará cuando el chat no esté disponible por horarios. Si se deja vacío, se usará un mensaje predeterminado.', 'guiders-wp-plugin') . '</p>';
     }
-    
+
+    // === GDPR & Consent Banner Field Callbacks ===
+
+    /**
+     * GDPR section callback
+     */
+    public function gdprSectionCallback() {
+        echo '<p>' . __('Configura el banner de consentimiento GDPR integrado. El SDK mostrará automáticamente un banner para obtener consentimiento del usuario antes de usar cookies y tracking.', 'guiders-wp-plugin') . '</p>';
+        echo '<p><strong>🎨 Sin código necesario</strong>: El banner se renderiza automáticamente según tu configuración.</p>';
+    }
+
+    /**
+     * Consent banner enabled field callback
+     */
+    public function consentBannerEnabledFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $enabled = isset($settings['consent_banner_enabled']) ? $settings['consent_banner_enabled'] : true;
+
+        echo '<input type="checkbox" id="consent_banner_enabled" name="guiders_wp_plugin_settings[consent_banner_enabled]" value="1" ' . checked($enabled, true, false) . ' />';
+        echo '<label for="consent_banner_enabled">' . __('Mostrar banner de consentimiento automáticamente', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('Si está desactivado, deberás implementar tu propio banner o usar un plugin de terceros.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Consent banner style field callback
+     */
+    public function consentBannerStyleFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $style = isset($settings['consent_banner_style']) ? $settings['consent_banner_style'] : 'bottom_bar';
+
+        $styles = array(
+            'bottom_bar' => __('Barra inferior (recomendado)', 'guiders-wp-plugin'),
+            'modal' => __('Modal centrado', 'guiders-wp-plugin'),
+            'corner' => __('Esquina inferior derecha', 'guiders-wp-plugin')
+        );
+
+        echo '<select id="consent_banner_style" name="guiders_wp_plugin_settings[consent_banner_style]">';
+        foreach ($styles as $value => $label) {
+            echo '<option value="' . esc_attr($value) . '" ' . selected($style, $value, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . __('Elige el estilo de presentación del banner.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Consent banner text field callback
+     */
+    public function consentBannerTextFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $text = isset($settings['consent_banner_text']) ? $settings['consent_banner_text'] : '🍪 Usamos cookies para mejorar tu experiencia y proporcionar chat en vivo.';
+
+        echo '<textarea id="consent_banner_text" name="guiders_wp_plugin_settings[consent_banner_text]" rows="3" cols="50" class="large-text">' . esc_textarea($text) . '</textarea>';
+        echo '<p class="description">' . __('Texto que se mostrará en el banner de consentimiento.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Consent accept text field callback
+     */
+    public function consentAcceptTextFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $text = isset($settings['consent_accept_text']) ? $settings['consent_accept_text'] : 'Aceptar Todo';
+
+        echo '<input type="text" id="consent_accept_text" name="guiders_wp_plugin_settings[consent_accept_text]" value="' . esc_attr($text) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Texto del botón para aceptar todas las cookies.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Consent deny text field callback
+     */
+    public function consentDenyTextFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $text = isset($settings['consent_deny_text']) ? $settings['consent_deny_text'] : 'Rechazar';
+
+        echo '<input type="text" id="consent_deny_text" name="guiders_wp_plugin_settings[consent_deny_text]" value="' . esc_attr($text) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Texto del botón para rechazar cookies no esenciales.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Consent show preferences field callback
+     */
+    public function consentShowPreferencesFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $show = isset($settings['consent_show_preferences']) ? $settings['consent_show_preferences'] : true;
+
+        echo '<input type="checkbox" id="consent_show_preferences" name="guiders_wp_plugin_settings[consent_show_preferences]" value="1" ' . checked($show, true, false) . ' />';
+        echo '<label for="consent_show_preferences">' . __('Mostrar botón de preferencias en el banner', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('Permite al usuario configurar qué categorías de cookies acepta.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Consent banner colors field callback
+     */
+    public function consentBannerColorsFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+
+        $bg_color = isset($settings['consent_banner_bg_color']) ? $settings['consent_banner_bg_color'] : '#2c3e50';
+        $text_color = isset($settings['consent_banner_text_color']) ? $settings['consent_banner_text_color'] : '#ffffff';
+        $accept_color = isset($settings['consent_accept_color']) ? $settings['consent_accept_color'] : '#27ae60';
+        $deny_color = isset($settings['consent_deny_color']) ? $settings['consent_deny_color'] : '#95a5a6';
+        $preferences_color = isset($settings['consent_preferences_color']) ? $settings['consent_preferences_color'] : '#3498db';
+
+        echo '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; max-width: 600px;">';
+
+        echo '<div>';
+        echo '<label>' . __('Color de fondo:', 'guiders-wp-plugin') . '</label><br>';
+        echo '<input type="text" name="guiders_wp_plugin_settings[consent_banner_bg_color]" value="' . esc_attr($bg_color) . '" class="guiders-color-picker" />';
+        echo '</div>';
+
+        echo '<div>';
+        echo '<label>' . __('Color de texto:', 'guiders-wp-plugin') . '</label><br>';
+        echo '<input type="text" name="guiders_wp_plugin_settings[consent_banner_text_color]" value="' . esc_attr($text_color) . '" class="guiders-color-picker" />';
+        echo '</div>';
+
+        echo '<div>';
+        echo '<label>' . __('Botón Aceptar:', 'guiders-wp-plugin') . '</label><br>';
+        echo '<input type="text" name="guiders_wp_plugin_settings[consent_accept_color]" value="' . esc_attr($accept_color) . '" class="guiders-color-picker" />';
+        echo '</div>';
+
+        echo '<div>';
+        echo '<label>' . __('Botón Rechazar:', 'guiders-wp-plugin') . '</label><br>';
+        echo '<input type="text" name="guiders_wp_plugin_settings[consent_deny_color]" value="' . esc_attr($deny_color) . '" class="guiders-color-picker" />';
+        echo '</div>';
+
+        echo '<div>';
+        echo '<label>' . __('Botón Preferencias:', 'guiders-wp-plugin') . '</label><br>';
+        echo '<input type="text" name="guiders_wp_plugin_settings[consent_preferences_color]" value="' . esc_attr($preferences_color) . '" class="guiders-color-picker" />';
+        echo '</div>';
+
+        echo '</div>';
+
+        echo '<script>
+        jQuery(document).ready(function($) {
+            if (typeof $.fn.wpColorPicker !== "undefined") {
+                $(".guiders-color-picker").wpColorPicker();
+            }
+        });
+        </script>';
+
+        echo '<p class="description">' . __('Personaliza los colores del banner para que coincidan con tu marca.', 'guiders-wp-plugin') . '</p>';
+    }
+
     /**
      * Enqueue admin assets
      */
@@ -883,9 +1138,13 @@ class GuidersAdmin {
         if ($hook !== 'settings_page_guiders-settings') {
             return;
         }
-        
+
+        // Add WordPress color picker
+        wp_enqueue_style('wp-color-picker');
+        wp_enqueue_script('wp-color-picker');
+
         // Add admin styles if needed
-        wp_enqueue_style('guiders-admin-style', GUIDERS_WP_PLUGIN_PLUGIN_URL . 'assets/css/admin-style.css', array(), GUIDERS_WP_PLUGIN_VERSION);
+        wp_enqueue_style('guiders-admin-style', GUIDERS_WP_PLUGIN_PLUGIN_URL . 'assets/css/admin-style.css', array('wp-color-picker'), GUIDERS_WP_PLUGIN_VERSION);
     }
     
     /**

@@ -1,14 +1,14 @@
 === Guiders SDK ===
 Contributors: guiders
-Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-detection
+Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-detection, gdpr, consent-banner, cookies
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.2.1-alpha.3
+Stable tag: 1.2.3-alpha.1
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
-Integra el SDK de Guiders para tracking inteligente, chat en vivo y notificaciones en tu sitio WordPress con detección heurística automática.
+Integra el SDK de Guiders para tracking inteligente, chat en vivo y notificaciones en tu sitio WordPress. Incluye banner de consentimiento GDPR integrado sin necesidad de código.
 
 == Description ==
 
@@ -149,6 +149,83 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.2.3-alpha.1 =
+* **🎨 Banner de Consentimiento GDPR Integrado**: Sistema completo sin necesidad de escribir código
+  * Nuevo componente `ConsentBannerUI` renderizado automáticamente por el SDK
+  * 3 estilos diferentes: Barra inferior (recomendado), Modal centrado, Esquina inferior
+  * Totalmente personalizable desde el panel de administración
+  * Responsive con animaciones CSS suaves y accesibilidad completa (ARIA labels)
+  * Auto-show cuando el consentimiento está pendiente
+* **⚙️ Nueva Sección en Admin de WordPress**: "GDPR & Banner de Consentimiento"
+  * Habilitar/deshabilitar banner integrado
+  * Selección de estilo visual (dropdown)
+  * Personalización de textos: banner, botones Aceptar/Rechazar/Preferencias
+  * Color picker nativo de WordPress para 5 colores personalizables
+  * Mostrar/ocultar botón de preferencias (checkbox)
+  * Configuración guardada automáticamente en `guiders_wp_plugin_settings`
+* **🔌 Integración Automática con SDK**: El plugin pasa la configuración al SDK
+  * Método `getConsentBannerConfig()` en `class-guiders-public.php`
+  * Banner se renderiza automáticamente en frontend sin código adicional
+  * Callbacks conectados con `ConsentManager` del SDK
+  * `onAccept()` → `sdk.grantConsent()`, `onDeny()` → `sdk.denyConsent()`
+* **🌐 Universal**: Funciona en cualquier contexto, no solo WordPress
+  * API pública `ConsentBannerConfig` para uso en HTML/React/Vue/Angular
+  * Configuración vía `SDKOptions.consentBanner`
+  * Componente TypeScript 100% tipado (~550 líneas)
+* **✅ Sin Código Necesario para Clientes**: Plug & Play completo
+  * Instalar plugin → Ir a Configuración → GDPR → Personalizar (opcional) → Guardar
+  * Banner aparece automáticamente y gestiona consentimiento
+  * Cumplimiento GDPR sin contratar desarrollador
+* **📚 Documentación Completa**: Nueva guía `CONSENT_BANNER_IMPLEMENTATION.md`
+  * Arquitectura técnica del sistema
+  * Ejemplos de uso para WordPress y otros contextos
+  * Checklist de testing
+  * Métricas de implementación
+* **🔧 Mejoras Técnicas**:
+  * Validación de colores con `sanitize_hex_color()` en admin
+  * Color picker de WordPress con `wp_enqueue_style('wp-color-picker')`
+  * Valores por defecto sólidos en todos los campos
+  * Código mantenible y extensible para futuras mejoras
+
+= 1.2.2-alpha.1 =
+* **🔐 Sistema Completo de Consentimiento GDPR/LOPDGDD**: Control total del consentimiento del usuario
+  * Nuevo `ConsentManager` para gestión centralizada del estado de consentimiento
+  * Tres estados de consentimiento: `pending`, `granted`, `denied`
+  * Control granular por categorías: `analytics`, `functional`, `personalization`
+  * Persistencia automática del estado de consentimiento en localStorage
+  * Verificación de consentimiento antes de iniciar tracking
+* **📋 APIs Públicas de Consentimiento**: Control completo desde el código del sitio web
+  * `grantConsent()`: Otorga consentimiento completo
+  * `grantConsentWithPreferences()`: Otorga consentimiento con preferencias específicas
+  * `denyConsent()`: Deniega consentimiento
+  * `revokeConsent()`: Revoca consentimiento previamente otorgado
+  * `getConsentStatus()`: Obtiene estado actual (`pending`|`granted`|`denied`)
+  * `getConsentState()`: Obtiene estado completo con preferencias y timestamp
+  * `isConsentGranted()`: Verifica si hay consentimiento
+  * `isCategoryAllowed()`: Verifica si una categoría está permitida
+  * `subscribeToConsentChanges()`: Suscribe a cambios de consentimiento
+* **⚖️ Derechos GDPR Implementados**: Cumplimiento total con derechos del usuario
+  * `deleteVisitorData()`: Elimina todos los datos del visitante (Right to Erasure)
+  * `exportVisitorData()`: Exporta datos del visitante en formato JSON (Right to Access)
+  * Limpieza completa de localStorage
+  * Solicitud de eliminación en el servidor
+* **🎯 Tracking Condicional**: El tracking solo funciona con consentimiento
+  * Verificación de consentimiento en `captureEvent()` y `track()`
+  * Verificación de categorías específicas (analytics para eventos)
+  * Modo sin tracking: inicializa solo chat UI sin recolección de datos
+  * Reinicio automático del tracking al otorgar consentimiento
+* **🔌 Integración con Gestores de Consentimiento**: Ejemplos completos para:
+  * Cookiebot
+  * OneTrust
+  * Google Consent Mode API
+  * Banners personalizados
+* **📚 Documentación Completa**: Nueva guía `GDPR_CONSENT.md`
+  * Explicación de responsabilidades legales
+  * Ejemplos de implementación paso a paso
+  * Integración con gestores de consentimiento populares
+  * FAQ sobre GDPR y cumplimiento legal
+  * Casos de uso reales
 
 = 1.2.1-alpha.3 =
 * **✨ Mensajes de Bienvenida Automáticos**: Los mensajes de bienvenida ahora se muestran automáticamente

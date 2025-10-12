@@ -74,6 +74,12 @@ export class ChatToggleButtonUI {
 		// Buscar el host del Shadow DOM del chat
 		const shadowHost = document.querySelector('.chat-widget-host') as HTMLElement;
 		if (shadowHost && shadowHost.shadowRoot) {
+			// Eliminar botones existentes antes de añadir uno nuevo (evitar duplicados)
+			const existingButtons = shadowHost.shadowRoot.querySelectorAll('.chat-toggle-btn');
+			existingButtons.forEach(btn => btn.remove());
+			const existingBadges = shadowHost.shadowRoot.querySelectorAll('.chat-unread-badge');
+			existingBadges.forEach(badge => badge.remove());
+
 			// Insertar el botón flotante dentro del shadowRoot, pero antes del chat-widget para que quede visible
 			shadowHost.shadowRoot.insertBefore(this.button, shadowHost.shadowRoot.firstChild);
 			

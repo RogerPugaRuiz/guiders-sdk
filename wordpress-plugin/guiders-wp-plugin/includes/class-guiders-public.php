@@ -123,9 +123,10 @@ class GuidersPublic {
                 'pageType' => $this->getPageType()
             ),
             'welcomeMessage' => $this->getWelcomeMessageConfig(),
-            'activeHours' => $this->getActiveHoursConfig()
+            'activeHours' => $this->getActiveHoursConfig(),
+            'consentBanner' => $this->getConsentBannerConfig()
         );
-        
+
         // Add environment-specific endpoints
         if ($config['environment'] === 'development') {
             $config['endpoint'] = 'http://localhost:3000';
@@ -501,6 +502,32 @@ class GuidersPublic {
         if (empty($config['fallbackMessage'])) {
             $config['fallbackMessage'] = __('El chat no está disponible en este momento. Por favor, inténtalo más tarde durante nuestros horarios de atención.', 'guiders-wp-plugin');
         }
+
+        return $config;
+    }
+
+    /**
+     * Get consent banner configuration
+     */
+    private function getConsentBannerConfig() {
+        $config = array(
+            'enabled' => isset($this->settings['consent_banner_enabled']) ? $this->settings['consent_banner_enabled'] : true,
+            'style' => isset($this->settings['consent_banner_style']) ? $this->settings['consent_banner_style'] : 'bottom_bar',
+            'text' => isset($this->settings['consent_banner_text']) ? $this->settings['consent_banner_text'] : '🍪 Usamos cookies para mejorar tu experiencia y proporcionar chat en vivo.',
+            'acceptText' => isset($this->settings['consent_accept_text']) ? $this->settings['consent_accept_text'] : 'Aceptar Todo',
+            'denyText' => isset($this->settings['consent_deny_text']) ? $this->settings['consent_deny_text'] : 'Rechazar',
+            'preferencesText' => isset($this->settings['consent_preferences_text']) ? $this->settings['consent_preferences_text'] : 'Preferencias',
+            'showPreferences' => isset($this->settings['consent_show_preferences']) ? $this->settings['consent_show_preferences'] : true,
+            'colors' => array(
+                'background' => isset($this->settings['consent_banner_bg_color']) ? $this->settings['consent_banner_bg_color'] : '#2c3e50',
+                'text' => isset($this->settings['consent_banner_text_color']) ? $this->settings['consent_banner_text_color'] : '#ffffff',
+                'acceptButton' => isset($this->settings['consent_accept_color']) ? $this->settings['consent_accept_color'] : '#27ae60',
+                'denyButton' => isset($this->settings['consent_deny_color']) ? $this->settings['consent_deny_color'] : '#95a5a6',
+                'preferencesButton' => isset($this->settings['consent_preferences_color']) ? $this->settings['consent_preferences_color'] : '#3498db'
+            ),
+            'position' => isset($this->settings['consent_banner_position']) ? $this->settings['consent_banner_position'] : 'bottom',
+            'autoShow' => isset($this->settings['consent_auto_show']) ? $this->settings['consent_auto_show'] : true
+        );
 
         return $config;
     }

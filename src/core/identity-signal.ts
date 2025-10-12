@@ -65,9 +65,28 @@ export class IdentitySignal extends AsyncSignal<IdentityWithChatsData> {
     console.log('[IdentitySignal] 🚀 Iniciando identificación del visitante...');
 
     return this.execute(async () => {
-      // 1. Identificar visitante
-      const identity = await VisitorsV2Service.getInstance().identify(fingerprint, apiKey);
-      
+      // Obtener información de consentimiento del localStorage
+      let consentInfo: { hasAcceptedPrivacyPolicy: boolean; consentVersion: string } | undefined;
+
+      if (typeof localStorage !== 'undefined') {
+        const consentStateStr = localStorage.getItem('guiders_consent_state');
+        if (consentStateStr) {
+          try {
+            const consentState = JSON.parse(consentStateStr);
+            consentInfo = {
+              hasAcceptedPrivacyPolicy: consentState.status === 'granted',
+              consentVersion: consentState.version || 'v1.0'
+            };
+            console.log('[IdentitySignal] 🔐 Estado de consentimiento:', consentInfo);
+          } catch (e) {
+            console.warn('[IdentitySignal] ⚠️ No se pudo parsear estado de consentimiento');
+          }
+        }
+      }
+
+      // 1. Identificar visitante con información de consentimiento
+      const identity = await VisitorsV2Service.getInstance().identify(fingerprint, apiKey, consentInfo);
+
       if (!identity) {
         throw new Error('Failed to identify visitor');
       }

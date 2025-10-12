@@ -54,3 +54,7 @@
   <!-- <script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js" data-api-key="ea0cb2d33e9a186906747071e88a1a1eb1c219a0189f0344c7d87e2c497bf626"></script> -->
 </head>
 <body>
+  <?php
+  // Incluir banner de consentimiento GDPR
+  require_once __DIR__ . '/gdpr-banner.php';
+  ?>

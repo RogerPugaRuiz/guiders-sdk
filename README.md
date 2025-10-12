@@ -136,7 +136,7 @@ O bien, pasando la API key como parámetro:
 ## Características
 
 - **Detección heurística inteligente** - Localización automática de elementos sin modificar HTML
-- **Detección de página por URL** - Identificación automática del tipo de página basada en la URL  
+- **Detección de página por URL** - Identificación automática del tipo de página basada en la URL
 - Tracking de eventos
 - Chat en vivo con inicialización optimizada
 - Notificaciones
@@ -148,6 +148,92 @@ O bien, pasando la API key como parámetro:
 - **Toggles runtime** para heurística (`updateHeuristicConfig`, `setHeuristicEnabled`)
 - **Workflow de release WordPress** automatizable (scripts y GitHub Actions)
 - **Autenticación simplificada** (sin endpoints legacy /register ni /token/refresh)
+- **🔐 Sistema de consentimiento GDPR/LOPDGDD** - Control completo de privacidad y cumplimiento legal
+
+## 🔐 Control de Consentimiento GDPR/LOPDGDD
+
+El SDK incluye un **sistema completo de control de consentimiento** para cumplir con GDPR, LOPDGDD y LSSI.
+
+### Características de Privacidad
+
+- ✅ **Control granular** por categorías (analytics, functional, personalization)
+- ✅ **Tracking condicional** - El SDK espera consentimiento antes de iniciar tracking
+- ✅ **Persistencia automática** del estado de consentimiento en localStorage
+- ✅ **Derechos GDPR** - Implementación de Right to Erasure y Right to Access
+- ✅ **APIs públicas** para integración con banners de consentimiento
+- ✅ **Integración fácil** con Cookiebot, OneTrust, Complianz y otros
+
+### Uso Básico
+
+```javascript
+import { TrackingPixelSDK } from 'guiders-pixel';
+
+const sdk = new TrackingPixelSDK({
+  apiKey: 'YOUR_API_KEY',
+  consent: {
+    waitForConsent: true,    // Esperar consentimiento antes de tracking
+    defaultStatus: 'pending'  // Estado inicial
+  }
+});
+
+await sdk.init();
+
+// Otorgar consentimiento cuando el usuario acepte
+sdk.grantConsent();
+
+// O con preferencias específicas
+sdk.grantConsentWithPreferences({
+  analytics: true,      // Tracking de eventos
+  functional: true,     // Chat en vivo
+  personalization: false // Personalización
+});
+
+// Denegar o revocar consentimiento
+sdk.denyConsent();
+sdk.revokeConsent();
+
+// Consultar estado
+sdk.getConsentStatus(); // 'pending' | 'granted' | 'denied'
+
+// Derechos GDPR
+await sdk.deleteVisitorData();  // Eliminar todos los datos
+await sdk.exportVisitorData();  // Descargar copia de datos
+```
+
+### Integración con WordPress
+
+Si usas el plugin de WordPress, consulta las guías específicas:
+
+- **[GDPR_QUICKSTART.md](wordpress-plugin/guiders-wp-plugin/GDPR_QUICKSTART.md)** - Inicio rápido (5 minutos)
+- **[WORDPRESS_GDPR_GUIDE.md](wordpress-plugin/WORDPRESS_GDPR_GUIDE.md)** - Guía completa con ejemplos
+
+La guía incluye:
+- Banner de consentimiento personalizado (código listo para usar)
+- Integración con Complianz, CookieYes, Cookie Notice
+- Shortcodes para derechos del usuario
+- Ejemplos de código para `functions.php`
+
+### Responsabilidades Legales
+
+**IMPORTANTE**: El propietario del sitio web es responsable de:
+- ✅ Implementar el banner de consentimiento
+- ✅ Obtener consentimiento explícito del usuario
+- ✅ Documentar en política de privacidad
+
+**Guiders SDK proporciona**:
+- ✅ APIs técnicas para control de tracking
+- ✅ Métodos para implementar derechos GDPR
+- ✅ Persistencia del estado de consentimiento
+
+### Documentación Completa
+
+Para implementación detallada, consulta:
+
+- **[GDPR_CONSENT.md](GDPR_CONSENT.md)** - Guía completa de consentimiento
+  - Responsabilidades legales explicadas
+  - Todas las APIs con ejemplos
+  - Integración con gestores de consentimiento populares
+  - FAQ sobre GDPR y cumplimiento legal
 
 ## 🎯 Detección Heurística Inteligente (Nuevo)
 

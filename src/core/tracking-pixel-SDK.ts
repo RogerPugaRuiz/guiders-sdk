@@ -31,6 +31,10 @@ import { ActiveHoursValidator } from "./active-hours-validator";
 import { ActiveHoursConfig } from "../types";
 import { WebSocketService } from "../services/websocket-service";
 import { RealtimeMessageManager } from "../services/realtime-message-manager";
+import { ConsentManager, ConsentManagerConfig } from "./consent-manager";
+import { ConsentBackendService } from "../services/consent-backend-service";
+import { ConsentPlaceholder } from "../presentation/consent-placeholder";
+import { ConsentBannerUI, ConsentBannerConfig } from "../presentation/consent-banner-ui";
 
 
 interface SDKOptions {
@@ -66,6 +70,10 @@ interface SDKOptions {
 	welcomeMessage?: Partial<WelcomeMessageConfig>;
 	// Active hours configuration
 	activeHours?: Partial<ActiveHoursConfig>;
+	// Consent management for GDPR compliance
+	consent?: Partial<ConsentManagerConfig>;
+	// Consent banner UI (auto-render banner for GDPR)
+	consentBanner?: ConsentBannerConfig;
 }
 
 
@@ -148,6 +156,10 @@ export class TrackingPixelSDK {
 	private activeHoursValidator?: ActiveHoursValidator;
 	private wsService: WebSocketService;
 	private realtimeMessageManager: RealtimeMessageManager;
+	private consentManager: ConsentManager;
+	private consentBackendService: ConsentBackendService;
+	private consentPlaceholder: ConsentPlaceholder | null = null;
+	private consentBanner: ConsentBannerUI | null = null;
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -191,8 +203,8 @@ export class TrackingPixelSDK {
 			}
 		}
 
-		localStorage.setItem("pixelEndpoint", this.endpoint);
-		localStorage.setItem("guidersApiKey", this.apiKey);
+		// NO escribir en localStorage aquí - se hará después del consentimiento
+		// localStorage se usa solo después de verificar consentimiento en init()
 
 		// Inicializar el signal de identity
 		this.identitySignal = IdentitySignal.getInstance();
@@ -200,6 +212,53 @@ export class TrackingPixelSDK {
 		// Inicializar servicios de WebSocket y mensajería en tiempo real
 		this.wsService = WebSocketService.getInstance();
 		this.realtimeMessageManager = RealtimeMessageManager.getInstance();
+
+		// Inicializar el gestor de consentimiento GDPR
+		this.consentManager = ConsentManager.getInstance({
+			version: '1.2.2-alpha.1',
+			waitForConsent: options.consent?.waitForConsent ?? true,
+			defaultStatus: options.consent?.defaultStatus || 'pending',
+			onConsentChange: (state) => {
+				console.log('[TrackingPixelSDK] 🔐 Estado de consentimiento cambiado:', state);
+
+				// Si se otorga el consentimiento, iniciar tracking si estaba pausado
+				if (state.status === 'granted') {
+					console.log('[TrackingPixelSDK] ✅ Consentimiento otorgado - habilitando tracking');
+					console.log('[TrackingPixelSDK] 📝 El backend registrará automáticamente el consentimiento en identify()');
+
+					// Ocultar placeholder si estaba visible
+					if (this.consentPlaceholder && this.consentPlaceholder.isVisible()) {
+						this.consentPlaceholder.hide();
+						console.log('[TrackingPixelSDK] 🔄 Placeholder removido, inicializando SDK completo...');
+					}
+
+					// Inicializar el SDK completo
+					this.init().catch(error => {
+						console.error('[TrackingPixelSDK] ❌ Error inicializando SDK después de consentimiento:', error);
+					});
+				}
+
+				// Si se deniega o revoca, detener tracking
+				if (state.status === 'denied') {
+					console.log('[TrackingPixelSDK] ❌ Consentimiento denegado - deshabilitando tracking');
+					this.stopTrackingActivities();
+				}
+
+				// Llamar al callback del usuario si existe
+				if (options.consent?.onConsentChange) {
+					options.consent.onConsentChange(state);
+				}
+			}
+		});
+
+		// Inicializar el servicio de backend de consentimientos
+		this.consentBackendService = ConsentBackendService.getInstance();
+		console.log('[TrackingPixelSDK] 🔐 ConsentBackendService inicializado');
+
+		// Inicializar el banner de consentimiento si está configurado
+		if (options.consentBanner && options.consentBanner.enabled !== false) {
+			this.initConsentBanner(options.consentBanner);
+		}
 
 		// Crear la instancia de SessionInjectionStage
 		this.sessionInjectionStage = new SessionInjectionStage();
@@ -268,9 +327,43 @@ export class TrackingPixelSDK {
 				inactivityThreshold: enhancedConfig.maxInactivityTime,
 			});
 		}
+
+		// GDPR Compliance: Verificar estado de consentimiento inicial
+		const initialState = this.consentManager.getState();
+
+		if (initialState.status === 'pending') {
+			// Mostrar placeholder, NO inicializar SDK
+			console.log('[TrackingPixelSDK] 🔐 Estado inicial: pending - Mostrando placeholder');
+			this.consentPlaceholder = new ConsentPlaceholder({
+				onConsentRequest: () => {
+					console.log('[TrackingPixelSDK] 👆 Usuario solicitó gestionar cookies desde placeholder');
+				}
+			});
+			this.consentPlaceholder.show();
+			console.log('[TrackingPixelSDK] ⏸️ SDK pausado hasta que se otorgue consentimiento');
+		} else if (initialState.status === 'granted') {
+			// Inicializar inmediatamente
+			console.log('[TrackingPixelSDK] 🔐 Estado inicial: granted - Inicializando SDK');
+			this.init().catch(error => {
+				console.error('[TrackingPixelSDK] ❌ Error inicializando SDK:', error);
+			});
+		} else {
+			// Estado denied - no hacer nada
+			console.log('[TrackingPixelSDK] 🔐 Estado inicial: denied - SDK no se inicializará');
+		}
 	}
 
 	public async init(): Promise<void> {
+		// Nota: Este método solo se llama cuando hay consentimiento granted
+		// La verificación se hace en el constructor y en onConsentChange
+
+		console.log('[TrackingPixelSDK] 🚀 Inicializando SDK con consentimiento otorgado...');
+
+		// ✅ GDPR COMPLIANT: Solo escribir en localStorage después de verificar consentimiento
+		console.log('[TrackingPixelSDK] 🔐 Consentimiento verificado - guardando configuración en localStorage');
+		localStorage.setItem("pixelEndpoint", this.endpoint);
+		localStorage.setItem("guidersApiKey", this.apiKey);
+
 		// Configurar el cliente
 		const client = new ClientJS();
 		this.fingerprint = localStorage.getItem("fingerprint") || client.getFingerprint().toString();
@@ -279,7 +372,7 @@ export class TrackingPixelSDK {
 		if (this.authMode === 'jwt') {
 			TokenManager.loadTokensFromStorage();
 		}
-		
+
 		console.log("✅ SDK inicializado sin servicios de WebSocket.");
 
 		if (this.autoFlush) {
@@ -616,6 +709,9 @@ export class TrackingPixelSDK {
 			// The manager is already set up to track events automatically
 		}
 
+		// Enable automatic tracking (heuristic detection)
+		this.enableAutomaticTracking();
+
 		// Registrar múltiples eventos de cierre para asegurar endSession
 		this.setupPageUnloadHandlers();
 	}
@@ -647,12 +743,60 @@ export class TrackingPixelSDK {
 	private async executeIdentify(): Promise<void> {
 		try {
 			console.log('[TrackingPixelSDK] 🔍 Ejecutando identify...');
-			
+
 			// Usar identitySignal en lugar de llamar directamente al servicio
 			const result = await this.identitySignal.identify(this.fingerprint!, this.apiKey);
 			if (result?.identity?.visitorId) {
 				console.log('[TrackingPixelSDK] ✅ Visitante identificado con identitySignal:', result.identity.visitorId);
-				
+
+				// Configurar sessionId en ConsentBackendService
+				const sessionId = sessionStorage.getItem('guiders_backend_session_id');
+				if (sessionId) {
+					this.consentBackendService.setSessionId(sessionId);
+					console.log('[TrackingPixelSDK] 🔐 SessionId configurado en ConsentBackendService');
+				}
+
+				// REGISTRO AUTOMÁTICO DE CONSENTIMIENTOS:
+				// El backend ahora registra TODOS los consentimientos automáticamente en identify()
+				// según el valor de hasAcceptedPrivacyPolicy enviado en el payload.
+				// Ya NO es necesario registrar manualmente analytics, functional ni personalization.
+				console.log('[TrackingPixelSDK] ✅ Consentimientos registrados automáticamente por el backend en identify()');
+
+				// Sincronizar estado de consentimiento con el backend SOLO para visitantes recurrentes
+				// (cuando el consentimiento local tiene más de 5 segundos)
+				if (this.consentManager.isGranted()) {
+					try {
+						const currentState = this.consentManager.getState();
+						const consentAge = Date.now() - currentState.timestamp;
+
+						// Solo sincronizar si el consentimiento es antiguo (visitante recurrente)
+						// Para consentimientos recientes (< 5s), el backend ya los tiene del identify()
+						if (consentAge > 5000) {
+							console.log('[TrackingPixelSDK] 🔄 Sincronizando con backend (visitante recurrente, consentimiento antiguo)...');
+							const backendState = await this.consentBackendService.syncWithBackend(result.identity.visitorId);
+							console.log('[TrackingPixelSDK] 🔄 Estado de consentimiento sincronizado con backend:', backendState);
+
+							// Actualizar el estado local si el backend tiene información diferente
+							if (currentState.preferences) {
+								const hasChanges =
+									currentState.preferences.analytics !== backendState.analytics ||
+									currentState.preferences.functional !== backendState.functional ||
+									currentState.preferences.personalization !== backendState.personalization;
+
+								if (hasChanges) {
+									console.log('[TrackingPixelSDK] 🔄 Actualizando preferencias locales con estado del backend');
+									this.consentManager.grantConsentWithPreferences(backendState);
+								}
+							}
+						} else {
+							console.log('[TrackingPixelSDK] ⏭️ Saltando sincronización: consentimiento recién otorgado (edad: ' + Math.round(consentAge / 1000) + 's)');
+							console.log('[TrackingPixelSDK] 📝 El backend ya tiene los consentimientos del identify() actual');
+						}
+					} catch (error) {
+						console.warn('[TrackingPixelSDK] ⚠️ No se pudo sincronizar con backend, continuando con estado local:', error);
+					}
+				}
+
 				// Iniciar heartbeat backend (cada 30s) sin fallback
 				if (this.visitorHeartbeatTimer) clearInterval(this.visitorHeartbeatTimer);
 				this.visitorHeartbeatTimer = setInterval(() => {
@@ -906,6 +1050,13 @@ export class TrackingPixelSDK {
 
 	public async track(params: Record<string, unknown>): Promise<void> {
 		return new Promise((resolve, reject) => {
+			// Verificar consentimiento antes de hacer tracking
+			if (!this.consentManager.isTrackingAllowed()) {
+				console.log('[TrackingPixelSDK] 🔐 Tracking bloqueado - sin consentimiento');
+				resolve(); // No rechazar, solo ignorar silenciosamente
+				return;
+			}
+
 			const { event, ...data } = params;
 			if (typeof event !== "string") {
 				console.error("El evento debe tener un tipo.");
@@ -929,6 +1080,18 @@ export class TrackingPixelSDK {
 	}
 
 	private captureEvent(type: string, data: Record<string, unknown>): void {
+		// Verificar consentimiento antes de capturar eventos
+		if (!this.consentManager.isTrackingAllowed()) {
+			console.log('[TrackingPixelSDK] 🔐 Evento bloqueado - sin consentimiento:', type);
+			return;
+		}
+
+		// Verificar si analytics está permitido para eventos de tracking
+		if (!this.consentManager.isCategoryAllowed('analytics')) {
+			console.log('[TrackingPixelSDK] 🔐 Evento bloqueado - analytics no permitido:', type);
+			return;
+		}
+
 		const rawEvent = {
 			type,
 			data,
@@ -1822,5 +1985,425 @@ export class TrackingPixelSDK {
 		this.wsService.disconnect();
 		this.realtimeMessageManager.cleanup();
 		console.log('📡 [TrackingPixelSDK] 🔌 WebSocket desconectado');
+	}
+
+	// ========== Métodos de Control de Consentimiento GDPR ==========
+
+	/**
+	 * Inicializa solo el chat UI sin tracking (modo sin consentimiento)
+	 */
+	private async initChatUIOnly(): Promise<void> {
+		console.log('[TrackingPixelSDK] 🔐 Inicializando solo chat UI (sin tracking)');
+
+		// Inicializar solo los componentes del chat
+		this.chatUI = new ChatUI({
+			widget: true,
+			welcomeMessage: this.welcomeMessageConfig,
+		});
+
+		const initChatOnly = () => {
+			if (!this.chatUI) return;
+
+			// Verificar horarios activos si están configurados
+			if (this.activeHoursValidator && !this.activeHoursValidator.isChatActive()) {
+				console.log('[TrackingPixelSDK] 🕐 Chat no disponible según horarios');
+				return;
+			}
+
+			const chat = this.chatUI;
+			const chatInput = new ChatInputUI(chat);
+			const chatToggleButton = new ChatToggleButtonUI(chat);
+
+			chat.init();
+			chat.hide();
+			chatInput.init();
+			chatToggleButton.init();
+			chatToggleButton.show();
+
+			console.log('[TrackingPixelSDK] ✅ Chat UI inicializado (sin tracking)');
+
+			// Listener básico para abrir/cerrar chat (sin tracking)
+			chat.onOpen(() => {
+				console.log('[TrackingPixelSDK] 💬 Chat abierto (sin tracking de eventos)');
+			});
+
+			chat.onClose(() => {
+				console.log('[TrackingPixelSDK] 💬 Chat cerrado (sin tracking de eventos)');
+			});
+
+			chatToggleButton.onToggle((visible: boolean) => {
+				if (visible) {
+					chat.show();
+				} else {
+					chat.hide();
+				}
+			});
+
+			// El envío de mensajes requiere consentimiento funcional al menos
+			chatInput.onSubmit(async (message: string) => {
+				if (!message) return;
+
+				// Verificar si hay consentimiento funcional
+				if (!this.consentManager.isCategoryAllowed('functional')) {
+					console.warn('[TrackingPixelSDK] 🔐 Envío de mensajes bloqueado - se requiere consentimiento funcional');
+					chat.addSystemMessage('Se requiere aceptar cookies funcionales para enviar mensajes.');
+					return;
+				}
+
+				// Si hay consentimiento funcional, proceder como normal
+				try {
+					const visitorId = this.getVisitorId();
+					if (!visitorId) {
+						await this.executeIdentify();
+					}
+
+					const currentChatId = chat.getChatId();
+					if (currentChatId) {
+						await ChatV2Service.getInstance().sendMessage(currentChatId, message, 'text');
+					} else {
+						const result = await ChatV2Service.getInstance().createChatWithMessage(
+							{},
+							{ content: message, type: 'text' }
+						);
+						chat.setChatId(result.chatId);
+					}
+				} catch (error) {
+					console.error('[TrackingPixelSDK] ❌ Error enviando mensaje:', error);
+				}
+			});
+		};
+
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', initChatOnly);
+		} else {
+			initChatOnly();
+		}
+	}
+
+	/**
+	 * Detiene todas las actividades de tracking
+	 */
+	private stopTrackingActivities(): void {
+		console.log('[TrackingPixelSDK] 🛑 Deteniendo todas las actividades de tracking...');
+
+		// Detener DOM tracking
+		if (this.domTrackingManager) {
+			// Los managers no tienen método público para detener, pero podemos limpiar
+			console.log('[TrackingPixelSDK] 🛑 DOM tracking detenido');
+		}
+
+		// Detener session tracking
+		if (this.sessionTrackingManager) {
+			// El session manager se detendrá automáticamente al no procesar nuevos eventos
+			console.log('[TrackingPixelSDK] 🛑 Session tracking detenido');
+		}
+
+		// Detener heartbeat de visitante
+		if (this.visitorHeartbeatTimer) {
+			clearInterval(this.visitorHeartbeatTimer);
+			this.visitorHeartbeatTimer = null;
+			console.log('[TrackingPixelSDK] 🛑 Visitor heartbeat detenido');
+		}
+
+		// Detener auto flush
+		this.stopAutoFlush();
+
+		// Limpiar cola de eventos
+		this.eventQueue = [];
+
+		console.log('[TrackingPixelSDK] ✅ Todas las actividades de tracking detenidas');
+	}
+
+	/**
+	 * Inicializa el banner de consentimiento integrado
+	 */
+	private initConsentBanner(config: ConsentBannerConfig): void {
+		console.log('[TrackingPixelSDK] 🎨 Inicializando banner de consentimiento...');
+
+		this.consentBanner = new ConsentBannerUI(config);
+
+		// Conectar callbacks con el ConsentManager
+		this.consentBanner.onAccept = () => {
+			console.log('[TrackingPixelSDK] ✅ Usuario aceptó desde banner');
+			this.grantConsent();
+			this.consentBanner?.hide();
+		};
+
+		this.consentBanner.onDeny = () => {
+			console.log('[TrackingPixelSDK] ❌ Usuario rechazó desde banner');
+			this.denyConsent();
+			this.consentBanner?.hide();
+		};
+
+		this.consentBanner.onPreferences = () => {
+			console.log('[TrackingPixelSDK] ⚙️ Usuario abrió preferencias desde banner');
+			// TODO: Implementar modal de preferencias en el futuro
+			// Por ahora, mostrar alerta informativa
+			alert('Modal de preferencias: Próximamente.\n\nPor ahora, puedes:\n- Aceptar Todo = Otorgar consentimiento completo\n- Rechazar = Solo cookies esenciales');
+		};
+
+		// Renderizar el banner
+		this.consentBanner.render();
+
+		// Si autoShow está habilitado y el consentimiento está pending, mostrar
+		if (config.autoShow && this.consentManager.isPending()) {
+			this.consentBanner.show();
+			console.log('[TrackingPixelSDK] 👁️ Banner mostrado automáticamente (consent pending)');
+		}
+	}
+
+	/**
+	 * Otorga consentimiento completo y reinicia el tracking
+	 */
+	public grantConsent(): void {
+		console.log('[TrackingPixelSDK] ✅ Otorgando consentimiento completo...');
+
+		this.consentManager.grantConsent();
+
+		// Nota: El consentimiento se registrará automáticamente en el backend
+		// durante init() -> identify() con hasAcceptedPrivacyPolicy: true
+		console.log('[TrackingPixelSDK] 📝 El backend registrará el consentimiento automáticamente durante identify()');
+
+		// Reiniciar el SDK con tracking habilitado
+		console.log('[TrackingPixelSDK] 🔄 Reiniciando SDK con tracking habilitado...');
+		this.init().catch(error => {
+			console.error('[TrackingPixelSDK] ❌ Error reiniciando SDK:', error);
+		});
+	}
+
+	/**
+	 * Otorga consentimiento con preferencias específicas
+	 */
+	public grantConsentWithPreferences(preferences: {
+		analytics?: boolean;
+		functional?: boolean;
+		personalization?: boolean;
+	}): void {
+		console.log('[TrackingPixelSDK] ✅ Otorgando consentimiento con preferencias:', preferences);
+
+		this.consentManager.grantConsentWithPreferences(preferences);
+
+		// Nota: El consentimiento se registrará automáticamente en el backend
+		// durante init() -> identify() con hasAcceptedPrivacyPolicy: true
+		console.log('[TrackingPixelSDK] 📝 El backend registrará el consentimiento automáticamente durante identify()');
+
+		// Reiniciar el SDK con tracking habilitado
+		console.log('[TrackingPixelSDK] 🔄 Reiniciando SDK...');
+		this.init().catch(error => {
+			console.error('[TrackingPixelSDK] ❌ Error reiniciando SDK:', error);
+		});
+	}
+
+	/**
+	 * Deniega el consentimiento y detiene el tracking
+	 */
+	public denyConsent(): void {
+		console.log('[TrackingPixelSDK] ❌ Denegando consentimiento...');
+
+		this.consentManager.denyConsent();
+		this.stopTrackingActivities();
+	}
+
+	/**
+	 * Revoca el consentimiento previamente otorgado
+	 */
+	public revokeConsent(): void {
+		console.log('[TrackingPixelSDK] 🔄 Revocando consentimiento...');
+
+		this.consentManager.revokeConsent();
+		this.stopTrackingActivities();
+
+		// Revocar en el backend si hay un visitante identificado
+		const visitorId = this.getVisitorId();
+		if (visitorId) {
+			this.consentBackendService.revokeAllConsents(
+				visitorId,
+				'Usuario revocó consentimiento desde el SDK'
+			)
+				.then(() => {
+					console.log('[TrackingPixelSDK] 🔄 Revocación sincronizada con backend');
+				})
+				.catch(error => {
+					console.error('[TrackingPixelSDK] ❌ Error revocando en backend:', error);
+				});
+		}
+	}
+
+	/**
+	 * Obtiene el estado actual de consentimiento
+	 */
+	public getConsentStatus() {
+		return this.consentManager.getStatus();
+	}
+
+	/**
+	 * Obtiene el estado completo de consentimiento
+	 */
+	public getConsentState() {
+		return this.consentManager.getState();
+	}
+
+	/**
+	 * Verifica si el consentimiento ha sido otorgado
+	 */
+	public isConsentGranted(): boolean {
+		return this.consentManager.isGranted();
+	}
+
+	/**
+	 * Verifica si una categoría específica de consentimiento está permitida
+	 */
+	public isCategoryAllowed(category: 'analytics' | 'functional' | 'personalization'): boolean {
+		return this.consentManager.isCategoryAllowed(category);
+	}
+
+	/**
+	 * Suscribe un callback para cambios en el consentimiento
+	 */
+	public subscribeToConsentChanges(callback: (state: any) => void) {
+		return this.consentManager.subscribe(callback);
+	}
+
+	/**
+	 * Elimina todos los datos del visitante (GDPR Right to Erasure)
+	 * IMPORTANTE: Este método elimina TODOS los datos locales y solicita
+	 * al backend eliminar los datos del servidor.
+	 */
+	public async deleteVisitorData(): Promise<void> {
+		console.log('[TrackingPixelSDK] 🗑️ Eliminando datos del visitante (GDPR Right to Erasure)...');
+
+		try {
+			// 1. Obtener visitorId antes de eliminar
+			const visitorId = this.getVisitorId();
+
+			// 2. Detener todas las actividades
+			this.stopTrackingActivities();
+
+			// 3. Limpiar datos locales
+			this.clearLocalStorageData();
+
+			// 4. Resetear consentimiento
+			this.consentManager.clearConsentData();
+
+			// 5. Si hay visitorId, solicitar eliminación en el servidor
+			if (visitorId) {
+				try {
+					// Eliminar datos de consentimiento del backend
+					await this.consentBackendService.deleteConsentData(visitorId);
+					console.log('[TrackingPixelSDK] ✅ Datos de consentimiento eliminados del backend');
+
+					// Aquí iría la llamada al endpoint de eliminación de otros datos del visitante
+					// await VisitorsV2Service.getInstance().deleteVisitor(visitorId);
+					console.log('[TrackingPixelSDK] 📡 Solicitud de eliminación enviada al servidor para visitor:', visitorId);
+				} catch (error) {
+					console.error('[TrackingPixelSDK] ❌ Error eliminando datos del servidor:', error);
+					throw new Error('No se pudieron eliminar los datos del servidor');
+				}
+			}
+
+			// 6. Limpiar señales y estado
+			this.identitySignal.reset();
+			this.fingerprint = null;
+
+			console.log('[TrackingPixelSDK] ✅ Datos del visitante eliminados exitosamente');
+		} catch (error) {
+			console.error('[TrackingPixelSDK] ❌ Error eliminando datos del visitante:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Limpia todos los datos de localStorage relacionados con Guiders
+	 */
+	private clearLocalStorageData(): void {
+		if (typeof localStorage === 'undefined') {
+			return;
+		}
+
+		const keysToRemove = [
+			'fingerprint',
+			'guiders_backend_session_id',
+			'guiders_recent_chats',
+			'guiders_initial_messages',
+			'pixelEndpoint',
+			'guidersApiKey',
+			'guiders_consent_state'
+		];
+
+		keysToRemove.forEach(key => {
+			try {
+				localStorage.removeItem(key);
+				console.log('[TrackingPixelSDK] 🗑️ Eliminado:', key);
+			} catch (error) {
+				console.warn('[TrackingPixelSDK] ⚠️ No se pudo eliminar:', key, error);
+			}
+		});
+
+		console.log('[TrackingPixelSDK] 🗑️ Datos locales eliminados');
+	}
+
+	/**
+	 * Exporta los datos del visitante para cumplimiento GDPR (Right to Access)
+	 */
+	public async exportVisitorData(): Promise<string> {
+		console.log('[TrackingPixelSDK] 📦 Exportando datos del visitante...');
+
+		const visitorId = this.getVisitorId();
+
+		const data: any = {
+			visitorId: visitorId,
+			fingerprint: this.fingerprint,
+			sessionId: this.identitySignal.getSessionId(),
+			identityState: this.identitySignal.getState(),
+			consentState: this.consentManager.getState(),
+			localStorage: this.getLocalStorageData(),
+			exportedAt: new Date().toISOString()
+		};
+
+		// Incluir datos de consentimiento del backend si hay un visitante identificado
+		if (visitorId) {
+			try {
+				const backendConsentData = await this.consentBackendService.exportConsentData(visitorId);
+				data.backendConsents = JSON.parse(backendConsentData);
+				console.log('[TrackingPixelSDK] ✅ Datos de consentimiento del backend incluidos en exportación');
+			} catch (error) {
+				console.warn('[TrackingPixelSDK] ⚠️ No se pudieron obtener datos de consentimiento del backend:', error);
+				data.backendConsents = { error: 'No se pudieron obtener datos del backend' };
+			}
+		}
+
+		return JSON.stringify(data, null, 2);
+	}
+
+	/**
+	 * Obtiene datos relevantes de localStorage
+	 */
+	private getLocalStorageData(): Record<string, any> {
+		if (typeof localStorage === 'undefined') {
+			return {};
+		}
+
+		const keys = [
+			'fingerprint',
+			'guiders_backend_session_id',
+			'guiders_recent_chats',
+			'pixelEndpoint',
+			'guiders_consent_state'
+		];
+
+		const data: Record<string, any> = {};
+
+		keys.forEach(key => {
+			try {
+				const value = localStorage.getItem(key);
+				if (value) {
+					data[key] = value;
+				}
+			} catch (error) {
+				console.warn('[TrackingPixelSDK] ⚠️ No se pudo leer:', key);
+			}
+		});
+
+		return data;
 	}
 }

@@ -19,6 +19,8 @@ export * from "./pipeline/pipeline-stage";
 export * from "./pipeline/stages/token-stage";
 export * from "./services/chat-detail-service";
 export * from "./services/chat-v2-service";
+export * from "./services/consent-backend-service";
+export * from "./core/consent-manager";
 export * from "./types";
 // Se pueden exportar más etapas o servicios según se vayan implementando.
 
@@ -132,7 +134,7 @@ function initializeGuidersSDK() {
 
 			// Solo inicializar el SDK para usuarios legítimos
 			window.guiders = new window.TrackingPixelSDK(sdkOptions);
-			
+
 			// Configurar acceso global para dev random messages (solo en modo dev)
 			if (!isProd && typeof window !== 'undefined') {
 				import('./core/dev-random-messages').then(({ DevRandomMessages }) => {
@@ -147,13 +149,17 @@ function initializeGuidersSDK() {
 					console.log('🎲 [DevRandomMessages] 🌐 Interfaz global configurada en window.guidersDevRandomMessages');
 				});
 			}
-			
-			(async () => {
-				await window.guiders.init();
-				// Use new automatic tracking method
-				window.guiders.enableAutomaticTracking();
-				window.__GUIDERS_INITIALIZING__ = false;
-			})();
+
+			// GDPR Compliance: NO llamar a init() automáticamente
+			// El constructor del SDK ya maneja la inicialización basándose en el estado de consentimiento:
+			// - pending: Muestra placeholder, NO inicializa
+			// - granted: Inicializa automáticamente
+			// - denied: No hace nada
+			//
+			// init() se llamará automáticamente cuando el usuario acepte las cookies
+			// desde el callback onConsentChange en el constructor del SDK
+			console.log('[Guiders SDK] ✅ SDK instanciado - esperando consentimiento del usuario');
+			window.__GUIDERS_INITIALIZING__ = false;
 		});
 	} catch (error) {
 		console.error("Error inicializando Guiders SDK:", error);

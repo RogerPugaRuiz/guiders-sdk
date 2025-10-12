@@ -31,6 +31,14 @@ switch ($page) {
         require 'pages/heuristic-demo.php';
         break;
 
+    case 'gdpr-demo':
+        require 'pages/gdpr-demo.php';
+        break;
+
+    case 'politica-cookies':
+        require 'pages/politica-cookies.php';
+        break;
+
     case 'ecommerce/pages/product-detail.php':
         require 'pages/product-detail.php';
         break;
