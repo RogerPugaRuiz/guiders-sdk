@@ -1,4 +1,5 @@
 import { ChatUI } from "./chat";
+import { UnreadMessagesService } from "../services/unread-messages-service";
 
 interface ChatToggleButtonOptions {
 	label?: string;            // Texto o ícono a mostrar en el botón
@@ -16,6 +17,7 @@ export class ChatToggleButtonUI {
 	private badgeElement: HTMLElement | null = null;
 	private options: ChatToggleButtonOptions;
 	private isVisible: boolean = false;
+	private unreadService: UnreadMessagesService;
 
 	private toggleCallback: Array<(visible: boolean) => void> = [];
 
@@ -36,7 +38,10 @@ export class ChatToggleButtonUI {
 
 		this.button = document.createElement('button');
 		this.button.className = 'chat-toggle-btn';
-		
+
+		// Inicializar servicio de mensajes no leídos
+		this.unreadService = UnreadMessagesService.getInstance();
+
 		// Inicializar como oculto (no visible)
 		this.isVisible = false;
 	}
@@ -61,9 +66,9 @@ export class ChatToggleButtonUI {
 		this.applyStyles();
 		this.addEventListeners();
 		this.initializeStyles(); // Inicializar estilos inline además de CSS
-		
-		// Eventos de mensajes no leídos desactivados
-		console.log("💬 Eventos de contador desactivados (servicio eliminado)");
+
+		// Configurar callback para actualizar badge cuando cambia el contador
+		console.log("💬 Inicializando sistema de notificaciones");
 	}
 
 	/**
@@ -415,13 +420,64 @@ export class ChatToggleButtonUI {
 	 */
 	public updateState(isOpen: boolean): void {
 		this.isVisible = isOpen;
-		
+
 		if (isOpen) {
 			this.button.classList.add('open');
 		} else {
 			this.button.classList.remove('open');
 		}
-		
+
 		console.log(`🔘 Estado del toggle button actualizado: ${isOpen ? 'abierto' : 'cerrado'}`);
+	}
+
+	/**
+	 * Conecta el servicio de mensajes no leídos con el badge
+	 * @param visitorId ID del visitante actual
+	 */
+	public connectUnreadService(visitorId: string): void {
+		console.log('🔌 Conectando servicio de mensajes no leídos con visitorId:', visitorId);
+
+		// Inicializar el servicio con el callback para actualizar el badge
+		this.unreadService.initialize({
+			visitorId,
+			onCountChange: (count) => {
+				console.log('📬 Contador de mensajes no leídos actualizado:', count);
+				this.updateUnreadCount(count);
+			},
+			debug: false
+		});
+
+		console.log('✅ Servicio de mensajes no leídos conectado');
+	}
+
+	/**
+	 * Establece el chat activo en el servicio de mensajes no leídos
+	 * @param chatId ID del chat
+	 */
+	public setActiveChatForUnread(chatId: string): void {
+		console.log('📌 Estableciendo chat activo para mensajes no leídos:', chatId);
+		this.unreadService.setCurrentChat(chatId);
+	}
+
+	/**
+	 * Marca todos los mensajes no leídos como leídos
+	 */
+	public async markAllMessagesAsRead(): Promise<void> {
+		console.log('✅ Marcando todos los mensajes como leídos...');
+		await this.unreadService.markAllAsRead();
+	}
+
+	/**
+	 * Obtiene el servicio de mensajes no leídos (para uso avanzado)
+	 */
+	public getUnreadService(): UnreadMessagesService {
+		return this.unreadService;
+	}
+
+	/**
+	 * Obtiene el elemento del botón para manipulación directa
+	 */
+	public getButtonElement(): HTMLButtonElement {
+		return this.button;
 	}
 }
