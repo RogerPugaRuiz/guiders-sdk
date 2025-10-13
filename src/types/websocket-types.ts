@@ -103,6 +103,8 @@ export interface WebSocketCallbacks {
 	onChatStatus?: (status: ChatStatusUpdate) => void;
 	/** Callback cuando alguien está escribiendo */
 	onTyping?: (typing: TypingIndicator) => void;
+	/** Callback cuando un comercial crea un chat proactivamente */
+	onChatCreated?: (event: ChatCreatedEvent) => void;
 }
 
 /**
@@ -125,4 +127,50 @@ export interface LeaveChatRoomPayload {
 export interface TypingPayload {
 	chatId: string;
 	isTyping: boolean;
+}
+
+/**
+ * Payload para unirse a sala de visitante
+ */
+export interface JoinVisitorRoomPayload {
+	visitorId: string;
+}
+
+/**
+ * Payload para salir de sala de visitante
+ */
+export interface LeaveVisitorRoomPayload {
+	visitorId: string;
+}
+
+/**
+ * Respuesta del servidor al unirse a sala de visitante
+ */
+export interface VisitorRoomJoinedResponse {
+	visitorId: string;
+	roomName: string;
+	timestamp: string;
+}
+
+/**
+ * Prioridades del chat
+ */
+export type ChatPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+
+/**
+ * Evento cuando un comercial crea un chat proactivamente
+ */
+export interface ChatCreatedEvent {
+	chatId: string;
+	visitorId: string;
+	status: ChatStatus;
+	priority: ChatPriority;
+	visitorInfo?: {
+		name?: string;
+		email?: string;
+		phone?: string;
+	};
+	metadata?: Record<string, any>;
+	createdAt: string;
+	message: string;
 }
