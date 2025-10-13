@@ -139,6 +139,7 @@ export class TrackingPixelSDK {
 	private fingerprint: string | null = null;
 	private chatUI: ChatUI | null = null;
 	private chatMessagesUI: ChatMessagesUI | null = null;
+	private chatToggleButton: ChatToggleButtonUI | null = null;
 
 	private autoFlush = false;
 	private flushInterval = 10000;
@@ -384,7 +385,8 @@ export class TrackingPixelSDK {
 		});
 		const chat = this.chatUI; // Alias para mantener compatibilidad con el código existente
 		const chatInput = new ChatInputUI(chat);
-		const chatToggleButton = new ChatToggleButtonUI(chat);
+		this.chatToggleButton = new ChatToggleButtonUI(chat);
+		const chatToggleButton = this.chatToggleButton; // Alias para compatibilidad con código existente
 
 		const initializeChatComponents = () => {
 			console.log("Inicializando componentes del chat rápidamente...");
@@ -484,6 +486,14 @@ export class TrackingPixelSDK {
 
 				// Cargar mensajes del chat si existe un chatId
 				this.loadChatMessagesOnOpen(chat);
+
+				// 📬 Marcar todos los mensajes como leídos cuando se abre el chat
+				if (this.chatToggleButton) {
+					setTimeout(async () => {
+						await this.chatToggleButton!.markAllMessagesAsRead();
+						console.log('📬 [TrackingPixelSDK] Mensajes marcados como leídos al abrir chat');
+					}, 1000); // Esperar 1 segundo para dar tiempo a que el usuario vea los mensajes
+				}
 			});
 			chat.onClose(() => {
 				this.captureEvent("visitor:close-chat", {
@@ -749,6 +759,13 @@ export class TrackingPixelSDK {
 					console.log('[TrackingPixelSDK] 🔐 SessionId configurado en ConsentBackendService');
 				}
 
+				// 📬 Inicializar servicio de mensajes no leídos con badge tempranamente
+				// Esto asegura que el badge se actualice correctamente al refrescar la página
+				if (this.chatToggleButton) {
+					this.chatToggleButton.connectUnreadService(result.identity.visitorId);
+					console.log('📬 [TrackingPixelSDK] ✅ Servicio de mensajes no leídos conectado tempranamente');
+				}
+
 				// REGISTRO AUTOMÁTICO DE CONSENTIMIENTOS:
 				// El backend ahora registra TODOS los consentimientos automáticamente en identify()
 				// según el valor de hasAcceptedPrivacyPolicy enviado en el payload.
@@ -797,14 +814,22 @@ export class TrackingPixelSDK {
 				}, 30000);
 
 				// Los chats ya se cargan automáticamente en identitySignal.identify()
-				if (result.chats?.chats && result.chats.chats.length > 0) {
+				const hasExistingChats = result.chats?.chats && result.chats.chats.length > 0;
+
+				if (hasExistingChats && result.chats) {
 					localStorage.setItem('guiders_recent_chats', JSON.stringify(result.chats.chats));
-					ChatMemoryStore.getInstance().setChatId(result.chats.chats[0].id);
-					console.log('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) guardado en memoria:', result.chats.chats[0].id);
+					ChatMemoryStore.getInstance().setChatId(result.chats.chats![0].id);
+					console.log('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) guardado en memoria:', result.chats.chats![0].id);
 
 					// 🔧 ELIMINADO: No cargar mensajes automáticamente al identificar visitante
 					// Solo cargar cuando el usuario abra el chat para evitar peticiones innecesarias
 					// this.loadInitialMessagesFromFirstChat(result.chats.chats[0]);
+
+					// 📬 Cargar mensajes no leídos para mostrar badge al refrescar la página
+					if (this.chatToggleButton && result.chats.chats![0].id) {
+						this.chatToggleButton.setActiveChatForUnread(result.chats.chats![0].id);
+						console.log('📬 [TrackingPixelSDK] Cargando mensajes no leídos al inicializar con chat existente');
+					}
 				} else {
 					// No hay chats previos, mostrar mensaje de bienvenida automáticamente
 					console.log('[TrackingPixelSDK] 💬 No hay chats previos, mostrando mensaje de bienvenida automáticamente');
@@ -816,6 +841,22 @@ export class TrackingPixelSDK {
 								console.log('[TrackingPixelSDK] ✅ Mensaje de bienvenida mostrado automáticamente');
 							}
 						}, 500);
+					}
+				}
+
+				// 📡 Inicializar WebSocket SIEMPRE para recibir notificaciones proactivas
+				// IMPORTANTE: Esto debe ejecutarse independientemente de si hay chats o no
+				// para poder recibir el evento 'chat:created' cuando un comercial cree un chat proactivamente
+				if (this.chatUI && !this.wsService.isConnected()) {
+					console.log('📡 [TrackingPixelSDK] 🚀 Inicializando WebSocket para notificaciones en tiempo real');
+					this.initializeWebSocketConnection(this.chatUI);
+
+					// Si hay chat existente, configurarlo en el RealtimeMessageManager
+					if (hasExistingChats && result.chats && result.chats.chats![0].id) {
+						this.realtimeMessageManager.setCurrentChat(result.chats.chats![0].id);
+						console.log('📡 [TrackingPixelSDK] ✅ WebSocket configurado para chat existente:', result.chats.chats![0].id);
+					} else {
+						console.log('📡 [TrackingPixelSDK] ✅ WebSocket configurado para recibir notificaciones de chats nuevos');
 					}
 				}
 			}
@@ -1914,12 +1955,38 @@ export class TrackingPixelSDK {
 				{
 					onConnect: () => {
 						console.log('📡 [TrackingPixelSDK] ✅ WebSocket conectado exitosamente');
+
+						// Unirse a sala de visitante para notificaciones proactivas
+						if (visitorId) {
+							this.wsService.joinVisitorRoom(visitorId);
+							console.log('📡 [TrackingPixelSDK] 🚀 Unido a sala de visitante para notificaciones proactivas');
+						}
 					},
 					onDisconnect: (reason) => {
 						console.log('📡 [TrackingPixelSDK] ⚠️ WebSocket desconectado:', reason);
 					},
 					onError: (error) => {
 						console.error('📡 [TrackingPixelSDK] ❌ Error WebSocket:', error.message);
+					},
+					onChatCreated: (event) => {
+						console.log('📡 [TrackingPixelSDK] 🎉 Chat creado proactivamente por un comercial:', event);
+
+						// Unirse automáticamente al nuevo chat
+						this.wsService.joinChatRoom(event.chatId);
+						this.realtimeMessageManager.setCurrentChat(event.chatId);
+
+						// Actualizar ChatMemoryStore con el nuevo chat
+						ChatMemoryStore.getInstance().setChatId(event.chatId);
+
+						// Actualizar servicio de mensajes no leídos
+						if (this.chatToggleButton) {
+							this.chatToggleButton.setActiveChatForUnread(event.chatId);
+						}
+
+						// Mostrar notificación al usuario
+						this.showChatCreatedNotification(event);
+
+						console.log('📡 [TrackingPixelSDK] ✅ Configurado automáticamente para el nuevo chat:', event.chatId);
 					}
 				}
 			);
@@ -1935,6 +2002,18 @@ export class TrackingPixelSDK {
 			const currentChatId = chat.getChatId();
 			if (currentChatId) {
 				this.realtimeMessageManager.setCurrentChat(currentChatId);
+			}
+
+			// Inicializar servicio de mensajes no leídos con badge
+			if (this.chatToggleButton) {
+				this.chatToggleButton.connectUnreadService(visitorId);
+
+				// Establecer chat activo si existe
+				if (currentChatId) {
+					this.chatToggleButton.setActiveChatForUnread(currentChatId);
+				}
+
+				console.log('📬 [TrackingPixelSDK] ✅ Servicio de mensajes no leídos inicializado');
 			}
 
 			console.log('📡 [TrackingPixelSDK] ✅ Sistema de mensajería en tiempo real inicializado');
@@ -1954,6 +2033,65 @@ export class TrackingPixelSDK {
 		} catch (error) {
 			console.error('📡 [TrackingPixelSDK] ❌ Error enviando mensaje en tiempo real:', error);
 			throw error;
+		}
+	}
+
+	/**
+	 * Muestra una notificación cuando un comercial crea un chat proactivamente
+	 * @param event Evento de chat creado
+	 */
+	private showChatCreatedNotification(event: any): void {
+		try {
+			// Solicitar permiso para notificaciones si es necesario
+			if ('Notification' in window && Notification.permission === 'default') {
+				Notification.requestPermission().then(permission => {
+					if (permission === 'granted') {
+						this.displayChatNotification(event);
+					}
+				});
+			} else if ('Notification' in window && Notification.permission === 'granted') {
+				this.displayChatNotification(event);
+			}
+
+			// Animar el botón del chat para llamar la atención
+			if (this.chatToggleButton) {
+				const buttonElement = this.chatToggleButton.getButtonElement();
+				if (buttonElement) {
+					buttonElement.classList.add('pulse-animation');
+					setTimeout(() => {
+						buttonElement.classList.remove('pulse-animation');
+					}, 3000);
+				}
+			}
+
+			console.log('📡 [TrackingPixelSDK] 🔔 Notificación de nuevo chat mostrada');
+		} catch (error) {
+			console.error('📡 [TrackingPixelSDK] ❌ Error mostrando notificación:', error);
+		}
+	}
+
+	/**
+	 * Muestra la notificación del navegador
+	 * @param event Evento de chat creado
+	 */
+	private displayChatNotification(event: any): void {
+		try {
+			const notification = new Notification('¡Un comercial ha iniciado un chat!', {
+				body: event.message || 'Tienes un nuevo mensaje esperándote',
+				icon: '/chat-icon.png', // Puedes personalizar esto
+				tag: event.chatId,
+				requireInteraction: true // La notificación persiste hasta que el usuario interactúe
+			});
+
+			notification.onclick = () => {
+				// Abrir el chat cuando el usuario haga clic en la notificación
+				if (this.chatUI) {
+					this.chatUI.show();
+				}
+				notification.close();
+			};
+		} catch (error) {
+			console.error('📡 [TrackingPixelSDK] ❌ Error creando notificación del navegador:', error);
 		}
 	}
 
@@ -2005,7 +2143,8 @@ export class TrackingPixelSDK {
 
 			const chat = this.chatUI;
 			const chatInput = new ChatInputUI(chat);
-			const chatToggleButton = new ChatToggleButtonUI(chat);
+			this.chatToggleButton = new ChatToggleButtonUI(chat);
+			const chatToggleButton = this.chatToggleButton; // Alias para compatibilidad
 
 			chat.init();
 			chat.hide();

@@ -17,6 +17,7 @@
       dev: true,
       endpoint: 'http://localhost:3000/api',
       webSocketEndpoint: 'ws://localhost:3000',
+      requireConsent: false, // No requiere consentimiento GDPR
       welcomeMessage: {
         enabled: true,
         style: 'custom',

@@ -24,7 +24,10 @@ import {
 	TypingIndicator,
 	JoinChatRoomPayload,
 	LeaveChatRoomPayload,
-	TypingPayload
+	TypingPayload,
+	JoinVisitorRoomPayload,
+	LeaveVisitorRoomPayload,
+	ChatCreatedEvent
 } from '../types/websocket-types';
 import { EndpointManager } from '../core/tracking-pixel-SDK';
 
@@ -35,6 +38,7 @@ export class WebSocketService {
 	private config: WebSocketConfig | null = null;
 	private callbacks: WebSocketCallbacks = {};
 	private currentRooms: Set<string> = new Set();
+	private currentVisitorId: string | null = null;
 
 	private constructor() {
 		console.log('📡 [WebSocketService] Instancia creada');
@@ -140,7 +144,13 @@ export class WebSocketService {
 			console.log('📡 [WebSocketService] 📍 Path:', this.config?.path);
 			console.log('📡 [WebSocketService] 🚀 Transporte usado:', this.socket?.io?.engine?.transport?.name);
 
-			// Re-unirse a salas activas después de reconectar
+			// Re-unirse a sala de visitante si estaba conectado
+			if (this.currentVisitorId) {
+				console.log('📡 [WebSocketService] 🔄 Re-uniéndose a sala de visitante:', this.currentVisitorId);
+				this.joinVisitorRoom(this.currentVisitorId);
+			}
+
+			// Re-unirse a salas de chat activas después de reconectar
 			if (this.currentRooms.size > 0) {
 				console.log('📡 [WebSocketService] 🔄 Re-uniéndose a salas activas:', Array.from(this.currentRooms));
 				this.currentRooms.forEach(chatId => {
@@ -222,6 +232,29 @@ export class WebSocketService {
 				this.callbacks.onTyping(typing);
 			}
 		});
+
+		// Evento de chat creado proactivamente
+		this.socket.on('chat:created', (event: ChatCreatedEvent) => {
+			console.log('📡 [WebSocketService] 🎉 Chat creado proactivamente:', {
+				chatId: event.chatId,
+				visitorId: event.visitorId,
+				status: event.status,
+				message: event.message
+			});
+
+			if (this.callbacks.onChatCreated) {
+				this.callbacks.onChatCreated(event);
+			}
+		});
+
+		// Confirmaciones de sala de visitante
+		this.socket.on('visitor:joined', (data: any) => {
+			console.log('📡 [WebSocketService] ✅ Confirmación de unión a sala de visitante:', data);
+		});
+
+		this.socket.on('visitor:left', (data: any) => {
+			console.log('📡 [WebSocketService] ✅ Confirmación de salida de sala de visitante:', data);
+		});
 	}
 
 	/**
@@ -276,21 +309,71 @@ export class WebSocketService {
 	}
 
 	/**
+	 * Une el cliente a su sala de visitante para recibir notificaciones proactivas
+	 * @param visitorId ID del visitante
+	 */
+	public joinVisitorRoom(visitorId: string): void {
+		if (!this.socket || !this.socket.connected) {
+			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede unir a sala de visitante:', visitorId);
+			return;
+		}
+
+		console.log('📡 [WebSocketService] 🚪 Uniéndose a sala de visitante:', visitorId);
+
+		const payload: JoinVisitorRoomPayload = { visitorId };
+		this.socket.emit('visitor:join', payload, (response: any) => {
+			if (response?.success) {
+				console.log('📡 [WebSocketService] ✅ Unido a sala de visitante:', response.roomName);
+				this.currentVisitorId = visitorId;
+			} else {
+				console.error('📡 [WebSocketService] ❌ Error al unirse a sala de visitante:', response?.message);
+			}
+		});
+	}
+
+	/**
+	 * Sale de la sala de visitante
+	 * @param visitorId ID del visitante
+	 */
+	public leaveVisitorRoom(visitorId: string): void {
+		if (!this.socket || !this.socket.connected) {
+			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede salir de sala de visitante:', visitorId);
+			return;
+		}
+
+		console.log('📡 [WebSocketService] 🚪 Saliendo de sala de visitante:', visitorId);
+
+		const payload: LeaveVisitorRoomPayload = { visitorId };
+		this.socket.emit('visitor:leave', payload, (response: any) => {
+			if (response?.success) {
+				console.log('📡 [WebSocketService] ✅ Saliste de sala de visitante');
+				this.currentVisitorId = null;
+			}
+		});
+	}
+
+	/**
 	 * Desconecta el WebSocket
 	 */
 	public disconnect(): void {
 		if (this.socket) {
 			console.log('📡 [WebSocketService] 🔌 Desconectando...');
-			
-			// Salir de todas las salas antes de desconectar
+
+			// Salir de sala de visitante si estaba conectado
+			if (this.currentVisitorId) {
+				this.leaveVisitorRoom(this.currentVisitorId);
+			}
+
+			// Salir de todas las salas de chat antes de desconectar
 			this.currentRooms.forEach(chatId => {
 				this.leaveChatRoom(chatId);
 			});
-			
+
 			this.socket.disconnect();
 			this.socket = null;
 			this.state = WebSocketState.DISCONNECTED;
 			this.currentRooms.clear();
+			this.currentVisitorId = null;
 		}
 	}
 
@@ -327,10 +410,75 @@ export class WebSocketService {
 	 * @param callbacks Nuevos callbacks a registrar
 	 */
 	public updateCallbacks(callbacks: Partial<WebSocketCallbacks>): void {
-		this.callbacks = {
-			...this.callbacks,
-			...callbacks
-		};
-		console.log('📡 [WebSocketService] 🔄 Callbacks actualizados');
+		// Store old callbacks in closures to avoid recursion
+		const oldOnConnect = this.callbacks.onConnect;
+		const oldOnDisconnect = this.callbacks.onDisconnect;
+		const oldOnError = this.callbacks.onError;
+		const oldOnMessage = this.callbacks.onMessage;
+		const oldOnChatStatus = this.callbacks.onChatStatus;
+		const oldOnTyping = this.callbacks.onTyping;
+		const oldOnChatCreated = this.callbacks.onChatCreated;
+
+		// Merge callbacks properly - if both old and new have the same callback, chain them
+		const mergedCallbacks: WebSocketCallbacks = {};
+
+		// Merge onConnect callbacks
+		if (oldOnConnect || callbacks.onConnect) {
+			mergedCallbacks.onConnect = () => {
+				if (oldOnConnect) oldOnConnect();
+				if (callbacks.onConnect) callbacks.onConnect();
+			};
+		}
+
+		// Merge onDisconnect callbacks
+		if (oldOnDisconnect || callbacks.onDisconnect) {
+			mergedCallbacks.onDisconnect = (reason: string) => {
+				if (oldOnDisconnect) oldOnDisconnect(reason);
+				if (callbacks.onDisconnect) callbacks.onDisconnect(reason);
+			};
+		}
+
+		// Merge onError callbacks
+		if (oldOnError || callbacks.onError) {
+			mergedCallbacks.onError = (error: Error) => {
+				if (oldOnError) oldOnError(error);
+				if (callbacks.onError) callbacks.onError(error);
+			};
+		}
+
+		// Merge onMessage callbacks
+		if (oldOnMessage || callbacks.onMessage) {
+			mergedCallbacks.onMessage = (message) => {
+				if (oldOnMessage) oldOnMessage(message);
+				if (callbacks.onMessage) callbacks.onMessage(message);
+			};
+		}
+
+		// Merge onChatStatus callbacks
+		if (oldOnChatStatus || callbacks.onChatStatus) {
+			mergedCallbacks.onChatStatus = (status) => {
+				if (oldOnChatStatus) oldOnChatStatus(status);
+				if (callbacks.onChatStatus) callbacks.onChatStatus(status);
+			};
+		}
+
+		// Merge onTyping callbacks
+		if (oldOnTyping || callbacks.onTyping) {
+			mergedCallbacks.onTyping = (typing) => {
+				if (oldOnTyping) oldOnTyping(typing);
+				if (callbacks.onTyping) callbacks.onTyping(typing);
+			};
+		}
+
+		// Merge onChatCreated callbacks
+		if (oldOnChatCreated || callbacks.onChatCreated) {
+			mergedCallbacks.onChatCreated = (event) => {
+				if (oldOnChatCreated) oldOnChatCreated(event);
+				if (callbacks.onChatCreated) callbacks.onChatCreated(event);
+			};
+		}
+
+		this.callbacks = mergedCallbacks;
+		console.log('📡 [WebSocketService] 🔄 Callbacks actualizados y fusionados');
 	}
 }
