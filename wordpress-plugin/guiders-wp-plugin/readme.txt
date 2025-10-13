@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.2.3-beta.1
+Stable tag: 1.3.0-beta.1
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,38 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.3.0-beta.1 =
+* **📬 [BETA] Sistema de Notificaciones de Mensajes No Leídos**: Badge en tiempo real en el botón de chat
+  * Nuevo servicio `UnreadMessagesService` para gestión de mensajes no leídos
+  * Badge numérico visible en el ChatToggleButton con contador actualizado en tiempo real
+  * Integración completa con API v2 (`/v2/messages/chat/{id}/unread`, `/v2/messages/mark-as-read`)
+  * Actualización automática vía WebSocket cuando llega un mensaje nuevo
+  * Auto-limpieza del badge al abrir el chat (marca mensajes como leídos después de 1 segundo)
+  * Filtrado inteligente: ignora mensajes propios del visitante
+  * Persistencia entre sesiones: badge visible tras refresh si hay mensajes no leídos
+* **🚀 [BETA] Salas de Visitante en WebSocket**: Notificaciones proactivas para visitantes
+  * Métodos `joinVisitorRoom()` y `leaveVisitorRoom()` en `WebSocketService`
+  * Reconexión automática a sala de visitante tras desconexión
+  * Evento `chat:created` para chats creados proactivamente por comerciales
+  * Nuevos tipos TypeScript: `JoinVisitorRoomPayload`, `ChatCreatedEvent`, `ChatPriority`
+* **🧪 [BETA] Tests E2E Completos**: Suite de Playwright para validar badge
+  * Tests de badge visible antes/después de refresh
+  * Tests de actualización en tiempo real cuando llega mensaje
+  * Tests de limpieza del badge al abrir chat
+  * Screenshots automáticos para validación visual
+* **⚙️ Mejoras Técnicas**:
+  * Callback system para propagación de contador de mensajes no leídos
+  * Método `updateCallbacks()` mejorado en WebSocketService con merge inteligente
+  * Sistema de autenticación dual (session + JWT) en UnreadMessagesService
+  * Logs de debug configurables para troubleshooting
+* **🎯 Casos de Uso**:
+  * Visitantes ven cuántos mensajes nuevos tienen sin abrir el chat
+  * Comerciales pueden crear chats proactivamente y el visitante lo sabe
+  * Badge persiste entre sesiones para no perder notificaciones
+  * Experiencia UX similar a WhatsApp/Telegram con contador visible
+* **📦 Bundle Size**: ~340 KB (incremento de 10 KB por nueva funcionalidad)
+* **🔗 Integración**: Sin cambios en API pública, funciona automáticamente
 
 = 1.2.3-beta.1 =
 * **🎉 Primera versión Beta**: Promoción desde alpha.4 tras pruebas exitosas
