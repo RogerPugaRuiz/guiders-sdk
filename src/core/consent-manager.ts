@@ -47,7 +47,22 @@ export class ConsentManager {
     };
 
     // Cargar estado guardado o crear uno nuevo
-    this.state = this.loadState() || this.createInitialState();
+    const loadedState = this.loadState();
+    if (loadedState) {
+      this.state = loadedState;
+    } else {
+      this.state = this.createInitialState();
+      // Si defaultStatus es 'granted', guardar inmediatamente en localStorage
+      if (this.config.defaultStatus === 'granted') {
+        this.state.preferences = {
+          analytics: true,
+          functional: true,
+          personalization: true
+        };
+        this.saveState();
+        console.log('[ConsentManager] ✅ Estado inicial con consentimiento otorgado guardado');
+      }
+    }
 
     console.log('[ConsentManager] 🔐 Inicializado con estado:', this.state);
   }
