@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.0-beta.1
+Stable tag: 1.3.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -150,8 +150,8 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 
 == Changelog ==
 
-= 1.3.0-beta.1 =
-* **📬 [BETA] Sistema de Notificaciones de Mensajes No Leídos**: Badge en tiempo real en el botón de chat
+= 1.3.0 =
+* **📬 Sistema de Notificaciones de Mensajes No Leídos**: Badge en tiempo real en el botón de chat
   * Nuevo servicio `UnreadMessagesService` para gestión de mensajes no leídos
   * Badge numérico visible en el ChatToggleButton con contador actualizado en tiempo real
   * Integración completa con API v2 (`/v2/messages/chat/{id}/unread`, `/v2/messages/mark-as-read`)
@@ -159,12 +159,12 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
   * Auto-limpieza del badge al abrir el chat (marca mensajes como leídos después de 1 segundo)
   * Filtrado inteligente: ignora mensajes propios del visitante
   * Persistencia entre sesiones: badge visible tras refresh si hay mensajes no leídos
-* **🚀 [BETA] Salas de Visitante en WebSocket**: Notificaciones proactivas para visitantes
+* **🚀 Salas de Visitante en WebSocket**: Notificaciones proactivas para visitantes
   * Métodos `joinVisitorRoom()` y `leaveVisitorRoom()` en `WebSocketService`
   * Reconexión automática a sala de visitante tras desconexión
   * Evento `chat:created` para chats creados proactivamente por comerciales
   * Nuevos tipos TypeScript: `JoinVisitorRoomPayload`, `ChatCreatedEvent`, `ChatPriority`
-* **🧪 [BETA] Tests E2E Completos**: Suite de Playwright para validar badge
+* **🧪 Tests E2E Completos**: Suite de Playwright para validar badge
   * Tests de badge visible antes/después de refresh
   * Tests de actualización en tiempo real cuando llega mensaje
   * Tests de limpieza del badge al abrir chat
