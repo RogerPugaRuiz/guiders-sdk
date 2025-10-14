@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,23 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.4.0 =
+* **🎨 Rediseño Visual del Chat**: Interfaz minimalista y moderna
+  * Header con fondo azul sólido (#0084ff) y texto blanco para mejor legibilidad
+  * Bordes reducidos de 20px a 8px para aspecto más limpio y profesional
+  * Mensajes del usuario con fondo azul claro (#D1E7FF) y texto oscuro
+  * Mensajes del agente con fondo blanco y texto oscuro
+  * Ambos tipos de mensajes con estilo consistente y máximo 70% de ancho
+  * Hora del mensaje mostrada inline a la derecha del texto
+  * Border-radius de 2px en esquinas características para mejor definición
+* **✨ Simplificación de la Interfaz**:
+  * Eliminado footer "Equipo de atención al cliente" para más espacio
+  * Eliminado botón de adjuntar archivos (temporalmente)
+  * Input area unificada con gradiente del área de mensajes
+  * Nuevo ícono de botón enviar con diseño mejorado
+* **📦 Bundle Size**: ~340 KB (sin cambios significativos)
+* **🔗 Compatibilidad**: Sin cambios en API, actualización visual solamente
 
 = 1.3.0 =
 * **📬 Sistema de Notificaciones de Mensajes No Leídos**: Badge en tiempo real en el botón de chat
