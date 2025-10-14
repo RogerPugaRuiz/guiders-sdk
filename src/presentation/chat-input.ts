@@ -50,22 +50,6 @@ export class ChatInputUI {
 		// Crear un contenedor para el input con estilo moderno
 		this.inputContainer = document.createElement('div');
 		this.inputContainer.className = 'chat-input-container';
-		
-		// Contenedor de acciones adicionales (adjuntos, emojis, etc.)
-		const actionsContainer = document.createElement('div');
-		actionsContainer.className = 'chat-input-actions';
-		
-		// Botón para adjuntar archivos
-		const attachmentBtn = document.createElement('button');
-		attachmentBtn.className = 'chat-attachment-btn';
-		attachmentBtn.setAttribute('aria-label', 'Adjuntar archivo');
-		attachmentBtn.addEventListener('click', () => {
-			// Aquí se implementaría la lógica para adjuntar archivos
-			alert('Función de adjuntar archivos no implementada aún');
-		});
-		
-		actionsContainer.appendChild(attachmentBtn);
-		this.inputContainer.appendChild(actionsContainer);
 
 		// Campo de entrada de texto
 		this.inputField = document.createElement('input');

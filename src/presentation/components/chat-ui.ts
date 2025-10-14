@@ -185,17 +185,6 @@ export class ChatUI {
 		div.className = 'chat-messages-bottom';
 		this.containerMessages.appendChild(div);
 
-		// Footer
-		const footerEl = document.createElement('div');
-		footerEl.className = 'chat-footer';
-
-		const footerText = document.createElement('div');
-		footerText.className = 'chat-footer-text';
-		footerText.innerHTML = 'Equipo de atención al cliente';
-		footerEl.appendChild(footerText);
-
-		this.container.appendChild(footerEl);
-
 		// Configurar estilos
 		this.container.style.display = 'none';
 		this.container.style.flexDirection = 'column';
@@ -227,7 +216,7 @@ export class ChatUI {
 
 			.chat-widget {
 				box-shadow: 0 8px 48px 0 rgba(0,0,0,0.22), 0 1.5px 8px 0 rgba(0,0,0,0.10);
-				border-radius: 20px;
+				border-radius: 8px;
 				overflow: hidden;
 				background: linear-gradient(135deg, #f7faff 0%, #e3e9f6 100%);
 				font-family: 'Inter', sans-serif;
@@ -264,14 +253,14 @@ export class ChatUI {
 			}
 			
 			.chat-header {
-				background: linear-gradient(145deg, #0084ff 60%, #00c6fb 100%);
+				background: #0084ff;
 				color: #fff;
 				padding: 18px 20px 14px 20px;
 				display: flex;
 				align-items: center;
 				justify-content: space-between;
-				border-top-left-radius: 20px;
-				border-top-right-radius: 20px;
+				border-top-left-radius: 8px;
+				border-top-right-radius: 8px;
 				box-shadow: 0 2px 8px rgba(0,132,255,0.08);
 			}
 			
@@ -297,9 +286,9 @@ export class ChatUI {
 			.chat-header-subtitle {
 				font-size: 13px;
 				font-weight: 400;
-				opacity: 0.92;
+				opacity: 0.85;
 				margin-top: 2px;
-				color: #e3f2fd;
+				color: #fff;
 			}
 			
 			.chat-header-actions {
@@ -311,7 +300,7 @@ export class ChatUI {
 			.chat-close-btn {
 				background: transparent;
 				border: none;
-				color: white;
+				color: #fff;
 				cursor: pointer;
 				width: 32px;
 				height: 32px;
@@ -323,12 +312,12 @@ export class ChatUI {
 				transition: all 0.2s ease;
 				border-radius: 50%;
 			}
-			
+
 			.chat-close-btn:hover {
 				opacity: 1;
 				background: rgba(255, 255, 255, 0.1);
 			}
-			
+
 			.chat-close-btn:active {
 				transform: scale(0.95);
 				background: rgba(255, 255, 255, 0.15);
@@ -427,31 +416,17 @@ export class ChatUI {
 				margin-top: 4px;
 				opacity: 0.8;
 			}
-			
-			.chat-footer {
-				padding: 10px 18px;
-				background: linear-gradient(90deg, #f7faff 80%, #e3e9f6 100%);
-				border-top: 1.5px solid #e1e9f1;
-				font-size: 13px;
-				color: #8a9aa9;
-				text-align: center;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				letter-spacing: 0.01em;
-			}
-			
+
 			.chat-input-container {
 				padding: 12px 16px;
-				background: #ffffff;
-				border-top: 1px solid #e1e9f1;
+				background: linear-gradient(120deg, #f7faff 60%, #e3e9f6 100%);
 				display: -webkit-flex;
 				display: flex;
 				-webkit-align-items: center;
 				align-items: center;
 				gap: 8px;
-				border-bottom-left-radius: 20px;
-				border-bottom-right-radius: 20px;
+				border-bottom-left-radius: 8px;
+				border-bottom-right-radius: 8px;
 				/* Fix Safari: Asegurar que el contenedor mantenga su altura */
 				min-height: 60px;
 				box-sizing: border-box;
@@ -470,7 +445,7 @@ export class ChatUI {
 				-webkit-flex: 1;
 				flex: 1;
 				border: 1px solid #e1e9f1;
-				border-radius: 20px;
+				border-radius: 8px;
 				padding: 10px 16px;
 				font-size: 14px;
 				font-family: 'Inter', sans-serif;
@@ -535,38 +510,9 @@ export class ChatUI {
 			
 			.chat-send-btn::before {
 				content: '';
-				width: 16px;
-				height: 16px;
-				background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 21L23 12L2 3V10L17 12L2 14V21Z' fill='white'/%3E%3C/svg%3E");
-				background-repeat: no-repeat;
-				background-position: center;
-			}
-			
-			.chat-attachment-btn {
-				background: transparent;
-				color: #8a9aa9;
-				border: none;
-				border-radius: 50%;
-				width: 36px;
-				height: 36px;
-				cursor: pointer;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				transition: all 0.2s ease;
-				flex-shrink: 0;
-			}
-			
-			.chat-attachment-btn:hover {
-				background: #f0f4f8;
-				color: #0084ff;
-			}
-			
-			.chat-attachment-btn::before {
-				content: '';
-				width: 18px;
-				height: 18px;
-				background-image: url("data:image/svg+xml,%3Csvg width='18' height='18' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M16.5 6V17.5C16.5 19.71 14.71 21.5 12.5 21.5S8.5 19.71 8.5 17.5V5C8.5 3.62 9.62 2.5 11 2.5S13.5 3.62 13.5 5V15.5C13.5 16.05 13.05 16.5 12.5 16.5S11.5 16.05 11.5 15.5V6H10V15.5C10 16.88 11.12 18 12.5 18S15 16.88 15 15.5V5C15 2.79 13.21 1 11 1S7 2.79 7 5V17.5C7 20.54 9.46 23 12.5 23S18 20.54 18 17.5V6H16.5Z' fill='currentColor'/%3E%3C/svg%3E");
+				width: 20px;
+				height: 20px;
+				background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.29106 3.3088C3.00745 3.18938 2.67967 3.25533 2.4643 3.47514C2.24894 3.69495 2.1897 4.02401 2.31488 4.30512L5.40752 11.25H13C13.4142 11.25 13.75 11.5858 13.75 12C13.75 12.4142 13.4142 12.75 13 12.75H5.40754L2.31488 19.6949C2.1897 19.976 2.24894 20.3051 2.4643 20.5249C2.67967 20.7447 3.00745 20.8107 3.29106 20.6912L22.2911 12.6913C22.5692 12.5742 22.75 12.3018 22.75 12C22.75 11.6983 22.5692 11.4259 22.2911 11.3088L3.29106 3.3088Z' fill='white'/%3E%3C/svg%3E");
 				background-repeat: no-repeat;
 				background-position: center;
 			}

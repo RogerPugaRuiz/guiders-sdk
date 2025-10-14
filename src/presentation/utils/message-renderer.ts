@@ -239,19 +239,19 @@ export class MessageRenderer {
                 white-space: normal;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
                 display: flex;
-                flex-direction: column;
-                ${isUserMessage ? 
-                    `background: linear-gradient(145deg, #0084ff 60%, #00c6fb 100%);
-                     color: white;
-                     border-bottom-right-radius: 3px;
-                     box-shadow: 0 1px 2px rgba(0, 132, 255, 0.15);
+                flex-direction: row;
+                align-items: baseline;
+                gap: 6px;
+                ${isUserMessage ?
+                    `background: #D1E7FF;
+                     color: #2c3e50;
+                     border-bottom-right-radius: 2px;
                      max-width: 70%;
-                     margin-left: auto;` : 
-                    `background: white;
-                     color: #1f2937;
-                     border-bottom-left-radius: 3px;
-                     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-                     max-width: 85%;`
+                     margin-left: auto;` :
+                    `background: #FFFFFF;
+                     color: #2c3e50;
+                     border-bottom-left-radius: 2px;
+                     max-width: 70%;`
                 }
                 transition: all 0.2s ease;
             `;
@@ -267,11 +267,8 @@ export class MessageRenderer {
                 -webkit-font-smoothing: antialiased;
                 -moz-osx-font-smoothing: grayscale;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                flex: 1;
-                ${isUserMessage ? 
-                    'color: rgba(255, 255, 255, 0.95);' : 
-                    'color: #374151;'
-                }
+                flex: 0 1 auto;
+                color: #2c3e50;
             `;
         }
 
@@ -279,13 +276,13 @@ export class MessageRenderer {
         if (time) {
             time.style.cssText = `
                 font-size: 10px;
-                color: ${isUserMessage ? 'rgba(255, 255, 255, 0.8)' : 'rgba(60, 60, 67, 0.5)'};
+                color: rgba(44, 62, 80, 0.5);
                 font-weight: 400;
                 letter-spacing: 0.01em;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                margin-top: 4px;
-                text-align: right;
-                display: block;
+                white-space: nowrap;
+                flex-shrink: 0;
+                margin-left: auto;
                 opacity: 0.9;
             `;
         }
