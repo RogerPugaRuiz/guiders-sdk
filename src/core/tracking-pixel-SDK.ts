@@ -348,8 +348,10 @@ export class TrackingPixelSDK {
 	}
 
 	public async init(): Promise<void> {
-		// Nota: Este método solo se llama cuando hay consentimiento granted
+		// Nota: Este método inicializa completamente el SDK (localStorage, UI, tracking)
+		// Solo debe llamarse cuando el consentimiento está 'granted'
 		// La verificación se hace en el constructor y en onConsentChange
+		// Para registrar rechazos de consentimiento, usar identitySignal.identify() directamente
 
 		console.log('[TrackingPixelSDK] 🚀 Inicializando SDK con consentimiento otorgado...');
 
@@ -2339,9 +2341,16 @@ export class TrackingPixelSDK {
 		// El backend necesita saber que el usuario rechazó explícitamente
 		console.log('[TrackingPixelSDK] 📝 Registrando rechazo de consentimiento en el backend...');
 
-		// Llamar a identify() para registrar el rechazo
-		// identify() leerá el estado 'denied' del ConsentManager y enviará hasAcceptedPrivacyPolicy: false
-		this.init().catch(error => {
+		// NO llamar a init() aquí porque init() asume consentimiento granted
+		// y escribe en localStorage (violación GDPR si consent está denied)
+		// En su lugar, llamar directamente a identitySignal.identify()
+		// que leerá el estado 'denied' del ConsentManager desde localStorage
+
+		// Generar fingerprint si no existe (sin escribir en localStorage todavía)
+		const client = new ClientJS();
+		const fingerprint = this.fingerprint || client.getFingerprint().toString();
+
+		this.identitySignal.identify(fingerprint, this.apiKey).catch(error => {
 			console.warn('[TrackingPixelSDK] ⚠️ No se pudo registrar el rechazo en el backend:', error);
 			// No es un error crítico - el usuario ya tiene acceso limitado localmente
 		});

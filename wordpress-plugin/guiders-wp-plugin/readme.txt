@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.4.2
+Stable tag: 1.4.3
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,27 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.4.3 =
+* **🐛 Fix Crítico GDPR**: Rechazo de consentimiento ahora se registra correctamente en el backend
+  * Problema: Cuando el usuario pulsaba "Rechazar" en el banner, el rechazo NO se enviaba al backend
+  * Causa raíz: `denyConsent()` llamaba a `init()`, pero `init()` asume consentimiento `granted` y no registra rechazos
+  * `init()` escribe en localStorage, inicializa UI completa, etc. - inapropiado para rechazos
+  * **Fix aplicado**: `denyConsent()` ahora llama DIRECTAMENTE a `identitySignal.identify()` sin pasar por `init()`
+  * `identify()` lee el estado `denied` del ConsentManager desde localStorage
+  * Envía `hasAcceptedPrivacyPolicy: false` al backend para compliance GDPR
+  * Backend registra el rechazo explícito en el audit trail (HTTP 400 esperado)
+  * Mejora crítica: Ahora el backend tiene registro completo de todos los rechazos de consentimiento
+* **📝 Mejora de Documentación**: Actualizado método `init()` con comentarios claros
+  * Clarifica que `init()` solo debe usarse con consentimiento `granted`
+  * Documenta uso de `identitySignal.identify()` para registrar rechazos
+  * Previene confusión futura sobre cuándo usar cada método
+* **🧪 Herramientas de Prueba**: Archivo de demo `demo/test-consent-denial.html`
+  * Demo interactiva para probar flujo completo de rechazo
+  * Consola visual para ver eventos en tiempo real
+  * Instrucciones paso a paso para verificar peticiones de red
+  * Permite validar compliance GDPR sin backend de producción
+* **🔗 Sin Cambios en API**: Actualización 100% retrocompatible, solo fix interno
 
 = 1.4.2 =
 * **🐛 Fix Crítico WordPress**: Configuración del banner de consentimiento corregida

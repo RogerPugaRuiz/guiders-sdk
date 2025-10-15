@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test: Rechazo de Consentimiento GDPR</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #2c3e50;
+      margin-top: 0;
+    }
+    .instructions {
+      background: #e3f2fd;
+      padding: 20px;
+      border-radius: 4px;
+      border-left: 4px solid #2196f3;
+      margin: 20px 0;
+    }
+    .test-button {
+      background: #2196f3;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    .test-button:hover {
+      background: #1976d2;
+    }
+    .test-button.deny {
+      background: #f44336;
+    }
+    .test-button.deny:hover {
+      background: #d32f2f;
+    }
+    .console-output {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+    .console-line {
+      margin: 5px 0;
+    }
+    .console-line.error {
+      color: #f48771;
+    }
+    .console-line.warn {
+      color: #dcdcaa;
+    }
+    .console-line.success {
+      color: #4ec9b0;
+    }
+  </style>
+
+  <!-- Configuración de Guiders SDK -->
+  <script>
+    window.GUIDERS_CONFIG = {
+      apiKey: '12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0',
+      environment: 'development',
+      endpoint: 'http://localhost:3000/api',
+      webSocketEndpoint: 'ws://localhost:3000',
+      requireConsent: true,  // ✅ Activar control GDPR
+      consentBanner: {
+        enabled: true,
+        style: 'bottom_bar',
+        text: '🍪 Usamos cookies para mejorar tu experiencia. Puedes aceptar o rechazar.',
+        acceptText: 'Aceptar',
+        denyText: 'Rechazar',
+        showPreferences: false,
+        autoShow: true
+      }
+    };
+  </script>
+
+  <!-- Guiders SDK Script -->
+  <script src="/dist/index.js"></script>
+</head>
+<body>
+  <div class="test-container">
+    <h1>🧪 Test: Rechazo de Consentimiento GDPR</h1>
+
+    <div class="instructions">
+      <h3>Instrucciones:</h3>
+      <ol>
+        <li>Abre la consola del navegador (F12)</li>
+        <li>Abre las herramientas de red (Network tab)</li>
+        <li>Filtra por "identify" en la pestaña de red</li>
+        <li>Pulsa el botón <strong>"Rechazar"</strong> en el banner que aparece abajo</li>
+        <li>Verifica que se envía una petición POST a <code>/api/visitors/v2/identify</code></li>
+        <li>Inspecciona el payload de la petición y verifica:
+          <ul>
+            <li><code>hasAcceptedPrivacyPolicy: false</code></li>
+            <li><code>consentVersion</code> debe estar presente</li>
+          </ul>
+        </li>
+        <li>Verifica que el backend responde con HTTP 400 (esperado para rechazos)</li>
+      </ol>
+    </div>
+
+    <h3>Acciones de Prueba:</h3>
+    <button class="test-button" onclick="testAccept()">✅ Aceptar Consentimiento</button>
+    <button class="test-button deny" onclick="testDeny()">❌ Rechazar Consentimiento</button>
+    <button class="test-button" onclick="testRevoke()">🔄 Revocar Consentimiento</button>
+    <button class="test-button" onclick="checkStatus()">🔍 Ver Estado Actual</button>
+    <button class="test-button" onclick="clearConsole()">🗑️ Limpiar Consola</button>
+
+    <h3>Consola de Eventos:</h3>
+    <div class="console-output" id="consoleOutput"></div>
+  </div>
+
+  <script>
+    // Capturar logs del SDK
+    const consoleOutput = document.getElementById('consoleOutput');
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+
+    function addConsoleLog(message, type = 'log') {
+      const line = document.createElement('div');
+      line.className = `console-line ${type}`;
+      line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      consoleOutput.appendChild(line);
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    }
+
+    console.log = function(...args) {
+      originalLog.apply(console, args);
+      if (args[0] && typeof args[0] === 'string' && args[0].includes('[')) {
+        addConsoleLog(args.join(' '), 'log');
+      }
+    };
+
+    console.warn = function(...args) {
+      originalWarn.apply(console, args);
+      addConsoleLog(args.join(' '), 'warn');
+    };
+
+    console.error = function(...args) {
+      originalError.apply(console, args);
+      addConsoleLog(args.join(' '), 'error');
+    };
+
+    // Funciones de prueba
+    function testAccept() {
+      addConsoleLog('🟢 Usuario solicita: Aceptar consentimiento', 'success');
+      if (window.guiders) {
+        window.guiders.grantConsent();
+      }
+    }
+
+    function testDeny() {
+      addConsoleLog('🔴 Usuario solicita: Rechazar consentimiento', 'warn');
+      if (window.guiders) {
+        window.guiders.denyConsent();
+      }
+    }
+
+    function testRevoke() {
+      addConsoleLog('🔄 Usuario solicita: Revocar consentimiento', 'warn');
+      if (window.guiders) {
+        window.guiders.revokeConsent();
+      }
+    }
+
+    function checkStatus() {
+      if (window.guiders) {
+        const status = window.guiders.getConsentStatus();
+        const state = window.guiders.getConsentState();
+        addConsoleLog(`📊 Estado: ${status}`, 'success');
+        addConsoleLog(`📊 Detalles: ${JSON.stringify(state, null, 2)}`, 'log');
+      } else {
+        addConsoleLog('❌ SDK no inicializado', 'error');
+      }
+    }
+
+    function clearConsole() {
+      consoleOutput.innerHTML = '';
+      addConsoleLog('🗑️ Consola limpiada', 'log');
+    }
+
+    // Inicializar consola
+    addConsoleLog('🚀 Demo de prueba de rechazo de consentimiento inicializada', 'success');
+    addConsoleLog('👀 Esperando que el usuario interactúe con el banner...', 'log');
+  </script>
+</body>
+</html>
