@@ -1,13 +1,45 @@
 # Guía GDPR para Plugin de WordPress - Guiders SDK
 
+**Versión del SDK**: 1.4.1
+**Última actualización**: Octubre 2025
+
+## ⚠️ Importante: ¿Necesitas GDPR?
+
+**Por defecto, el SDK NO requiere consentimiento GDPR** (`requireConsent: false`). Esta guía es solo para sitios que:
+- Están dirigidos a usuarios de la Unión Europea
+- Necesitan cumplir con GDPR, LOPDGDD o LSSI
+- Requieren control explícito de cookies y tracking
+
+Si tu sitio **NO está en la UE**, el SDK funciona automáticamente sin configuración adicional.
+
 ## 📋 Índice
 
-1. [Configuración Básica](#configuración-básica)
-2. [Control de Consentimiento](#control-de-consentimiento)
-3. [Integración con Plugins de Cookies](#integración-con-plugins-de-cookies)
-4. [Banners Personalizados](#banners-personalizados)
-5. [Derechos del Usuario](#derechos-del-usuario)
-6. [Snippets Útiles](#snippets-útiles)
+1. [¿Cuándo necesitas esta guía?](#cuándo-necesitas-esta-guía)
+2. [Configuración Básica](#configuración-básica)
+3. [Activar Control GDPR](#activar-control-gdpr)
+4. [Control de Consentimiento](#control-de-consentimiento)
+5. [Integración con Plugins de Cookies](#integración-con-plugins-de-cookies)
+6. [Banners Personalizados](#banners-personalizados)
+7. [Derechos del Usuario](#derechos-del-usuario)
+8. [Snippets Útiles](#snippets-útiles)
+9. [Checklist de Cumplimiento](#checklist-de-cumplimiento)
+10. [Preguntas Frecuentes (FAQ)](#preguntas-frecuentes-faq)
+11. [Recursos Adicionales](#recursos-adicionales)
+
+---
+
+## ¿Cuándo necesitas esta guía?
+
+### ✅ Necesitas activar GDPR si:
+- Tu sitio está dirigido a usuarios en España, UE o EEA
+- Tienes usuarios que acceden desde la Unión Europea
+- Necesitas cumplir con GDPR/LOPDGDD/LSSI
+- Tu política de privacidad requiere consentimiento explícito
+
+### ❌ NO necesitas GDPR si:
+- Tu sitio solo opera fuera de la UE
+- Tus términos de servicio cubren el uso de tracking
+- No tienes usuarios europeos
 
 ---
 
@@ -15,14 +47,44 @@
 
 ### Paso 1: Instalar el Plugin
 
-1. Sube `guiders-wp-plugin-1.2.2-alpha.1.zip` a WordPress
+1. Sube `guiders-wp-plugin-1.4.x.zip` a WordPress
 2. Activa el plugin
 3. Ve a **Configuración → Guiders SDK**
 4. Ingresa tu API Key
 
-### Paso 2: Configurar Consentimiento
+### Paso 2: Decidir si necesitas GDPR
 
-En la configuración del plugin, asegúrate de tener habilitado el tracking. El control de consentimiento se hará desde el código JavaScript.
+**Por defecto, el SDK funciona sin barreras de consentimiento**. Si necesitas GDPR, continúa con la siguiente sección.
+
+---
+
+## Activar Control GDPR
+
+Para sitios de la UE, necesitas activar explícitamente el control GDPR. Añade este código en `functions.php` de tu tema:
+
+```php
+/**
+ * Activar control GDPR para Guiders SDK
+ * Solo para sitios que necesitan cumplimiento GDPR
+ */
+function guiders_activate_gdpr_mode() {
+    if (is_admin()) return;
+    ?>
+    <script>
+    // Configurar SDK con control GDPR antes de que se inicialice
+    window.GUIDERS_CONFIG = window.GUIDERS_CONFIG || {};
+    window.GUIDERS_CONFIG.requireConsent = true;  // ⚠️ Activar GDPR
+    window.GUIDERS_CONFIG.consent = {
+        waitForConsent: true,    // Esperar consentimiento antes de tracking
+        defaultStatus: 'pending'  // Estado inicial
+    };
+    </script>
+    <?php
+}
+add_action('wp_head', 'guiders_activate_gdpr_mode', 5); // Prioridad 5 para ejecutar antes del SDK
+```
+
+**Importante**: Este código debe añadirse **antes** de que se cargue el SDK.
 
 ---
 
@@ -39,14 +101,24 @@ if (window.guiders) {
 }
 ```
 
-### Configuración por Defecto
+### Comportamiento por Defecto
 
-Por defecto, el SDK esperará el consentimiento del usuario antes de iniciar el tracking:
+**IMPORTANTE**: Por defecto, el SDK NO espera consentimiento:
 
 ```javascript
-// El SDK se inicializa con:
+// Comportamiento por defecto del SDK:
+// - requireConsent: false (NO requiere consentimiento)
+// - authMode: 'session' (cookies HttpOnly seguras)
+// - Chat y tracking funcionan inmediatamente
+```
+
+Si activaste el modo GDPR en la sección anterior, entonces sí esperará consentimiento:
+
+```javascript
+// Con modo GDPR activado (requireConsent: true):
 // - waitForConsent: true (espera consentimiento)
 // - defaultStatus: 'pending' (estado pendiente)
+// - Chat y tracking pausados hasta obtener consentimiento
 ```
 
 ### Otorgar Consentimiento
@@ -89,6 +161,8 @@ const canTrack = window.guiders.isCategoryAllowed('analytics');
 ---
 
 ## Integración con Plugins de Cookies
+
+**Nota previa**: Esta sección solo es relevante si activaste el modo GDPR (`requireConsent: true`). Si no lo activaste, el SDK ya funciona sin necesidad de gestión de consentimiento.
 
 ### Método 1: Usando el Hook `wp_footer`
 
@@ -287,6 +361,8 @@ add_action('wp_footer', 'guiders_cookiebot_integration', 100);
 ---
 
 ## Banners Personalizados
+
+**Nota previa**: Los banners de consentimiento solo son necesarios si activaste el modo GDPR. Si no lo activaste, el SDK ya funciona sin banner.
 
 ### Banner Básico con Shortcode
 
@@ -493,6 +569,8 @@ add_action('wp_footer', 'guiders_preferences_modal', 99);
 ---
 
 ## Derechos del Usuario
+
+**Nota**: Los derechos de eliminación y exportación de datos están disponibles independientemente de si activaste el modo GDPR o no. Son herramientas útiles para cumplimiento legal.
 
 ### Botón "Eliminar mis datos"
 
@@ -762,17 +840,24 @@ Los datos se conservan durante [especificar período] o hasta que solicites su e
 
 ## Checklist de Cumplimiento
 
-Antes de lanzar tu sitio, verifica:
+### Para Sitios SIN GDPR (Global)
+- [ ] SDK instalado y funcionando
+- [ ] Chat operativo
+- [ ] Tracking funcionando correctamente
+- [ ] Página de privacidad con mención del SDK
 
+### Para Sitios CON GDPR (UE)
+- [ ] Modo GDPR activado (`requireConsent: true`)
 - [ ] Banner de consentimiento implementado
-- [ ] Tracking pausado hasta obtener consentimiento
-- [ ] Página de privacidad actualizada
+- [ ] Tracking pausado hasta obtener consentimiento (verificado)
+- [ ] Página de privacidad actualizada con detalles de cookies
 - [ ] Página de gestión de cookies creada
 - [ ] Botones de descarga/eliminación de datos añadidos
 - [ ] Integración con plugin de cookies (si usas uno)
 - [ ] Probado en diferentes navegadores
 - [ ] Verificado que el tracking se pausa correctamente
 - [ ] Verificado que los derechos GDPR funcionan
+- [ ] Verificado que el chat no se muestra sin consentimiento
 
 ---
 
@@ -786,9 +871,43 @@ Si tienes problemas con la implementación:
 
 ---
 
+## Preguntas Frecuentes (FAQ)
+
+### ¿El SDK funciona sin activar GDPR?
+**Sí**, por defecto el SDK funciona completamente sin requerir consentimiento. Solo necesitas activar GDPR si tu sitio está en la UE.
+
+### ¿Qué pasa si activo GDPR sin implementar un banner?
+El SDK esperará consentimiento indefinidamente. El chat y tracking estarán pausados hasta que llames a `window.guiders.grantConsent()`.
+
+### ¿Puedo usar mi propio banner en lugar de los ejemplos?
+Sí, puedes usar cualquier banner. Solo necesitas llamar a las APIs del SDK (`grantConsent`, `denyConsent`) cuando el usuario interactúe con tu banner.
+
+### ¿El modo GDPR afecta el rendimiento?
+No. El SDK simplemente espera el consentimiento antes de iniciar el tracking. No hay impacto en el rendimiento.
+
+### ¿Necesito un plugin de cookies si activo GDPR?
+No es obligatorio. Puedes usar los banners personalizados incluidos en esta guía. Los plugins de cookies son opcionales pero recomendados para gestión centralizada.
+
+### ¿Qué datos guarda el SDK?
+- **Fingerprint del navegador**: Para identificar visitantes
+- **Historial de chat**: Mensajes entre visitante y comerciales
+- **Eventos de tracking**: Interacciones del usuario (clics, vistas, etc.)
+- **Estado de consentimiento**: Preferencias del usuario
+
+Ver la política de privacidad para más detalles.
+
+### ¿Puedo desactivar GDPR después de activarlo?
+Sí, simplemente elimina el código que establece `requireConsent: true`. El SDK volverá a funcionar sin barreras.
+
+### ¿Los visitantes fuera de la UE ven el banner?
+Si activas GDPR, **todos** los visitantes verán el banner. Si quieres mostrar el banner solo a usuarios de la UE, necesitarás implementar detección geográfica (no incluida en esta guía).
+
+---
+
 ## Recursos Adicionales
 
 - [Guía GDPR - AEPD](https://www.aepd.es/es/documento/guia-cookies.pdf)
+- [GDPR_CONSENT.md](../GDPR_CONSENT.md) - Guía completa del SDK
 - [Complianz](https://wordpress.org/plugins/complianz-gdpr/) - Plugin recomendado
 - [CookieYes](https://wordpress.org/plugins/cookie-law-info/) - Alternativa gratuita
 - [Code Snippets](https://wordpress.org/plugins/code-snippets/) - Para añadir código sin editar tema
