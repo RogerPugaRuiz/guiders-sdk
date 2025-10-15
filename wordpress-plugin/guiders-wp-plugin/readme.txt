@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.4.1
+Stable tag: 1.4.2
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,26 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.4.2 =
+* **🐛 Fix Crítico WordPress**: Configuración del banner de consentimiento corregida
+  * Problema: El checkbox "Habilitar Banner de Consentimiento" mostraba "enabled" en UI pero el banner nunca aparecía
+  * Causa raíz: `consent_banner_enabled` tenía default `true` mientras `require_consent` tenía default `false`
+  * SDK requiere AMBOS flags activos para mostrar el banner (`requireConsent: true` Y `consentBanner.enabled: true`)
+  * **Fix aplicado**: Método `getConsentBannerConfig()` ahora computa `$effectiveEnabled = $requireConsent && $bannerEnabled`
+  * Añadidas validaciones múltiples para prevenir confusión del usuario:
+    - Advertencia inline en sección GDPR explicando comportamiento por defecto
+    - Warning visual cuando banner está activo pero requireConsent desactivado
+    - Validación al guardar configuración con mensaje de advertencia
+    - JavaScript en tiempo real para feedback inmediato en el admin
+  * Cambio de default: `consent_banner_enabled` ahora es `false` por defecto (consistente con `require_consent: false`)
+  * Mejora UX: Usuarios ahora entienden claramente que necesitan activar ambas opciones
+  * Documentación mejorada: Descripciones de campos actualizadas con advertencias explícitas
+* **📚 Mejora de Documentación**: Clarificación del comportamiento GDPR opcional
+  * README.md actualizado con tabla de configuración por defecto
+  * WORDPRESS_GDPR_GUIDE.md con nueva sección "¿Cuándo necesitas esta guía?"
+  * FAQ extendido con 8 preguntas comunes sobre GDPR
+* **🔗 Sin Cambios en API**: Actualización 100% retrocompatible, solo fixes de configuración
 
 = 1.4.1 =
 * **🔧 Sincronización Automática de Versión**: La versión de consentimiento ahora se sincroniza automáticamente desde package.json

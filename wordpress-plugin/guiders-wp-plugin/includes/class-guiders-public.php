@@ -511,8 +511,16 @@ class GuidersPublic {
      * Get consent banner configuration
      */
     private function getConsentBannerConfig() {
+        // IMPORTANTE: El banner solo se muestra si requireConsent está activado
+        // Si requireConsent: false, el SDK ignora la configuración del banner
+        $requireConsent = isset($this->settings['require_consent']) ? $this->settings['require_consent'] : false;
+        $bannerEnabled = isset($this->settings['consent_banner_enabled']) ? $this->settings['consent_banner_enabled'] : false;
+
+        // El banner solo está "enabled" si AMBOS están activados
+        $effectiveEnabled = $requireConsent && $bannerEnabled;
+
         $config = array(
-            'enabled' => isset($this->settings['consent_banner_enabled']) ? $this->settings['consent_banner_enabled'] : true,
+            'enabled' => $effectiveEnabled,
             'style' => isset($this->settings['consent_banner_style']) ? $this->settings['consent_banner_style'] : 'bottom_bar',
             'text' => isset($this->settings['consent_banner_text']) ? $this->settings['consent_banner_text'] : '🍪 Usamos cookies para mejorar tu experiencia y proporcionar chat en vivo.',
             'acceptText' => isset($this->settings['consent_accept_text']) ? $this->settings['consent_accept_text'] : 'Aceptar Todo',

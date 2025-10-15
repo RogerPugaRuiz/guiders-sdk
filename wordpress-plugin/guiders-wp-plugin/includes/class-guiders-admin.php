@@ -504,6 +504,16 @@ class GuidersAdmin {
         $validated['consent_banner_enabled'] = isset($input['consent_banner_enabled']) ? true : false;
         $validated['require_consent'] = isset($input['require_consent']) ? true : false;
 
+        // Add warning if banner is enabled but requireConsent is not
+        if ($validated['consent_banner_enabled'] && !$validated['require_consent']) {
+            add_settings_error(
+                'guiders_wp_plugin_settings',
+                'consent_banner_without_require',
+                __('⚠️ Advertencia: Has activado el banner de consentimiento pero "Requerir Consentimiento GDPR" está desactivado. El banner NO se mostrará hasta que actives ambas opciones.', 'guiders-wp-plugin'),
+                'warning'
+            );
+        }
+
         // Validate banner style
         $valid_styles = array('bottom_bar', 'modal', 'corner');
         if (isset($input['consent_banner_style']) && in_array($input['consent_banner_style'], $valid_styles)) {
@@ -1006,8 +1016,12 @@ class GuidersAdmin {
      * GDPR section callback
      */
     public function gdprSectionCallback() {
-        echo '<p>' . __('Configura el banner de consentimiento GDPR integrado. El SDK mostrará automáticamente un banner para obtener consentimiento del usuario antes de usar cookies y tracking.', 'guiders-wp-plugin') . '</p>';
-        echo '<p><strong>🎨 Sin código necesario</strong>: El banner se renderiza automáticamente según tu configuración.</p>';
+        echo '<div class="notice notice-info inline">';
+        echo '<p><strong>⚠️ Importante:</strong> Por defecto, el SDK funciona sin requerir consentimiento GDPR (<code>requireConsent: false</code>).</p>';
+        echo '<p>Esta sección es <strong>solo para sitios de la UE</strong> que necesitan cumplimiento GDPR/LOPDGDD.</p>';
+        echo '<p>Si no estás en la UE, puedes dejar estas opciones desactivadas y el SDK funcionará inmediatamente.</p>';
+        echo '</div>';
+        echo '<p>' . __('Configura el banner de consentimiento GDPR integrado. El banner se mostrará automáticamente cuando actives ambas opciones a continuación.', 'guiders-wp-plugin') . '</p>';
     }
 
     /**
@@ -1015,11 +1029,22 @@ class GuidersAdmin {
      */
     public function consentBannerEnabledFieldCallback() {
         $settings = get_option('guiders_wp_plugin_settings', array());
-        $enabled = isset($settings['consent_banner_enabled']) ? $settings['consent_banner_enabled'] : true;
+        $enabled = isset($settings['consent_banner_enabled']) ? $settings['consent_banner_enabled'] : false;
+        $requireConsent = isset($settings['require_consent']) ? $settings['require_consent'] : false;
 
         echo '<input type="checkbox" id="consent_banner_enabled" name="guiders_wp_plugin_settings[consent_banner_enabled]" value="1" ' . checked($enabled, true, false) . ' />';
         echo '<label for="consent_banner_enabled">' . __('Mostrar banner de consentimiento automáticamente', 'guiders-wp-plugin') . '</label>';
-        echo '<p class="description">' . __('Si está desactivado, deberás implementar tu propio banner o usar un plugin de terceros.', 'guiders-wp-plugin') . '</p>';
+        echo '<p class="description">';
+        echo '<strong>⚠️ IMPORTANTE:</strong> Este banner solo se mostrará si también activas "Requerir Consentimiento GDPR" abajo. ';
+        echo __('Si está desactivado, deberás implementar tu propio banner o usar un plugin de terceros (Complianz, CookieYes, etc.).', 'guiders-wp-plugin');
+        echo '</p>';
+
+        // Show warning if banner is enabled but requireConsent is not
+        if ($enabled && !$requireConsent) {
+            echo '<div class="notice notice-warning inline" style="margin-top:10px; padding: 10px;">';
+            echo '<p style="margin:0;"><strong>⚠️ Advertencia:</strong> Has activado el banner pero "Requerir Consentimiento GDPR" está desactivado. El banner NO se mostrará hasta que actives ambas opciones.</p>';
+            echo '</div>';
+        }
     }
 
     /**
@@ -1173,6 +1198,40 @@ class GuidersAdmin {
 
         // Add admin styles if needed
         wp_enqueue_style('guiders-admin-style', GUIDERS_WP_PLUGIN_PLUGIN_URL . 'assets/css/admin-style.css', array('wp-color-picker'), GUIDERS_WP_PLUGIN_VERSION);
+
+        // Add inline JavaScript for real-time validation
+        $inline_js = "
+        jQuery(document).ready(function($) {
+            var consentBannerCheckbox = $('#consent_banner_enabled');
+            var requireConsentCheckbox = $('#require_consent');
+
+            function checkDependency() {
+                var bannerEnabled = consentBannerCheckbox.is(':checked');
+                var requireEnabled = requireConsentCheckbox.is(':checked');
+
+                // Remove existing warning
+                consentBannerCheckbox.closest('td').find('.guiders-inline-warning').remove();
+
+                // Show warning if banner is enabled but requireConsent is not
+                if (bannerEnabled && !requireEnabled) {
+                    var warning = $('<div class=\"notice notice-warning inline guiders-inline-warning\" style=\"margin-top:10px; padding: 10px;\">' +
+                        '<p style=\"margin:0;\"><strong>⚠️ Advertencia:</strong> Has activado el banner pero \"Requerir Consentimiento GDPR\" está desactivado. ' +
+                        'El banner NO se mostrará hasta que actives ambas opciones.</p>' +
+                        '</div>');
+                    consentBannerCheckbox.closest('td').append(warning);
+                }
+            }
+
+            // Check on load
+            checkDependency();
+
+            // Check on change
+            consentBannerCheckbox.on('change', checkDependency);
+            requireConsentCheckbox.on('change', checkDependency);
+        });
+        ";
+
+        wp_add_inline_script('wp-color-picker', $inline_js);
     }
     
     /**
