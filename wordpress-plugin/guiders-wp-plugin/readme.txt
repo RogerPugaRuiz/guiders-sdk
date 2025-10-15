@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.4.0
+Stable tag: 1.4.1
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,19 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.4.1 =
+* **🔧 Sincronización Automática de Versión**: La versión de consentimiento ahora se sincroniza automáticamente desde package.json
+  * Implementado webpack DefinePlugin para inyectar `__SDK_VERSION__` en tiempo de build
+  * Eliminada versión hardcodeada en `ConsentManager` (era 1.2.2-alpha.1, ahora auto-actualiza)
+  * Mejora en audit trail GDPR: versión de consentimiento siempre coincide con versión del SDK
+* **🐛 Fix Crítico GDPR**: Registro de rechazos de consentimiento en el backend
+  * Corregido bug donde el método `denyConsent()` no registraba el rechazo en el backend
+  * Ahora ambos flujos (aceptar/rechazar) llaman a `identify()` para registrar la decisión del usuario
+  * Asegura compliance GDPR completo con audit trail de todos los rechazos explícitos
+  * Backend recibe `hasAcceptedPrivacyPolicy: false` y responde con HTTP 400 + `consentStatus: "denied"`
+* **📝 Mejora de Compliance**: Documentación actualizada sobre flujo de consentimiento
+* **🔍 Sin Cambios en API**: Actualización 100% retrocompatible
 
 = 1.4.0 =
 * **🎨 Rediseño Visual del Chat**: Interfaz minimalista y moderna

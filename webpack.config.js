@@ -1,12 +1,18 @@
 const path = require('path');
+const webpack = require('webpack');
 const {
 	BundleAnalyzerPlugin
 } = require("webpack-bundle-analyzer");
 const Dotenv = require('dotenv-webpack');
+const packageJson = require('./package.json');
 
 module.exports = {
 	plugins: [
 		new Dotenv(),
+		// Inyectar versión del SDK en tiempo de compilación
+		new webpack.DefinePlugin({
+			__SDK_VERSION__: JSON.stringify(packageJson.version),
+		}),
 	],
 	entry: './src/index.ts', // Archivo principal del SDK
 	output: {

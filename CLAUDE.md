@@ -301,6 +301,47 @@ const sdk = new TrackingPixelSDK({
 
 **Location**: `src/core/tracking-pixel-SDK.ts`
 
+### Why Automatic Version Synchronization?
+
+**Evolution**: Consent version changed from hardcoded to auto-synchronized in v1.4.0 (October 2025).
+
+**Old approach (v1.3.0 and earlier)**:
+
+- Consent version was hardcoded: `version: '1.2.2-alpha.1'`
+- Required manual updates with each release
+- Frequent desync between SDK version and consent version
+- Audit trail showed outdated versions
+
+**New approach (v1.4.0+)**:
+
+- Consent version auto-synchronized from `package.json`
+- Webpack `DefinePlugin` injects `__SDK_VERSION__` at build time
+- Zero maintenance: version updates automatically with releases
+- Consistent audit trail across all components
+
+**Implementation**:
+```typescript
+// webpack.config.js
+new webpack.DefinePlugin({
+  __SDK_VERSION__: JSON.stringify(packageJson.version),
+})
+
+// tracking-pixel-SDK.ts
+this.consentManager = ConsentManager.getInstance({
+  version: __SDK_VERSION__, // Auto-synced from package.json
+  // ...
+});
+```
+
+**Benefits**:
+
+- **Accurate GDPR audit trail**: Consent records match actual SDK version
+- **Zero maintenance**: No manual version updates needed
+- **Prevents desync bugs**: Impossible to forget updating consent version
+- **Better compliance**: Version history accurately reflects policy changes
+
+**Location**: `webpack.config.js`, `src/globals.d.ts`, `src/core/tracking-pixel-SDK.ts`
+
 ### Why ClientJS for Fingerprinting?
 
 **Alternatives considered**: FingerprintJS (commercial), custom solution.
@@ -593,7 +634,7 @@ bash wordpress-plugin/release-wp-publish.sh "chore(wp-plugin): release X.Y.Z-bet
 
 ---
 
-**Last updated**: 2025-10-12
-**Current version**: 1.2.3-beta.1
+**Last updated**: 2025-10-15
+**Current version**: 1.4.1
 
 For SDK issues: https://github.com/RogerPugaRuiz/guiders-sdk/issues

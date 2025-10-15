@@ -220,7 +220,7 @@ export class TrackingPixelSDK {
 		const defaultStatus = requireConsent ? (options.consent?.defaultStatus || 'pending') : 'granted';
 
 		this.consentManager = ConsentManager.getInstance({
-			version: '1.2.2-alpha.1',
+			version: __SDK_VERSION__, // Versión sincronizada automáticamente desde package.json
 			waitForConsent: waitForConsent,
 			defaultStatus: defaultStatus,
 			onConsentChange: (state) => {
@@ -2334,6 +2334,17 @@ export class TrackingPixelSDK {
 
 		this.consentManager.denyConsent();
 		this.stopTrackingActivities();
+
+		// IMPORTANTE: Registrar el rechazo en el backend para compliance GDPR
+		// El backend necesita saber que el usuario rechazó explícitamente
+		console.log('[TrackingPixelSDK] 📝 Registrando rechazo de consentimiento en el backend...');
+
+		// Llamar a identify() para registrar el rechazo
+		// identify() leerá el estado 'denied' del ConsentManager y enviará hasAcceptedPrivacyPolicy: false
+		this.init().catch(error => {
+			console.warn('[TrackingPixelSDK] ⚠️ No se pudo registrar el rechazo en el backend:', error);
+			// No es un error crítico - el usuario ya tiene acceso limitado localmente
+		});
 	}
 
 	/**
