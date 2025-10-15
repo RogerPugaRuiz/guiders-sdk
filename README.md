@@ -2,24 +2,47 @@
 
 SDK para la integración del sistema de guías y chat en sitios web.
 
+**Versión actual**: 1.4.1
+
+## 🚀 Inicio Rápido
+
+```html
+<!-- Instalación mínima - funciona inmediatamente -->
+<script src="https://cdn.tu-dominio.com/guiders-sdk.js" data-api-key="YOUR_API_KEY"></script>
+```
+
+**El SDK funciona automáticamente** con configuración inteligente por defecto:
+- ✅ Chat en vivo operativo sin configuración adicional
+- ✅ Tracking de eventos con detección heurística
+- ✅ Sin barreras de consentimiento (activar GDPR solo si es necesario)
+- ✅ Autenticación segura por sesión (cookies HttpOnly)
+
+### Configuraciones por Defecto
+
+| Configuración | Valor por Defecto | Cuándo Cambiar |
+|---------------|-------------------|----------------|
+| `requireConsent` | `false` | Cambiar a `true` para sitios de la UE que requieren GDPR |
+| `authMode` | `'session'` | Cambiar a `'jwt'` solo si tu backend no soporta cookies HttpOnly |
+| `heuristicDetection.enabled` | `true` | Desactivar si prefieres tracking manual con atributos `data-track-event` |
+| `sessionTracking.enabled` | `true` | Desactivar si no necesitas tracking de sesiones de usuario |
+
 ## Índice
 
+1. [🚀 Inicio Rápido](#-inicio-rápido)
 1. [Instalación](#instalación)
 1. [Uso básico](#uso-básico)
 1. [Características](#características)
-1. [🎯 Detección Heurística Inteligente (Nuevo)](#-detección-heurística-inteligente-nuevo)
+1. [🔐 Control de Consentimiento GDPR/LOPDGDD](#-control-de-consentimiento-gdprlopdgdd)
+1. [🎯 Detección Heurística Inteligente](#-detección-heurística-inteligente-nuevo)
 1. [Chat en vivo](#chat-en-vivo)
-1. [API Chat V2 (Nuevo)](#api-chat-v2-nuevo)
+1. [API Chat V2](#api-chat-v2-nuevo)
+1. [Autenticación de Tokens](#autenticación-de-tokens)
 1. [Detección de bots](#detección-de-bots)
 1. [Cambios recientes](#cambios-recientes)
 1. [Ejemplos / Demos](#ejemplos--demos)
-1. [v2.0.0 - Detección Heurística Inteligente (BREAKING CHANGES)](#v200---detección-heurística-inteligente-breaking-changes)
-1. [Migración v1.x → v2.0](#migración-v1x--v20)
-1. [v1.1.0 - Mejoras en la inicialización del chat](#v110---mejoras-en-la-inicialización-del-chat)
-1. [Detalles técnicos](#detalles-técnicos)
+1. [Migración y versiones](#v200---detección-heurística-inteligente-breaking-changes)
+1. [📦 Flujo de Release WordPress](#-flujo-de-release--sincronización-plugin-wordpress)
 1. [Licencia](#licencia)
-1. [📦 Flujo de Release / Sincronización Plugin WordPress](#-flujo-de-release--sincronización-plugin-wordpress)
- 1. [Autenticación de Tokens](#autenticación-de-tokens)
 
 ## Instalación
 
@@ -123,6 +146,8 @@ Nota: Cuando uses el plugin NO necesitas añadir manualmente el `<script>`; sól
 
 ## Uso básico
 
+### Instalación más simple (funciona inmediatamente)
+
 ```html
 <script src="path/to/guiders-sdk.js" data-api-key="YOUR_API_KEY"></script>
 ```
@@ -132,6 +157,8 @@ O bien, pasando la API key como parámetro:
 ```html
 <script src="path/to/guiders-sdk.js?apiKey=YOUR_API_KEY"></script>
 ```
+
+**Comportamiento por defecto**: El SDK se inicializa automáticamente sin requerir consentimiento GDPR. Esto permite que funcione globalmente. Para sitios en la UE, consulta la sección [Control de Consentimiento GDPR/LOPDGDD](#-control-de-consentimiento-gdprlopdgdd).
 
 ## Características
 
@@ -154,25 +181,34 @@ O bien, pasando la API key como parámetro:
 
 El SDK incluye un **sistema completo de control de consentimiento** para cumplir con GDPR, LOPDGDD y LSSI.
 
+### ⚠️ Importante: Sistema Opcional por Defecto
+
+**Por defecto, el SDK NO requiere consentimiento** (`requireConsent: false`). Esto permite que funcione globalmente sin barreras. Si tu sitio está dirigido a usuarios de la UE o necesitas cumplimiento GDPR, debes activar explícitamente el sistema de consentimiento.
+
 ### Características de Privacidad
 
 - ✅ **Control granular** por categorías (analytics, functional, personalization)
-- ✅ **Tracking condicional** - El SDK espera consentimiento antes de iniciar tracking
+- ✅ **Tracking condicional** - El SDK espera consentimiento antes de iniciar tracking (si se activa)
 - ✅ **Persistencia automática** del estado de consentimiento en localStorage
 - ✅ **Derechos GDPR** - Implementación de Right to Erasure y Right to Access
 - ✅ **APIs públicas** para integración con banners de consentimiento
 - ✅ **Integración fácil** con Cookiebot, OneTrust, Complianz y otros
+- ✅ **Opcional y flexible** - Actívalo solo cuando lo necesites
 
-### Uso Básico
+### Activar GDPR (Sitios de la UE)
 
 ```javascript
 import { TrackingPixelSDK } from 'guiders-pixel';
 
 const sdk = new TrackingPixelSDK({
   apiKey: 'YOUR_API_KEY',
+  requireConsent: true,  // ⚠️ IMPORTANTE: Activar control GDPR
   consent: {
     waitForConsent: true,    // Esperar consentimiento antes de tracking
     defaultStatus: 'pending'  // Estado inicial
+  },
+  consentBanner: {
+    enabled: true  // Mostrar banner de consentimiento
   }
 });
 
@@ -198,6 +234,21 @@ sdk.getConsentStatus(); // 'pending' | 'granted' | 'denied'
 // Derechos GDPR
 await sdk.deleteVisitorData();  // Eliminar todos los datos
 await sdk.exportVisitorData();  // Descargar copia de datos
+```
+
+### Uso Global (Sin GDPR)
+
+```javascript
+import { TrackingPixelSDK } from 'guiders-pixel';
+
+const sdk = new TrackingPixelSDK({
+  apiKey: 'YOUR_API_KEY'
+  // requireConsent: false (valor por defecto - no es necesario especificarlo)
+  // El SDK funciona inmediatamente sin barreras de consentimiento
+});
+
+await sdk.init();
+// ✅ El SDK está listo - Chat y tracking funcionan inmediatamente
 ```
 
 ### Integración con WordPress
@@ -297,7 +348,8 @@ import { TrackingPixelSDK } from 'guiders-pixel';
 
 const sdk = new TrackingPixelSDK({
   apiKey: 'YOUR_API_KEY',
-  // Configuración de detección heurística
+
+  // Configuración de detección heurística (activada por defecto)
   heuristicDetection: {
     enabled: true,
     config: {
@@ -305,11 +357,37 @@ const sdk = new TrackingPixelSDK({
       confidenceThreshold: 0.7, // Confianza mínima (0-1)
       fallbackToManual: true     // Usar sistema manual si falla
     }
-  }
+  },
+
+  // Configuración de sesión (opcional)
+  sessionTracking: {
+    enabled: true,
+    config: {
+      inactivityTimeout: 30 * 60 * 1000, // 30 minutos
+      heartbeatInterval: 30 * 1000        // 30 segundos
+    }
+  },
+
+  // Configuración de horarios activos (opcional)
+  activeHours: {
+    enabled: true,
+    timezone: 'auto',  // Detectar automáticamente, o especificar 'Europe/Madrid'
+    ranges: [
+      { start: '08:00', end: '14:00' },
+      { start: '15:00', end: '20:00' }
+    ],
+    fallbackMessage: 'Chat disponible de 8:00-14:00 y 15:00-20:00'
+  },
+
+  // Autenticación (session es el valor por defecto)
+  authMode: 'session', // o 'jwt' para modo legacy
+
+  // GDPR (desactivado por defecto)
+  requireConsent: false  // Cambiar a true para sitios de la UE
 });
 
 await sdk.init();
-sdk.enableAutomaticTracking(); // Usar el nuevo método
+sdk.enableAutomaticTracking(); // Activar tracking automático con heurística
 ```
 
 ### Personalización de reglas
@@ -469,7 +547,15 @@ detector.detect().then(result => {
 
 ## Cambios recientes
 
-### Novedades Clave (últimas iteraciones)
+### v1.4.1 - Actualizaciones de Configuración (Octubre 2025)
+
+- 🔐 **`requireConsent: false` por defecto**: El SDK ahora funciona globalmente sin barreras GDPR (activar explícitamente para sitios de la UE)
+- 🔒 **`authMode: 'session'` por defecto**: Autenticación basada en cookies HttpOnly (más seguro que JWT)
+- 📦 **Sincronización automática de versiones**: La versión de consentimiento se sincroniza automáticamente desde `package.json`
+- 📝 **Documentación mejorada**: README actualizado con valores por defecto claros y ejemplos prácticos
+- ✨ **Mejor UX de integración**: Instalación más simple con menos configuración requerida
+
+### Novedades Clave (versiones anteriores)
 
 - 🚀 **API Chat V2**: Endpoints `/api/v2/chats` (cursor, filtros, métricas, asignación, cola, tiempos de respuesta)
 - 🔄 **Fallback transparente**: Intento v2 → adaptación v1 sin branching en UI
@@ -481,7 +567,7 @@ detector.detect().then(result => {
 - 🧪 **Modo desarrollo heurístico**: Visualización opcional de elementos detectados (solo dev)
 - 📦 **Flujo release plugin WordPress**: Scripts y Actions alineados con nueva guía de publicación
 - 🧱 **Documentación de migración**: `MIGRATION_GUIDE_V2.md` y `README_V2.md` añadidos
-- 🔐 **Simplificación flujo tokens**: Eliminados endpoints legacy `/pixel/register` y `/pixel/token/refresh`. Renovación completa ahora usa un único endpoint `/pixel/token`.
+- 🔐 **Simplificación flujo tokens**: Eliminados endpoints legacy `/pixel/register` y `/pixel/token/refresh`
 
 > Para un changelog detallado consulta la sección v2 más abajo o el archivo de migración.
 
@@ -589,59 +675,89 @@ cp dist/index.js wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js
 
 ## Autenticación de Tokens
 
-El SDK usa un modelo simplificado de obtención y renovación de tokens.
+El SDK usa un modelo simplificado de autenticación basado en sesiones por defecto.
 
-### Antes (legacy, eliminado)
+### Modo de Autenticación por Defecto: `session`
 
-- Registro explícito vía `POST /api/pixel/register` devolvía `access_token` y `refresh_token`.
-- Renovación incremental vía `POST /api/pixel/token/refresh` usando `refresh_token`.
-
-### Ahora (modelo unificado / transición a sesión)
-
-1. Se obtiene siempre un par de tokens llamando a `POST /api/pixel/token` pasando el fingerprint del visitante.
-2. Al detectar que el `access_token` está por expirar, el SDK solicita un nuevo par completo al mismo endpoint (no se usa refresh incremental).
-3. Se conservan los campos `access_token` y `refresh_token` sólo por compatibilidad de formato; el `refresh_token` ya no se envía a ningún endpoint.
-4. (Nuevo) Modo `authMode: 'session'` evita por completo pedir el JWT y se basa únicamente en la cookie HttpOnly emitida por `/api/visitors/identify`.
-
-### API interna relevante
+**Por defecto, el SDK usa autenticación basada en sesiones** (`authMode: 'session'`). Este modo es:
+- ✅ **Más seguro**: Usa cookies HttpOnly que no pueden ser accedidas por JavaScript (protección contra XSS)
+- ✅ **Más simple**: No requiere gestión de tokens en el cliente
+- ✅ **Mejor rendimiento**: No necesita renovación de tokens ni almacenamiento en localStorage
+- ✅ **Recomendado**: Es el modo por defecto y recomendado para todos los nuevos proyectos
 
 ```ts
 import { TrackingPixelSDK } from 'guiders-pixel';
 
-// Modo por defecto ahora: session (no solicitar JWT)
+// Configuración recomendada (usa session por defecto)
 const sdk = new TrackingPixelSDK({
-  apiKey: 'YOUR_API_KEY',
-  authMode: 'session', // 'jwt' para compat si el backend aún requiere token
+  apiKey: 'YOUR_API_KEY'
+  // authMode: 'session' (valor por defecto - no es necesario especificarlo)
 });
 await sdk.init();
 ```
 
-`TokenManager` (sólo activo en `authMode='jwt'`):
+### Modo JWT (Legacy)
 
-- Detecta expiración decodificando el JWT (`exp`).
-- Si faltan <60s, llama de nuevo a `/pixel/token` y reemplaza ambos tokens.
-- Ya no invoca endpoints de refresh ni register.
+El modo JWT se mantiene por compatibilidad con backends que aún no soportan autenticación por sesión:
 
-### Razones del cambio
+```ts
+const sdk = new TrackingPixelSDK({
+  apiKey: 'YOUR_API_KEY',
+  authMode: 'jwt'  // Solo si tu backend requiere JWT
+});
+await sdk.init();
+```
 
-- Menor complejidad cliente/servidor.
-- Evita estados inconsistentes si el registro era inválido o la cuenta se eliminaba.
-- Reduce latencia: una sola operación para renovar.
+### Evolución del Sistema
 
-### Impacto para integradores
+#### Antes (legacy, eliminado)
+- Registro explícito vía `POST /api/pixel/register` devolvía `access_token` y `refresh_token`
+- Renovación incremental vía `POST /api/pixel/token/refresh` usando `refresh_token`
 
-- Si usas `authMode='session'`: no se descarga ni decodifica ningún JWT, se omite el `TokenInjectionStage` en la pipeline.
-- Si usas `authMode='jwt'`: se mantiene el ciclo de renovación completa vía `/pixel/token`.
-- Logs: verás `[TrackingPixelSDK] 🔐 authMode=session` cuando esté activo el modo de sesión.
-- No existían métodos públicos `registerClient` ni `refreshToken` (sólo internos), por lo que integradores no necesitan cambios.
+#### Ahora (modelo actual)
+1. **Modo `session` (por defecto)**: La cookie HttpOnly se establece automáticamente al llamar `POST /api/visitors/identify`
+2. **Modo `jwt` (legacy)**: Se obtiene un par de tokens llamando a `POST /api/pixel/token`
+3. Al detectar expiración, se solicita un nuevo par completo (no hay refresh incremental)
+4. Los campos `access_token` y `refresh_token` se conservan solo por compatibilidad
 
-### Futuras simplificaciones potenciales
+### TokenManager (solo activo en `authMode='jwt'`)
 
-- El backend podría dejar de enviar `refresh_token`; cuando ocurra, se limpiará el almacenamiento y tipos.
-- Futuro: eliminación completa de `TokenManager` y `authMode='jwt'` una vez todos los clientes estén migrados.
+- Detecta expiración decodificando el JWT (`exp`)
+- Si faltan <60s, llama de nuevo a `/pixel/token` y reemplaza ambos tokens
+- Ya no invoca endpoints de refresh ni register
+
+### Ventajas del Modo Session
+
+- **Menor complejidad**: No requiere gestión de tokens en el cliente
+- **Mayor seguridad**: Cookies HttpOnly protegen contra XSS
+- **Mejor experiencia**: Sin errores de expiración de tokens
+- **Más eficiente**: Reduce latencia y operaciones de renovación
+
+### Impacto para Integradores
+
+- **Modo `session` (recomendado)**: No requiere configuración adicional, funciona automáticamente
+- **Modo `jwt` (legacy)**: Mantiene el ciclo de renovación completa vía `/pixel/token`
+- **Logs**: Verás `[TrackingPixelSDK] 🔐 authMode=session` cuando esté activo el modo de sesión
+- **Sin cambios de API**: No existían métodos públicos `registerClient` ni `refreshToken`, por lo que no hay breaking changes
+
+### Migración de JWT a Session
+
+Si estás usando `authMode: 'jwt'` explícitamente, puedes migrar simplemente eliminando esa línea:
+
+```ts
+// Antes
+const sdk = new TrackingPixelSDK({
+  apiKey: 'YOUR_API_KEY',
+  authMode: 'jwt'  // ❌ Eliminar esta línea
+});
+
+// Después (usa session automáticamente)
+const sdk = new TrackingPixelSDK({
+  apiKey: 'YOUR_API_KEY'
+});
+```
 
 ---
-```
 
 ### 3. Generar ZIP distribuible
 
