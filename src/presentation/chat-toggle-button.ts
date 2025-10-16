@@ -1,5 +1,6 @@
 import { ChatUI } from "./chat";
 import { UnreadMessagesService } from "../services/unread-messages-service";
+import { ResolvedPosition } from "../utils/position-resolver";
 
 interface ChatToggleButtonOptions {
 	label?: string;            // Texto o ícono a mostrar en el botón
@@ -18,11 +19,17 @@ export class ChatToggleButtonUI {
 	private options: ChatToggleButtonOptions;
 	private isVisible: boolean = false;
 	private unreadService: UnreadMessagesService;
+	private resolvedPosition: ResolvedPosition;
 
 	private toggleCallback: Array<(visible: boolean) => void> = [];
 
 	constructor(chatUI: ChatUI, options: ChatToggleButtonOptions = {}) {
 		this.chatUI = chatUI;
+
+		// Obtener la posición resuelta del ChatUI
+		this.resolvedPosition = this.chatUI.getResolvedPosition();
+		console.log('🔘 [ChatToggleButton] Posición resuelta del botón:', this.resolvedPosition.button);
+
 		const chatWidth = this.chatUI.getOptions().widgetWidth || '300px';
 		const num = parseInt(chatWidth.replace('px', ''));
 		this.options = {
@@ -47,6 +54,48 @@ export class ChatToggleButtonUI {
 	}
 
 	/**
+	 * Genera el CSS de posicionamiento dinámico para el botón
+	 */
+	private getButtonPositionCSS(): string {
+		const pos = this.resolvedPosition.button;
+		const styles: string[] = [];
+
+		if (pos.top) styles.push(`top: ${pos.top};`);
+		if (pos.bottom) styles.push(`bottom: ${pos.bottom};`);
+		if (pos.left) styles.push(`left: ${pos.left};`);
+		if (pos.right) styles.push(`right: ${pos.right};`);
+
+		return styles.join(' ');
+	}
+
+	/**
+	 * Calcula la posición del badge basándose en la posición del botón
+	 */
+	private getBadgePositionCSS(): string {
+		const pos = this.resolvedPosition.button;
+		const styles: string[] = [];
+
+		// El badge se posiciona en la esquina superior derecha del botón
+		if (pos.bottom) {
+			// Botón en la parte inferior -> badge arriba del botón
+			const bottomValue = parseInt(pos.bottom);
+			styles.push(`bottom: calc(${pos.bottom} + 43px);`); // 56px (button) - 13px offset
+		} else if (pos.top) {
+			// Botón en la parte superior -> badge debajo del botón
+			const topValue = parseInt(pos.top);
+			styles.push(`top: calc(${pos.top} + 13px);`);
+		}
+
+		if (pos.right) {
+			styles.push(`right: calc(${pos.right} + 13px);`);
+		} else if (pos.left) {
+			styles.push(`left: calc(${pos.left} + 43px);`); // 56px (button) - 13px offset
+		}
+
+		return styles.join(' ');
+	}
+
+	/**
 	 * Crea y muestra el botón flotante en el DOM, asociando el evento de toggle del chat.
 	 */
 	public init(): void {
@@ -54,15 +103,15 @@ export class ChatToggleButtonUI {
 			this.button = document.createElement('button');
 			this.button.className = 'chat-toggle-btn';
 		}
-		
+
 		// Asegurar que el estado inicial sea coherente con el estado del chat
 		// Inicialmente el botón no debe mostrar el estado 'open'
 		this.isVisible = false;
 		this.button.classList.remove('open');
-		
+
 		// AHORA: Añadir el botón al DOM (después de que el ChatUI ya se haya inicializado)
 		this.addButtonToDOM();
-		
+
 		this.applyStyles();
 		this.addEventListeners();
 		this.initializeStyles(); // Inicializar estilos inline además de CSS
@@ -100,13 +149,15 @@ export class ChatToggleButtonUI {
 			
 			// Inyectar estilos específicos del botón si no existen
 			if (!shadowHost.shadowRoot.querySelector('style[data-chat-toggle-btn]')) {
+				const buttonPositionCSS = this.getButtonPositionCSS();
+				const badgePositionCSS = this.getBadgePositionCSS();
+
 				const style = document.createElement('style');
 				style.setAttribute('data-chat-toggle-btn', 'true');
 				style.textContent = `
 					.chat-toggle-btn {
 						position: fixed;
-						right: 20px;
-						bottom: 20px;
+						${buttonPositionCSS}
 						width: 56px;
 						height: 56px;
 						border-radius: 50%;
@@ -149,8 +200,7 @@ export class ChatToggleButtonUI {
 					}
 					.chat-unread-badge {
 						position: fixed;
-						top: calc(100% - 90px); /* Posición calculada basada en la posición del botón */
-						right: 13px; /* Posición calculada para alinearse con el botón */
+						${badgePositionCSS}
 						min-width: 22px;
 						height: 22px;
 						background: linear-gradient(145deg, #ff5146, #e53a30);
@@ -305,11 +355,11 @@ export class ChatToggleButtonUI {
 	 * Inicializa el botón y añade estilos CSS inline para evitar problemas de ShadowDOM
 	 */
 	private initializeStyles(): void {
+		const pos = this.resolvedPosition.button;
+
 		// Estilos inline para el botón
-		Object.assign(this.button.style, {
+		const buttonStyles: any = {
 			position: 'fixed',
-			right: '20px',
-			bottom: '20px',
 			width: '56px',
 			height: '56px',
 			borderRadius: '50%',
@@ -325,14 +375,20 @@ export class ChatToggleButtonUI {
 			boxShadow: '0 4px 10px rgba(0,123,255,0.3)',
 			transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
 			overflow: 'hidden'
-		});
+		};
+
+		// Aplicar posicionamiento dinámico
+		if (pos.top) buttonStyles.top = pos.top;
+		if (pos.bottom) buttonStyles.bottom = pos.bottom;
+		if (pos.left) buttonStyles.left = pos.left;
+		if (pos.right) buttonStyles.right = pos.right;
+
+		Object.assign(this.button.style, buttonStyles);
 
 		// Si existe el badge, aplicar estilos inline
 		if (this.badgeElement) {
-			Object.assign(this.badgeElement.style, {
+			const badgeStyles: any = {
 				position: 'fixed',
-				top: 'calc(100% - 90px)', /* Posición calculada basada en la posición del botón */
-				right: '13px', /* Posición calculada para alinearse con el botón */
 				minWidth: '22px',
 				height: '22px',
 				background: 'linear-gradient(145deg, #ff5146, #e53a30)',
@@ -350,7 +406,22 @@ export class ChatToggleButtonUI {
 				boxShadow: '0 2px 8px rgba(255,65,54,0.3)',
 				pointerEvents: 'none',
 				transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-			});
+			};
+
+			// Calcular posición del badge basado en la posición del botón
+			if (pos.bottom) {
+				badgeStyles.bottom = `calc(${pos.bottom} + 43px)`;
+			} else if (pos.top) {
+				badgeStyles.top = `calc(${pos.top} + 13px)`;
+			}
+
+			if (pos.right) {
+				badgeStyles.right = `calc(${pos.right} + 13px)`;
+			} else if (pos.left) {
+				badgeStyles.left = `calc(${pos.left} + 43px)`;
+			}
+
+			Object.assign(this.badgeElement.style, badgeStyles);
 		}
 	}
 

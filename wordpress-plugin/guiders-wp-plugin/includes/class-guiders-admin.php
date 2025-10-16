@@ -277,6 +277,23 @@ class GuidersAdmin {
             'guiders_active_hours_section'
         );
 
+        // Chat Position section
+        add_settings_section(
+            'guiders_chat_position_section',
+            __('Posición del Widget de Chat', 'guiders-wp-plugin'),
+            array($this, 'chatPositionSectionCallback'),
+            'guiders-settings'
+        );
+
+        // Chat position field (main UI)
+        add_settings_field(
+            'chat_position',
+            __('Configuración de Posición', 'guiders-wp-plugin'),
+            array($this, 'chatPositionFieldCallback'),
+            'guiders-settings',
+            'guiders_chat_position_section'
+        );
+
         // GDPR & Consent Banner section
         add_settings_section(
             'guiders_gdpr_section',
@@ -498,6 +515,20 @@ class GuidersAdmin {
             }
         } else {
             $validated['active_hours_ranges'] = '[]';
+        }
+
+        // Validate Chat Position settings
+        if (isset($input['chat_position_data'])) {
+            $position_data = stripslashes($input['chat_position_data']);
+            $position = json_decode($position_data, true);
+
+            if (json_last_error() === JSON_ERROR_NONE && is_array($position)) {
+                $validated['chat_position_data'] = $position_data;
+            } else {
+                $validated['chat_position_data'] = '{}';
+            }
+        } else {
+            $validated['chat_position_data'] = '{}';
         }
 
         // Validate GDPR & Consent Banner settings
@@ -1005,9 +1036,610 @@ class GuidersAdmin {
     public function activeHoursFallbackMessageFieldCallback() {
         $settings = get_option('guiders_wp_plugin_settings', array());
         $message = isset($settings['active_hours_fallback_message']) ? $settings['active_hours_fallback_message'] : '';
-        
+
         echo '<textarea id="active_hours_fallback_message" name="guiders_wp_plugin_settings[active_hours_fallback_message]" rows="3" cols="50" class="large-text">' . esc_textarea($message) . '</textarea>';
         echo '<p class="description">' . __('Mensaje que se mostrará cuando el chat no esté disponible por horarios. Si se deja vacío, se usará un mensaje predeterminado.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    // === Chat Position Field Callbacks ===
+
+    /**
+     * Chat position section callback
+     */
+    public function chatPositionSectionCallback() {
+        echo '<p>' . __('Configura la posición del widget de chat y el botón flotante. Puedes usar configuraciones diferentes para escritorio y móvil.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat position field callback - Modern UI with tabs and modes
+     */
+    public function chatPositionFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $position_data = isset($settings['chat_position_data']) ? $settings['chat_position_data'] : '{}';
+        $position = json_decode($position_data, true);
+        if (!is_array($position)) {
+            $position = array();
+        }
+
+        // Default values
+        $desktop_mode = isset($position['desktop']['mode']) ? $position['desktop']['mode'] : 'basic';
+        $desktop_preset = isset($position['desktop']['preset']) ? $position['desktop']['preset'] : 'bottom-right';
+        $desktop_button = isset($position['desktop']['button']) ? $position['desktop']['button'] : array('bottom' => '20px', 'right' => '20px');
+        $desktop_widget = isset($position['desktop']['widget']) ? $position['desktop']['widget'] : array('auto' => true);
+
+        $mobile_enabled = isset($position['mobile']['enabled']) ? $position['mobile']['enabled'] : false;
+        $mobile_mode = isset($position['mobile']['mode']) ? $position['mobile']['mode'] : 'basic';
+        $mobile_preset = isset($position['mobile']['preset']) ? $position['mobile']['preset'] : 'bottom-right';
+        $mobile_button = isset($position['mobile']['button']) ? $position['mobile']['button'] : array('bottom' => '20px', 'right' => '20px');
+        $mobile_widget = isset($position['mobile']['widget']) ? $position['mobile']['widget'] : array('auto' => true);
+
+        // Hidden input to store JSON data
+        echo '<input type="hidden" id="chat_position_data" name="guiders_wp_plugin_settings[chat_position_data]" value="' . esc_attr($position_data) . '" />';
+
+        // Modern UI
+        ?>
+        <div id="guiders-chat-position-ui" class="guiders-position-ui">
+            <!-- Device Tabs -->
+            <div class="guiders-tabs">
+                <button type="button" class="guiders-tab active" data-tab="desktop">
+                    <span class="dashicons dashicons-desktop"></span> <?php _e('Escritorio', 'guiders-wp-plugin'); ?>
+                </button>
+                <button type="button" class="guiders-tab" data-tab="mobile">
+                    <span class="dashicons dashicons-smartphone"></span> <?php _e('Móvil', 'guiders-wp-plugin'); ?>
+                </button>
+            </div>
+
+            <!-- Desktop Tab Content -->
+            <div class="guiders-tab-content active" data-content="desktop">
+                <!-- Mode Selector -->
+                <div class="guiders-mode-selector">
+                    <label class="guiders-mode-option">
+                        <input type="radio" name="desktop_mode" value="basic" <?php checked($desktop_mode, 'basic'); ?> />
+                        <span><?php _e('Básico (Presets)', 'guiders-wp-plugin'); ?></span>
+                    </label>
+                    <label class="guiders-mode-option">
+                        <input type="radio" name="desktop_mode" value="advanced" <?php checked($desktop_mode, 'advanced'); ?> />
+                        <span><?php _e('Avanzado (Coordenadas)', 'guiders-wp-plugin'); ?></span>
+                    </label>
+                </div>
+
+                <!-- Basic Mode (Presets) -->
+                <div class="guiders-basic-mode" style="display: <?php echo $desktop_mode === 'basic' ? 'block' : 'none'; ?>;">
+                    <h4><?php _e('Selecciona una posición:', 'guiders-wp-plugin'); ?></h4>
+                    <div class="guiders-preset-grid">
+                        <div class="guiders-preset-card <?php echo $desktop_preset === 'top-left' ? 'active' : ''; ?>" data-preset="top-left">
+                            <div class="preset-icon"><span class="dashicons dashicons-arrow-up-left"></span></div>
+                            <div class="preset-label"><?php _e('Superior Izquierda', 'guiders-wp-plugin'); ?></div>
+                        </div>
+                        <div class="guiders-preset-card <?php echo $desktop_preset === 'top-right' ? 'active' : ''; ?>" data-preset="top-right">
+                            <div class="preset-icon"><span class="dashicons dashicons-arrow-up-right"></span></div>
+                            <div class="preset-label"><?php _e('Superior Derecha', 'guiders-wp-plugin'); ?></div>
+                        </div>
+                        <div class="guiders-preset-card <?php echo $desktop_preset === 'bottom-left' ? 'active' : ''; ?>" data-preset="bottom-left">
+                            <div class="preset-icon"><span class="dashicons dashicons-arrow-down-left"></span></div>
+                            <div class="preset-label"><?php _e('Inferior Izquierda', 'guiders-wp-plugin'); ?></div>
+                        </div>
+                        <div class="guiders-preset-card <?php echo $desktop_preset === 'bottom-right' ? 'active' : ''; ?>" data-preset="bottom-right">
+                            <div class="preset-icon"><span class="dashicons dashicons-arrow-down-right"></span></div>
+                            <div class="preset-label"><?php _e('Inferior Derecha', 'guiders-wp-plugin'); ?></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Mode (Coordinates) -->
+                <div class="guiders-advanced-mode" style="display: <?php echo $desktop_mode === 'advanced' ? 'block' : 'none'; ?>;">
+                    <h4><?php _e('Posición del Botón:', 'guiders-wp-plugin'); ?></h4>
+                    <div class="guiders-coords-grid">
+                        <div>
+                            <label><?php _e('Top:', 'guiders-wp-plugin'); ?></label>
+                            <input type="text" class="coord-input" data-coord="button.top" value="<?php echo isset($desktop_button['top']) ? esc_attr($desktop_button['top']) : ''; ?>" placeholder="ej: 20px" />
+                        </div>
+                        <div>
+                            <label><?php _e('Bottom:', 'guiders-wp-plugin'); ?></label>
+                            <input type="text" class="coord-input" data-coord="button.bottom" value="<?php echo isset($desktop_button['bottom']) ? esc_attr($desktop_button['bottom']) : ''; ?>" placeholder="ej: 20px" />
+                        </div>
+                        <div>
+                            <label><?php _e('Left:', 'guiders-wp-plugin'); ?></label>
+                            <input type="text" class="coord-input" data-coord="button.left" value="<?php echo isset($desktop_button['left']) ? esc_attr($desktop_button['left']) : ''; ?>" placeholder="ej: 20px" />
+                        </div>
+                        <div>
+                            <label><?php _e('Right:', 'guiders-wp-plugin'); ?></label>
+                            <input type="text" class="coord-input" data-coord="button.right" value="<?php echo isset($desktop_button['right']) ? esc_attr($desktop_button['right']) : ''; ?>" placeholder="ej: 20px" />
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <label>
+                            <input type="checkbox" class="widget-auto-checkbox" <?php checked(isset($desktop_widget['auto']) && $desktop_widget['auto']); ?> />
+                            <?php _e('Calcular posición del widget automáticamente', 'guiders-wp-plugin'); ?>
+                        </label>
+                    </div>
+
+                    <div class="guiders-widget-coords" style="display: <?php echo (isset($desktop_widget['auto']) && $desktop_widget['auto']) ? 'none' : 'block'; ?>; margin-top: 15px;">
+                        <h4><?php _e('Posición del Widget (Opcional):', 'guiders-wp-plugin'); ?></h4>
+                        <div class="guiders-coords-grid">
+                            <div>
+                                <label><?php _e('Top:', 'guiders-wp-plugin'); ?></label>
+                                <input type="text" class="coord-input" data-coord="widget.top" value="<?php echo isset($desktop_widget['top']) ? esc_attr($desktop_widget['top']) : ''; ?>" placeholder="ej: 90px" />
+                            </div>
+                            <div>
+                                <label><?php _e('Bottom:', 'guiders-wp-plugin'); ?></label>
+                                <input type="text" class="coord-input" data-coord="widget.bottom" value="<?php echo isset($desktop_widget['bottom']) ? esc_attr($desktop_widget['bottom']) : ''; ?>" placeholder="ej: 90px" />
+                            </div>
+                            <div>
+                                <label><?php _e('Left:', 'guiders-wp-plugin'); ?></label>
+                                <input type="text" class="coord-input" data-coord="widget.left" value="<?php echo isset($desktop_widget['left']) ? esc_attr($desktop_widget['left']) : ''; ?>" placeholder="ej: 20px" />
+                            </div>
+                            <div>
+                                <label><?php _e('Right:', 'guiders-wp-plugin'); ?></label>
+                                <input type="text" class="coord-input" data-coord="widget.right" value="<?php echo isset($desktop_widget['right']) ? esc_attr($desktop_widget['right']) : ''; ?>" placeholder="ej: 20px" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Tab Content -->
+            <div class="guiders-tab-content" data-content="mobile">
+                <div style="margin-bottom: 20px;">
+                    <label>
+                        <input type="checkbox" id="mobile_enabled" <?php checked($mobile_enabled); ?> />
+                        <?php _e('Usar configuración diferente para móvil', 'guiders-wp-plugin'); ?>
+                    </label>
+                    <p class="description"><?php _e('Si está desactivado, se usará la configuración de escritorio también en móvil.', 'guiders-wp-plugin'); ?></p>
+                </div>
+
+                <div id="mobile_config" style="display: <?php echo $mobile_enabled ? 'block' : 'none'; ?>;">
+                    <!-- Mode Selector -->
+                    <div class="guiders-mode-selector">
+                        <label class="guiders-mode-option">
+                            <input type="radio" name="mobile_mode" value="basic" <?php checked($mobile_mode, 'basic'); ?> />
+                            <span><?php _e('Básico (Presets)', 'guiders-wp-plugin'); ?></span>
+                        </label>
+                        <label class="guiders-mode-option">
+                            <input type="radio" name="mobile_mode" value="advanced" <?php checked($mobile_mode, 'advanced'); ?> />
+                            <span><?php _e('Avanzado (Coordenadas)', 'guiders-wp-plugin'); ?></span>
+                        </label>
+                    </div>
+
+                    <!-- Basic Mode (Presets) -->
+                    <div class="guiders-basic-mode" style="display: <?php echo $mobile_mode === 'basic' ? 'block' : 'none'; ?>;">
+                        <h4><?php _e('Selecciona una posición:', 'guiders-wp-plugin'); ?></h4>
+                        <div class="guiders-preset-grid">
+                            <div class="guiders-preset-card <?php echo $mobile_preset === 'top-left' ? 'active' : ''; ?>" data-preset="top-left">
+                                <div class="preset-icon"><span class="dashicons dashicons-arrow-up-left"></span></div>
+                                <div class="preset-label"><?php _e('Superior Izquierda', 'guiders-wp-plugin'); ?></div>
+                            </div>
+                            <div class="guiders-preset-card <?php echo $mobile_preset === 'top-right' ? 'active' : ''; ?>" data-preset="top-right">
+                                <div class="preset-icon"><span class="dashicons dashicons-arrow-up-right"></span></div>
+                                <div class="preset-label"><?php _e('Superior Derecha', 'guiders-wp-plugin'); ?></div>
+                            </div>
+                            <div class="guiders-preset-card <?php echo $mobile_preset === 'bottom-left' ? 'active' : ''; ?>" data-preset="bottom-left">
+                                <div class="preset-icon"><span class="dashicons dashicons-arrow-down-left"></span></div>
+                                <div class="preset-label"><?php _e('Inferior Izquierda', 'guiders-wp-plugin'); ?></div>
+                            </div>
+                            <div class="guiders-preset-card <?php echo $mobile_preset === 'bottom-right' ? 'active' : ''; ?>" data-preset="bottom-right">
+                                <div class="preset-icon"><span class="dashicons dashicons-arrow-down-right"></span></div>
+                                <div class="preset-label"><?php _e('Inferior Derecha', 'guiders-wp-plugin'); ?></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Mode (Coordinates) - Similar structure as desktop -->
+                    <div class="guiders-advanced-mode" style="display: <?php echo $mobile_mode === 'advanced' ? 'block' : 'none'; ?>;">
+                        <h4><?php _e('Posición del Botón:', 'guiders-wp-plugin'); ?></h4>
+                        <div class="guiders-coords-grid">
+                            <div>
+                                <label><?php _e('Top:', 'guiders-wp-plugin'); ?></label>
+                                <input type="text" class="coord-input" data-coord="button.top" value="<?php echo isset($mobile_button['top']) ? esc_attr($mobile_button['top']) : ''; ?>" placeholder="ej: 20px" />
+                            </div>
+                            <div>
+                                <label><?php _e('Bottom:', 'guiders-wp-plugin'); ?></label>
+                                <input type="text" class="coord-input" data-coord="button.bottom" value="<?php echo isset($mobile_button['bottom']) ? esc_attr($mobile_button['bottom']) : ''; ?>" placeholder="ej: 20px" />
+                            </div>
+                            <div>
+                                <label><?php _e('Left:', 'guiders-wp-plugin'); ?></label>
+                                <input type="text" class="coord-input" data-coord="button.left" value="<?php echo isset($mobile_button['left']) ? esc_attr($mobile_button['left']) : ''; ?>" placeholder="ej: 20px" />
+                            </div>
+                            <div>
+                                <label><?php _e('Right:', 'guiders-wp-plugin'); ?></label>
+                                <input type="text" class="coord-input" data-coord="button.right" value="<?php echo isset($mobile_button['right']) ? esc_attr($mobile_button['right']) : ''; ?>" placeholder="ej: 20px" />
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 20px;">
+                            <label>
+                                <input type="checkbox" class="widget-auto-checkbox" <?php checked(isset($mobile_widget['auto']) && $mobile_widget['auto']); ?> />
+                                <?php _e('Calcular posición del widget automáticamente', 'guiders-wp-plugin'); ?>
+                            </label>
+                        </div>
+
+                        <div class="guiders-widget-coords" style="display: <?php echo (isset($mobile_widget['auto']) && $mobile_widget['auto']) ? 'none' : 'block'; ?>; margin-top: 15px;">
+                            <h4><?php _e('Posición del Widget (Opcional):', 'guiders-wp-plugin'); ?></h4>
+                            <div class="guiders-coords-grid">
+                                <div>
+                                    <label><?php _e('Top:', 'guiders-wp-plugin'); ?></label>
+                                    <input type="text" class="coord-input" data-coord="widget.top" value="<?php echo isset($mobile_widget['top']) ? esc_attr($mobile_widget['top']) : ''; ?>" placeholder="ej: 90px" />
+                                </div>
+                                <div>
+                                    <label><?php _e('Bottom:', 'guiders-wp-plugin'); ?></label>
+                                    <input type="text" class="coord-input" data-coord="widget.bottom" value="<?php echo isset($mobile_widget['bottom']) ? esc_attr($mobile_widget['bottom']) : ''; ?>" placeholder="ej: 90px" />
+                                </div>
+                                <div>
+                                    <label><?php _e('Left:', 'guiders-wp-plugin'); ?></label>
+                                    <input type="text" class="coord-input" data-coord="widget.left" value="<?php echo isset($mobile_widget['left']) ? esc_attr($mobile_widget['left']) : ''; ?>" placeholder="ej: 20px" />
+                                </div>
+                                <div>
+                                    <label><?php _e('Right:', 'guiders-wp-plugin'); ?></label>
+                                    <input type="text" class="coord-input" data-coord="widget.right" value="<?php echo isset($mobile_widget['right']) ? esc_attr($mobile_widget['right']) : ''; ?>" placeholder="ej: 20px" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview -->
+            <div class="guiders-preview">
+                <h4><?php _e('Vista Previa:', 'guiders-wp-plugin'); ?></h4>
+                <div class="guiders-preview-box">
+                    <div class="preview-button" style="bottom: 20px; right: 20px;"></div>
+                    <div class="preview-widget" style="display: none; bottom: 90px; right: 20px;"></div>
+                </div>
+                <p class="description"><?php _e('Simulación aproximada. La posición exacta puede variar según el tema de WordPress.', 'guiders-wp-plugin'); ?></p>
+            </div>
+        </div>
+
+        <style>
+        .guiders-position-ui {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 10px;
+        }
+
+        .guiders-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .guiders-tab {
+            background: transparent;
+            border: none;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #555;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .guiders-tab:hover {
+            color: #0073aa;
+            background: #f0f0f1;
+        }
+
+        .guiders-tab.active {
+            color: #0073aa;
+            border-bottom-color: #0073aa;
+            background: white;
+        }
+
+        .guiders-tab-content {
+            display: none;
+        }
+
+        .guiders-tab-content.active {
+            display: block;
+        }
+
+        .guiders-mode-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+
+        .guiders-mode-option {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .guiders-mode-option:hover {
+            background: #f0f0f1;
+        }
+
+        .guiders-preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .guiders-preset-card {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .guiders-preset-card:hover {
+            border-color: #0073aa;
+            box-shadow: 0 2px 8px rgba(0,115,170,0.1);
+        }
+
+        .guiders-preset-card.active {
+            border-color: #0073aa;
+            background: #e5f5ff;
+        }
+
+        .preset-icon {
+            font-size: 32px;
+            color: #0073aa;
+            margin-bottom: 10px;
+        }
+
+        .preset-label {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .guiders-coords-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+
+        .guiders-coords-grid > div {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .guiders-coords-grid label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .coord-input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .guiders-preview {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+
+        .guiders-preview-box {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .preview-button {
+            position: absolute;
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(145deg, #0084ff, #0062cc);
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .preview-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        }
+
+        .preview-widget {
+            position: absolute;
+            width: 340px;
+            height: 520px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        @media (max-width: 768px) {
+            .guiders-preset-grid,
+            .guiders-coords-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .preview-widget {
+                width: 280px;
+                height: 420px;
+            }
+        }
+        </style>
+
+        <script>
+        jQuery(document).ready(function($) {
+            var currentDevice = 'desktop';
+            var positionData = <?php echo $position_data; ?>;
+
+            // Initialize if empty
+            if (!positionData.desktop) {
+                positionData = {
+                    desktop: {
+                        mode: 'basic',
+                        preset: 'bottom-right',
+                        button: {bottom: '20px', right: '20px'},
+                        widget: {auto: true}
+                    },
+                    mobile: {
+                        enabled: false,
+                        mode: 'basic',
+                        preset: 'bottom-right',
+                        button: {bottom: '20px', right: '20px'},
+                        widget: {auto: true}
+                    }
+                };
+            }
+
+            // Tab switching
+            $('.guiders-tab').click(function() {
+                var tab = $(this).data('tab');
+                currentDevice = tab;
+
+                $('.guiders-tab').removeClass('active');
+                $(this).addClass('active');
+
+                $('.guiders-tab-content').removeClass('active');
+                $('.guiders-tab-content[data-content="' + tab + '"]').addClass('active');
+
+                updatePreview();
+            });
+
+            // Mode switching
+            $('input[name="desktop_mode"], input[name="mobile_mode"]').change(function() {
+                var device = $(this).attr('name').replace('_mode', '');
+                var mode = $(this).val();
+                var container = $('[data-content="' + device + '"]');
+
+                if (mode === 'basic') {
+                    container.find('.guiders-basic-mode').show();
+                    container.find('.guiders-advanced-mode').hide();
+                } else {
+                    container.find('.guiders-basic-mode').hide();
+                    container.find('.guiders-advanced-mode').show();
+                }
+
+                positionData[device].mode = mode;
+                savePositionData();
+                updatePreview();
+            });
+
+            // Preset selection
+            $('.guiders-preset-card').click(function() {
+                var preset = $(this).data('preset');
+                var device = $(this).closest('.guiders-tab-content').data('content');
+
+                $(this).closest('.guiders-preset-grid').find('.guiders-preset-card').removeClass('active');
+                $(this).addClass('active');
+
+                positionData[device].preset = preset;
+                savePositionData();
+                updatePreview();
+            });
+
+            // Coordinate inputs
+            $('.coord-input').on('input', function() {
+                var device = $(this).closest('.guiders-tab-content').data('content');
+                var coord = $(this).data('coord');
+                var value = $(this).val().trim();
+
+                var parts = coord.split('.');
+                if (!positionData[device][parts[0]]) {
+                    positionData[device][parts[0]] = {};
+                }
+
+                if (value) {
+                    positionData[device][parts[0]][parts[1]] = value;
+                } else {
+                    delete positionData[device][parts[0]][parts[1]];
+                }
+
+                savePositionData();
+                updatePreview();
+            });
+
+            // Widget auto checkbox
+            $('.widget-auto-checkbox').change(function() {
+                var device = $(this).closest('.guiders-tab-content').data('content');
+                var isAuto = $(this).is(':checked');
+                var container = $(this).closest('.guiders-tab-content');
+
+                positionData[device].widget = isAuto ? {auto: true} : {};
+
+                container.find('.guiders-widget-coords').toggle(!isAuto);
+                savePositionData();
+                updatePreview();
+            });
+
+            // Mobile enabled checkbox
+            $('#mobile_enabled').change(function() {
+                var enabled = $(this).is(':checked');
+                $('#mobile_config').toggle(enabled);
+                positionData.mobile.enabled = enabled;
+                savePositionData();
+            });
+
+            function savePositionData() {
+                $('#chat_position_data').val(JSON.stringify(positionData));
+            }
+
+            function updatePreview() {
+                var device = positionData[currentDevice];
+                var position = {bottom: '20px', right: '20px'};
+
+                if (device.mode === 'basic') {
+                    // Map presets to coordinates
+                    switch(device.preset) {
+                        case 'top-left':
+                            position = {top: '20px', left: '20px'};
+                            break;
+                        case 'top-right':
+                            position = {top: '20px', right: '20px'};
+                            break;
+                        case 'bottom-left':
+                            position = {bottom: '20px', left: '20px'};
+                            break;
+                        case 'bottom-right':
+                        default:
+                            position = {bottom: '20px', right: '20px'};
+                            break;
+                    }
+                } else {
+                    position = device.button || {bottom: '20px', right: '20px'};
+                }
+
+                // Apply to preview button
+                $('.preview-button').css({
+                    top: position.top || 'auto',
+                    bottom: position.bottom || 'auto',
+                    left: position.left || 'auto',
+                    right: position.right || 'auto'
+                });
+            }
+
+            // Initial update
+            updatePreview();
+        });
+        </script>
+        <?php
     }
 
     // === GDPR & Consent Banner Field Callbacks ===

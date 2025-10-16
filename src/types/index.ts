@@ -189,3 +189,22 @@ export interface ActiveHoursConfig {
 	ranges: TimeRange[];        // Rangos de horarios activos
 	fallbackMessage?: string;   // Mensaje a mostrar cuando el chat no está activo
 }
+
+// --- Configuración de posicionamiento del chat ---
+export type ChatPositionPreset = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+
+export interface ChatPositionCoordinates {
+	// Posición del botón toggle
+	bottom?: string;  // Ej: "20px", "5%"
+	right?: string;   // Ej: "20px", "5%"
+	top?: string;     // Ej: "20px", "5%"
+	left?: string;    // Ej: "20px", "5%"
+
+	// Posición del widget (opcional, se auto-calcula si no se especifica)
+	widgetBottom?: string;
+	widgetRight?: string;
+	widgetTop?: string;
+	widgetLeft?: string;
+}
+
+export type ChatPositionConfig = ChatPositionPreset | ChatPositionCoordinates;

@@ -125,7 +125,8 @@ class GuidersPublic {
             'welcomeMessage' => $this->getWelcomeMessageConfig(),
             'activeHours' => $this->getActiveHoursConfig(),
             'requireConsent' => isset($this->settings['require_consent']) ? $this->settings['require_consent'] : false,
-            'consentBanner' => $this->getConsentBannerConfig()
+            'consentBanner' => $this->getConsentBannerConfig(),
+            'chatPosition' => $this->getChatPositionConfig()
         );
 
         // Add environment-specific endpoints
@@ -237,6 +238,11 @@ class GuidersPublic {
                         },
                         sessionTracking: config.sessionTracking
                     };
+
+                    // Add chat position configuration if available
+                    if (config.chatPosition) {
+                        sdkOptions.chatPosition = config.chatPosition;
+                    }
                     
                     // Asignar siempre endpoints explícitos (evita fallback a localhost y doble init)
                     if (config.endpoint) {
@@ -539,5 +545,93 @@ class GuidersPublic {
         );
 
         return $config;
+    }
+
+    /**
+     * Get chat position configuration
+     */
+    private function getChatPositionConfig() {
+        // Get position data from settings (stored as JSON)
+        $positionDataJson = isset($this->settings['chat_position_data']) ? $this->settings['chat_position_data'] : '{}';
+        $positionData = json_decode($positionDataJson, true);
+
+        // Return null if no valid data
+        if (!is_array($positionData) || empty($positionData)) {
+            return null;
+        }
+
+        // Extract desktop and mobile configs
+        $desktop = isset($positionData['desktop']) ? $positionData['desktop'] : array();
+        $mobile = isset($positionData['mobile']) ? $positionData['mobile'] : array();
+        $mobileEnabled = isset($mobile['enabled']) ? $mobile['enabled'] : false;
+
+        // Convert desktop config to SDK format
+        $desktopConfig = $this->convertPositionToSDKFormat($desktop);
+
+        // If mobile is not enabled or no desktop config, return simple config
+        if (!$mobileEnabled || !$desktopConfig) {
+            return $desktopConfig;
+        }
+
+        // Convert mobile config to SDK format
+        $mobileConfig = $this->convertPositionToSDKFormat($mobile);
+
+        // If mobile config exists, return device-specific format
+        if ($mobileConfig) {
+            return array(
+                'default' => $desktopConfig,
+                'mobile' => $mobileConfig
+            );
+        }
+
+        // Fallback to desktop only
+        return $desktopConfig;
+    }
+
+    /**
+     * Convert WordPress position format to SDK format
+     *
+     * @param array $config Configuration from WordPress (with mode, preset, button, widget)
+     * @return mixed Preset string or coordinates object, or null if invalid
+     */
+    private function convertPositionToSDKFormat($config) {
+        if (!is_array($config) || empty($config)) {
+            return null;
+        }
+
+        $mode = isset($config['mode']) ? $config['mode'] : 'basic';
+
+        // Basic mode: return preset string (e.g., "bottom-right")
+        if ($mode === 'basic' && !empty($config['preset'])) {
+            return $config['preset'];
+        }
+
+        // Advanced mode: return coordinates object
+        if ($mode === 'advanced') {
+            $button = isset($config['button']) ? $config['button'] : array();
+            $widget = isset($config['widget']) ? $config['widget'] : array();
+
+            // Build coordinates object (only include non-empty values)
+            $coordinates = array();
+
+            // Button position
+            if (!empty($button['top'])) $coordinates['top'] = $button['top'];
+            if (!empty($button['bottom'])) $coordinates['bottom'] = $button['bottom'];
+            if (!empty($button['left'])) $coordinates['left'] = $button['left'];
+            if (!empty($button['right'])) $coordinates['right'] = $button['right'];
+
+            // Widget position (prefixed with 'widget')
+            if (!empty($widget['top'])) $coordinates['widgetTop'] = $widget['top'];
+            if (!empty($widget['bottom'])) $coordinates['widgetBottom'] = $widget['bottom'];
+            if (!empty($widget['left'])) $coordinates['widgetLeft'] = $widget['left'];
+            if (!empty($widget['right'])) $coordinates['widgetRight'] = $widget['right'];
+
+            // Return coordinates if we have at least some position data
+            if (!empty($coordinates)) {
+                return $coordinates;
+            }
+        }
+
+        return null;
     }
 }

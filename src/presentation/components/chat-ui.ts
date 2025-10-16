@@ -11,6 +11,7 @@ import { WelcomeMessageManager, WelcomeMessageConfig } from "../../core/welcome-
 import { ChatUIOptions, Sender, ChatMessageParams, ActiveInterval } from '../types/chat-types';
 import { formatTime, formatDate, isBot, generateInitials, createDateSeparator } from '../utils/chat-utils';
 import { MessageRenderer, MessageRenderData } from '../utils/message-renderer';
+import { resolvePosition, ResolvedPosition } from '../../utils/position-resolver';
 
 /**
  * Clase ChatUI para renderizar mensajes en el chat.
@@ -51,6 +52,9 @@ export class ChatUI {
 	private chatCreationPromise: Promise<void> | null = null;
 	private chatCreationResolve: (() => void) | null = null;
 
+	// Posición resuelta del widget
+	private resolvedPosition: ResolvedPosition;
+
 	constructor(options: ChatUIOptions = {}) {
 		this.options = {
 			widget: false,
@@ -65,6 +69,10 @@ export class ChatUI {
 
 		// Inicializar el manager de mensajes de bienvenida
 		this.welcomeMessageManager = new WelcomeMessageManager(options.welcomeMessage);
+
+		// Resolver posición del widget
+		this.resolvedPosition = resolvePosition(options.position);
+		debugLog('💬 [ChatUI] Posición resuelta:', this.resolvedPosition);
 
 		// Si se pasa un containerId, se obtiene ese contenedor
 		if (this.options.containerId) {
@@ -211,6 +219,15 @@ export class ChatUI {
 	 * Retorna los estilos CSS básicos del chat
 	 */
 	private getChatStyles(): string {
+		// Generar CSS dinámico para posicionamiento
+		const widgetPos = this.resolvedPosition.widget;
+		const positionCSS = `
+			${widgetPos.top ? `top: ${widgetPos.top};` : ''}
+			${widgetPos.bottom ? `bottom: ${widgetPos.bottom};` : ''}
+			${widgetPos.left ? `left: ${widgetPos.left};` : ''}
+			${widgetPos.right ? `right: ${widgetPos.right};` : ''}
+		`.trim();
+
 		return `
 			@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 			:host { all: initial; font-family: 'Inter', sans-serif; }
@@ -225,15 +242,14 @@ export class ChatUI {
 				flex-direction: column;
 				transition: box-shadow 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
 			}
-			
-			.chat-widget-fixed { 
-				width: 340px; 
-				height: 520px; 
-				position: fixed; 
-				bottom: 90px; 
-				right: 20px; 
-				transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-				z-index: 2147483647; 
+
+			.chat-widget-fixed {
+				width: 340px;
+				height: 520px;
+				position: fixed;
+				${positionCSS}
+				transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+				z-index: 2147483647;
 				display: flex;
 				flex-direction: column;
 			}
@@ -1386,5 +1402,13 @@ export class ChatUI {
 	 */
 	public isLoadingMessages(): boolean {
 		return this.isLoadingInitialMessages;
+	}
+
+	/**
+	 * Obtiene la posición resuelta del widget
+	 * Útil para que otros componentes (como ChatToggleButton) se posicionen relativamente
+	 */
+	public getResolvedPosition(): ResolvedPosition {
+		return this.resolvedPosition;
 	}
 }

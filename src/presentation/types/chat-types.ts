@@ -1,6 +1,7 @@
 // chat-types.ts - Tipos e interfaces para el sistema de chat
 
 import { WelcomeMessageConfig } from "../../core/welcome-message-manager";
+import { ChatPositionConfig } from "../../types";
 
 /**
  * Tipo para identificar el remitente de un mensaje
@@ -29,6 +30,8 @@ export interface ChatUIOptions {
 	maxWidthMessage?: string;
 	/** Configuración del mensaje de bienvenida */
 	welcomeMessage?: Partial<WelcomeMessageConfig>;
+	/** Configuración de posicionamiento del chat widget */
+	position?: ChatPositionConfig;
 }
 
 /**

@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.4.4
+Stable tag: 1.5.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,36 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.5.0 =
+* **✨ Nueva Funcionalidad: Display de Nombre de Comercial**: El chat ahora muestra el nombre real del comercial asignado en lugar del ID genérico
+  * Integración con campo `assignedCommercial` del backend (incluye id y name)
+  * Mejora UX: Los usuarios ven nombres legibles como "Test User 1" en lugar de IDs UUID
+  * Fallback automático: Si no hay nombre disponible, se muestra "Comercial {id}"
+  * Actualizado `ChatMetadataV2` interface con campo `assignedCommercial?: AssignedCommercial`
+  * Cambios aplicados en servicios de chat detail y SDK core
+* **🎨 Sistema Completo de Posicionamiento Configurable**: Control total sobre la posición del chat widget
+  * Nueva sección en Admin de WordPress: "Posición del Widget de Chat"
+  * **Tabs Desktop/Mobile**: Configuraciones separadas para escritorio y dispositivos móviles
+  * **Modo Basic**: 4 presets visuales (bottom-right, bottom-left, top-right, top-left) con cards clicables
+  * **Modo Advanced**: Control pixel-perfect con inputs para coordenadas exactas (top, bottom, left, right)
+  * **Auto-calculate Widget Position**: Checkbox para calcular automáticamente la posición del widget respecto al botón
+  * **Preview en Tiempo Real**: Visualización instantánea de cambios en el panel de administración
+  * **Detección de Dispositivo**: El SDK detecta automáticamente si es móvil o desktop y aplica la configuración correcta
+  * **Device-Specific Config**: Soporte para configuraciones diferentes por dispositivo (`default` + `mobile`)
+  * Nuevas interfaces TypeScript: `ChatPositionConfig`, `ChatPositionPreset`, `ChatPositionCoordinates`, `DeviceSpecificPosition`
+  * Nueva utilidad `position-resolver.ts` con lógica de resolución de coordenadas y detección de dispositivo
+  * Actualizado `ChatUI` y `ChatToggleButton` para posicionamiento dinámico con Shadow DOM
+  * Almacenamiento en JSON con validación y transformadores en WordPress
+  * Totalmente opcional: si no se configura, usa el posicionamiento por defecto (bottom-right)
+* **🔧 Mejoras Técnicas**:
+  * Pattern de transformación de datos en dos capas (WordPress format ↔ SDK format)
+  * Configuración opcional con fallback gracioso (no rompe si falta configuración)
+  * CSS dinámico generado en tiempo real basado en resolución de coordenadas
+  * Media queries y user agent detection para mobile
+  * Sistema de offsets automáticos entre botón y widget (70px default)
+* **📦 Bundle Size**: 347 KB (incremento mínimo por nueva funcionalidad)
+* **🔗 Compatibilidad**: 100% retrocompatible, todas las features son opcionales
 
 = 1.4.4 =
 * **🐛 Fix Crítico**: Resueltos errores de inicialización del SDK en producción (50% de fallos)
