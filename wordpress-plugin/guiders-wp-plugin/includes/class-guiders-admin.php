@@ -294,6 +294,33 @@ class GuidersAdmin {
             'guiders_chat_position_section'
         );
 
+        // Mobile detection breakpoint field
+        add_settings_field(
+            'mobile_breakpoint',
+            __('Breakpoint Móvil', 'guiders-wp-plugin'),
+            array($this, 'mobileBreakpointFieldCallback'),
+            'guiders-settings',
+            'guiders_chat_position_section'
+        );
+
+        // Mobile detection mode field
+        add_settings_field(
+            'mobile_detection_mode',
+            __('Modo de Detección', 'guiders-wp-plugin'),
+            array($this, 'mobileDetectionModeFieldCallback'),
+            'guiders-settings',
+            'guiders_chat_position_section'
+        );
+
+        // Mobile detection debug field
+        add_settings_field(
+            'mobile_detection_debug',
+            __('Debug de Detección', 'guiders-wp-plugin'),
+            array($this, 'mobileDetectionDebugFieldCallback'),
+            'guiders-settings',
+            'guiders_chat_position_section'
+        );
+
         // GDPR & Consent Banner section
         add_settings_section(
             'guiders_gdpr_section',
@@ -530,6 +557,23 @@ class GuidersAdmin {
         } else {
             $validated['chat_position_data'] = '{}';
         }
+
+        // Validate Mobile Detection settings
+        $valid_breakpoints = array('640', '768', '992', '1024');
+        if (isset($input['mobile_breakpoint']) && in_array($input['mobile_breakpoint'], $valid_breakpoints, true)) {
+            $validated['mobile_breakpoint'] = $input['mobile_breakpoint'];
+        } else {
+            $validated['mobile_breakpoint'] = '768'; // Default
+        }
+
+        $valid_modes = array('auto', 'size-only', 'touch-only', 'user-agent-only');
+        if (isset($input['mobile_detection_mode']) && in_array($input['mobile_detection_mode'], $valid_modes, true)) {
+            $validated['mobile_detection_mode'] = $input['mobile_detection_mode'];
+        } else {
+            $validated['mobile_detection_mode'] = 'auto'; // Default
+        }
+
+        $validated['mobile_detection_debug'] = isset($input['mobile_detection_debug']) ? true : false;
 
         // Validate GDPR & Consent Banner settings
         $validated['consent_banner_enabled'] = isset($input['consent_banner_enabled']) ? true : false;
@@ -1640,6 +1684,85 @@ class GuidersAdmin {
         });
         </script>
         <?php
+    }
+
+    // === Mobile Detection Field Callbacks ===
+
+    /**
+     * Mobile breakpoint field callback
+     */
+    public function mobileBreakpointFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $breakpoint = isset($settings['mobile_breakpoint']) ? $settings['mobile_breakpoint'] : '768';
+
+        echo '<select id="mobile_breakpoint" name="guiders_wp_plugin_settings[mobile_breakpoint]">';
+        $options = array(
+            '640' => '640px - ' . __('Móviles pequeños', 'guiders-wp-plugin'),
+            '768' => '768px - ' . __('Tablets y móviles (por defecto)', 'guiders-wp-plugin'),
+            '992' => '992px - ' . __('Tablets grandes', 'guiders-wp-plugin'),
+            '1024' => '1024px - ' . __('iPads y tablets grandes', 'guiders-wp-plugin'),
+        );
+
+        foreach ($options as $value => $label) {
+            echo '<option value="' . esc_attr($value) . '"' . selected($breakpoint, $value, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . __('Ancho máximo de pantalla (en píxeles) para considerar un dispositivo como móvil. Usa 768px para móviles estándar o 1024px para incluir tablets.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Mobile detection mode field callback
+     */
+    public function mobileDetectionModeFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $mode = isset($settings['mobile_detection_mode']) ? $settings['mobile_detection_mode'] : 'auto';
+
+        echo '<div style="display: flex; flex-direction: column; gap: 10px;">';
+
+        $modes = array(
+            'auto' => array(
+                'label' => __('Auto (Recomendado)', 'guiders-wp-plugin'),
+                'description' => __('Combina múltiples métodos: tamaño de pantalla, capacidad táctil, orientación y user agent.', 'guiders-wp-plugin')
+            ),
+            'size-only' => array(
+                'label' => __('Solo Tamaño', 'guiders-wp-plugin'),
+                'description' => __('Detecta móviles únicamente por el ancho de pantalla configurado arriba.', 'guiders-wp-plugin')
+            ),
+            'touch-only' => array(
+                'label' => __('Solo Táctil', 'guiders-wp-plugin'),
+                'description' => __('Detecta dispositivos con pantalla táctil como método principal de entrada.', 'guiders-wp-plugin')
+            ),
+            'user-agent-only' => array(
+                'label' => __('Solo User Agent', 'guiders-wp-plugin'),
+                'description' => __('Detecta móviles solo por el User Agent del navegador (método tradicional).', 'guiders-wp-plugin')
+            ),
+        );
+
+        foreach ($modes as $value => $info) {
+            echo '<label style="display: flex; align-items: flex-start; gap: 8px; padding: 10px; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">';
+            echo '<input type="radio" name="guiders_wp_plugin_settings[mobile_detection_mode]" value="' . esc_attr($value) . '"' . checked($mode, $value, false) . ' />';
+            echo '<div>';
+            echo '<strong>' . esc_html($info['label']) . '</strong>';
+            echo '<p class="description" style="margin: 5px 0 0 0;">' . esc_html($info['description']) . '</p>';
+            echo '</div>';
+            echo '</label>';
+        }
+
+        echo '</div>';
+    }
+
+    /**
+     * Mobile detection debug field callback
+     */
+    public function mobileDetectionDebugFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $debug = isset($settings['mobile_detection_debug']) ? $settings['mobile_detection_debug'] : false;
+
+        echo '<label>';
+        echo '<input type="checkbox" id="mobile_detection_debug" name="guiders_wp_plugin_settings[mobile_detection_debug]" value="1"' . checked($debug, 1, false) . ' />';
+        echo ' ' . __('Activar logs de debug en la consola del navegador', 'guiders-wp-plugin');
+        echo '</label>';
+        echo '<p class="description">' . __('Muestra información detallada en la consola sobre qué método detectó el dispositivo como móvil, el tamaño del viewport y el breakpoint utilizado. Útil para diagnosticar problemas de detección.', 'guiders-wp-plugin') . '</p>';
     }
 
     // === GDPR & Consent Banner Field Callbacks ===

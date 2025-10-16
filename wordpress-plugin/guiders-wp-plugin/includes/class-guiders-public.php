@@ -126,7 +126,8 @@ class GuidersPublic {
             'activeHours' => $this->getActiveHoursConfig(),
             'requireConsent' => isset($this->settings['require_consent']) ? $this->settings['require_consent'] : false,
             'consentBanner' => $this->getConsentBannerConfig(),
-            'chatPosition' => $this->getChatPositionConfig()
+            'chatPosition' => $this->getChatPositionConfig(),
+            'mobileDetection' => $this->getMobileDetectionConfig()
         );
 
         // Add environment-specific endpoints
@@ -243,7 +244,12 @@ class GuidersPublic {
                     if (config.chatPosition) {
                         sdkOptions.chatPosition = config.chatPosition;
                     }
-                    
+
+                    // Add mobile detection configuration if available
+                    if (config.mobileDetection) {
+                        sdkOptions.mobileDetection = config.mobileDetection;
+                    }
+
                     // Asignar siempre endpoints explícitos (evita fallback a localhost y doble init)
                     if (config.endpoint) {
                         sdkOptions.endpoint = (config.endpoint + '').replace(/\/+$/,'');
@@ -633,5 +639,26 @@ class GuidersPublic {
         }
 
         return null;
+    }
+
+    /**
+     * Get mobile detection configuration
+     *
+     * @return array|null Mobile detection config or null if defaults should be used
+     */
+    private function getMobileDetectionConfig() {
+        // Get mobile detection settings
+        $breakpoint = isset($this->settings['mobile_breakpoint']) ? intval($this->settings['mobile_breakpoint']) : 768;
+        $mode = isset($this->settings['mobile_detection_mode']) ? $this->settings['mobile_detection_mode'] : 'auto';
+        $debug = isset($this->settings['mobile_detection_debug']) ? $this->settings['mobile_detection_debug'] : false;
+
+        // Only return config if non-default values are set
+        $config = array(
+            'mode' => $mode,
+            'breakpoint' => $breakpoint,
+            'debug' => $debug
+        );
+
+        return $config;
     }
 }

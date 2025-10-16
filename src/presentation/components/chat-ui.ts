@@ -71,7 +71,7 @@ export class ChatUI {
 		this.welcomeMessageManager = new WelcomeMessageManager(options.welcomeMessage);
 
 		// Resolver posición del widget
-		this.resolvedPosition = resolvePosition(options.position);
+		this.resolvedPosition = resolvePosition(options.position, options.mobileDetection);
 		debugLog('💬 [ChatUI] Posición resuelta:', this.resolvedPosition);
 
 		// Si se pasa un containerId, se obtiene ese contenedor

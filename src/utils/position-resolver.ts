@@ -8,7 +8,17 @@
  * - Aplicar configuraciones específicas por dispositivo
  */
 
-import { ChatPositionConfig, ChatPositionPreset, ChatPositionCoordinates } from '../types';
+import { ChatPositionConfig, ChatPositionPreset, ChatPositionCoordinates, MobileDetectionConfig, MobileDetectionMode } from '../types';
+
+/**
+ * Resultado de detección de móvil con detalles
+ */
+export interface MobileDetectionResult {
+	isMobile: boolean;
+	detectedBy: string[];
+	breakpoint?: number;
+	viewport?: { width: number; height: number };
+}
 
 /**
  * Configuración de posición resuelta con coordenadas exactas
@@ -74,25 +84,94 @@ const PRESET_COORDINATES: Record<ChatPositionPreset, ChatPositionCoordinates> = 
 const WIDGET_OFFSET = 70;
 
 /**
- * Detecta si el dispositivo actual es móvil
+ * Detecta si el dispositivo actual es móvil con múltiples métodos
  */
-export function isMobileDevice(): boolean {
-	// Método 1: Media query
-	if (typeof window !== 'undefined' && window.matchMedia) {
-		const mobileMediaQuery = window.matchMedia('(max-width: 768px)');
-		if (mobileMediaQuery.matches) {
-			return true;
+export function detectMobileDevice(config?: MobileDetectionConfig): MobileDetectionResult {
+	const mode = config?.mode || 'auto';
+	const breakpoint = config?.breakpoint || 768;
+	const debug = config?.debug || false;
+
+	const detectedBy: string[] = [];
+	let isMobile = false;
+
+	// Información del viewport
+	const viewport = typeof window !== 'undefined' ? {
+		width: window.innerWidth || 0,
+		height: window.innerHeight || 0
+	} : undefined;
+
+	// Método 1: Media query por ancho de pantalla
+	if (mode === 'auto' || mode === 'size-only') {
+		if (typeof window !== 'undefined' && window.matchMedia) {
+			const mobileMediaQuery = window.matchMedia(`(max-width: ${breakpoint}px)`);
+			if (mobileMediaQuery.matches) {
+				detectedBy.push(`media-query-width-${breakpoint}px`);
+				isMobile = true;
+			}
 		}
 	}
 
-	// Método 2: User Agent (fallback)
-	if (typeof navigator !== 'undefined') {
-		const userAgent = navigator.userAgent.toLowerCase();
-		const mobileKeywords = ['android', 'webos', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone'];
-		return mobileKeywords.some(keyword => userAgent.includes(keyword));
+	// Método 2: Touch capability (pointer: coarse indica dispositivo táctil principal)
+	if (mode === 'auto' || mode === 'touch-only') {
+		if (typeof window !== 'undefined' && window.matchMedia) {
+			const touchQuery = window.matchMedia('(pointer: coarse)');
+			if (touchQuery.matches) {
+				detectedBy.push('touch-capability');
+				isMobile = true;
+			}
+		}
 	}
 
-	return false;
+	// Método 3: Orientación de pantalla (portrait común en móviles)
+	if (mode === 'auto') {
+		if (typeof window !== 'undefined' && window.matchMedia) {
+			const orientationQuery = window.matchMedia('(orientation: portrait)');
+			const aspectRatioQuery = window.matchMedia('(max-aspect-ratio: 1/1)');
+			if (orientationQuery.matches && aspectRatioQuery.matches && viewport && viewport.width < 1024) {
+				detectedBy.push('portrait-orientation');
+				isMobile = true;
+			}
+		}
+	}
+
+	// Método 4: User Agent
+	if (mode === 'auto' || mode === 'user-agent-only') {
+		if (typeof navigator !== 'undefined') {
+			const userAgent = navigator.userAgent.toLowerCase();
+			const mobileKeywords = ['android', 'webos', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone'];
+			if (mobileKeywords.some(keyword => userAgent.includes(keyword))) {
+				detectedBy.push('user-agent');
+				isMobile = true;
+			}
+		}
+	}
+
+	const result: MobileDetectionResult = {
+		isMobile,
+		detectedBy,
+		breakpoint,
+		viewport
+	};
+
+	// Debug logging
+	if (debug && typeof console !== 'undefined') {
+		console.log('[Position Resolver] Mobile detection:', {
+			mode,
+			result: isMobile ? 'MOBILE' : 'DESKTOP',
+			detectedBy: detectedBy.length > 0 ? detectedBy.join(', ') : 'none',
+			viewport,
+			breakpoint: `${breakpoint}px`
+		});
+	}
+
+	return result;
+}
+
+/**
+ * Versión simplificada que retorna solo boolean (retrocompatibilidad)
+ */
+export function isMobileDevice(config?: MobileDetectionConfig): boolean {
+	return detectMobileDevice(config).isMobile;
 }
 
 /**
@@ -147,8 +226,13 @@ function calculateWidgetPosition(buttonCoords: ChatPositionCoordinates): ChatPos
 
 /**
  * Resuelve una configuración de posición a coordenadas exactas
+ * @param config Configuración de posicionamiento
+ * @param mobileDetectionConfig Configuración para detección de dispositivo móvil
  */
-export function resolvePosition(config: ChatPositionConfig | DeviceSpecificPosition | undefined): ResolvedPosition {
+export function resolvePosition(
+	config: ChatPositionConfig | DeviceSpecificPosition | undefined,
+	mobileDetectionConfig?: MobileDetectionConfig
+): ResolvedPosition {
 	// Valor por defecto
 	const defaultPosition: ResolvedPosition = {
 		button: {
@@ -172,7 +256,7 @@ export function resolvePosition(config: ChatPositionConfig | DeviceSpecificPosit
 
 	if (deviceConfig.default !== undefined) {
 		// Tiene configuración default, verificar si hay override para mobile
-		const isMobile = isMobileDevice();
+		const isMobile = isMobileDevice(mobileDetectionConfig);
 
 		if (isMobile && deviceConfig.mobile) {
 			activeConfig = deviceConfig.mobile;

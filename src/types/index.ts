@@ -208,3 +208,15 @@ export interface ChatPositionCoordinates {
 }
 
 export type ChatPositionConfig = ChatPositionPreset | ChatPositionCoordinates;
+
+// --- Configuración de detección de dispositivo móvil ---
+export type MobileDetectionMode = 'auto' | 'size-only' | 'touch-only' | 'user-agent-only';
+
+export interface MobileDetectionConfig {
+	/** Modo de detección (default: 'auto') */
+	mode?: MobileDetectionMode;
+	/** Breakpoint en píxeles para detección por tamaño (default: 768) */
+	breakpoint?: number;
+	/** Habilitar logging de debug para diagnosticar detección (default: false) */
+	debug?: boolean;
+}

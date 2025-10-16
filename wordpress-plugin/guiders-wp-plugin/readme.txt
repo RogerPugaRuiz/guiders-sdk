@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.5.0
+Stable tag: 1.5.1
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,24 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.5.1 =
+* **🔧 Mejoras en Sistema de Detección de Dispositivos Móviles**: Sistema de detección ahora es completamente configurable
+  * Nueva configuración `mobileDetection` con parámetros opcionales
+  * Breakpoint configurable (640/768/992/1024px) - default: 768px
+  * Modos de detección seleccionables: 'auto', 'size-only', 'touch-only', 'user-agent-only'
+  * Métodos mejorados: Media queries, detección táctil (pointer: coarse), orientación, user agent
+  * Nueva función `detectMobileDevice()` retorna detalles completos de detección
+  * Debug logging opcional para diagnosticar detección en tiempo real
+  * Integración en WordPress: nuevos campos en panel de administración
+  * Validación y configuración automática desde admin de WordPress
+* **🔍 Mejoras Técnicas**:
+  * Nueva interfaz TypeScript: `MobileDetectionConfig`, `MobileDetectionResult`
+  * Resultado estructurado con `isMobile`, `detectedBy`, `breakpoint`, `viewport`
+  * Retrocompatibilidad completa: función `isMobileDevice()` preservada
+  * Comportamiento por defecto sin cambios (breakpoint 768px, modo 'auto')
+* **📦 Bundle**: 347 KB (sin cambios)
+* **🔗 Compatibilidad**: 100% retrocompatible, todas las mejoras son opt-in
 
 = 1.5.0 =
 * **✨ Nueva Funcionalidad: Display de Nombre de Comercial**: El chat ahora muestra el nombre real del comercial asignado en lugar del ID genérico

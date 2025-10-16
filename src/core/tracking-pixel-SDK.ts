@@ -18,7 +18,7 @@ import { resolveDefaultEndpoints } from "./endpoint-resolver";
 import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
 import { fetchChatDetail, fetchChatDetailV2, ChatDetail, ChatDetailV2, ChatParticipant } from "../services/chat-detail-service";
-import { VisitorInfoV2, ChatMetadataV2, ChatPositionConfig } from "../types";
+import { VisitorInfoV2, ChatMetadataV2, ChatPositionConfig, MobileDetectionConfig } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { WelcomeMessageConfig } from "./welcome-message-manager";
 import { DomTrackingManager, DefaultTrackDataExtractor } from "./dom-tracking-manager";
@@ -72,6 +72,8 @@ interface SDKOptions {
 	activeHours?: Partial<ActiveHoursConfig>;
 	// Chat widget positioning
 	chatPosition?: ChatPositionConfig;
+	// Mobile device detection configuration
+	mobileDetection?: MobileDetectionConfig;
 	// GDPR Consent Configuration
 	requireConsent?: boolean; // If false, SDK initializes without consent (default: true)
 	consent?: Partial<ConsentManagerConfig>; // Advanced consent options
@@ -157,6 +159,7 @@ export class TrackingPixelSDK {
 	private identitySignal: IdentitySignal;
 	private welcomeMessageConfig?: Partial<WelcomeMessageConfig>;
 	private chatPositionConfig?: ChatPositionConfig;
+	private mobileDetectionConfig?: MobileDetectionConfig;
 	private activeHoursValidator?: ActiveHoursValidator;
 	private identifyExecuted: boolean = false; // Flag para prevenir múltiples llamadas a identify()
 	private wsService: WebSocketService;
@@ -190,6 +193,9 @@ export class TrackingPixelSDK {
 
 		// Configurar posición del chat (opcional)
 		this.chatPositionConfig = options.chatPosition;
+
+		// Configurar detección de dispositivo móvil (opcional)
+		this.mobileDetectionConfig = options.mobileDetection;
 
 		// Configurar validador de horarios activos si se proporciona
 		if (options.activeHours && options.activeHours.enabled) {
@@ -393,6 +399,7 @@ export class TrackingPixelSDK {
 			widget: true,
 			welcomeMessage: this.welcomeMessageConfig,
 			position: this.chatPositionConfig,
+			mobileDetection: this.mobileDetectionConfig,
 		});
 		const chat = this.chatUI; // Alias para mantener compatibilidad con el código existente
 		const chatInput = new ChatInputUI(chat);
@@ -2171,6 +2178,7 @@ export class TrackingPixelSDK {
 			widget: true,
 			welcomeMessage: this.welcomeMessageConfig,
 			position: this.chatPositionConfig,
+			mobileDetection: this.mobileDetectionConfig,
 		});
 
 		const initChatOnly = () => {
