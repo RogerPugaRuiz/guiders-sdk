@@ -1,6 +1,7 @@
 // chat-input-ui.ts
 
 import { ChatUI } from "./chat";
+import { debugLog } from "../utils/debug-logger";
 
 interface ChatInputUIOptions {
 	placeholder?: string;
@@ -98,7 +99,7 @@ export class ChatInputUI {
 
 		// 🎲 Interceptar comandos de desarrollo (solo en modo dev)
 		if (this.isDevCommand(text)) {
-			console.log(`🎲 [ChatInput] Comando de desarrollo detectado: ${text}`);
+			debugLog(`🎲 [ChatInput] Comando de desarrollo detectado: ${text}`);
 			this.handleDevCommand(text);
 			// Limpiar el campo de texto sin enviar el comando como mensaje
 			this.inputField.value = '';
@@ -147,7 +148,7 @@ export class ChatInputUI {
 					}
 				});
 				window.dispatchEvent(customEvent);
-				console.log(`🎲 [ChatInput] Evento guidersDevCommand disparado para: ${text}`);
+				debugLog(`🎲 [ChatInput] Evento guidersDevCommand disparado para: ${text}`);
 			}
 		}
 	}

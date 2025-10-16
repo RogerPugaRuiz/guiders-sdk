@@ -22,6 +22,8 @@ export * from "./services/chat-v2-service";
 export * from "./services/consent-backend-service";
 export * from "./core/consent-manager";
 export * from "./types";
+// Debug utilities
+export { debugLog, debugWarn, debugError, enableDebug, disableDebug } from "./utils/debug-logger";
 // Se pueden exportar más etapas o servicios según se vayan implementando.
 
 declare global {

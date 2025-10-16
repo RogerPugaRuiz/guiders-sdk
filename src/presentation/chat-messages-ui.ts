@@ -1,6 +1,7 @@
 import { MessagePaginationService } from '../services/message-pagination-service';
 import { MessageV2, MessageListResponse } from '../types';
 import { MessageRenderer } from './utils/message-renderer';
+import { debugLog } from '../utils/debug-logger';
 
 /**
  * Componente de UI de mensajes con scroll infinito
@@ -50,7 +51,7 @@ export class ChatMessagesUI {
             scroll-behavior: smooth;
         `;
         
-        console.log(`📦 [ChatMessagesUI] setupUI: Usando contenedor existente como messagesContainer`);
+        debugLog(`📦 [ChatMessagesUI] setupUI: Usando contenedor existente como messagesContainer`);
     }
 
     /**
@@ -66,7 +67,7 @@ export class ChatMessagesUI {
     private async handleScroll(): Promise<void> {
         const { scrollTop, scrollHeight, clientHeight } = this.messagesContainer;
         
-        console.log(`🔍 [ChatMessagesUI] handleScroll ejecutándose:`, {
+        debugLog(`🔍 [ChatMessagesUI] handleScroll ejecutándose:`, {
             scrollTop,
             scrollHeight,
             clientHeight,
@@ -80,40 +81,40 @@ export class ChatMessagesUI {
 
         // Solo activar si tenemos un chat cargado y hay más mensajes
         if (!this.chatId) {
-            console.log(`❌ [ChatMessagesUI] handleScroll: Sin chatId`);
+            debugLog(`❌ [ChatMessagesUI] handleScroll: Sin chatId`);
             return;
         }
         
         if (!this.hasMoreMessages) {
-            console.log(`❌ [ChatMessagesUI] handleScroll: hasMoreMessages = false`);
+            debugLog(`❌ [ChatMessagesUI] handleScroll: hasMoreMessages = false`);
             return;
         }
         
         if (this.isLoading) {
-            console.log(`❌ [ChatMessagesUI] handleScroll: isLoading = true`);
+            debugLog(`❌ [ChatMessagesUI] handleScroll: isLoading = true`);
             return;
         }
 
         // 🛡️ Prevenir carga automática después de scrollToBottom
         if (this.preventAutoScrollLoad) {
-            console.log(`🛡️ [ChatMessagesUI] handleScroll: preventAutoScrollLoad activo - ignorando threshold`);
+            debugLog(`🛡️ [ChatMessagesUI] handleScroll: preventAutoScrollLoad activo - ignorando threshold`);
             
             // Si el usuario hace scroll manual significativo, desactivar la protección
             if (scrollTop > this.SCROLL_THRESHOLD * 2) { // Si se aleja del threshold por 2x
                 this.preventAutoScrollLoad = false;
-                console.log(`✅ [ChatMessagesUI] handleScroll: Usuario hizo scroll manual - desactivando preventAutoScrollLoad`);
+                debugLog(`✅ [ChatMessagesUI] handleScroll: Usuario hizo scroll manual - desactivando preventAutoScrollLoad`);
             }
             return;
         }
 
-        console.log(`🔍 [ChatMessagesUI] Verificando threshold: scrollTop=${scrollTop} <= ${this.SCROLL_THRESHOLD}?`);
+        debugLog(`🔍 [ChatMessagesUI] Verificando threshold: scrollTop=${scrollTop} <= ${this.SCROLL_THRESHOLD}?`);
         
         // Si el usuario ha hecho scroll cerca del top, cargar más mensajes
         if (scrollTop <= this.SCROLL_THRESHOLD) {
-            console.log(`🚀 [ChatMessagesUI] THRESHOLD ALCANZADO! Iniciando loadOlderMessages...`);
+            debugLog(`🚀 [ChatMessagesUI] THRESHOLD ALCANZADO! Iniciando loadOlderMessages...`);
             await this.loadOlderMessages();
         } else {
-            console.log(`📊 [ChatMessagesUI] Threshold no alcanzado. Necesita scroll más arriba.`);
+            debugLog(`📊 [ChatMessagesUI] Threshold no alcanzado. Necesita scroll más arriba.`);
         }
     }
 
@@ -123,10 +124,10 @@ export class ChatMessagesUI {
      * @param chatId ID del chat
      */
     async initializeChat(chatId: string): Promise<void> {
-        console.log(`💬 [ChatMessagesUI] Inicializando chat: ${chatId}`);
+        debugLog(`💬 [ChatMessagesUI] Inicializando chat: ${chatId}`);
         
         if (this.chatId === chatId && !this.isInitialLoad) {
-            console.log(`💬 [ChatMessagesUI] Chat ${chatId} ya está inicializado`);
+            debugLog(`💬 [ChatMessagesUI] Chat ${chatId} ya está inicializado`);
             return;
         }
 
@@ -154,7 +155,7 @@ export class ChatMessagesUI {
 
         try {
             this.isLoading = true;
-            console.log(`📋 [ChatMessagesUI] Cargando mensajes iniciales...`);
+            debugLog(`📋 [ChatMessagesUI] Cargando mensajes iniciales...`);
             
             const response = await this.messagePaginationService.loadInitialMessages(
                 this.chatId, 
@@ -167,7 +168,7 @@ export class ChatMessagesUI {
             // Hacer scroll al bottom automáticamente al abrir
             this.scrollToBottom();
             
-            console.log(`✅ [ChatMessagesUI] Mensajes iniciales cargados y scroll al bottom realizado`);
+            debugLog(`✅ [ChatMessagesUI] Mensajes iniciales cargados y scroll al bottom realizado`);
             
         } catch (error) {
             console.error('❌ [ChatMessagesUI] Error cargando mensajes iniciales:', error);
@@ -181,8 +182,8 @@ export class ChatMessagesUI {
      * Carga mensajes más antiguos (scroll infinito)
      */
     private async loadOlderMessages(): Promise<void> {
-        console.log(`🚀 [ChatMessagesUI] loadOlderMessages INICIADO`);
-        console.log(`🔍 [ChatMessagesUI] Estado antes de validaciones:`, {
+        debugLog(`🚀 [ChatMessagesUI] loadOlderMessages INICIADO`);
+        debugLog(`🔍 [ChatMessagesUI] Estado antes de validaciones:`, {
             chatId: this.chatId,
             currentCursor: this.currentCursor,
             hasMoreMessages: this.hasMoreMessages,
@@ -190,17 +191,17 @@ export class ChatMessagesUI {
         });
 
         if (!this.chatId) {
-            console.log(`❌ [ChatMessagesUI] loadOlderMessages: Sin chatId`);
+            debugLog(`❌ [ChatMessagesUI] loadOlderMessages: Sin chatId`);
             return;
         }
         
         if (!this.currentCursor) {
-            console.log(`❌ [ChatMessagesUI] loadOlderMessages: Sin currentCursor`);
+            debugLog(`❌ [ChatMessagesUI] loadOlderMessages: Sin currentCursor`);
             return;
         }
         
         if (!this.hasMoreMessages) {
-            console.log(`❌ [ChatMessagesUI] loadOlderMessages: hasMoreMessages = false`);
+            debugLog(`❌ [ChatMessagesUI] loadOlderMessages: hasMoreMessages = false`);
             return;
         }
 
@@ -208,8 +209,8 @@ export class ChatMessagesUI {
             this.isLoading = true;
             this.showTopLoadingIndicator();
             
-            console.log(`📜 [ChatMessagesUI] ✅ LLAMANDO AL BACKEND - Cargando mensajes antiguos...`);
-            console.log(`📋 [ChatMessagesUI] Parámetros de petición:`, {
+            debugLog(`📜 [ChatMessagesUI] ✅ LLAMANDO AL BACKEND - Cargando mensajes antiguos...`);
+            debugLog(`📋 [ChatMessagesUI] Parámetros de petición:`, {
                 chatId: this.chatId,
                 cursor: this.currentCursor,
                 limit: this.MESSAGE_LIMIT
@@ -225,7 +226,7 @@ export class ChatMessagesUI {
                 this.MESSAGE_LIMIT
             );
 
-            console.log(`📦 [ChatMessagesUI] Respuesta del backend:`, response);
+            debugLog(`📦 [ChatMessagesUI] Respuesta del backend:`, response);
 
             this.renderOlderMessages(response);
             this.updatePaginationState(response);
@@ -235,7 +236,7 @@ export class ChatMessagesUI {
             const heightDifference = scrollHeightAfter - scrollHeightBefore;
             this.messagesContainer.scrollTop = scrollTopBefore + heightDifference;
             
-            console.log(`✅ [ChatMessagesUI] ${response.messages.length} mensajes antiguos cargados`);
+            debugLog(`✅ [ChatMessagesUI] ${response.messages.length} mensajes antiguos cargados`);
             
         } catch (error) {
             console.error('❌ [ChatMessagesUI] Error cargando mensajes antiguos:', error);
@@ -486,12 +487,12 @@ export class ChatMessagesUI {
      * Actualiza el estado de paginación
      */
     private updatePaginationState(response: MessageListResponse): void {
-        console.log(`🔄 [ChatMessagesUI] updatePaginationState ANTES:`, {
+        debugLog(`🔄 [ChatMessagesUI] updatePaginationState ANTES:`, {
             prevHasMore: this.hasMoreMessages,
             prevCursor: this.currentCursor
         });
         
-        console.log(`📥 [ChatMessagesUI] Respuesta recibida:`, {
+        debugLog(`📥 [ChatMessagesUI] Respuesta recibida:`, {
             hasMore: response.hasMore,
             cursor: response.cursor,
             nextCursor: response.nextCursor,
@@ -502,7 +503,7 @@ export class ChatMessagesUI {
         
         // Extraer cursor de la respuesta (tanto cursor como nextCursor para compatibilidad)
         const extractedCursor = response.cursor || response.nextCursor;
-        console.log(`🔍 [ChatMessagesUI] Cursor extraído:`, { extractedCursor, hasMore: response.hasMore });
+        debugLog(`🔍 [ChatMessagesUI] Cursor extraído:`, { extractedCursor, hasMore: response.hasMore });
         
         if (extractedCursor && response.hasMore) {
             this.currentCursor = extractedCursor;
@@ -510,7 +511,7 @@ export class ChatMessagesUI {
             this.currentCursor = null;
         }
 
-        console.log(`📊 [ChatMessagesUI] Estado paginación actualizado DESPUÉS:`, {
+        debugLog(`📊 [ChatMessagesUI] Estado paginación actualizado DESPUÉS:`, {
             hasMore: this.hasMoreMessages,
             hasCursor: !!this.currentCursor,
             cursor: this.currentCursor,
@@ -524,7 +525,7 @@ export class ChatMessagesUI {
     public scrollToBottom(): void {
         // 🛡️ Activar flag para prevenir carga automática
         this.preventAutoScrollLoad = true;
-        console.log(`🛡️ [ChatMessagesUI] scrollToBottom: Activando preventAutoScrollLoad`);
+        debugLog(`🛡️ [ChatMessagesUI] scrollToBottom: Activando preventAutoScrollLoad`);
         
         requestAnimationFrame(() => {
             this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
@@ -532,7 +533,7 @@ export class ChatMessagesUI {
             // 🛡️ Desactivar flag después de un breve delay para permitir que el scroll se estabilice
             setTimeout(() => {
                 this.preventAutoScrollLoad = false;
-                console.log(`✅ [ChatMessagesUI] scrollToBottom: Desactivando preventAutoScrollLoad después de delay`);
+                debugLog(`✅ [ChatMessagesUI] scrollToBottom: Desactivando preventAutoScrollLoad después de delay`);
             }, 500); // 500ms debería ser suficiente para que se estabilice el scroll
         });
     }

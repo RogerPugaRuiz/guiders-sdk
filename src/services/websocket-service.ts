@@ -30,6 +30,7 @@ import {
 	ChatCreatedEvent
 } from '../types/websocket-types';
 import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { debugLog } from '../utils/debug-logger';
 
 export class WebSocketService {
 	private static instance: WebSocketService;
@@ -41,7 +42,7 @@ export class WebSocketService {
 	private currentVisitorId: string | null = null;
 
 	private constructor() {
-		console.log('📡 [WebSocketService] Instancia creada');
+		debugLog('📡 [WebSocketService] Instancia creada');
 	}
 
 	public static getInstance(): WebSocketService {
@@ -58,7 +59,7 @@ export class WebSocketService {
 	 */
 	public connect(config: Partial<WebSocketConfig>, callbacks: WebSocketCallbacks = {}): void {
 		if (this.socket && this.socket.connected) {
-			console.log('📡 [WebSocketService] ⚠️ Ya hay una conexión activa');
+			debugLog('📡 [WebSocketService] ⚠️ Ya hay una conexión activa');
 			return;
 		}
 
@@ -66,9 +67,9 @@ export class WebSocketService {
 		const endpoints = EndpointManager.getInstance();
 		const wsEndpoint = endpoints.getWebSocketEndpoint();
 
-		console.log('📡 [WebSocketService] 🔍 INICIO DE CONEXIÓN WebSocket');
-		console.log('📡 [WebSocketService] 📋 Endpoint resuelto:', wsEndpoint);
-		console.log('📡 [WebSocketService] 📋 Config recibida:', {
+		debugLog('📡 [WebSocketService] 🔍 INICIO DE CONEXIÓN WebSocket');
+		debugLog('📡 [WebSocketService] 📋 Endpoint resuelto:', wsEndpoint);
+		debugLog('📡 [WebSocketService] 📋 Config recibida:', {
 			url: config.url,
 			path: config.path,
 			hasAuthToken: !!config.authToken,
@@ -90,7 +91,7 @@ export class WebSocketService {
 
 		this.callbacks = callbacks;
 
-		console.log('📡 [WebSocketService] 🚀 INTENTANDO CONECTAR a:', {
+		debugLog('📡 [WebSocketService] 🚀 INTENTANDO CONECTAR a:', {
 			url: this.config.url,
 			fullUrl: this.config.url + this.config.path,
 			path: this.config.path,
@@ -101,7 +102,7 @@ export class WebSocketService {
 			hasToken: !!this.config.authToken,
 			hasSessionId: !!this.config.sessionId
 		});
-		console.log('📡 [WebSocketService] 🌐 URL COMPLETA WebSocket:', `${this.config.url}${this.config.path}`);
+		debugLog('📡 [WebSocketService] 🌐 URL COMPLETA WebSocket:', `${this.config.url}${this.config.path}`);
 
 		// Crear socket con configuración
 		const socketOptions: any = {
@@ -122,8 +123,8 @@ export class WebSocketService {
 
 		this.socket = io(this.config.url, socketOptions);
 
-		console.log('📡 [WebSocketService] ✅ Socket.IO cliente creado');
-		console.log('📡 [WebSocketService] 🔌 Esperando conexión...');
+		debugLog('📡 [WebSocketService] ✅ Socket.IO cliente creado');
+		debugLog('📡 [WebSocketService] 🔌 Esperando conexión...');
 
 		// Registrar event listeners
 		this.registerEventListeners();
@@ -138,21 +139,21 @@ export class WebSocketService {
 		// Eventos de conexión
 		this.socket.on('connect', () => {
 			this.state = WebSocketState.CONNECTED;
-			console.log('📡 [WebSocketService] ✅✅✅ CONEXIÓN EXITOSA! ✅✅✅');
-			console.log('📡 [WebSocketService] 🆔 Socket ID:', this.socket?.id);
-			console.log('📡 [WebSocketService] 🌐 URL conectada:', this.config?.url);
-			console.log('📡 [WebSocketService] 📍 Path:', this.config?.path);
-			console.log('📡 [WebSocketService] 🚀 Transporte usado:', this.socket?.io?.engine?.transport?.name);
+			debugLog('📡 [WebSocketService] ✅✅✅ CONEXIÓN EXITOSA! ✅✅✅');
+			debugLog('📡 [WebSocketService] 🆔 Socket ID:', this.socket?.id);
+			debugLog('📡 [WebSocketService] 🌐 URL conectada:', this.config?.url);
+			debugLog('📡 [WebSocketService] 📍 Path:', this.config?.path);
+			debugLog('📡 [WebSocketService] 🚀 Transporte usado:', this.socket?.io?.engine?.transport?.name);
 
 			// Re-unirse a sala de visitante si estaba conectado
 			if (this.currentVisitorId) {
-				console.log('📡 [WebSocketService] 🔄 Re-uniéndose a sala de visitante:', this.currentVisitorId);
+				debugLog('📡 [WebSocketService] 🔄 Re-uniéndose a sala de visitante:', this.currentVisitorId);
 				this.joinVisitorRoom(this.currentVisitorId);
 			}
 
 			// Re-unirse a salas de chat activas después de reconectar
 			if (this.currentRooms.size > 0) {
-				console.log('📡 [WebSocketService] 🔄 Re-uniéndose a salas activas:', Array.from(this.currentRooms));
+				debugLog('📡 [WebSocketService] 🔄 Re-uniéndose a salas activas:', Array.from(this.currentRooms));
 				this.currentRooms.forEach(chatId => {
 					this.joinChatRoom(chatId);
 				});
@@ -165,9 +166,9 @@ export class WebSocketService {
 
 		this.socket.on('disconnect', (reason: string) => {
 			this.state = WebSocketState.DISCONNECTED;
-			console.log('📡 [WebSocketService] ⚠️⚠️ DESCONECTADO ⚠️⚠️');
-			console.log('📡 [WebSocketService] 📋 Razón:', reason);
-			console.log('📡 [WebSocketService] 🌐 URL que estaba conectada:', this.config?.url);
+			debugLog('📡 [WebSocketService] ⚠️⚠️ DESCONECTADO ⚠️⚠️');
+			debugLog('📡 [WebSocketService] 📋 Razón:', reason);
+			debugLog('📡 [WebSocketService] 🌐 URL que estaba conectada:', this.config?.url);
 
 			if (this.callbacks.onDisconnect) {
 				this.callbacks.onDisconnect(reason);
@@ -194,18 +195,18 @@ export class WebSocketService {
 
 		this.socket.io.on('reconnect_attempt', (attemptNumber: number) => {
 			this.state = WebSocketState.RECONNECTING;
-			console.log('📡 [WebSocketService] 🔄 INTENTO DE RECONEXIÓN #' + attemptNumber);
-			console.log('📡 [WebSocketService] 🌐 URL:', this.config?.url);
+			debugLog('📡 [WebSocketService] 🔄 INTENTO DE RECONEXIÓN #' + attemptNumber);
+			debugLog('📡 [WebSocketService] 🌐 URL:', this.config?.url);
 		});
 
 		this.socket.io.on('reconnect', (attemptNumber: number) => {
 			this.state = WebSocketState.CONNECTED;
-			console.log('📡 [WebSocketService] ✅ Reconectado después de', attemptNumber, 'intentos');
+			debugLog('📡 [WebSocketService] ✅ Reconectado después de', attemptNumber, 'intentos');
 		});
 
 		// Eventos del chat
 		this.socket.on('message:new', (message: RealtimeMessage) => {
-			console.log('📡 [WebSocketService] 📨 Nuevo mensaje recibido:', {
+			debugLog('📡 [WebSocketService] 📨 Nuevo mensaje recibido:', {
 				messageId: message.messageId,
 				chatId: message.chatId,
 				senderId: message.senderId,
@@ -218,7 +219,7 @@ export class WebSocketService {
 		});
 
 		this.socket.on('chat:status', (statusUpdate: ChatStatusUpdate) => {
-			console.log('📡 [WebSocketService] 📊 Estado del chat actualizado:', statusUpdate);
+			debugLog('📡 [WebSocketService] 📊 Estado del chat actualizado:', statusUpdate);
 
 			if (this.callbacks.onChatStatus) {
 				this.callbacks.onChatStatus(statusUpdate);
@@ -226,7 +227,7 @@ export class WebSocketService {
 		});
 
 		this.socket.on('user:typing', (typing: TypingIndicator) => {
-			console.log('📡 [WebSocketService] ✍️ Typing indicator:', typing);
+			debugLog('📡 [WebSocketService] ✍️ Typing indicator:', typing);
 
 			if (this.callbacks.onTyping) {
 				this.callbacks.onTyping(typing);
@@ -235,7 +236,7 @@ export class WebSocketService {
 
 		// Evento de chat creado proactivamente
 		this.socket.on('chat:created', (event: ChatCreatedEvent) => {
-			console.log('📡 [WebSocketService] 🎉 Chat creado proactivamente:', {
+			debugLog('📡 [WebSocketService] 🎉 Chat creado proactivamente:', {
 				chatId: event.chatId,
 				visitorId: event.visitorId,
 				status: event.status,
@@ -249,11 +250,11 @@ export class WebSocketService {
 
 		// Confirmaciones de sala de visitante
 		this.socket.on('visitor:joined', (data: any) => {
-			console.log('📡 [WebSocketService] ✅ Confirmación de unión a sala de visitante:', data);
+			debugLog('📡 [WebSocketService] ✅ Confirmación de unión a sala de visitante:', data);
 		});
 
 		this.socket.on('visitor:left', (data: any) => {
-			console.log('📡 [WebSocketService] ✅ Confirmación de salida de sala de visitante:', data);
+			debugLog('📡 [WebSocketService] ✅ Confirmación de salida de sala de visitante:', data);
 		});
 	}
 
@@ -267,7 +268,7 @@ export class WebSocketService {
 			return;
 		}
 
-		console.log('📡 [WebSocketService] 🚪 Uniéndose a sala de chat:', chatId);
+		debugLog('📡 [WebSocketService] 🚪 Uniéndose a sala de chat:', chatId);
 
 		const payload: JoinChatRoomPayload = { chatId };
 		this.socket.emit('chat:join', payload);
@@ -285,7 +286,7 @@ export class WebSocketService {
 			return;
 		}
 
-		console.log('📡 [WebSocketService] 🚪 Saliendo de sala de chat:', chatId);
+		debugLog('📡 [WebSocketService] 🚪 Saliendo de sala de chat:', chatId);
 
 		const payload: LeaveChatRoomPayload = { chatId };
 		this.socket.emit('chat:leave', payload);
@@ -318,12 +319,12 @@ export class WebSocketService {
 			return;
 		}
 
-		console.log('📡 [WebSocketService] 🚪 Uniéndose a sala de visitante:', visitorId);
+		debugLog('📡 [WebSocketService] 🚪 Uniéndose a sala de visitante:', visitorId);
 
 		const payload: JoinVisitorRoomPayload = { visitorId };
 		this.socket.emit('visitor:join', payload, (response: any) => {
 			if (response?.success) {
-				console.log('📡 [WebSocketService] ✅ Unido a sala de visitante:', response.roomName);
+				debugLog('📡 [WebSocketService] ✅ Unido a sala de visitante:', response.roomName);
 				this.currentVisitorId = visitorId;
 			} else {
 				console.error('📡 [WebSocketService] ❌ Error al unirse a sala de visitante:', response?.message);
@@ -341,12 +342,12 @@ export class WebSocketService {
 			return;
 		}
 
-		console.log('📡 [WebSocketService] 🚪 Saliendo de sala de visitante:', visitorId);
+		debugLog('📡 [WebSocketService] 🚪 Saliendo de sala de visitante:', visitorId);
 
 		const payload: LeaveVisitorRoomPayload = { visitorId };
 		this.socket.emit('visitor:leave', payload, (response: any) => {
 			if (response?.success) {
-				console.log('📡 [WebSocketService] ✅ Saliste de sala de visitante');
+				debugLog('📡 [WebSocketService] ✅ Saliste de sala de visitante');
 				this.currentVisitorId = null;
 			}
 		});
@@ -357,7 +358,7 @@ export class WebSocketService {
 	 */
 	public disconnect(): void {
 		if (this.socket) {
-			console.log('📡 [WebSocketService] 🔌 Desconectando...');
+			debugLog('📡 [WebSocketService] 🔌 Desconectando...');
 
 			// Salir de sala de visitante si estaba conectado
 			if (this.currentVisitorId) {
@@ -479,6 +480,6 @@ export class WebSocketService {
 		}
 
 		this.callbacks = mergedCallbacks;
-		console.log('📡 [WebSocketService] 🔄 Callbacks actualizados y fusionados');
+		debugLog('📡 [WebSocketService] 🔄 Callbacks actualizados y fusionados');
 	}
 }

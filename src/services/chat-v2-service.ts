@@ -1,4 +1,5 @@
 import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { debugLog } from '../utils/debug-logger';
 import { ChatV2, ChatListV2 } from '../types';
 
 /**
@@ -73,7 +74,7 @@ export class ChatV2Service {
 	 * @returns Promise con la lista de chats del visitante
 	 */
 	async getVisitorChats(visitorId: string, cursor?: string, limit: number = 20): Promise<ChatListV2> {
-		console.log(`[ChatV2Service] 👤 Obteniendo chats del visitante: ${visitorId}`);
+		debugLog(`[ChatV2Service] 👤 Obteniendo chats del visitante: ${visitorId}`);
 
 		const params = new URLSearchParams();
 		if (cursor) params.append('cursor', cursor);
@@ -90,7 +91,7 @@ export class ChatV2Service {
 		}
 
 		const chatList = await response.json() as ChatListV2;
-		console.log(`[ChatV2Service] ✅ Chats del visitante obtenidos:`, {
+		debugLog(`[ChatV2Service] ✅ Chats del visitante obtenidos:`, {
 			count: chatList.chats.length,
 			total: chatList.total,
 			hasMore: chatList.hasMore
@@ -129,7 +130,7 @@ export class ChatV2Service {
 		limit: number = 20,
 		filters?: Record<string, any>
 	): Promise<ChatListV2> {
-		console.log(`[ChatV2Service] 🏪 Obteniendo chats del comercial: ${commercialId}`);
+		debugLog(`[ChatV2Service] 🏪 Obteniendo chats del comercial: ${commercialId}`);
 
 		const params = new URLSearchParams();
 		if (cursor) params.append('cursor', cursor);
@@ -155,7 +156,7 @@ export class ChatV2Service {
 		}
 
 		const chatList = await response.json() as ChatListV2;
-		console.log(`[ChatV2Service] ✅ Chats del comercial obtenidos:`, {
+		debugLog(`[ChatV2Service] ✅ Chats del comercial obtenidos:`, {
 			count: chatList.chats.length,
 			total: chatList.total,
 			hasMore: chatList.hasMore
@@ -171,7 +172,7 @@ export class ChatV2Service {
 	 * @returns Promise con la lista de chats pendientes
 	 */
 	async getPendingQueue(department?: string, limit: number = 50): Promise<ChatV2[]> {
-		console.log(`[ChatV2Service] 📋 Obteniendo cola de chats pendientes`);
+		debugLog(`[ChatV2Service] 📋 Obteniendo cola de chats pendientes`);
 
 		const params = new URLSearchParams();
 		if (department) params.append('department', department);
@@ -188,7 +189,7 @@ export class ChatV2Service {
 		}
 
 		const chats = await response.json() as ChatV2[];
-		console.log(`[ChatV2Service] ✅ Cola de chats pendientes obtenida:`, {
+		debugLog(`[ChatV2Service] ✅ Cola de chats pendientes obtenida:`, {
 			count: chats.length
 		});
 
@@ -202,7 +203,7 @@ export class ChatV2Service {
 	 * @returns Promise con el chat actualizado
 	 */
 	async assignChat(chatId: string, commercialId: string): Promise<ChatV2> {
-		console.log(`[ChatV2Service] 📌 Asignando chat ${chatId} al comercial ${commercialId}`);
+		debugLog(`[ChatV2Service] 📌 Asignando chat ${chatId} al comercial ${commercialId}`);
 
 		const response = await fetch(`${this.getBaseUrl()}/${chatId}/assign/${commercialId}`, this.getFetchOptions('PUT'));
 
@@ -213,7 +214,7 @@ export class ChatV2Service {
 		}
 
 		const chat = await response.json() as ChatV2;
-		console.log(`[ChatV2Service] ✅ Chat asignado exitosamente`);
+		debugLog(`[ChatV2Service] ✅ Chat asignado exitosamente`);
 
 		return chat;
 	}
@@ -224,7 +225,7 @@ export class ChatV2Service {
 	 * @returns Promise con el chat actualizado
 	 */
 	async closeChat(chatId: string): Promise<ChatV2> {
-		console.log(`[ChatV2Service] 🔒 Cerrando chat ${chatId}`);
+		debugLog(`[ChatV2Service] 🔒 Cerrando chat ${chatId}`);
 
 		const response = await fetch(`${this.getBaseUrl()}/${chatId}/close`, this.getFetchOptions('PUT'));
 
@@ -235,7 +236,7 @@ export class ChatV2Service {
 		}
 
 		const chat = await response.json() as ChatV2;
-		console.log(`[ChatV2Service] ✅ Chat cerrado exitosamente`);
+		debugLog(`[ChatV2Service] ✅ Chat cerrado exitosamente`);
 
 		return chat;
 	}
@@ -252,7 +253,7 @@ export class ChatV2Service {
 		dateFrom?: Date,
 		dateTo?: Date
 	): Promise<any> {
-		console.log(`[ChatV2Service] 📊 Obteniendo métricas del comercial: ${commercialId}`);
+		debugLog(`[ChatV2Service] 📊 Obteniendo métricas del comercial: ${commercialId}`);
 
 		const params = new URLSearchParams();
 		if (dateFrom) params.append('dateFrom', dateFrom.toISOString());
@@ -269,7 +270,7 @@ export class ChatV2Service {
 		}
 
 		const metrics = await response.json();
-		console.log(`[ChatV2Service] ✅ Métricas obtenidas`);
+		debugLog(`[ChatV2Service] ✅ Métricas obtenidas`);
 
 		return metrics;
 	}
@@ -286,7 +287,7 @@ export class ChatV2Service {
 		dateTo?: Date,
 		groupBy: 'hour' | 'day' | 'week' = 'day'
 	): Promise<any[]> {
-		console.log(`[ChatV2Service] ⏱️ Obteniendo estadísticas de tiempo de respuesta`);
+		debugLog(`[ChatV2Service] ⏱️ Obteniendo estadísticas de tiempo de respuesta`);
 
 		const params = new URLSearchParams();
 		if (dateFrom) params.append('dateFrom', dateFrom.toISOString());
@@ -304,7 +305,7 @@ export class ChatV2Service {
 		}
 
 		const stats = await response.json();
-		console.log(`[ChatV2Service] ✅ Estadísticas obtenidas`);
+		debugLog(`[ChatV2Service] ✅ Estadísticas obtenidas`);
 
 		return stats;
 	}
@@ -315,7 +316,7 @@ export class ChatV2Service {
 	 * @returns Promise con el chat creado
 	 */
 	async createChatAuto(payload: any): Promise<ChatV2> {
-		console.log('[ChatV2Service] 🆕 Creando chat V2 por POST (auto-id)');
+		debugLog('[ChatV2Service] 🆕 Creando chat V2 por POST (auto-id)');
 		const response = await fetch(`${this.getBaseUrl()}`, this.getFetchOptions('POST', JSON.stringify(payload)));
 		if (!response.ok) {
 			const errorText = await response.text();
@@ -323,7 +324,7 @@ export class ChatV2Service {
 			throw new Error(`Error al crear chat V2 (POST) (${response.status}): ${errorText}`);
 		}
 		const chat = await response.json() as ChatV2;
-		console.log('[ChatV2Service] ✅ Chat V2 creado (POST):', chat.id);
+		debugLog('[ChatV2Service] ✅ Chat V2 creado (POST):', chat.id);
 		return chat;
 	}
 
@@ -335,7 +336,7 @@ export class ChatV2Service {
 	 * @returns Promise con la respuesta de la API: { chatId, messageId, position }
 	 */
 	async createChatWithMessage(chatData: any, messageData: any): Promise<{ chatId: string; messageId: string; position: number }> {
-		console.log('[ChatV2Service] 🆕💬 Creando chat V2 con mensaje inicial');
+		debugLog('[ChatV2Service] 🆕💬 Creando chat V2 con mensaje inicial');
 		
 		// Estructura corregida según la API real: firstMessage en lugar de message
 		const payload = {
@@ -343,7 +344,7 @@ export class ChatV2Service {
 			firstMessage: messageData // El mensaje va como firstMessage
 		};
 
-		console.log('[ChatV2Service] 📤 Payload enviado:', JSON.stringify(payload, null, 2));
+		debugLog('[ChatV2Service] 📤 Payload enviado:', JSON.stringify(payload, null, 2));
 
 		const response = await fetch(`${this.getBaseUrl()}/with-message`, this.getFetchOptions('POST', JSON.stringify(payload)));
 		
@@ -354,7 +355,7 @@ export class ChatV2Service {
 		}
 
 		const result = await response.json();
-		console.log('[ChatV2Service] ✅ Chat V2 con mensaje creado:', result.chat?.chatId || result.chat?.id);
+		debugLog('[ChatV2Service] ✅ Chat V2 con mensaje creado:', result.chat?.chatId || result.chat?.id);
 		
 		return result;
 	}
@@ -367,7 +368,7 @@ export class ChatV2Service {
 	 * @returns Promise con el mensaje enviado
 	 */
 	async sendMessage(chatId: string, content: string, type: string = 'text'): Promise<any> {
-		console.log(`[ChatV2Service] 💬 Enviando mensaje al chat ${chatId}`);
+		debugLog(`[ChatV2Service] 💬 Enviando mensaje al chat ${chatId}`);
 		
 		const payload = {
 			chatId,
@@ -390,7 +391,7 @@ export class ChatV2Service {
 		}
 
 		const message = await response.json();
-		console.log('[ChatV2Service] ✅ Mensaje enviado:', message.messageId || message.id);
+		debugLog('[ChatV2Service] ✅ Mensaje enviado:', message.messageId || message.id);
 		
 		return message;
 	}
@@ -409,7 +410,7 @@ export class ChatV2Service {
 		chatData: any = {}, 
 		messageType: string = 'text'
 	): Promise<{ chat: { id: string }; message: { id: string }; isNewChat: boolean }> {
-		console.log(`[ChatV2Service] 🧠 Enviando mensaje inteligente para visitante ${visitorId}`);
+		debugLog(`[ChatV2Service] 🧠 Enviando mensaje inteligente para visitante ${visitorId}`);
 
 		try {
 			// Primero intentar obtener chats existentes del visitante
@@ -418,7 +419,7 @@ export class ChatV2Service {
 			if (chatList.chats && chatList.chats.length > 0) {
 				// Existe al menos un chat, usar el primero (más reciente) y enviar mensaje
 				const existingChat = chatList.chats[0];
-				console.log(`[ChatV2Service] 📋 Chat existente encontrado: ${existingChat.id}, enviando mensaje`);
+				debugLog(`[ChatV2Service] 📋 Chat existente encontrado: ${existingChat.id}, enviando mensaje`);
 				
 				const message = await this.sendMessage(existingChat.id, content, messageType);
 				
@@ -429,7 +430,7 @@ export class ChatV2Service {
 				};
 			} else {
 				// No hay chats existentes, crear uno nuevo con el mensaje
-				console.log(`[ChatV2Service] 🆕 No hay chats existentes, creando chat nuevo con mensaje`);
+				debugLog(`[ChatV2Service] 🆕 No hay chats existentes, creando chat nuevo con mensaje`);
 				
 				const messageData = { content, type: messageType };
 				const result = await this.createChatWithMessage(chatData, messageData);
@@ -458,7 +459,7 @@ export class ChatV2Service {
 		limit: number = 50,
 		cursor?: string
 	): Promise<any> {
-		console.log(`[ChatV2Service] 📋 Obteniendo mensajes del chat: ${chatId}`);
+		debugLog(`[ChatV2Service] 📋 Obteniendo mensajes del chat: ${chatId}`);
 
 		const params = new URLSearchParams();
 		params.append('limit', limit.toString());
@@ -485,7 +486,7 @@ export class ChatV2Service {
 			messageList.cursor = messageList.nextCursor;
 		}
 		
-		console.log(`[ChatV2Service] ✅ Mensajes del chat obtenidos:`, {
+		debugLog(`[ChatV2Service] ✅ Mensajes del chat obtenidos:`, {
 			count: messageList.messages?.length || 0,
 			total: messageList.total,
 			hasMore: messageList.hasMore,

@@ -1,6 +1,6 @@
 /**
  * 💬 RealtimeMessageManager - Gestión de mensajes en tiempo real
- * 
+ *
  * Responsabilidades:
  * - Coordinar WebSocketService con ChatUI
  * - Transformar eventos WebSocket a formato UI
@@ -9,6 +9,7 @@
  * - Caché local de mensajes recientes
  */
 
+import { debugLog } from '../utils/debug-logger';
 import { WebSocketService } from './websocket-service';
 import { ChatV2Service } from './chat-v2-service';
 import { RealtimeMessage, ChatStatusUpdate, TypingIndicator } from '../types/websocket-types';
@@ -42,7 +43,7 @@ export class RealtimeMessageManager {
 	private constructor() {
 		this.wsService = WebSocketService.getInstance();
 		this.chatService = ChatV2Service.getInstance();
-		console.log('💬 [RealtimeMessageManager] Instancia creada');
+		debugLog('💬 [RealtimeMessageManager] Instancia creada');
 	}
 
 	public static getInstance(): RealtimeMessageManager {
@@ -56,7 +57,7 @@ export class RealtimeMessageManager {
 	 * Inicializa el gestor con opciones
 	 */
 	public initialize(options: RealtimeMessageManagerOptions): void {
-		console.log('💬 [RealtimeMessageManager] 🚀 Inicializando con:', {
+		debugLog('💬 [RealtimeMessageManager] 🚀 Inicializando con:', {
 			visitorId: options.visitorId,
 			hasChatUI: !!options.chatUI,
 			enableTyping: options.enableTypingIndicators
@@ -77,7 +78,7 @@ export class RealtimeMessageManager {
 			onTyping: (typing) => this.handleTyping(typing)
 		});
 
-		console.log('💬 [RealtimeMessageManager] ✅ Inicializado correctamente');
+		debugLog('💬 [RealtimeMessageManager] ✅ Inicializado correctamente');
 	}
 
 	/**
@@ -85,11 +86,11 @@ export class RealtimeMessageManager {
 	 */
 	public setCurrentChat(chatId: string): void {
 		if (this.currentChatId === chatId) {
-			console.log('💬 [RealtimeMessageManager] Chat ya activo:', chatId);
+			debugLog('💬 [RealtimeMessageManager] Chat ya activo:', chatId);
 			return;
 		}
 
-		console.log('💬 [RealtimeMessageManager] 📌 Cambiando chat activo:', {
+		debugLog('💬 [RealtimeMessageManager] 📌 Cambiando chat activo:', {
 			anterior: this.currentChatId,
 			nuevo: chatId
 		});
@@ -118,7 +119,7 @@ export class RealtimeMessageManager {
 			throw new Error('No hay chat activo');
 		}
 
-		console.log('💬 [RealtimeMessageManager] 📤 Enviando mensaje via HTTP:', {
+		debugLog('💬 [RealtimeMessageManager] 📤 Enviando mensaje via HTTP:', {
 			chatId: this.currentChatId,
 			contentLength: content.length,
 			type
@@ -133,7 +134,7 @@ export class RealtimeMessageManager {
 				type
 			);
 
-			console.log('💬 [RealtimeMessageManager] ✅ Mensaje enviado (HTTP):', result.messageId || result.id);
+			debugLog('💬 [RealtimeMessageManager] ✅ Mensaje enviado (HTTP):', result.messageId || result.id);
 			
 			// Nota: NO renderizamos aquí - esperamos el evento WebSocket 'message:new'
 			// que disparará handleNewMessage() y renderizará en la UI
@@ -171,7 +172,7 @@ export class RealtimeMessageManager {
 	// ========== Event Handlers ==========
 
 	private handleConnect(): void {
-		console.log('💬 [RealtimeMessageManager] ✅ WebSocket conectado');
+		debugLog('💬 [RealtimeMessageManager] ✅ WebSocket conectado');
 
 		// Re-unirse al chat actual si existe
 		if (this.currentChatId) {
@@ -180,7 +181,7 @@ export class RealtimeMessageManager {
 	}
 
 	private handleDisconnect(reason: string): void {
-		console.log('💬 [RealtimeMessageManager] ⚠️ WebSocket desconectado:', reason);
+		debugLog('💬 [RealtimeMessageManager] ⚠️ WebSocket desconectado:', reason);
 		
 		// Opcional: Mostrar notificación en UI
 		if (this.chatUI && reason !== 'io client disconnect') {
@@ -198,7 +199,7 @@ export class RealtimeMessageManager {
 	 * CRÍTICO: Este es el único punto donde se renderizan mensajes en tiempo real
 	 */
 	private handleNewMessage(message: RealtimeMessage): void {
-		console.log('💬 [RealtimeMessageManager] 📨 Procesando mensaje nuevo:', {
+		debugLog('💬 [RealtimeMessageManager] 📨 Procesando mensaje nuevo:', {
 			messageId: message.messageId,
 			chatId: message.chatId,
 			senderId: message.senderId,
@@ -208,13 +209,13 @@ export class RealtimeMessageManager {
 
 		// Verificar que el mensaje pertenece al chat actual
 		if (message.chatId !== this.currentChatId) {
-			console.log('💬 [RealtimeMessageManager] ⚠️ Mensaje de otro chat, ignorando');
+			debugLog('💬 [RealtimeMessageManager] ⚠️ Mensaje de otro chat, ignorando');
 			return;
 		}
 
 		// Filtrar mensajes internos si el visitante no es comercial
 		if (message.isInternal) {
-			console.log('💬 [RealtimeMessageManager] 🔒 Mensaje interno, no visible para visitante');
+			debugLog('💬 [RealtimeMessageManager] 🔒 Mensaje interno, no visible para visitante');
 			return;
 		}
 
@@ -222,7 +223,7 @@ export class RealtimeMessageManager {
 		// El visitante ya ve su mensaje renderizado instantáneamente al enviarlo
 		// Solo procesamos mensajes de otros participantes (comerciales, bots, etc.)
 		if (message.senderId === this.visitorId) {
-			console.log('💬 [RealtimeMessageManager] 🚫 Mensaje propio ignorado (ya renderizado):', {
+			debugLog('💬 [RealtimeMessageManager] 🚫 Mensaje propio ignorado (ya renderizado):', {
 				messageId: message.messageId,
 				visitorId: this.visitorId
 			});
@@ -250,7 +251,7 @@ export class RealtimeMessageManager {
 			// Scroll al fondo
 			this.chatUI.scrollToBottom(true);
 
-			console.log('💬 [RealtimeMessageManager] ✅ Mensaje renderizado en UI');
+			debugLog('💬 [RealtimeMessageManager] ✅ Mensaje renderizado en UI');
 		} catch (error) {
 			console.error('💬 [RealtimeMessageManager] ❌ Error renderizando mensaje:', error);
 		}
@@ -260,7 +261,7 @@ export class RealtimeMessageManager {
 	 * Maneja cambios de estado del chat
 	 */
 	private handleChatStatus(status: ChatStatusUpdate): void {
-		console.log('💬 [RealtimeMessageManager] 📊 Estado del chat actualizado:', status);
+		debugLog('💬 [RealtimeMessageManager] 📊 Estado del chat actualizado:', status);
 
 		// Verificar que pertenece al chat actual
 		if (status.chatId !== this.currentChatId) {
@@ -272,15 +273,15 @@ export class RealtimeMessageManager {
 		if (this.chatUI) {
 			switch (status.status) {
 				case 'IN_PROGRESS':
-					console.log('💬 Chat en progreso - primera respuesta del comercial');
+					debugLog('💬 Chat en progreso - primera respuesta del comercial');
 					// Opcional: Ocultar mensaje de "esperando respuesta"
 					break;
 				case 'RESOLVED':
-					console.log('💬 Chat resuelto');
+					debugLog('💬 Chat resuelto');
 					// Opcional: Mostrar mensaje de "Chat resuelto"
 					break;
 				case 'CLOSED':
-					console.log('💬 Chat cerrado');
+					debugLog('💬 Chat cerrado');
 					// Opcional: Mostrar mensaje de "Chat cerrado"
 					if (this.chatUI) {
 						this.chatUI.addSystemMessage('El chat ha sido cerrado.');
@@ -298,7 +299,7 @@ export class RealtimeMessageManager {
 			return; // No mostrar nuestro propio typing
 		}
 
-		console.log('💬 [RealtimeMessageManager] ✍️ Typing indicator:', {
+		debugLog('💬 [RealtimeMessageManager] ✍️ Typing indicator:', {
 			user: typing.userName,
 			isTyping: typing.isTyping
 		});
@@ -311,7 +312,7 @@ export class RealtimeMessageManager {
 	 * Limpia recursos
 	 */
 	public cleanup(): void {
-		console.log('💬 [RealtimeMessageManager] 🧹 Limpiando recursos...');
+		debugLog('💬 [RealtimeMessageManager] 🧹 Limpiando recursos...');
 
 		// Limpiar timeouts de typing
 		this.typingTimeouts.forEach(timeout => clearTimeout(timeout));
@@ -323,7 +324,7 @@ export class RealtimeMessageManager {
 			this.currentChatId = null;
 		}
 
-		console.log('💬 [RealtimeMessageManager] ✅ Recursos limpiados');
+		debugLog('💬 [RealtimeMessageManager] ✅ Recursos limpiados');
 	}
 
 	/**

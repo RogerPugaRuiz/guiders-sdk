@@ -1,4 +1,5 @@
 import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { debugLog } from '../utils/debug-logger';
 import { ChatSessionStore } from './chat-session-store';
 import { VisitorInfoV2, ChatMetadataV2 } from '../types';
 
@@ -94,7 +95,7 @@ export async function fetchChatDetailV2(chatId: string): Promise<ChatDetailV2> {
 					resolutionStatus: found.resolutionStatus,
 					satisfactionRating: found.satisfactionRating
 				};
-				console.log('[chat-detail-service] 📦 Usando detalle de chat desde cache local (sin GET):', chatId);
+				debugLog('[chat-detail-service] 📦 Usando detalle de chat desde cache local (sin GET):', chatId);
 				return detail;
 			}
 		}

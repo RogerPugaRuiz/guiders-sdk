@@ -1,6 +1,7 @@
 // chat-ui.ts - Componente principal del chat UI (versión simplificada)
 
 import { Message } from "../../types";
+import { debugLog } from "../../utils/debug-logger";
 import { ChatSessionStore } from "../../services/chat-session-store";
 import { fetchChatDetail, ChatDetail, ChatParticipant } from "../../services/chat-detail-service";
 import { ChatMemoryStore } from "../../core/chat-memory-store";
@@ -102,7 +103,7 @@ export class ChatUI {
 			this.container.style.transform = 'translateY(20px)';
 			this.container.setAttribute('data-initial-state', 'hidden');
 
-			console.log("Chat inicializado con estado: oculto");
+			debugLog("Chat inicializado con estado: oculto");
 			shadowRoot.appendChild(this.container);
 
 			// Añadir encabezado del chat
@@ -996,7 +997,7 @@ export class ChatUI {
 
 	private async initializeChatContent(): Promise<void> {
 		try {
-			console.log("💬 [ChatUI] Inicializando contenido del chat...");
+			debugLog("💬 [ChatUI] Inicializando contenido del chat...");
 			
 			if (this.isVisible()) {
 				this.loadChatContent();
@@ -1009,16 +1010,16 @@ export class ChatUI {
 
 	private async loadChatContent(): Promise<void> {
 		if (!this.container?.getAttribute('data-chat-initialized')) {
-			console.log("Chat no inicializado aún, esperando...");
+			debugLog("Chat no inicializado aún, esperando...");
 			return;
 		}
 
 		if (this.messagesLoaded) {
-			console.log("Los mensajes ya fueron cargados previamente, omitiendo fetch...");
+			debugLog("Los mensajes ya fueron cargados previamente, omitiendo fetch...");
 			return;
 		}
 
-		console.log("Cargando contenido del chat...");
+		debugLog("Cargando contenido del chat...");
 
 		try {
 			this.messagesLoaded = true;
@@ -1040,12 +1041,12 @@ export class ChatUI {
 		if (!this.chatId) return;
 		
 		try {
-			console.log("Cargando detalles del chat...");
+			debugLog("Cargando detalles del chat...");
 			this.chatDetail = await fetchChatDetail(this.chatId);
-			console.log("Detalles del chat:", this.chatDetail);
+			debugLog("Detalles del chat:", this.chatDetail);
 			
 			this.lastKnownChatStatus = this.chatDetail.status;
-			console.log("Estado actual del chat:", this.lastKnownChatStatus);
+			debugLog("Estado actual del chat:", this.lastKnownChatStatus);
 			
 			this.updateChatHeader();
 		} catch (error) {
@@ -1060,7 +1061,7 @@ export class ChatUI {
 		
 		commercialParticipants.forEach(commercial => {
 			if (!commercial.isOnline && this.lastNotificationType !== 'offline') {
-				console.log("Comercial", commercial.name, "está offline en la carga inicial");
+				debugLog("Comercial", commercial.name, "está offline en la carga inicial");
 				setTimeout(() => {
 					this.sendOfflineNotificationMessage(commercial.name, true);
 					this.lastNotificationType = 'offline';
@@ -1124,13 +1125,13 @@ export class ChatUI {
 			offlineMessage = `${commercialName} se ha desconectado temporalmente. Te responderá tan pronto como esté disponible nuevamente.`;
 		}
 		
-		console.log("Enviando mensaje automático de desconexión:", offlineMessage);
+		debugLog("Enviando mensaje automático de desconexión:", offlineMessage);
 		this.addSystemMessage(offlineMessage);
 	}
 
 	// Métodos públicos adicionales para la API
 	public addWelcomeMessage(): void {
-		console.log('💬 [ChatUI] Verificando si agregar mensaje de bienvenida...');
+		debugLog('💬 [ChatUI] Verificando si agregar mensaje de bienvenida...');
 		
 		const hasMessages = this.containerMessages &&
 			Array.from(this.containerMessages.children).some(el =>
@@ -1145,7 +1146,7 @@ export class ChatUI {
 			
 			if (welcomeText) {
 				this.addMessage(welcomeText, 'other');
-				console.log('💬 [ChatUI] ✅ Mensaje de bienvenida agregado');
+				debugLog('💬 [ChatUI] ✅ Mensaje de bienvenida agregado');
 				
 				const tips = this.welcomeMessageManager.getTips();
 				if (tips.length > 0) {
@@ -1169,20 +1170,20 @@ export class ChatUI {
 	public checkAndAddWelcomeMessage(): void {
 		// Solo agregar mensaje de bienvenida si no hay mensajes y no se están cargando
 		if (!this.containerMessages) {
-			console.log('💬 [ChatUI] Container de mensajes no disponible, omitiendo verificación de bienvenida');
+			debugLog('💬 [ChatUI] Container de mensajes no disponible, omitiendo verificación de bienvenida');
 			return;
 		}
 
 		// 🔒 PROTECCIÓN CONTRA RACE CONDITION: Verificar si se está cargando mensajes iniciales
 		if (this.isLoadingInitialMessages) {
-			console.log('💬 [ChatUI] 🔒 Carga inicial de mensajes en progreso, omitiendo verificación de bienvenida para evitar race condition');
+			debugLog('💬 [ChatUI] 🔒 Carga inicial de mensajes en progreso, omitiendo verificación de bienvenida para evitar race condition');
 			return;
 		}
 
 		// Verificar si hay indicador de carga activo
 		const hasLoadingIndicator = this.containerMessages.querySelector('.loading-messages-indicator') as HTMLElement;
 		if (hasLoadingIndicator && hasLoadingIndicator.style.display !== 'none') {
-			console.log('💬 [ChatUI] Indicador de carga visible, omitiendo mensaje de bienvenida automático');
+			debugLog('💬 [ChatUI] Indicador de carga visible, omitiendo mensaje de bienvenida automático');
 			return;
 		}
 
@@ -1194,13 +1195,13 @@ export class ChatUI {
 			)
 		);
 
-		console.log(`💬 [ChatUI] Verificación automática: ${messageElements.length} mensajes encontrados`);
+		debugLog(`💬 [ChatUI] Verificación automática: ${messageElements.length} mensajes encontrados`);
 
 		if (messageElements.length === 0) {
-			console.log('💬 [ChatUI] ✅ Chat vacío confirmado, agregando mensaje de bienvenida automáticamente');
+			debugLog('💬 [ChatUI] ✅ Chat vacío confirmado, agregando mensaje de bienvenida automáticamente');
 			this.addWelcomeMessage();
 		} else {
-			console.log('💬 [ChatUI] Chat tiene mensajes, omitiendo mensaje de bienvenida automático');
+			debugLog('💬 [ChatUI] Chat tiene mensajes, omitiendo mensaje de bienvenida automático');
 		}
 	}
 
@@ -1320,7 +1321,7 @@ export class ChatUI {
 		}
 
 		loadingIndicator.style.display = 'block';
-		console.log('💬 [ChatUI] Indicador de carga de mensajes mostrado');
+		debugLog('💬 [ChatUI] Indicador de carga de mensajes mostrado');
 	}
 
 	/**
@@ -1335,7 +1336,7 @@ export class ChatUI {
 			loadingIndicator.style.display = 'none';
 		}
 
-		console.log('💬 [ChatUI] Indicador de carga de mensajes ocultado');
+		debugLog('💬 [ChatUI] Indicador de carga de mensajes ocultado');
 	}
 
 	/**
@@ -1354,7 +1355,7 @@ export class ChatUI {
 
 		this.messagesLoaded = false;
 		this.lastMessageDate = null;
-		console.log('💬 [ChatUI] Mensajes limpiados');
+		debugLog('💬 [ChatUI] Mensajes limpiados');
 	}
 
 	/**
@@ -1366,7 +1367,7 @@ export class ChatUI {
 		requestAnimationFrame(() => {
 			if (this.containerMessages) {
 				this.containerMessages.scrollTop = this.containerMessages.scrollHeight;
-				console.log('💬 [ChatUI] Scroll al bottom realizado (V2)');
+				debugLog('💬 [ChatUI] Scroll al bottom realizado (V2)');
 			}
 		});
 	}
@@ -1377,7 +1378,7 @@ export class ChatUI {
 	 */
 	public setLoadingInitialMessages(loading: boolean): void {
 		this.isLoadingInitialMessages = loading;
-		console.log(`💬 [ChatUI] 🔒 Estado isLoadingInitialMessages cambiado a: ${loading}`);
+		debugLog(`💬 [ChatUI] 🔒 Estado isLoadingInitialMessages cambiado a: ${loading}`);
 	}
 
 	/**
