@@ -1,7 +1,7 @@
 import { EndpointManager } from '../core/tracking-pixel-SDK';
 import { debugLog } from '../utils/debug-logger';
 import { ChatSessionStore } from './chat-session-store';
-import { VisitorInfoV2, ChatMetadataV2 } from '../types';
+import { VisitorInfoV2, ChatMetadataV2, AssignedCommercial } from '../types';
 
 // Interfaz para la respuesta V2 del chat basada en los DTOs del backend
 export interface ChatDetailV2 {
@@ -10,6 +10,7 @@ export interface ChatDetailV2 {
 	priority: string;
 	visitorInfo: VisitorInfoV2;
 	assignedCommercialId?: string;
+	assignedCommercial?: AssignedCommercial;
 	availableCommercialIds?: string[];
 	metadata: ChatMetadataV2;
 	createdAt: Date;
@@ -77,6 +78,7 @@ export async function fetchChatDetailV2(chatId: string): Promise<ChatDetailV2> {
 					priority: found.priority,
 					visitorInfo: found.visitorInfo,
 					assignedCommercialId: found.assignedCommercialId,
+					assignedCommercial: found.assignedCommercial,
 					availableCommercialIds: found.availableCommercialIds,
 					metadata: found.metadata,
 					createdAt: new Date(found.createdAt),
@@ -163,9 +165,12 @@ export function convertV2ToLegacy(chatDetailV2: ChatDetailV2): ChatDetail {
 
 	// Añadir comerciales disponibles/asignados como participantes
 	if (chatDetailV2.assignedCommercialId) {
+		// Usar el nombre real del comercial si está disponible, sino usar nombre genérico
+		const commercialName = chatDetailV2.assignedCommercial?.name || `Comercial ${chatDetailV2.assignedCommercialId}`;
+
 		participants.push({
 			id: chatDetailV2.assignedCommercialId,
-			name: `Comercial ${chatDetailV2.assignedCommercialId}`, // Nombre genérico
+			name: commercialName,
 			isCommercial: true,
 			isVisitor: false,
 			isOnline: chatDetailV2.isActive, // Si el chat está activo, asumimos que está online

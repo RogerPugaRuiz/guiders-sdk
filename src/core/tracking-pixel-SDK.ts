@@ -1444,9 +1444,12 @@ export class TrackingPixelSDK {
 
 		// Añadir comerciales asignados como participantes online
 		if (chatDetailV2.assignedCommercialId) {
+			// Usar el nombre real del comercial si está disponible, sino usar nombre genérico
+			const commercialName = chatDetailV2.assignedCommercial?.name || `Comercial ${chatDetailV2.assignedCommercialId}`;
+
 			participants.push({
 				id: chatDetailV2.assignedCommercialId,
-				name: `Comercial ${chatDetailV2.assignedCommercialId}`, // Nombre genérico
+				name: commercialName,
 				isCommercial: true,
 				isVisitor: false,
 				isOnline: chatDetailV2.isActive, // Si el chat está activo, asumimos que está online

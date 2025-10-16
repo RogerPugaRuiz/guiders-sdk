@@ -113,12 +113,18 @@ export interface ChatMetadataV2 {
 	customFields?: Record<string, any>;
 }
 
+export interface AssignedCommercial {
+	id: string;
+	name: string;
+}
+
 export interface ChatV2 {
 	id: string;
 	status: 'PENDING' | 'ASSIGNED' | 'ACTIVE' | 'CLOSED' | 'TRANSFERRED' | 'ABANDONED';
 	priority: 'LOW' | 'MEDIUM' | 'NORMAL' | 'HIGH' | 'URGENT';
 	visitorInfo: VisitorInfoV2;
 	assignedCommercialId?: string;
+	assignedCommercial?: AssignedCommercial;
 	availableCommercialIds?: string[];
 	metadata: ChatMetadataV2;
 	createdAt: Date;
