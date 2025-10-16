@@ -159,33 +159,42 @@ export class Signal<T = any> {
  */
 export class AsyncSignal<T = any> extends Signal<T> {
   private currentPromise: Promise<T> | null = null;
+  private promiseId: number = 0;
 
   /**
    * Ejecuta una operación asíncrona y actualiza el estado del signal
    */
   public async execute(operation: () => Promise<T>): Promise<T> {
+    // Incrementar ID de promesa para rastrear operaciones
+    const thisPromiseId = ++this.promiseId;
+
     this.setLoading();
 
     try {
       const promise = operation();
       this.currentPromise = promise;
-      
+
       const result = await promise;
-      
+
       // Solo procesar el resultado si es la promesa más reciente
-      if (this.currentPromise === promise) {
+      if (this.promiseId === thisPromiseId) {
         this.setSuccess(result);
         this.currentPromise = null;
         return result;
       }
-      
-      // Si no es la promesa más reciente, la ignoramos
-      throw new Error('Operation was superseded by a newer one');
+
+      // Si no es la promesa más reciente, la ignoramos silenciosamente
+      console.warn('[AsyncSignal] ⚠️ Operación cancelada - reemplazada por una más reciente (ID:', thisPromiseId, '→', this.promiseId, ')');
+      // Retornar el resultado parcial sin lanzar error
+      return result;
     } catch (error) {
       // Solo procesar el error si es la promesa más reciente
-      if (this.currentPromise !== null) {
+      if (this.promiseId === thisPromiseId) {
         this.setError(error instanceof Error ? error : new Error(String(error)));
         this.currentPromise = null;
+      } else {
+        // Operación cancelada, no procesar el error
+        console.warn('[AsyncSignal] ⚠️ Error en operación cancelada (ID:', thisPromiseId, ') - ignorando');
       }
       throw error;
     }
@@ -196,6 +205,7 @@ export class AsyncSignal<T = any> extends Signal<T> {
    */
   public cancel(): void {
     if (this.currentPromise) {
+      this.promiseId++; // Invalidar la promesa actual
       this.currentPromise = null;
       this.setState({ loading: false });
     }

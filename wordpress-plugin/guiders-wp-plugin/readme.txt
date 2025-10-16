@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.4.3
+Stable tag: 1.4.4
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,27 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.4.4 =
+* **🐛 Fix Crítico**: Resueltos errores de inicialización del SDK en producción (50% de fallos)
+  * **Error #1 - trackEvent() no definido**: Agregado método `trackEvent()` como wrapper de `track()` para compatibilidad con WordPress plugin
+  * El plugin llamaba a `window.guiders.trackEvent()` pero el SDK solo exponía `track()` → TypeError
+  * Solución: Método `trackEvent(eventType, data)` que delega a `track({ event: eventType, ...data })`
+  * Deprecation warning agregado para migración futura
+  * **Error #2 - Race conditions en identify()**: Múltiples llamadas paralelas causaban "Operation was superseded"
+  * Problema: AsyncSignal lanzaba error cuando operaciones eran canceladas por versiones más recientes
+  * Solución: Cambio de comportamiento para retornar resultado parcial sin lanzar error
+  * Agregado sistema de IDs de promesa (`promiseId`) para rastreo de operaciones
+  * **Error #3 - Múltiples ejecuciones de identify()**: Prevenida duplicación de llamadas en misma sesión
+  * Agregado flag `identifyExecuted` para prevenir race conditions en setupTabOpenListener
+  * Flag se marca ANTES de la llamada async para prevenir window races
+  * Flag se resetea solo en errores reales, NO en operaciones canceladas
+* **✨ Mejoras en Manejo de Errores**: Mensajes más descriptivos y manejo graceful
+  * AsyncSignal ahora diferencia entre errores reales y operaciones superseded
+  * Logs mejorados con IDs de operación para debugging
+  * Recovery automático: flag se resetea en errores para permitir reintentos
+* **📦 Bundle**: 341 KB (sin cambios)
+* **🔗 Compatibilidad**: 100% retrocompatible, solo bugfixes internos
 
 = 1.4.3 =
 * **🐛 Fix Crítico GDPR**: Rechazo de consentimiento ahora se registra correctamente en el backend

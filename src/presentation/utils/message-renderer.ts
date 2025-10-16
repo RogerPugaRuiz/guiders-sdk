@@ -182,7 +182,7 @@ export class MessageRenderer {
             display: flex;
             align-items: flex-end;
             margin-bottom: 3px;
-            ${isUserMessage ? 'flex-direction: row-reverse; padding-left: 8px;' : 'flex-direction: row; padding-right: 8px;'}
+            ${isUserMessage ? 'flex-direction: row-reverse; padding-left: 4px;' : 'flex-direction: row; padding-right: 4px;'}
             opacity: 1;
             transform: translateY(0);
         `;
@@ -224,7 +224,7 @@ export class MessageRenderer {
             contentWrapper.style.cssText = `
                 display: flex;
                 flex-direction: column;
-                ${isUserMessage ? 'align-items: flex-end; max-width: 70%;' : 'align-items: flex-start; max-width: 65%;'}
+                ${isUserMessage ? 'align-items: flex-end; max-width: 85%;' : 'align-items: flex-start; max-width: 80%;'}
                 min-width: 120px;
             `;
         }
@@ -246,12 +246,12 @@ export class MessageRenderer {
                     `background: #D1E7FF;
                      color: #2c3e50;
                      border-bottom-right-radius: 2px;
-                     max-width: 70%;
+                     max-width: 90%;
                      margin-left: auto;` :
                     `background: #FFFFFF;
                      color: #2c3e50;
                      border-bottom-left-radius: 2px;
-                     max-width: 70%;`
+                     max-width: 90%;`
                 }
                 transition: all 0.2s ease;
             `;

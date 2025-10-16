@@ -154,6 +154,7 @@ export class TrackingPixelSDK {
 	private identitySignal: IdentitySignal;
 	private welcomeMessageConfig?: Partial<WelcomeMessageConfig>;
 	private activeHoursValidator?: ActiveHoursValidator;
+	private identifyExecuted: boolean = false; // Flag para prevenir múltiples llamadas a identify()
 	private wsService: WebSocketService;
 	private realtimeMessageManager: RealtimeMessageManager;
 	private consentManager: ConsentManager;
@@ -746,6 +747,15 @@ export class TrackingPixelSDK {
 	 * Ejecuta la identificación del visitante y carga sus chats.
 	 */
 	private async executeIdentify(): Promise<void> {
+		// Prevenir múltiples ejecuciones
+		if (this.identifyExecuted) {
+			console.log('[TrackingPixelSDK] ⚠️ identify() ya ejecutado - ignorando llamada duplicada');
+			return;
+		}
+
+		// Marcar como ejecutado ANTES de llamar para prevenir race conditions
+		this.identifyExecuted = true;
+
 		try {
 			console.log('[TrackingPixelSDK] 🔍 Ejecutando identify...');
 
@@ -863,7 +873,15 @@ export class TrackingPixelSDK {
 				}
 			}
 		} catch (e) {
-			console.warn('[TrackingPixelSDK] ❌ identify V2 fallido:', e);
+			// No resetear el flag si es una operación cancelada
+			const errorMessage = e instanceof Error ? e.message : String(e);
+			if (!errorMessage.includes('Operation was superseded')) {
+				console.warn('[TrackingPixelSDK] ❌ identify V2 fallido:', e);
+				// Resetear flag para permitir reintento en caso de error real
+				this.identifyExecuted = false;
+			} else {
+				console.log('[TrackingPixelSDK] ℹ️ identify cancelado por operación más reciente');
+			}
 		}
 	}
 
@@ -1113,6 +1131,15 @@ export class TrackingPixelSDK {
 				reject(error);
 			}
 		});
+	}
+
+	/**
+	 * Legacy compatibility wrapper for trackEvent()
+	 * @deprecated Use track() instead. This method exists for WordPress plugin compatibility.
+	 */
+	public async trackEvent(eventType: string, data?: Record<string, unknown>): Promise<void> {
+		console.warn('[TrackingPixelSDK] ⚠️  trackEvent() is deprecated. Please use track() instead.');
+		return this.track({ event: eventType, ...data });
 	}
 
 	private captureEvent(type: string, data: Record<string, unknown>): void {
