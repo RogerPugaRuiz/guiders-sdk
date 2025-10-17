@@ -277,6 +277,59 @@ class GuidersAdmin {
             'guiders_active_hours_section'
         );
 
+        // Active hours exclude weekends field
+        add_settings_field(
+            'active_hours_exclude_weekends',
+            __('Excluir Fines de Semana', 'guiders-wp-plugin'),
+            array($this, 'activeHoursExcludeWeekendsFieldCallback'),
+            'guiders-settings',
+            'guiders_active_hours_section'
+        );
+
+        // Active hours active days field
+        add_settings_field(
+            'active_hours_active_days',
+            __('Días Activos (Avanzado)', 'guiders-wp-plugin'),
+            array($this, 'activeHoursActiveDaysFieldCallback'),
+            'guiders-settings',
+            'guiders_active_hours_section'
+        );
+
+        // Commercial Availability section
+        add_settings_section(
+            'guiders_commercial_availability_section',
+            __('Disponibilidad de Comerciales', 'guiders-wp-plugin'),
+            array($this, 'commercialAvailabilitySectionCallback'),
+            'guiders-settings'
+        );
+
+        // Commercial availability enabled field
+        add_settings_field(
+            'commercial_availability_enabled',
+            __('Habilitar Verificación', 'guiders-wp-plugin'),
+            array($this, 'commercialAvailabilityEnabledFieldCallback'),
+            'guiders-settings',
+            'guiders_commercial_availability_section'
+        );
+
+        // Commercial availability polling interval field
+        add_settings_field(
+            'commercial_availability_polling',
+            __('Intervalo de Consulta (segundos)', 'guiders-wp-plugin'),
+            array($this, 'commercialAvailabilityPollingFieldCallback'),
+            'guiders-settings',
+            'guiders_commercial_availability_section'
+        );
+
+        // Commercial availability show badge field
+        add_settings_field(
+            'commercial_availability_show_badge',
+            __('Mostrar Contador', 'guiders-wp-plugin'),
+            array($this, 'commercialAvailabilityShowBadgeFieldCallback'),
+            'guiders-settings',
+            'guiders_commercial_availability_section'
+        );
+
         // Chat Position section
         add_settings_section(
             'guiders_chat_position_section',
@@ -543,6 +596,48 @@ class GuidersAdmin {
         } else {
             $validated['active_hours_ranges'] = '[]';
         }
+
+        // Validate exclude weekends setting
+        $validated['active_hours_exclude_weekends'] = isset($input['active_hours_exclude_weekends']) ? true : false;
+
+        // Validate active days (JSON format)
+        if (isset($input['active_hours_active_days'])) {
+            $active_days_json = stripslashes($input['active_hours_active_days']);
+            $active_days = json_decode($active_days_json, true);
+
+            if (json_last_error() === JSON_ERROR_NONE && is_array($active_days)) {
+                // Validate each day (must be 0-6)
+                $valid_days = array();
+                foreach ($active_days as $day) {
+                    if (is_numeric($day) && $day >= 0 && $day <= 6) {
+                        $valid_days[] = (int)$day;
+                    }
+                }
+                // Remove duplicates and sort
+                $valid_days = array_unique($valid_days);
+                sort($valid_days);
+                $validated['active_hours_active_days'] = json_encode($valid_days);
+            } else {
+                $validated['active_hours_active_days'] = '[]';
+            }
+        } else {
+            $validated['active_hours_active_days'] = '[]';
+        }
+
+        // Validate commercial availability settings
+        $validated['commercial_availability_enabled'] = isset($input['commercial_availability_enabled']) ? true : false;
+
+        // Validate polling interval
+        if (isset($input['commercial_availability_polling'])) {
+            $polling = intval($input['commercial_availability_polling']);
+            // Ensure between 10 and 300 seconds
+            $validated['commercial_availability_polling'] = max(10, min(300, $polling));
+        } else {
+            $validated['commercial_availability_polling'] = 30; // Default value
+        }
+
+        // Validate show badge setting
+        $validated['commercial_availability_show_badge'] = isset($input['commercial_availability_show_badge']) ? true : false;
 
         // Validate Chat Position settings
         if (isset($input['chat_position_data'])) {
@@ -1083,6 +1178,111 @@ class GuidersAdmin {
 
         echo '<textarea id="active_hours_fallback_message" name="guiders_wp_plugin_settings[active_hours_fallback_message]" rows="3" cols="50" class="large-text">' . esc_textarea($message) . '</textarea>';
         echo '<p class="description">' . __('Mensaje que se mostrará cuando el chat no esté disponible por horarios. Si se deja vacío, se usará un mensaje predeterminado.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Active hours exclude weekends field callback
+     */
+    public function activeHoursExcludeWeekendsFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $exclude_weekends = isset($settings['active_hours_exclude_weekends']) ? $settings['active_hours_exclude_weekends'] : false;
+
+        echo '<input type="checkbox" id="active_hours_exclude_weekends" name="guiders_wp_plugin_settings[active_hours_exclude_weekends]" value="1" ' . checked($exclude_weekends, true, false) . ' />';
+        echo '<label for="active_hours_exclude_weekends">' . __('El chat solo estará disponible de lunes a viernes', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('Conveniente para horarios de oficina. Si necesitas control más específico, usa "Días Activos" abajo.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Active hours active days field callback
+     */
+    public function activeHoursActiveDaysFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $active_days_json = isset($settings['active_hours_active_days']) ? $settings['active_hours_active_days'] : '[]';
+        $active_days = json_decode($active_days_json, true);
+        if (!is_array($active_days)) {
+            $active_days = array();
+        }
+
+        $days = array(
+            0 => __('Domingo', 'guiders-wp-plugin'),
+            1 => __('Lunes', 'guiders-wp-plugin'),
+            2 => __('Martes', 'guiders-wp-plugin'),
+            3 => __('Miércoles', 'guiders-wp-plugin'),
+            4 => __('Jueves', 'guiders-wp-plugin'),
+            5 => __('Viernes', 'guiders-wp-plugin'),
+            6 => __('Sábado', 'guiders-wp-plugin')
+        );
+
+        echo '<div class="active-days-checkboxes">';
+        foreach ($days as $day_num => $day_name) {
+            $checked = in_array($day_num, $active_days) ? 'checked' : '';
+            echo '<label style="display: inline-block; margin-right: 15px; margin-bottom: 5px;">';
+            echo '<input type="checkbox" class="active-day-checkbox" value="' . $day_num . '" ' . $checked . ' /> ';
+            echo esc_html($day_name);
+            echo '</label>';
+        }
+        echo '</div>';
+
+        echo '<input type="hidden" id="active_hours_active_days" name="guiders_wp_plugin_settings[active_hours_active_days]" value="' . esc_attr($active_days_json) . '" />';
+
+        echo '<p class="description">' . __('Control avanzado: selecciona días específicos. Si está vacío, todos los días están activos. NOTA: Si "Excluir Fines de Semana" está marcado, esta opción tiene prioridad.', 'guiders-wp-plugin') . '</p>';
+
+        echo '<script>
+        jQuery(document).ready(function($) {
+            $(".active-day-checkbox").change(function() {
+                var activeDays = [];
+                $(".active-day-checkbox:checked").each(function() {
+                    activeDays.push(parseInt($(this).val()));
+                });
+                $("#active_hours_active_days").val(JSON.stringify(activeDays));
+            });
+        });
+        </script>';
+    }
+
+    // === Commercial Availability Field Callbacks ===
+
+    /**
+     * Commercial availability section callback
+     */
+    public function commercialAvailabilitySectionCallback() {
+        echo '<p>' . __('Configure el sistema para mostrar/ocultar automáticamente el chat según la disponibilidad de comerciales en línea.', 'guiders-wp-plugin') . '</p>';
+        echo '<p class="description">' . __('El SDK verificará periódicamente si hay comerciales disponibles y mostrará u ocultará el chat automáticamente.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Commercial availability enabled field callback
+     */
+    public function commercialAvailabilityEnabledFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $enabled = isset($settings['commercial_availability_enabled']) ? $settings['commercial_availability_enabled'] : false;
+
+        echo '<input type="checkbox" id="commercial_availability_enabled" name="guiders_wp_plugin_settings[commercial_availability_enabled]" value="1" ' . checked($enabled, true, false) . ' />';
+        echo '<label for="commercial_availability_enabled">' . __('Activar verificación de disponibilidad', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('Si está activado, el chat solo se mostrará cuando haya al menos un comercial disponible.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Commercial availability polling interval field callback
+     */
+    public function commercialAvailabilityPollingFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $polling_interval = isset($settings['commercial_availability_polling']) ? $settings['commercial_availability_polling'] : 30;
+
+        echo '<input type="number" id="commercial_availability_polling" name="guiders_wp_plugin_settings[commercial_availability_polling]" value="' . esc_attr($polling_interval) . '" min="10" max="300" />';
+        echo '<p class="description">' . __('Intervalo en segundos para verificar disponibilidad (recomendado: 30). Mínimo: 10, Máximo: 300.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Commercial availability show badge field callback
+     */
+    public function commercialAvailabilityShowBadgeFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $show_badge = isset($settings['commercial_availability_show_badge']) ? $settings['commercial_availability_show_badge'] : false;
+
+        echo '<input type="checkbox" id="commercial_availability_show_badge" name="guiders_wp_plugin_settings[commercial_availability_show_badge]" value="1" ' . checked($show_badge, true, false) . ' />';
+        echo '<label for="commercial_availability_show_badge">' . __('Mostrar número de comerciales disponibles', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('Si está activado, se mostrará un contador en el botón del chat con el número de comerciales disponibles.', 'guiders-wp-plugin') . '</p>';
     }
 
     // === Chat Position Field Callbacks ===

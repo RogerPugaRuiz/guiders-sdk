@@ -33,6 +33,12 @@
           { start: '08:00', end: '17:00' }
         ],
         fallbackMessage: '🕐 Nuestro chat está disponible de 8:00-17:00 (hora de Madrid). ¡Vuelve durante nuestros horarios de atención!'
+      },
+      commercialAvailability: {
+        enabled: true,          // Habilitar verificación de disponibilidad
+        pollingInterval: 10,    // Consultar cada 10 segundos (rápido para demo)
+        showBadge: true,        // Mostrar número de comerciales disponibles
+        debug: true             // Habilitar logs de debug
       }
     };
 

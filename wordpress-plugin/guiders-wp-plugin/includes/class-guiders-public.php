@@ -124,6 +124,7 @@ class GuidersPublic {
             ),
             'welcomeMessage' => $this->getWelcomeMessageConfig(),
             'activeHours' => $this->getActiveHoursConfig(),
+            'commercialAvailability' => $this->getCommercialAvailabilityConfig(),
             'requireConsent' => isset($this->settings['require_consent']) ? $this->settings['require_consent'] : false,
             'consentBanner' => $this->getConsentBannerConfig(),
             'chatPosition' => $this->getChatPositionConfig(),
@@ -511,6 +512,19 @@ class GuidersPublic {
             }
         }
 
+        // Add exclude weekends setting
+        if (isset($this->settings['active_hours_exclude_weekends']) && $this->settings['active_hours_exclude_weekends']) {
+            $config['excludeWeekends'] = true;
+        }
+
+        // Parse active days from JSON
+        if (!empty($this->settings['active_hours_active_days'])) {
+            $active_days = json_decode($this->settings['active_hours_active_days'], true);
+            if (is_array($active_days) && count($active_days) > 0) {
+                $config['activeDays'] = array_map('intval', $active_days);
+            }
+        }
+
         // Set default fallback message if empty
         if (empty($config['fallbackMessage'])) {
             $config['fallbackMessage'] = __('El chat no está disponible en este momento. Por favor, inténtalo más tarde durante nuestros horarios de atención.', 'guiders-wp-plugin');
@@ -657,6 +671,22 @@ class GuidersPublic {
             'mode' => $mode,
             'breakpoint' => $breakpoint,
             'debug' => $debug
+        );
+
+        return $config;
+    }
+
+    /**
+     * Get commercial availability configuration
+     *
+     * @return array Commercial availability config
+     */
+    private function getCommercialAvailabilityConfig() {
+        $config = array(
+            'enabled' => isset($this->settings['commercial_availability_enabled']) ? $this->settings['commercial_availability_enabled'] : false,
+            'pollingInterval' => isset($this->settings['commercial_availability_polling']) ? intval($this->settings['commercial_availability_polling']) : 30,
+            'showBadge' => isset($this->settings['commercial_availability_show_badge']) ? $this->settings['commercial_availability_show_badge'] : false,
+            'debug' => false // Could be made configurable if needed
         );
 
         return $config;

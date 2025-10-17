@@ -47,9 +47,34 @@ export class ActiveHoursValidator {
 		}
 
 		const now = this.getCurrentTime();
-		
+
+		// Primero verificar si el día actual es válido
+		if (!this.isActiveDayOfWeek(now)) {
+			return false;
+		}
+
 		// Verificar si la hora actual está dentro de algún rango
 		return this.config.ranges.some(range => this.isTimeInRange(now, range));
+	}
+
+	/**
+	 * Verifica si el día de la semana actual está activo según la configuración
+	 */
+	private isActiveDayOfWeek(currentTime: Date): boolean {
+		const currentDay = currentTime.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+		// Si activeDays está definido, usarlo
+		if (this.config.activeDays && this.config.activeDays.length > 0) {
+			return this.config.activeDays.includes(currentDay);
+		}
+
+		// Si excludeWeekends está activo, excluir sábado (6) y domingo (0)
+		if (this.config.excludeWeekends) {
+			return currentDay !== 0 && currentDay !== 6;
+		}
+
+		// Por defecto, todos los días son activos
+		return true;
 	}
 
 	/**
@@ -135,8 +160,39 @@ export class ActiveHoursValidator {
 	 * Obtiene el mensaje de fallback cuando el chat no está activo
 	 */
 	public getFallbackMessage(): string {
-		return this.config.fallbackMessage || 
-			'El chat no está disponible en este momento. Por favor, inténtalo más tarde.';
+		if (this.config.fallbackMessage) {
+			return this.config.fallbackMessage;
+		}
+
+		// Generar mensaje automático basado en la configuración
+		const now = this.getCurrentTime();
+		const isValidDay = this.isActiveDayOfWeek(now);
+
+		if (!isValidDay) {
+			if (this.config.excludeWeekends) {
+				return 'El chat está disponible solo de lunes a viernes.';
+			}
+			if (this.config.activeDays) {
+				const dayNames = this.getActiveDayNames();
+				return `El chat está disponible solo los días: ${dayNames}.`;
+			}
+		}
+
+		return 'El chat no está disponible en este momento. Por favor, inténtalo más tarde.';
+	}
+
+	/**
+	 * Obtiene los nombres de los días activos en español
+	 */
+	private getActiveDayNames(): string {
+		if (!this.config.activeDays || this.config.activeDays.length === 0) {
+			return 'todos los días';
+		}
+
+		const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+		return this.config.activeDays
+			.map(day => dayNames[day])
+			.join(', ');
 	}
 
 	/**
@@ -219,13 +275,32 @@ export class ActiveHoursValidator {
 			}
 
 			// Validar zona horaria si está presente
-			if (config.timezone) {
+			if (config.timezone && config.timezone !== 'auto') {
 				try {
 					new Date().toLocaleString('en-US', { timeZone: config.timezone });
 				} catch (error) {
 					const message = error instanceof Error ? error.message : String(error);
 					errors.push(`Zona horaria inválida: ${config.timezone} - ${message}`);
 				}
+			}
+
+			// Validar activeDays si está presente
+			if (config.activeDays) {
+				if (!Array.isArray(config.activeDays)) {
+					errors.push('activeDays debe ser un array de números');
+				} else if (config.activeDays.length === 0) {
+					errors.push('activeDays no puede estar vacío. Si quieres todos los días, omite esta propiedad');
+				} else {
+					const invalidDays = config.activeDays.filter(day => day < 0 || day > 6 || !Number.isInteger(day));
+					if (invalidDays.length > 0) {
+						errors.push(`activeDays contiene valores inválidos: ${invalidDays.join(', ')}. Use números entre 0 (domingo) y 6 (sábado)`);
+					}
+				}
+			}
+
+			// Advertir si se usan ambos excludeWeekends y activeDays
+			if (config.excludeWeekends && config.activeDays && config.activeDays.length > 0) {
+				errors.push('No use excludeWeekends y activeDays al mismo tiempo. activeDays tiene prioridad');
 			}
 		}
 
@@ -255,20 +330,85 @@ export function createActiveHoursConfig(
  * Configuraciones predefinidas comunes
  */
 export const COMMON_ACTIVE_HOURS = {
+	/**
+	 * Horario comercial estándar: 9:00 - 18:00, todos los días
+	 */
 	BUSINESS_HOURS: createActiveHoursConfig([
 		{ start: '09:00', end: '18:00' }
 	]),
-	
+
+	/**
+	 * Horario comercial de lunes a viernes: 9:00 - 18:00
+	 */
+	BUSINESS_HOURS_WEEKDAYS: {
+		enabled: true,
+		ranges: [{ start: '09:00', end: '18:00' }],
+		excludeWeekends: true,
+		fallbackMessage: 'El chat está disponible de lunes a viernes de 9:00 a 18:00'
+	},
+
+	/**
+	 * Horario partido (ej: España): 8:00 - 14:00 y 15:00 - 17:00
+	 */
 	SPLIT_SCHEDULE: createActiveHoursConfig([
 		{ start: '08:00', end: '14:00' },
 		{ start: '15:00', end: '17:00' }
 	]),
-	
+
+	/**
+	 * Horario partido de lunes a viernes
+	 */
+	SPLIT_SCHEDULE_WEEKDAYS: {
+		enabled: true,
+		ranges: [
+			{ start: '08:00', end: '14:00' },
+			{ start: '15:00', end: '17:00' }
+		],
+		excludeWeekends: true,
+		fallbackMessage: 'El chat está disponible de lunes a viernes de 8:00-14:00 y 15:00-17:00'
+	},
+
+	/**
+	 * Horario extendido: 7:00 - 22:00, todos los días
+	 */
 	EXTENDED_HOURS: createActiveHoursConfig([
 		{ start: '07:00', end: '22:00' }
 	]),
-	
+
+	/**
+	 * Horario extendido de lunes a viernes
+	 */
+	EXTENDED_HOURS_WEEKDAYS: {
+		enabled: true,
+		ranges: [{ start: '07:00', end: '22:00' }],
+		excludeWeekends: true,
+		fallbackMessage: 'El chat está disponible de lunes a viernes de 7:00 a 22:00'
+	},
+
+	/**
+	 * Turno de noche: 22:00 - 06:00 (cruza medianoche)
+	 */
 	NIGHT_SHIFT: createActiveHoursConfig([
 		{ start: '22:00', end: '06:00' }
-	])
+	]),
+
+	/**
+	 * Solo fines de semana: 10:00 - 20:00
+	 */
+	WEEKENDS_ONLY: {
+		enabled: true,
+		ranges: [{ start: '10:00', end: '20:00' }],
+		activeDays: [0, 6], // Domingo y sábado
+		fallbackMessage: 'El chat está disponible solo los fines de semana de 10:00 a 20:00'
+	},
+
+	/**
+	 * Horario personalizado: Lunes, Miércoles, Viernes
+	 */
+	MWF_ONLY: {
+		enabled: true,
+		ranges: [{ start: '09:00', end: '17:00' }],
+		activeDays: [1, 3, 5], // Lunes, Miércoles, Viernes
+		fallbackMessage: 'El chat está disponible lunes, miércoles y viernes de 9:00 a 17:00'
+	}
 };

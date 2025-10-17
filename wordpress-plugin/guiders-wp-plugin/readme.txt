@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.5.1
+Stable tag: 1.5.2
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,18 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.5.2 =
+* **🐛 Fix Crítico**: Badge de notificaciones ahora se oculta correctamente junto con el botón de chat
+  * Problema: Cuando el chat se ocultaba por falta de comerciales disponibles, el badge quedaba flotando solo
+  * Solución: Métodos `hide()` y `show()` ahora sincronizan la visibilidad del badge con el botón
+  * Mejora UX: El badge se restaura automáticamente si hay mensajes no leídos al mostrar el botón
+* **🔍 Mejoras de Debugging**: Logs más visibles para diagnosticar problemas de disponibilidad de comerciales
+  * `CommercialAvailabilityService`: Logs ahora usan `console.log()` directo cuando `debug: true`
+  * `TrackingPixelSDK`: Nuevos logs de diagnóstico para verificar configuración de `commercialAvailability`
+  * Facilita troubleshooting del sistema de ocultar/mostrar chat según disponibilidad
+* **📦 Bundle**: 355 KB (sin cambios)
+* **🔗 Compatibilidad**: 100% retrocompatible, solo bug fixes
 
 = 1.5.1 =
 * **🔧 Mejoras en Sistema de Detección de Dispositivos Móviles**: Sistema de detección ahora es completamente configurable

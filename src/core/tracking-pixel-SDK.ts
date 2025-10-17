@@ -35,6 +35,8 @@ import { ConsentManager, ConsentManagerConfig } from "./consent-manager";
 import { ConsentBackendService } from "../services/consent-backend-service";
 import { ConsentBannerUI, ConsentBannerConfig } from "../presentation/consent-banner-ui";
 import { debugLog } from "../utils/debug-logger";
+import { CommercialAvailabilityService } from "../services/commercial-availability-service";
+import { CommercialAvailabilityConfig } from "../types";
 
 
 interface SDKOptions {
@@ -78,6 +80,8 @@ interface SDKOptions {
 	requireConsent?: boolean; // If false, SDK initializes without consent (default: true)
 	consent?: Partial<ConsentManagerConfig>; // Advanced consent options
 	consentBanner?: ConsentBannerConfig; // Consent banner UI (auto-render banner for GDPR)
+	// Commercial Availability Configuration
+	commercialAvailability?: Partial<CommercialAvailabilityConfig>; // Auto show/hide chat based on commercial availability
 }
 
 
@@ -167,6 +171,8 @@ export class TrackingPixelSDK {
 	private consentManager: ConsentManager;
 	private consentBackendService: ConsentBackendService;
 	private consentBanner: ConsentBannerUI | null = null;
+	private commercialAvailabilityService: CommercialAvailabilityService | null = null;
+	private commercialAvailabilityConfig?: Partial<CommercialAvailabilityConfig>;
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -267,6 +273,9 @@ export class TrackingPixelSDK {
 		// Inicializar el servicio de backend de consentimientos
 		this.consentBackendService = ConsentBackendService.getInstance();
 		debugLog('[TrackingPixelSDK] 🔐 ConsentBackendService inicializado');
+
+		// Configurar disponibilidad de comerciales (opcional)
+		this.commercialAvailabilityConfig = options.commercialAvailability;
 
 		// Inicializar el banner de consentimiento si está configurado
 		// Solo mostrar el banner si se requiere consentimiento
@@ -465,10 +474,6 @@ export class TrackingPixelSDK {
 			if (messagesContainer) {
 				this.chatMessagesUI = new ChatMessagesUI(messagesContainer);
 			}
-			
-			// Mostrar el botón inmediatamente para mejor experiencia de usuario
-			chatToggleButton.show();
-			debugLog("🔘 Botón de chat mostrado inmediatamente");
 
 			// Añadir listener para mensajes de sistema
 			const chatEls = document.querySelectorAll('.chat-widget, .chat-widget-fixed');
@@ -481,11 +486,19 @@ export class TrackingPixelSDK {
 
 			debugLog("Componentes del chat inicializados. Chat oculto por defecto.");
 
-			// Escuchar cuando el chat se inicialice para verificar disponibilidad de comerciales
-			chat.onChatInitialized(() => {
-				debugLog("💬 Chat inicializado, verificando disponibilidad de comerciales...");
-				this.checkCommercialAvailability(chat, chatToggleButton);
-			});
+			// Inicializar servicio de disponibilidad de comerciales (API v2)
+			// Este servicio hace polling y actualiza la visibilidad del chat automáticamente
+			// IMPORTANTE: Llamar ANTES de mostrar el botón para evitar flash visual
+			this.initializeCommercialAvailability(chat, chatToggleButton);
+
+			// Mostrar el botón solo si la verificación de disponibilidad NO está habilitada
+			// Si está habilitada, el servicio se encargará de mostrarlo cuando haya comerciales disponibles
+			if (!this.commercialAvailabilityConfig?.enabled) {
+				chatToggleButton.show();
+				debugLog("🔘 Botón de chat mostrado inmediatamente (disponibilidad deshabilitada)");
+			} else {
+				debugLog("🔘 Botón de chat oculto inicialmente (esperando verificación de disponibilidad)");
+			}
 
 			// Escuchar eventos de cambio de estado online de participantes
 			this.setupParticipantEventsListener(chat, chatToggleButton);
@@ -1268,6 +1281,13 @@ export class TrackingPixelSDK {
 		// Clear listeners
 		this.listeners.clear();
 
+		// Cleanup commercial availability service
+		if (this.commercialAvailabilityService) {
+			this.commercialAvailabilityService.cleanup();
+			this.commercialAvailabilityService = null;
+			debugLog('[TrackingPixelSDK] 📡 CommercialAvailabilityService limpiado');
+		}
+
 		debugLog('[TrackingPixelSDK] Cleanup completed');
 	}
 
@@ -1336,9 +1356,66 @@ export class TrackingPixelSDK {
 	}
 
 	/**
+	 * Inicializa el servicio de disponibilidad de comerciales (endpoint API v2)
+	 * @param chat Instancia del ChatUI
+	 * @param chatToggleButton Instancia del ChatToggleButtonUI
+	 */
+	private initializeCommercialAvailability(chat: ChatUI, chatToggleButton: ChatToggleButtonUI): void {
+		// Solo inicializar si la configuración está habilitada
+		if (!this.commercialAvailabilityConfig?.enabled) {
+			// El código llamador se encargará de mostrar el botón si es necesario
+			return;
+		}
+
+		const domain = window.location.hostname;
+
+		// Crear el servicio de disponibilidad
+		this.commercialAvailabilityService = new CommercialAvailabilityService({
+			domain,
+			apiKey: this.apiKey,
+			apiBaseUrl: this.endpoint,
+			pollingInterval: this.commercialAvailabilityConfig.pollingInterval || 30,
+			debug: this.commercialAvailabilityConfig.debug || false
+		});
+
+		// Registrar callback para cambios de disponibilidad
+		this.commercialAvailabilityService.onAvailabilityChanged((available, count) => {
+			debugLog(`📡 [CommercialAvailability] Estado cambió: ${available} (${count} online)`);
+
+			if (available) {
+				// Hay comerciales disponibles - mostrar chat y botón
+				chatToggleButton.show();
+
+				// Actualizar badge si está habilitado
+				if (this.commercialAvailabilityConfig?.showBadge && count > 0) {
+					chatToggleButton.updateUnreadCount(count);
+				} else {
+					chatToggleButton.hideUnreadBadge();
+				}
+			} else {
+				// No hay comerciales disponibles - ocultar chat y botón
+				debugLog('📡 [CommercialAvailability] No hay comerciales disponibles - ocultando chat');
+
+				// Ocultar el chat si está abierto
+				if (chat.isVisible()) {
+					chat.hide();
+				}
+
+				// Ocultar el botón de toggle
+				chatToggleButton.hide();
+			}
+		});
+
+		// Iniciar polling
+		this.commercialAvailabilityService.startPolling();
+		debugLog('📡 [CommercialAvailability] Polling iniciado');
+	}
+
+	/**
 	 * Verifica la disponibilidad de comerciales y muestra/oculta el botón del chat según corresponda
 	 * @param chat Instancia del ChatUI
 	 * @param chatToggleButton Instancia del ChatToggleButtonUI
+	 * @deprecated Usar initializeCommercialAvailability() que utiliza el endpoint /v2/commercials/availability
 	 */
 	private async checkCommercialAvailability(chat: ChatUI, chatToggleButton: ChatToggleButtonUI): Promise<void> {
 		try {
@@ -2199,7 +2276,9 @@ export class TrackingPixelSDK {
 			chat.hide();
 			chatInput.init();
 			chatToggleButton.init();
-			chatToggleButton.show();
+
+			// Inicializar servicio de disponibilidad de comerciales (API v2)
+			this.initializeCommercialAvailability(chat, chatToggleButton);
 
 			debugLog('[TrackingPixelSDK] ✅ Chat UI inicializado (sin tracking)');
 

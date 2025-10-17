@@ -429,15 +429,14 @@ export class ChatToggleButtonUI {
 	 * Muestra el botón del chat
 	 */
 	public show(): void {
-		console.log("🔘 ChatToggleButton.show() llamado");
-		console.log("🔘 Elemento botón existe:", !!this.button);
 		if (this.button) {
-			console.log("🔘 Estado antes de mostrar:", this.button.style.display);
 			this.button.style.display = 'flex';
-			console.log("🔘 Estado después de mostrar:", this.button.style.display);
-			console.log("🔘 Botón en DOM:", document.contains(this.button));
-		} else {
-			console.error("🔘 Error: Elemento botón no existe");
+		}
+
+		// Restaurar el badge si hay mensajes no leídos
+		const unreadCount = this.unreadService.getUnreadCount();
+		if (this.badgeElement && unreadCount > 0) {
+			this.badgeElement.style.display = 'flex';
 		}
 	}
 
@@ -445,14 +444,13 @@ export class ChatToggleButtonUI {
 	 * Oculta el botón del chat
 	 */
 	public hide(): void {
-		console.log("🔘 ChatToggleButton.hide() llamado");
-		console.log("🔘 Elemento botón existe:", !!this.button);
 		if (this.button) {
-			console.log("🔘 Estado antes de ocultar:", this.button.style.display);
 			this.button.style.display = 'none';
-			console.log("🔘 Estado después de ocultar:", this.button.style.display);
-		} else {
-			console.error("🔘 Error: Elemento botón no existe");
+		}
+
+		// También ocultar el badge cuando se oculta el botón
+		if (this.badgeElement) {
+			this.badgeElement.style.display = 'none';
 		}
 	}
 

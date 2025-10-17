@@ -178,6 +178,12 @@ export type WSInboundMessage = WSAck | WSPong | WSControlFlow | WSError | (WSBas
 export type WSOutboundMessage = WSHello | WSPresenceUpdate | WSNavChanged | WSTrackBatch | WSPing | (WSBaseEnvelope<any> & { t: string });
 
 // --- Configuración de horarios de activación del chat ---
+
+/**
+ * Día de la semana (0 = Domingo, 1 = Lunes, ..., 6 = Sábado)
+ */
+export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
 export interface TimeRange {
 	start: string;  // Formato "HH:MM" (ej: "08:00")
 	end: string;    // Formato "HH:MM" (ej: "14:00")
@@ -188,6 +194,12 @@ export interface ActiveHoursConfig {
 	timezone?: string | 'auto'; // Zona horaria (ej: "America/Mexico_City", "auto" para detección automática)
 	ranges: TimeRange[];        // Rangos de horarios activos
 	fallbackMessage?: string;   // Mensaje a mostrar cuando el chat no está activo
+
+	// Configuración de días activos (opcional)
+	activeDays?: WeekDay[];     // Días de la semana activos (0 = Domingo, 1 = Lunes, ..., 6 = Sábado)
+	                            // Si no se especifica, todos los días están activos
+	excludeWeekends?: boolean;  // Atajo para excluir sábado y domingo (equivalente a activeDays: [1,2,3,4,5])
+	                            // Si activeDays está definido, excludeWeekends se ignora
 }
 
 // --- Configuración de posicionamiento del chat ---
@@ -218,5 +230,19 @@ export interface MobileDetectionConfig {
 	/** Breakpoint en píxeles para detección por tamaño (default: 768) */
 	breakpoint?: number;
 	/** Habilitar logging de debug para diagnosticar detección (default: false) */
+	debug?: boolean;
+}
+
+// --- Configuración de disponibilidad de comerciales ---
+export interface CommercialAvailabilityConfig {
+	/** Habilitar verificación de disponibilidad (default: false) */
+	enabled?: boolean;
+	/** Intervalo de polling en segundos (default: 30) */
+	pollingInterval?: number;
+	/** Mostrar contador de comerciales disponibles (default: false) */
+	showBadge?: boolean;
+	/** Mensaje cuando no hay comerciales disponibles */
+	fallbackMessage?: string;
+	/** Habilitar logging de debug (default: false) */
 	debug?: boolean;
 }
