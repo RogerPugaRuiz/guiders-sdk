@@ -1,6 +1,7 @@
 import { DomTrackingManager, TrackDataExtractor, DefaultTrackDataExtractor } from './dom-tracking-manager';
 import { HeuristicElementDetector, HeuristicDetectionConfig, DetectionResult } from './heuristic-element-detector';
 import { URLPageDetector } from './url-page-detector';
+import { debugLog } from '../utils/debug-logger';
 
 /**
  * Enhanced DOM tracking manager with intelligent heuristic detection
@@ -11,6 +12,8 @@ export class EnhancedDomTrackingManager extends DomTrackingManager {
     private urlDetector: URLPageDetector;
     private heuristicEnabled: boolean = true;
     private registeredListeners: Map<HTMLElement, Map<string, () => void>> = new Map();
+    private lastTrackedUrl: string = '';
+    private navigationListenersSetup: boolean = false;
 
     constructor(
         trackCallback: (params: Record<string, unknown>) => void,
@@ -27,11 +30,11 @@ export class EnhancedDomTrackingManager extends DomTrackingManager {
      */
     public enableAutomaticTracking(): void {
         if (!this.heuristicEnabled) {
-            console.log('[EnhancedDomTrackingManager] Heuristic detection is disabled');
+            debugLog('[EnhancedDomTrackingManager] Heuristic detection is disabled');
             return;
         }
 
-        console.log('[EnhancedDomTrackingManager] 🚀 Enabling automatic heuristic tracking');
+        debugLog('[EnhancedDomTrackingManager] 🚀 Enabling automatic heuristic tracking');
 
         // Handle page_view with URL-based detection
         this.handlePageViewTracking();
@@ -48,16 +51,13 @@ export class EnhancedDomTrackingManager extends DomTrackingManager {
      */
     private handlePageViewTracking(): void {
         const executePageView = () => {
-            const pageData = this.urlDetector.detectCurrentPage();
-            
-            console.log('[EnhancedDomTrackingManager] 📄 Page detected:', pageData.pageType, 'confidence:', pageData.confidence);
+            this.trackPageView();
 
-            // Create page_view event data
-            const eventData = {
-                event: 'page_view',
-            };
-
-            this.trackCallback(eventData);
+            // Setup navigation listeners only once
+            if (!this.navigationListenersSetup) {
+                this.setupNavigationListeners();
+                this.navigationListenersSetup = true;
+            }
         };
 
         // Execute immediately if DOM is already loaded
@@ -66,6 +66,66 @@ export class EnhancedDomTrackingManager extends DomTrackingManager {
         } else {
             executePageView();
         }
+    }
+
+    /**
+     * Track a page_view event (only if URL has changed)
+     */
+    private trackPageView(): void {
+        const currentUrl = window.location.href;
+
+        // Avoid duplicate page_view events for the same URL
+        if (this.lastTrackedUrl === currentUrl) {
+            debugLog('[EnhancedDomTrackingManager] ⏭️ Skipping duplicate page_view for:', currentUrl);
+            return;
+        }
+
+        this.lastTrackedUrl = currentUrl;
+        const pageData = this.urlDetector.detectCurrentPage();
+
+        debugLog('[EnhancedDomTrackingManager] 📄 Page detected:', pageData.pageType, 'confidence:', pageData.confidence);
+
+        // Create page_view event data
+        const eventData = {
+            event: 'page_view',
+        };
+
+        this.trackCallback(eventData);
+    }
+
+    /**
+     * Setup listeners for SPA navigation (popstate, pushState, replaceState, hashchange)
+     */
+    private setupNavigationListeners(): void {
+        debugLog('[EnhancedDomTrackingManager] 🧭 Setting up navigation listeners for SPA');
+
+        // Listen for browser back/forward navigation
+        window.addEventListener('popstate', () => {
+            debugLog('[EnhancedDomTrackingManager] ⬅️ popstate detected');
+            this.trackPageView();
+        });
+
+        // Listen for hash changes
+        window.addEventListener('hashchange', () => {
+            debugLog('[EnhancedDomTrackingManager] #️⃣ hashchange detected');
+            this.trackPageView();
+        });
+
+        // Intercept history.pushState (used by SPAs for navigation)
+        const originalPushState = history.pushState;
+        history.pushState = (...args) => {
+            originalPushState.apply(history, args);
+            debugLog('[EnhancedDomTrackingManager] ➡️ pushState detected');
+            this.trackPageView();
+        };
+
+        // Intercept history.replaceState (used by SPAs for URL updates)
+        const originalReplaceState = history.replaceState;
+        history.replaceState = (...args) => {
+            originalReplaceState.apply(history, args);
+            debugLog('[EnhancedDomTrackingManager] 🔄 replaceState detected');
+            this.trackPageView();
+        };
     }
 
     /**
@@ -225,7 +285,7 @@ export class EnhancedDomTrackingManager extends DomTrackingManager {
      * Rescan for new elements after DOM changes
      */
     private rescanForNewElements(): void {
-        console.log('[EnhancedDomTrackingManager] 🔄 Rescanning for new elements');
+        debugLog('[EnhancedDomTrackingManager] 🔄 Rescanning for new elements');
         
         const eventTypes = Object.keys(this.getDomEventMap());
         eventTypes.forEach(eventType => {

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guiders SDK - Configuración de Días de la Semana</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+
+        .info-box {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .info-box h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+
+        .info-box p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .current-status {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .current-status h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 0.95rem;
+        }
+
+        .status-item strong {
+            min-width: 200px;
+            color: #555;
+        }
+
+        .status-active {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .status-inactive {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .examples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .example-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .example-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .example-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .example-card p {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+
+        .example-card code {
+            display: block;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .example-card button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            transition: background 0.3s ease;
+        }
+
+        .example-card button:hover {
+            background: #764ba2;
+        }
+
+        .code-section {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        .code-section pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .code-section .comment {
+            color: #a0aec0;
+        }
+
+        .code-section .keyword {
+            color: #f687b3;
+        }
+
+        .code-section .string {
+            color: #68d391;
+        }
+
+        .code-section .number {
+            color: #fbd38d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗓️ Configuración de Días de la Semana</h1>
+        <p class="subtitle">Controla cuándo el chat está disponible según el día de la semana</p>
+
+        <div class="info-box">
+            <h2>📊 Estado Actual</h2>
+            <div class="current-status">
+                <h3>Información del Sistema</h3>
+                <div class="status-item">
+                    <strong>Día de hoy:</strong>
+                    <span id="current-day"></span>
+                </div>
+                <div class="status-item">
+                    <strong>Hora actual:</strong>
+                    <span id="current-time"></span>
+                </div>
+                <div class="status-item">
+                    <strong>Zona horaria:</strong>
+                    <span id="current-timezone"></span>
+                </div>
+                <div class="status-item">
+                    <strong>Chat activo:</strong>
+                    <span id="chat-status"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <h2>🎯 Ejemplos de Configuración</h2>
+            <p>Haz clic en cualquier ejemplo para aplicar la configuración y ver cómo funciona:</p>
+
+            <div class="examples-grid">
+                <div class="example-card" onclick="applyConfig('weekdays')">
+                    <h3>🏢 Solo Días Laborables</h3>
+                    <p>Chat disponible de lunes a viernes, con horario 9:00-18:00</p>
+                    <code>excludeWeekends: true</code>
+                    <button>Aplicar Configuración</button>
+                </div>
+
+                <div class="example-card" onclick="applyConfig('weekends')">
+                    <h3>🌴 Solo Fines de Semana</h3>
+                    <p>Chat disponible sábado y domingo, 10:00-20:00</p>
+                    <code>activeDays: [0, 6]</code>
+                    <button>Aplicar Configuración</button>
+                </div>
+
+                <div class="example-card" onclick="applyConfig('mwf')">
+                    <h3>📅 Lunes, Miércoles, Viernes</h3>
+                    <p>Horario personalizado específico para estos días</p>
+                    <code>activeDays: [1, 3, 5]</code>
+                    <button>Aplicar Configuración</button>
+                </div>
+
+                <div class="example-card" onclick="applyConfig('custom')">
+                    <h3>⚙️ Configuración Personalizada</h3>
+                    <p>Martes, Jueves y Sábado con horarios específicos</p>
+                    <code>activeDays: [2, 4, 6]</code>
+                    <button>Aplicar Configuración</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <h2>📝 Ejemplos de Código</h2>
+
+            <h3 style="margin-top: 20px; color: #667eea;">1. Excluir Fines de Semana (Forma Simple)</h3>
+            <div class="code-section">
+<pre><span class="comment">// Configuración más simple para horario de oficina</span>
+<span class="keyword">window</span>.GUIDERS_CONFIG = {
+  apiKey: <span class="string">'YOUR_API_KEY'</span>,
+  activeHours: {
+    enabled: <span class="keyword">true</span>,
+    timezone: <span class="string">'auto'</span>,
+    ranges: [
+      { start: <span class="string">'09:00'</span>, end: <span class="string">'18:00'</span> }
+    ],
+    excludeWeekends: <span class="keyword">true</span>  <span class="comment">// ✨ Solo lunes a viernes</span>
+  }
+};</pre>
+            </div>
+
+            <h3 style="margin-top: 20px; color: #667eea;">2. Días Específicos (Control Avanzado)</h3>
+            <div class="code-section">
+<pre><span class="comment">// Control granular de días específicos</span>
+<span class="keyword">window</span>.GUIDERS_CONFIG = {
+  apiKey: <span class="string">'YOUR_API_KEY'</span>,
+  activeHours: {
+    enabled: <span class="keyword">true</span>,
+    timezone: <span class="string">'Europe/Madrid'</span>,
+    ranges: [
+      { start: <span class="string">'09:00'</span>, end: <span class="string">'17:00'</span> }
+    ],
+    activeDays: [<span class="number">1</span>, <span class="number">3</span>, <span class="number">5</span>],  <span class="comment">// Lunes, Miércoles, Viernes (0=Domingo, 6=Sábado)</span>
+    fallbackMessage: <span class="string">'El chat está disponible lunes, miércoles y viernes de 9:00 a 17:00'</span>
+  }
+};</pre>
+            </div>
+
+            <h3 style="margin-top: 20px; color: #667eea;">3. Usando Presets Predefinidos</h3>
+            <div class="code-section">
+<pre><span class="comment">// Importar configuraciones predefinidas</span>
+<span class="keyword">import</span> { COMMON_ACTIVE_HOURS } <span class="keyword">from</span> <span class="string">'@guiders/sdk'</span>;
+
+<span class="comment">// Usar preset de horario comercial sin fines de semana</span>
+<span class="keyword">const</span> sdk = <span class="keyword">new</span> TrackingPixelSDK({
+  apiKey: <span class="string">'YOUR_API_KEY'</span>,
+  activeHours: COMMON_ACTIVE_HOURS.BUSINESS_HOURS_WEEKDAYS
+});
+
+<span class="comment">// O horario partido (España) sin fines de semana</span>
+<span class="keyword">const</span> sdk2 = <span class="keyword">new</span> TrackingPixelSDK({
+  apiKey: <span class="string">'YOUR_API_KEY'</span>,
+  activeHours: COMMON_ACTIVE_HOURS.SPLIT_SCHEDULE_WEEKDAYS
+});</pre>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <h2>💡 Notas Importantes</h2>
+            <ul style="color: #555; line-height: 1.8; padding-left: 20px;">
+                <li>Los días se numeran de 0 (Domingo) a 6 (Sábado)</li>
+                <li>Si defines <code>activeDays</code>, <code>excludeWeekends</code> se ignora</li>
+                <li>Si no defines ninguno, el chat está activo todos los días</li>
+                <li>El mensaje de fallback se genera automáticamente según la configuración</li>
+                <li>La zona horaria puede ser 'auto' para detección automática o una zona específica como 'Europe/Madrid'</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="../dist/index.js"></script>
+    <script>
+        // Configurations
+        const configs = {
+            weekdays: {
+                enabled: true,
+                timezone: 'auto',
+                ranges: [{ start: '09:00', end: '18:00' }],
+                excludeWeekends: true,
+                fallbackMessage: 'El chat está disponible de lunes a viernes de 9:00 a 18:00'
+            },
+            weekends: {
+                enabled: true,
+                timezone: 'auto',
+                ranges: [{ start: '10:00', end: '20:00' }],
+                activeDays: [0, 6],
+                fallbackMessage: 'El chat está disponible solo los fines de semana de 10:00 a 20:00'
+            },
+            mwf: {
+                enabled: true,
+                timezone: 'auto',
+                ranges: [{ start: '09:00', end: '17:00' }],
+                activeDays: [1, 3, 5],
+                fallbackMessage: 'El chat está disponible lunes, miércoles y viernes de 9:00 a 17:00'
+            },
+            custom: {
+                enabled: true,
+                timezone: 'auto',
+                ranges: [{ start: '08:00', end: '16:00' }],
+                activeDays: [2, 4, 6],
+                fallbackMessage: 'El chat está disponible martes, jueves y sábado de 8:00 a 16:00'
+            }
+        };
+
+        let currentSdk = null;
+
+        function applyConfig(configName) {
+            const config = configs[configName];
+
+            // Clean up existing SDK
+            if (currentSdk) {
+                try {
+                    if (currentSdk.cleanup) currentSdk.cleanup();
+                } catch (e) {
+                    console.warn('Error cleaning up SDK:', e);
+                }
+            }
+
+            // Initialize new SDK with config
+            window.GUIDERS_CONFIG = {
+                apiKey: 'demo_key',
+                activeHours: config
+            };
+
+            currentSdk = new window.TrackingPixelSDK({
+                apiKey: 'demo_key',
+                activeHours: config
+            });
+
+            currentSdk.init().then(() => {
+                updateStatus();
+                alert(`✅ Configuración aplicada: ${configName}\n\nRevisa el estado actual del chat abajo.`);
+            }).catch(err => {
+                console.error('Error initializing SDK:', err);
+            });
+        }
+
+        function updateStatus() {
+            const now = new Date();
+            const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+            document.getElementById('current-day').textContent = days[now.getDay()];
+            document.getElementById('current-time').textContent = now.toLocaleTimeString('es-ES');
+
+            try {
+                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                document.getElementById('current-timezone').textContent = timezone;
+            } catch (e) {
+                document.getElementById('current-timezone').textContent = 'UTC';
+            }
+
+            if (currentSdk && currentSdk.isChatActive) {
+                const isActive = currentSdk.isChatActive();
+                const statusEl = document.getElementById('chat-status');
+                statusEl.textContent = isActive ? '✅ Activo' : '❌ Inactivo';
+                statusEl.className = isActive ? 'status-active' : 'status-inactive';
+            } else {
+                document.getElementById('chat-status').textContent = '⏳ Pendiente de configuración';
+            }
+        }
+
+        // Initialize with default config (weekdays only)
+        setTimeout(() => {
+            applyConfig('weekdays');
+        }, 1000);
+
+        // Update status every second
+        setInterval(updateStatus, 1000);
+    </script>
+</body>
+</html>

@@ -10,6 +10,9 @@ import { MetadataInjectionStage } from "../pipeline/stages/metadata-stage";
 import { URLInjectionStage } from "../pipeline/stages/url-injection-stage";
 import { SessionInjectionStage } from "../pipeline/stages/session-injection-stage";
 import { TrackingEventV2Stage } from "../pipeline/stages/tracking-event-v2-stage";
+import { TrackingV2TransformStage } from "../pipeline/stages/tracking-v2-transform-stage";
+import { EventQueueManager } from "./event-queue-manager";
+import { TrackingV2Service } from "../services/tracking-v2-service";
 import { ChatUI } from "../presentation/chat";
 import { ChatMessagesUI } from "../presentation/chat-messages-ui";
 import { VisitorsV2Service } from "../services/visitors-v2-service";
@@ -82,6 +85,15 @@ interface SDKOptions {
 	consentBanner?: ConsentBannerConfig; // Consent banner UI (auto-render banner for GDPR)
 	// Commercial Availability Configuration
 	commercialAvailability?: Partial<CommercialAvailabilityConfig>; // Auto show/hide chat based on commercial availability
+	// Tracking V2 Configuration
+	trackingV2?: {
+		enabled?: boolean;        // Enable tracking V2 (default: true)
+		batchSize?: number;       // Max batch size (default: 500)
+		flushInterval?: number;   // Flush interval in ms (default: 5000)
+		maxQueueSize?: number;    // Max queue size (default: 10000)
+		persistQueue?: boolean;   // Persist queue in localStorage (default: true)
+		bypassConsent?: boolean;  // Bypass consent checks (development only, default: false)
+	};
 }
 
 
@@ -142,6 +154,10 @@ export class TrackingPixelSDK {
 	private sessionInjectionStage: SessionInjectionStage;
 
 	private eventQueue: PixelEvent[] = [];
+	private eventQueueManager: EventQueueManager | null = null;
+	private trackingV2Service: TrackingV2Service | null = null;
+	private trackingV2Enabled: boolean = true;
+	private bypassConsentForTracking: boolean = false; // Development only: bypass consent checks
 	private endpoint: string;
 	private webSocketEndpoint: string;
 	private apiKey: string;
@@ -222,6 +238,33 @@ export class TrackingPixelSDK {
 			}
 		}
 
+		// Configurar Tracking V2
+		this.trackingV2Enabled = options.trackingV2?.enabled ?? true;
+		this.bypassConsentForTracking = options.trackingV2?.bypassConsent ?? false;
+
+		if (this.bypassConsentForTracking) {
+			console.warn('[TrackingPixelSDK] ⚠️ BYPASS CONSENT MODE ENABLED - Solo para desarrollo');
+		}
+
+		if (this.trackingV2Enabled) {
+			// Inicializar EventQueueManager
+			this.eventQueueManager = new EventQueueManager({
+				maxSize: options.trackingV2?.maxQueueSize ?? 10000,
+				persistEnabled: options.trackingV2?.persistQueue ?? true
+			});
+
+			// Inicializar TrackingV2Service (singleton)
+			this.trackingV2Service = TrackingV2Service.getInstance();
+
+			debugLog('[TrackingPixelSDK] 📊 Tracking V2 habilitado', {
+				batchSize: options.trackingV2?.batchSize ?? 500,
+				flushInterval: options.trackingV2?.flushInterval ?? 5000,
+				bypassConsent: this.bypassConsentForTracking
+			});
+		} else {
+			debugLog('[TrackingPixelSDK] ⚠️ Tracking V2 deshabilitado');
+		}
+
 		// NO escribir en localStorage aquí - se hará después del consentimiento
 		// localStorage se usa solo después de verificar consentimiento en init()
 
@@ -296,7 +339,7 @@ export class TrackingPixelSDK {
 			.addStage(new URLInjectionStage())
 			.addStage(this.sessionInjectionStage)
 			.addStage(new MetadataInjectionStage())
-			.addStage(new TrackingEventV2Stage())
+			.addStage(new TrackingV2TransformStage())
 			.addStage(new ValidationStage(this.authMode))
 			.build();
 
@@ -390,6 +433,16 @@ export class TrackingPixelSDK {
 
 		if (this.authMode === 'jwt') {
 			TokenManager.loadTokensFromStorage();
+		}
+
+		// Inicializar Tracking V2 Service
+		if (this.trackingV2Enabled && this.trackingV2Service) {
+			try {
+				await this.trackingV2Service.initialize(this.apiKey);
+				debugLog('[TrackingPixelSDK] ✅ TrackingV2Service inicializado');
+			} catch (error) {
+				console.error('[TrackingPixelSDK] ❌ Error inicializando TrackingV2Service:', error);
+			}
 		}
 
 		debugLog("✅ SDK inicializado sin servicios de WebSocket.");
@@ -959,16 +1012,39 @@ export class TrackingPixelSDK {
 
 		// Solo usar beforeunload y pagehide que son los más confiables para cierre de ventana
 		debugLog('[TrackingPixelSDK] 🚪 Configurando listeners simplificados para cierre de ventana');
-		
+
 		// Evento principal: beforeunload - cuando la página está a punto de descargarse
 		window.addEventListener('beforeunload', () => {
 			debugLog('[TrackingPixelSDK] 🚪 beforeunload detectado');
+
+			// Tracking V2: Persistir cola y enviar con sendBeacon
+			if (this.trackingV2Enabled && this.eventQueueManager && this.trackingV2Service) {
+				// 1. Guardar cola en localStorage
+				this.eventQueueManager.saveToStorage();
+				debugLog('[TrackingPixelSDK] 💾 Cola de eventos guardada en localStorage');
+
+				// 2. Enviar eventos pendientes con sendBeacon
+				const pendingEvents = this.eventQueueManager.getBatch(500);
+				if (pendingEvents.length > 0) {
+					const success = this.trackingV2Service.sendBatchWithBeacon(pendingEvents);
+					if (success) {
+						debugLog(`[TrackingPixelSDK] 📤 ${pendingEvents.length} eventos enviados con sendBeacon`);
+					}
+				}
+			}
+
 			endSessionOnce('window_close');
 		});
-		
+
 		// Evento secundario: pagehide - más confiable que beforeunload en móviles
 		window.addEventListener('pagehide', () => {
 			debugLog('[TrackingPixelSDK] 🚪 pagehide detectado');
+
+			// Tracking V2: Backup en pagehide (para móviles)
+			if (this.trackingV2Enabled && this.eventQueueManager) {
+				this.eventQueueManager.saveToStorage();
+			}
+
 			endSessionOnce('window_close');
 		});
 	}
@@ -1113,14 +1189,42 @@ export class TrackingPixelSDK {
 	}
 
 	public async flush(): Promise<void> {
-		if (this.eventQueue.length === 0) return;
+		// Usar Tracking V2 si está habilitado
+		if (this.trackingV2Enabled && this.eventQueueManager && this.trackingV2Service) {
+			if (this.eventQueueManager.isEmpty()) {
+				debugLog('[TrackingPixelSDK] 📭 No hay eventos para enviar (V2)');
+				return;
+			}
 
-		const eventsToSend = [...this.eventQueue];
-		this.eventQueue = [];
+			const batch = this.eventQueueManager.getBatch(500);
+			if (batch.length === 0) return;
 
-		await Promise.all(
-			eventsToSend.map((event) => this.trySendEventWithRetry(event, this.maxRetries))
-		);
+			debugLog(`[TrackingPixelSDK] 📤 Enviando batch de ${batch.length} eventos (V2)...`);
+
+			try {
+				const result = await this.trackingV2Service.sendBatch(batch);
+				if (result && result.success) {
+					// Eliminar eventos enviados exitosamente de la cola
+					this.eventQueueManager.dequeue(batch.length);
+					debugLog(`[TrackingPixelSDK] ✅ ${result.processed} eventos procesados, ${result.discarded} descartados`);
+				} else {
+					console.warn('[TrackingPixelSDK] ⚠️ Batch no fue procesado exitosamente');
+				}
+			} catch (error) {
+				console.error('[TrackingPixelSDK] ❌ Error enviando batch:', error);
+				// Los eventos permanecen en la cola para reintentar más tarde
+			}
+		} else {
+			// Fallback a sistema tradicional
+			if (this.eventQueue.length === 0) return;
+
+			const eventsToSend = [...this.eventQueue];
+			this.eventQueue = [];
+
+			await Promise.all(
+				eventsToSend.map((event) => this.trySendEventWithRetry(event, this.maxRetries))
+			);
+		}
 	}
 
 	public stopAutoFlush(): void {
@@ -1171,16 +1275,18 @@ export class TrackingPixelSDK {
 	}
 
 	private captureEvent(type: string, data: Record<string, unknown>): void {
-		// Verificar consentimiento antes de capturar eventos
-		if (!this.consentManager.isTrackingAllowed()) {
-			debugLog('[TrackingPixelSDK] 🔐 Evento bloqueado - sin consentimiento:', type);
-			return;
-		}
+		// Verificar consentimiento antes de capturar eventos (a menos que esté en modo bypass)
+		if (!this.bypassConsentForTracking) {
+			if (!this.consentManager.isTrackingAllowed()) {
+				debugLog('[TrackingPixelSDK] 🔐 Evento bloqueado - sin consentimiento:', type);
+				return;
+			}
 
-		// Verificar si analytics está permitido para eventos de tracking
-		if (!this.consentManager.isCategoryAllowed('analytics')) {
-			debugLog('[TrackingPixelSDK] 🔐 Evento bloqueado - analytics no permitido:', type);
-			return;
+			// Verificar si analytics está permitido para eventos de tracking
+			if (!this.consentManager.isCategoryAllowed('analytics')) {
+				debugLog('[TrackingPixelSDK] 🔐 Evento bloqueado - analytics no permitido:', type);
+				return;
+			}
 		}
 
 		const rawEvent = {
@@ -1189,7 +1295,16 @@ export class TrackingPixelSDK {
 			timestamp: Date.now(),
 		};
 		const processedEvent = this.eventPipeline.process(rawEvent);
-		this.eventQueue.push(processedEvent);
+
+		// Usar EventQueueManager si Tracking V2 está habilitado
+		if (this.trackingV2Enabled && this.eventQueueManager) {
+			// El evento ya fue transformado a TrackingEventDto por el pipeline
+			const trackingEvent = processedEvent.data as any;
+			this.eventQueueManager.enqueue(trackingEvent);
+		} else {
+			// Fallback a cola tradicional
+			this.eventQueue.push(processedEvent);
+		}
 	}
 
 	private async trySendEventWithRetry(event: PixelEvent, retriesLeft: number): Promise<void> {

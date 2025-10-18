@@ -39,6 +39,14 @@
         pollingInterval: 10,    // Consultar cada 10 segundos (rápido para demo)
         showBadge: true,        // Mostrar número de comerciales disponibles
         debug: true             // Habilitar logs de debug
+      },
+      trackingV2: {
+        enabled: true,          // Habilitar tracking V2
+        batchSize: 500,         // Tamaño del batch
+        flushInterval: 5000,    // Flush cada 5 segundos
+        maxQueueSize: 10000,    // Tamaño máximo de cola
+        persistQueue: true,     // Persistir en localStorage
+        bypassConsent: true     // ⚠️ BYPASS CONSENT (Solo desarrollo)
       }
     };
 

@@ -330,6 +330,68 @@ class GuidersAdmin {
             'guiders_commercial_availability_section'
         );
 
+        // Tracking V2 section
+        add_settings_section(
+            'guiders_tracking_v2_section',
+            __('Tracking V2 - Sistema de Eventos Avanzado', 'guiders-wp-plugin'),
+            array($this, 'trackingV2SectionCallback'),
+            'guiders-settings'
+        );
+
+        // Tracking V2 enabled field
+        add_settings_field(
+            'tracking_v2_enabled',
+            __('Habilitar Tracking V2', 'guiders-wp-plugin'),
+            array($this, 'trackingV2EnabledFieldCallback'),
+            'guiders-settings',
+            'guiders_tracking_v2_section'
+        );
+
+        // Tracking V2 batch size field
+        add_settings_field(
+            'tracking_v2_batch_size',
+            __('Tamaño de Lote', 'guiders-wp-plugin'),
+            array($this, 'trackingV2BatchSizeFieldCallback'),
+            'guiders-settings',
+            'guiders_tracking_v2_section'
+        );
+
+        // Tracking V2 flush interval field
+        add_settings_field(
+            'tracking_v2_flush_interval',
+            __('Intervalo de Envío (ms)', 'guiders-wp-plugin'),
+            array($this, 'trackingV2FlushIntervalFieldCallback'),
+            'guiders-settings',
+            'guiders_tracking_v2_section'
+        );
+
+        // Tracking V2 max queue size field
+        add_settings_field(
+            'tracking_v2_max_queue_size',
+            __('Tamaño Máximo de Cola', 'guiders-wp-plugin'),
+            array($this, 'trackingV2MaxQueueSizeFieldCallback'),
+            'guiders-settings',
+            'guiders_tracking_v2_section'
+        );
+
+        // Tracking V2 persist queue field
+        add_settings_field(
+            'tracking_v2_persist_queue',
+            __('Persistir Cola en localStorage', 'guiders-wp-plugin'),
+            array($this, 'trackingV2PersistQueueFieldCallback'),
+            'guiders-settings',
+            'guiders_tracking_v2_section'
+        );
+
+        // Tracking V2 bypass consent field
+        add_settings_field(
+            'tracking_v2_bypass_consent',
+            __('⚠️ Bypass Consent (Solo Desarrollo)', 'guiders-wp-plugin'),
+            array($this, 'trackingV2BypassConsentFieldCallback'),
+            'guiders-settings',
+            'guiders_tracking_v2_section'
+        );
+
         // Chat Position section
         add_settings_section(
             'guiders_chat_position_section',
@@ -638,6 +700,49 @@ class GuidersAdmin {
 
         // Validate show badge setting
         $validated['commercial_availability_show_badge'] = isset($input['commercial_availability_show_badge']) ? true : false;
+
+        // Validate Tracking V2 settings
+        $validated['tracking_v2_enabled'] = isset($input['tracking_v2_enabled']) ? true : false;
+
+        // Validate batch size (100-1000 events)
+        if (isset($input['tracking_v2_batch_size'])) {
+            $batch_size = intval($input['tracking_v2_batch_size']);
+            $validated['tracking_v2_batch_size'] = max(100, min(1000, $batch_size));
+        } else {
+            $validated['tracking_v2_batch_size'] = 500; // Default value
+        }
+
+        // Validate flush interval (1000-30000 ms)
+        if (isset($input['tracking_v2_flush_interval'])) {
+            $flush_interval = intval($input['tracking_v2_flush_interval']);
+            $validated['tracking_v2_flush_interval'] = max(1000, min(30000, $flush_interval));
+        } else {
+            $validated['tracking_v2_flush_interval'] = 5000; // Default value
+        }
+
+        // Validate max queue size (1000-50000 events)
+        if (isset($input['tracking_v2_max_queue_size'])) {
+            $max_queue = intval($input['tracking_v2_max_queue_size']);
+            $validated['tracking_v2_max_queue_size'] = max(1000, min(50000, $max_queue));
+        } else {
+            $validated['tracking_v2_max_queue_size'] = 10000; // Default value
+        }
+
+        // Validate persist queue setting
+        $validated['tracking_v2_persist_queue'] = isset($input['tracking_v2_persist_queue']) ? true : false;
+
+        // Validate bypass consent setting (with security check)
+        $validated['tracking_v2_bypass_consent'] = isset($input['tracking_v2_bypass_consent']) ? true : false;
+
+        // Add warning if bypass consent is enabled in production
+        if ($validated['tracking_v2_bypass_consent'] && (!isset($validated['environment']) || $validated['environment'] !== 'development')) {
+            add_settings_error(
+                'guiders_wp_plugin_settings',
+                'tracking_v2_bypass_consent_warning',
+                __('⚠️ ADVERTENCIA: "Bypass Consent" está activado en un entorno de producción. Esta configuración solo debe usarse en desarrollo.', 'guiders-wp-plugin'),
+                'warning'
+            );
+        }
 
         // Validate Chat Position settings
         if (isset($input['chat_position_data'])) {
@@ -1283,6 +1388,92 @@ class GuidersAdmin {
         echo '<input type="checkbox" id="commercial_availability_show_badge" name="guiders_wp_plugin_settings[commercial_availability_show_badge]" value="1" ' . checked($show_badge, true, false) . ' />';
         echo '<label for="commercial_availability_show_badge">' . __('Mostrar número de comerciales disponibles', 'guiders-wp-plugin') . '</label>';
         echo '<p class="description">' . __('Si está activado, se mostrará un contador en el botón del chat con el número de comerciales disponibles.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    // === Tracking V2 Field Callbacks ===
+
+    /**
+     * Tracking V2 section callback
+     */
+    public function trackingV2SectionCallback() {
+        echo '<p>' . __('Configure el sistema avanzado de tracking V2 con cola persistente y envío por lotes.', 'guiders-wp-plugin') . '</p>';
+        echo '<p class="description">' . __('El sistema Tracking V2 mejora la fiabilidad del tracking mediante batching, persistencia en localStorage y reintentos automáticos.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Tracking V2 enabled field callback
+     */
+    public function trackingV2EnabledFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $enabled = isset($settings['tracking_v2_enabled']) ? $settings['tracking_v2_enabled'] : true;
+
+        echo '<input type="checkbox" id="tracking_v2_enabled" name="guiders_wp_plugin_settings[tracking_v2_enabled]" value="1" ' . checked($enabled, true, false) . ' />';
+        echo '<label for="tracking_v2_enabled">' . __('Activar sistema de tracking V2', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('Si está activado, los eventos se enviarán usando el sistema V2 con cola persistente y batching.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Tracking V2 batch size field callback
+     */
+    public function trackingV2BatchSizeFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $batch_size = isset($settings['tracking_v2_batch_size']) ? $settings['tracking_v2_batch_size'] : 500;
+
+        echo '<input type="number" id="tracking_v2_batch_size" name="guiders_wp_plugin_settings[tracking_v2_batch_size]" value="' . esc_attr($batch_size) . '" min="100" max="1000" step="50" />';
+        echo '<p class="description">' . __('Número de eventos a enviar en cada lote (100-1000). Recomendado: 500.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Tracking V2 flush interval field callback
+     */
+    public function trackingV2FlushIntervalFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $flush_interval = isset($settings['tracking_v2_flush_interval']) ? $settings['tracking_v2_flush_interval'] : 5000;
+
+        echo '<input type="number" id="tracking_v2_flush_interval" name="guiders_wp_plugin_settings[tracking_v2_flush_interval]" value="' . esc_attr($flush_interval) . '" min="1000" max="30000" step="1000" />';
+        echo '<p class="description">' . __('Intervalo en milisegundos para enviar eventos (1000-30000 ms). Recomendado: 5000 (5 segundos).', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Tracking V2 max queue size field callback
+     */
+    public function trackingV2MaxQueueSizeFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $max_queue = isset($settings['tracking_v2_max_queue_size']) ? $settings['tracking_v2_max_queue_size'] : 10000;
+
+        echo '<input type="number" id="tracking_v2_max_queue_size" name="guiders_wp_plugin_settings[tracking_v2_max_queue_size]" value="' . esc_attr($max_queue) . '" min="1000" max="50000" step="1000" />';
+        echo '<p class="description">' . __('Tamaño máximo de la cola de eventos (1000-50000). Recomendado: 10000.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Tracking V2 persist queue field callback
+     */
+    public function trackingV2PersistQueueFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $persist_queue = isset($settings['tracking_v2_persist_queue']) ? $settings['tracking_v2_persist_queue'] : true;
+
+        echo '<input type="checkbox" id="tracking_v2_persist_queue" name="guiders_wp_plugin_settings[tracking_v2_persist_queue]" value="1" ' . checked($persist_queue, true, false) . ' />';
+        echo '<label for="tracking_v2_persist_queue">' . __('Guardar cola en localStorage', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('Si está activado, los eventos pendientes se guardarán en localStorage y se enviarán tras recargar la página.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Tracking V2 bypass consent field callback
+     */
+    public function trackingV2BypassConsentFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $bypass_consent = isset($settings['tracking_v2_bypass_consent']) ? $settings['tracking_v2_bypass_consent'] : false;
+        $environment = isset($settings['environment']) ? $settings['environment'] : 'production';
+
+        echo '<input type="checkbox" id="tracking_v2_bypass_consent" name="guiders_wp_plugin_settings[tracking_v2_bypass_consent]" value="1" ' . checked($bypass_consent, true, false) . ' />';
+        echo '<label for="tracking_v2_bypass_consent">' . __('Omitir verificación de consentimiento', 'guiders-wp-plugin') . '</label>';
+
+        // Show warning if not in development environment
+        if ($environment !== 'development') {
+            echo '<p class="description" style="color: #d63638; font-weight: bold;">' . __('⚠️ ADVERTENCIA: Esta opción está diseñada SOLO para desarrollo. No debe activarse en producción.', 'guiders-wp-plugin') . '</p>';
+        } else {
+            echo '<p class="description">' . __('⚠️ Solo para desarrollo: permite tracking sin consentimiento GDPR. No usar en producción.', 'guiders-wp-plugin') . '</p>';
+        }
     }
 
     // === Chat Position Field Callbacks ===

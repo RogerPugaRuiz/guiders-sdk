@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPA Navigation Demo - Guiders SDK</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .nav {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            min-height: 300px;
+        }
+
+        .content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .content p {
+            color: #666;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .stats {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .stats h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .stats-item:last-child {
+            border-bottom: none;
+        }
+
+        .stats-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .stats-value {
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .console {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            line-height: 1.6;
+            margin-top: 20px;
+        }
+
+        .console-line {
+            margin-bottom: 5px;
+        }
+
+        .console-line.info { color: #4fc3f7; }
+        .console-line.success { color: #81c784; }
+        .console-line.warning { color: #ffb74d; }
+
+        .current-url {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .current-url code {
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧭 SPA Navigation Demo</h1>
+            <p>
+                Esta demo simula una Single Page Application (SPA) para probar la detección automática de navegación.
+                El SDK detectará cambios de URL usando <code>pushState</code>, <code>replaceState</code>, <code>popstate</code> y <code>hashchange</code>.
+                Abre la consola del navegador para ver los eventos de <strong>page_view</strong> automáticos.
+            </p>
+        </div>
+
+        <div class="nav">
+            <h3 style="margin-bottom: 15px; color: #333;">Navegación SPA</h3>
+            <div class="nav-buttons">
+                <button class="btn" onclick="navigateTo('/home')">🏠 Home</button>
+                <button class="btn" onclick="navigateTo('/shop')">🛍️ Shop</button>
+                <button class="btn" onclick="navigateTo('/product/123')">📦 Product Detail</button>
+                <button class="btn" onclick="navigateTo('/cart')">🛒 Cart</button>
+                <button class="btn" onclick="navigateTo('/checkout')">💳 Checkout</button>
+                <button class="btn" onclick="navigateTo('/contact')">📧 Contact</button>
+            </div>
+            <div style="margin-top: 15px;">
+                <h4 style="color: #666; font-size: 14px; margin-bottom: 10px;">Hash Navigation:</h4>
+                <div class="nav-buttons">
+                    <button class="btn" onclick="navigateToHash('#section1')">📍 Section 1</button>
+                    <button class="btn" onclick="navigateToHash('#section2')">📍 Section 2</button>
+                    <button class="btn" onclick="navigateToHash('#section3')">📍 Section 3</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="current-url">
+                <strong>Current URL:</strong> <code id="current-url">Loading...</code>
+            </div>
+            <div id="page-content">
+                <h2>Bienvenido a la Demo</h2>
+                <p>Haz clic en los botones de navegación para simular cambios de página en una SPA.</p>
+                <p>El SDK automáticamente detectará cada cambio de URL y enviará un evento <code>PAGE_VIEW</code>.</p>
+            </div>
+        </div>
+
+        <div class="stats">
+            <h2>📊 Estadísticas de Navegación</h2>
+            <div class="stats-item">
+                <span class="stats-label">Total page_view events:</span>
+                <span class="stats-value" id="total-pageviews">0</span>
+            </div>
+            <div class="stats-item">
+                <span class="stats-label">pushState navigations:</span>
+                <span class="stats-value" id="pushstate-count">0</span>
+            </div>
+            <div class="stats-item">
+                <span class="stats-label">popstate navigations:</span>
+                <span class="stats-value" id="popstate-count">0</span>
+            </div>
+            <div class="stats-item">
+                <span class="stats-label">hashchange navigations:</span>
+                <span class="stats-value" id="hashchange-count">0</span>
+            </div>
+            <div class="stats-item">
+                <span class="stats-label">Events in queue:</span>
+                <span class="stats-value" id="queue-size">0</span>
+            </div>
+
+            <div class="console" id="console"></div>
+        </div>
+    </div>
+
+    <!-- SDK Integration -->
+    <script src="../dist/index.js"></script>
+    <script>
+        // Counters
+        let pageViewCount = 0;
+        let pushStateCount = 0;
+        let popstateCount = 0;
+        let hashchangeCount = 0;
+
+        // Console output
+        const consoleOutput = document.getElementById('console');
+
+        function addConsoleOutput(message, type = 'info') {
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleOutput.appendChild(line);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        // Initialize SDK
+        let sdk;
+        try {
+            sdk = new window.TrackingPixelSDK({
+                apiKey: 'gds_spa_navigation_demo',
+                endpoint: 'http://localhost:3000/api',
+                requireConsent: false,
+                autoFlush: true,
+                flushInterval: 5000,
+                trackingV2: {
+                    enabled: true,
+                    batchSize: 500,
+                    flushInterval: 5000,
+                    maxQueueSize: 10000,
+                    persistQueue: true
+                },
+                heuristicDetection: {
+                    enabled: true
+                }
+            });
+
+            sdk.init().then(() => {
+                addConsoleOutput('✅ SDK inicializado correctamente', 'success');
+                addConsoleOutput('🧭 Detección automática de navegación activada', 'success');
+                updateStats();
+            }).catch(error => {
+                addConsoleOutput(`❌ Error inicializando SDK: ${error.message}`, 'error');
+            });
+        } catch (error) {
+            addConsoleOutput(`❌ Error creando SDK: ${error.message}`, 'error');
+        }
+
+        // Navigation functions
+        function navigateTo(path) {
+            pushStateCount++;
+            history.pushState({}, '', path);
+            updatePageContent(path);
+            updateURL();
+            updateStats();
+            addConsoleOutput(`➡️ pushState navigation to: ${path}`, 'info');
+        }
+
+        function navigateToHash(hash) {
+            hashchangeCount++;
+            window.location.hash = hash;
+            updateURL();
+            updateStats();
+            addConsoleOutput(`#️⃣ hashchange navigation to: ${hash}`, 'info');
+        }
+
+        function updatePageContent(path) {
+            const content = document.getElementById('page-content');
+            const pages = {
+                '/home': {
+                    title: '🏠 Home Page',
+                    text: 'Welcome to the home page. This is a simulated SPA navigation.'
+                },
+                '/shop': {
+                    title: '🛍️ Shop',
+                    text: 'Browse our products in this simulated e-commerce shop.'
+                },
+                '/product/123': {
+                    title: '📦 Product Detail',
+                    text: 'Viewing product details for product ID: 123'
+                },
+                '/cart': {
+                    title: '🛒 Shopping Cart',
+                    text: 'Your shopping cart is empty (this is a demo).'
+                },
+                '/checkout': {
+                    title: '💳 Checkout',
+                    text: 'Complete your purchase (simulated checkout page).'
+                },
+                '/contact': {
+                    title: '📧 Contact',
+                    text: 'Get in touch with us through this contact page.'
+                }
+            };
+
+            const pageData = pages[path] || {
+                title: '📄 Page',
+                text: `You navigated to: ${path}`
+            };
+
+            content.innerHTML = `
+                <h2>${pageData.title}</h2>
+                <p>${pageData.text}</p>
+                <p style="margin-top: 20px; color: #999; font-size: 14px;">
+                    El SDK ha detectado este cambio de navegación y enviará un evento <code>PAGE_VIEW</code> automáticamente.
+                </p>
+            `;
+        }
+
+        function updateURL() {
+            document.getElementById('current-url').textContent = window.location.href;
+        }
+
+        function updateStats() {
+            if (sdk && sdk.eventQueueManager) {
+                const stats = sdk.eventQueueManager.getStats();
+                document.getElementById('queue-size').textContent = stats.size;
+            }
+            document.getElementById('total-pageviews').textContent = pageViewCount;
+            document.getElementById('pushstate-count').textContent = pushStateCount;
+            document.getElementById('popstate-count').textContent = popstateCount;
+            document.getElementById('hashchange-count').textContent = hashchangeCount;
+        }
+
+        // Listen for popstate (browser back/forward)
+        window.addEventListener('popstate', () => {
+            popstateCount++;
+            updateURL();
+            updateStats();
+            addConsoleOutput('⬅️ popstate event detected (back/forward button)', 'warning');
+        });
+
+        // Listen for hashchange
+        window.addEventListener('hashchange', () => {
+            updateURL();
+        });
+
+        // Intercept SDK track calls to count page_view events
+        const originalTrack = sdk ? sdk.track.bind(sdk) : null;
+        if (originalTrack) {
+            sdk.track = function(params) {
+                if (params.event === 'page_view' || params.event === 'PAGE_VIEW') {
+                    pageViewCount++;
+                    addConsoleOutput(`📄 PAGE_VIEW event tracked (total: ${pageViewCount})`, 'success');
+                    updateStats();
+                }
+                return originalTrack(params);
+            };
+        }
+
+        // Update URL display on load
+        updateURL();
+        setInterval(updateStats, 2000);
+    </script>
+</body>
+</html>

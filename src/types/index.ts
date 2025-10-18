@@ -246,3 +246,62 @@ export interface CommercialAvailabilityConfig {
 	/** Habilitar logging de debug (default: false) */
 	debug?: boolean;
 }
+
+// --- Sistema de Tracking V2 ---
+
+/**
+ * Evento de tracking en el formato requerido por el backend /tracking-v2/events
+ */
+export interface TrackingEventDto {
+	visitorId: string;     // UUID del visitante (generado por el SDK)
+	sessionId: string;     // UUID de la sesión actual
+	eventType: string;     // Tipo de evento (PAGE_VIEW, CLICK, etc.)
+	metadata: Record<string, any>;  // Datos adicionales del evento
+	occurredAt?: string;   // Timestamp ISO 8601 (opcional, usa fecha actual si se omite)
+}
+
+/**
+ * Batch de eventos para enviar al backend
+ */
+export interface IngestTrackingEventsBatchDto {
+	tenantId: string;      // UUID de tu empresa/tenant
+	siteId: string;        // UUID del sitio web
+	events: TrackingEventDto[];
+}
+
+/**
+ * Respuesta del backend al ingestar eventos
+ */
+export interface IngestEventsResponseDto {
+	success: boolean;         // true si la ingesta fue exitosa
+	received: number;         // Cantidad de eventos recibidos
+	processed: number;        // Cantidad de eventos procesados
+	discarded: number;        // Cantidad descartada por throttling
+	aggregated: number;       // Tamaño actual del buffer
+	message: string;          // Mensaje descriptivo
+	processingTimeMs: number; // Tiempo de procesamiento en ms
+}
+
+/**
+ * Metadata del tenant (tenantId y siteId) obtenida desde el backend
+ */
+export interface TenantMetadataDto {
+	tenantId: string;
+	siteId: string;
+}
+
+/**
+ * Configuración del sistema de tracking V2
+ */
+export interface TrackingV2Config {
+	/** Habilitar tracking V2 (default: true) */
+	enabled?: boolean;
+	/** Tamaño máximo del batch (default: 500) */
+	batchSize?: number;
+	/** Intervalo de flush en ms (default: 5000) */
+	flushInterval?: number;
+	/** Tamaño máximo de la cola en memoria (default: 10000) */
+	maxQueueSize?: number;
+	/** Persistir cola en localStorage (default: true) */
+	persistQueue?: boolean;
+}

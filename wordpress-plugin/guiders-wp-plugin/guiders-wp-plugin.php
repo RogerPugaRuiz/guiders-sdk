@@ -156,7 +156,14 @@ class GuidersWPPlugin {
                 'active_hours_enabled' => false,
                 'active_hours_timezone' => '',
                 'active_hours_ranges' => '[{"start":"09:00","end":"18:00"}]',
-                'active_hours_fallback_message' => 'El chat no está disponible en este momento. Por favor, inténtalo más tarde durante nuestros horarios de atención.'
+                'active_hours_fallback_message' => 'El chat no está disponible en este momento. Por favor, inténtalo más tarde durante nuestros horarios de atención.',
+                // Tracking V2 settings
+                'tracking_v2_enabled' => true,
+                'tracking_v2_batch_size' => 500,
+                'tracking_v2_flush_interval' => 5000,
+                'tracking_v2_max_queue_size' => 10000,
+                'tracking_v2_persist_queue' => true,
+                'tracking_v2_bypass_consent' => false
             ));
         }
         

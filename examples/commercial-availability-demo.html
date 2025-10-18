@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo: Disponibilidad de Comerciales - Guiders SDK</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .demo-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .demo-section h2 {
+            color: #34495e;
+            margin-top: 0;
+        }
+        .config-example {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        .config-example pre {
+            margin: 0;
+            font-size: 14px;
+        }
+        .status-indicator {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .status-available {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-unavailable {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status-checking {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        .btn-success {
+            background-color: #28a745;
+        }
+        .btn-success:hover {
+            background-color: #218838;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        .availability-stats {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            flex: 1;
+            min-width: 200px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-card.online {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        .stat-card.offline {
+            background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+        }
+        .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .info-box {
+            background-color: #d1ecf1;
+            border: 1px solid #b6d4db;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .warning-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .success-box {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        #event-log {
+            background-color: #1e1e1e;
+            color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            height: 250px;
+            overflow-y: auto;
+        }
+        .log-success { color: #00ff00; }
+        .log-error { color: #ff6b6b; }
+        .log-info { color: #4ecdc4; }
+        .log-warning { color: #ffa500; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📡 Demo: Disponibilidad de Comerciales</h1>
+
+        <div class="demo-section">
+            <h2>📊 Estado de Disponibilidad</h2>
+            <div id="availability-status" class="status-indicator status-checking">
+                🔄 Verificando disponibilidad...
+            </div>
+            <div class="availability-stats">
+                <div class="stat-card online">
+                    <div class="stat-label">Comerciales Online</div>
+                    <div class="stat-value" id="online-count">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Última Actualización</div>
+                    <div class="stat-value" style="font-size: 18px;" id="last-update">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Polling Activo</div>
+                    <div class="stat-value" style="font-size: 18px;" id="polling-status">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>📋 Configuraciones de Ejemplo</h2>
+
+            <h3>1. Disponibilidad Habilitada con Badge</h3>
+            <div class="config-example">
+                <pre><code>window.GUIDERS_CONFIG = {
+    apiKey: 'tu-api-key',
+    commercialAvailability: {
+        enabled: true,
+        pollingInterval: 30,  // Consultar cada 30 segundos
+        showBadge: true,      // Mostrar número de comerciales disponibles
+        debug: true           // Habilitar logs de debug
+    }
+};</code></pre>
+            </div>
+            <button class="btn btn-success" onclick="applyConfig('enabled')">✅ Aplicar Configuración</button>
+
+            <h3>2. Disponibilidad Habilitada sin Badge</h3>
+            <div class="config-example">
+                <pre><code>window.GUIDERS_CONFIG = {
+    apiKey: 'tu-api-key',
+    commercialAvailability: {
+        enabled: true,
+        pollingInterval: 60,  // Consultar cada 60 segundos
+        showBadge: false,     // No mostrar contador
+        debug: false
+    }
+};</code></pre>
+            </div>
+            <button class="btn" onclick="applyConfig('no-badge')">Aplicar Configuración</button>
+
+            <h3>3. Polling Rápido (para pruebas)</h3>
+            <div class="config-example">
+                <pre><code>window.GUIDERS_CONFIG = {
+    apiKey: 'tu-api-key',
+    commercialAvailability: {
+        enabled: true,
+        pollingInterval: 10,  // Consultar cada 10 segundos
+        showBadge: true,
+        debug: true
+    }
+};</code></pre>
+            </div>
+            <button class="btn" onclick="applyConfig('fast')">⚡ Aplicar Configuración</button>
+
+            <h3>4. Deshabilitado (Comportamiento por Defecto)</h3>
+            <div class="config-example">
+                <pre><code>window.GUIDERS_CONFIG = {
+    apiKey: 'tu-api-key',
+    commercialAvailability: {
+        enabled: false  // Chat siempre visible
+    }
+};</code></pre>
+            </div>
+            <button class="btn btn-danger" onclick="applyConfig('disabled')">🚫 Aplicar Configuración</button>
+        </div>
+
+        <div class="demo-section">
+            <h2>🔧 Controles de Prueba</h2>
+            <div class="controls">
+                <button class="btn btn-success" onclick="checkNow()">🔍 Consultar Ahora</button>
+                <button class="btn" onclick="startPolling()">▶️ Iniciar Polling</button>
+                <button class="btn btn-secondary" onclick="stopPolling()">⏸️ Detener Polling</button>
+                <button class="btn" onclick="showChatWidget()">💬 Mostrar Chat</button>
+                <button class="btn btn-secondary" onclick="hideChatWidget()">👻 Ocultar Chat</button>
+                <button class="btn btn-secondary" onclick="clearLog()">🗑️ Limpiar Log</button>
+            </div>
+
+            <div class="info-box">
+                <strong>💡 Cómo funciona:</strong>
+                <ol>
+                    <li><strong>Polling Automático:</strong> El servicio consulta la API cada X segundos (configurable)</li>
+                    <li><strong>Show/Hide Dinámico:</strong> El chat y el botón toggle se muestran/ocultan automáticamente</li>
+                    <li><strong>Badge Opcional:</strong> Muestra el número de comerciales disponibles en el botón</li>
+                    <li><strong>Manejo de Errores:</strong> Backoff exponencial en caso de errores consecutivos</li>
+                </ol>
+            </div>
+
+            <div class="warning-box">
+                <strong>⚠️ Endpoint Requerido:</strong> Esta funcionalidad requiere que el backend implemente el endpoint
+                <code>POST /v2/commercials/availability</code> que reciba <code>{domain, apiKey}</code> y devuelva
+                <code>{available, onlineCount, timestamp, siteId}</code>
+            </div>
+
+            <div class="success-box">
+                <strong>✅ Beneficios:</strong>
+                <ul>
+                    <li>Evita frustración del usuario cuando no hay nadie disponible</li>
+                    <li>Mejora la experiencia al mostrar el número de comerciales online</li>
+                    <li>Reduce carga del servidor al ocultar el chat cuando no hay personal</li>
+                    <li>Configurable por sitio vía WordPress admin o config manual</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>📝 Log de Eventos</h2>
+            <div id="event-log">
+                <div class="log-success">[Demo] 📡 Sistema de disponibilidad de comerciales cargado</div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>🧪 Escenarios de Prueba</h2>
+            <div class="controls">
+                <button class="btn" onclick="simulateScenario('all-available')">✅ Simular: Comerciales Disponibles</button>
+                <button class="btn" onclick="simulateScenario('none-available')">❌ Simular: Sin Comerciales</button>
+                <button class="btn" onclick="simulateScenario('network-error')">🔴 Simular: Error de Red</button>
+            </div>
+            <div class="info-box">
+                <strong>🧪 Modo de Simulación:</strong> Estos botones permiten simular diferentes respuestas del servidor para
+                probar el comportamiento del sistema sin depender de datos reales.
+            </div>
+        </div>
+    </div>
+
+    <!-- Guiders SDK -->
+    <script src="../dist/index.js"></script>
+
+    <!-- Demo Script -->
+    <script>
+        // Configuraciones predefinidas
+        const configs = {
+            enabled: {
+                enabled: true,
+                pollingInterval: 30,
+                showBadge: true,
+                debug: true
+            },
+            'no-badge': {
+                enabled: true,
+                pollingInterval: 60,
+                showBadge: false,
+                debug: false
+            },
+            fast: {
+                enabled: true,
+                pollingInterval: 10,
+                showBadge: true,
+                debug: true
+            },
+            disabled: {
+                enabled: false
+            }
+        };
+
+        // Configuración inicial del SDK
+        window.GUIDERS_CONFIG = {
+            apiKey: 'demo-key-commercial-availability',
+            commercialAvailability: configs.enabled,
+            environment: 'development'
+        };
+
+        // Estado de la demo
+        let simulationMode = false;
+
+        // Funciones de utilidad
+        function logEvent(message, type = 'info') {
+            const log = document.getElementById('event-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = `log-${type}`;
+            log.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function updateAvailabilityDisplay(available, count) {
+            const statusEl = document.getElementById('availability-status');
+            const countEl = document.getElementById('online-count');
+            const updateEl = document.getElementById('last-update');
+
+            if (available) {
+                statusEl.textContent = `✅ DISPONIBLE - ${count} comercial${count !== 1 ? 'es' : ''} online`;
+                statusEl.className = 'status-indicator status-available';
+            } else {
+                statusEl.textContent = '❌ NO DISPONIBLE - Sin comerciales online';
+                statusEl.className = 'status-indicator status-unavailable';
+            }
+
+            countEl.textContent = count;
+            updateEl.textContent = new Date().toLocaleTimeString();
+        }
+
+        function updatePollingStatus(isActive) {
+            const pollingEl = document.getElementById('polling-status');
+            pollingEl.textContent = isActive ? '✅ Activo' : '⏸️ Pausado';
+        }
+
+        // Funciones de control
+        function applyConfig(configName) {
+            const config = configs[configName];
+
+            if (window.guiders) {
+                logEvent(`🔧 Aplicando configuración: ${configName}`, 'info');
+
+                // Reinicializar SDK con nueva configuración
+                window.GUIDERS_CONFIG.commercialAvailability = config;
+
+                // Cleanup y reinicialización
+                if (window.guiders.cleanup) {
+                    window.guiders.cleanup();
+                }
+
+                setTimeout(() => {
+                    window.guiders = new window.TrackingPixelSDK(window.GUIDERS_CONFIG);
+                    window.guiders.init().then(() => {
+                        logEvent(`✅ SDK reinicializado con configuración "${configName}"`, 'success');
+                        updatePollingStatus(config.enabled);
+                    });
+                }, 500);
+            } else {
+                window.GUIDERS_CONFIG.commercialAvailability = config;
+                logEvent(`🔧 Configuración "${configName}" establecida`, 'info');
+            }
+        }
+
+        function checkNow() {
+            if (window.guiders && window.guiders.commercialAvailabilityService) {
+                logEvent('🔍 Consultando disponibilidad...', 'info');
+
+                window.guiders.commercialAvailabilityService.checkAvailability()
+                    .then(response => {
+                        logEvent(`✅ Respuesta recibida: ${response.onlineCount} comerciales online`, 'success');
+                        updateAvailabilityDisplay(response.available, response.onlineCount);
+                    })
+                    .catch(error => {
+                        logEvent(`❌ Error al consultar: ${error.message}`, 'error');
+                    });
+            } else {
+                logEvent('❌ Servicio de disponibilidad no inicializado', 'error');
+            }
+        }
+
+        function startPolling() {
+            if (window.guiders && window.guiders.commercialAvailabilityService) {
+                window.guiders.commercialAvailabilityService.startPolling();
+                logEvent('▶️ Polling iniciado', 'success');
+                updatePollingStatus(true);
+            } else {
+                logEvent('❌ Servicio no disponible', 'error');
+            }
+        }
+
+        function stopPolling() {
+            if (window.guiders && window.guiders.commercialAvailabilityService) {
+                window.guiders.commercialAvailabilityService.stopPolling();
+                logEvent('⏸️ Polling detenido', 'warning');
+                updatePollingStatus(false);
+            } else {
+                logEvent('❌ Servicio no disponible', 'error');
+            }
+        }
+
+        function showChatWidget() {
+            if (window.guiders && window.guiders.chatUI) {
+                window.guiders.chatUI.show();
+                logEvent('💬 Chat widget mostrado manualmente', 'info');
+            } else {
+                logEvent('❌ Chat widget no disponible', 'error');
+            }
+        }
+
+        function hideChatWidget() {
+            if (window.guiders && window.guiders.chatUI) {
+                window.guiders.chatUI.hide();
+                logEvent('👻 Chat widget ocultado manualmente', 'info');
+            } else {
+                logEvent('❌ Chat widget no disponible', 'error');
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('event-log').innerHTML = '<div class="log-success">[Demo] 📡 Log limpiado</div>';
+        }
+
+        function simulateScenario(scenario) {
+            logEvent(`🧪 Simulando escenario: ${scenario}`, 'warning');
+
+            switch(scenario) {
+                case 'all-available':
+                    updateAvailabilityDisplay(true, 3);
+                    logEvent('✅ Simulación: 3 comerciales disponibles', 'success');
+                    break;
+                case 'none-available':
+                    updateAvailabilityDisplay(false, 0);
+                    logEvent('❌ Simulación: Sin comerciales disponibles', 'warning');
+                    break;
+                case 'network-error':
+                    logEvent('🔴 Simulación: Error de red (timeout)', 'error');
+                    document.getElementById('availability-status').textContent = '⚠️ ERROR DE RED';
+                    document.getElementById('availability-status').className = 'status-indicator status-checking';
+                    break;
+            }
+        }
+
+        // Interceptar cambios de disponibilidad reales
+        function setupAvailabilityListener() {
+            const checkSDK = setInterval(() => {
+                if (window.guiders && window.guiders.commercialAvailabilityService) {
+                    logEvent('✅ Servicio de disponibilidad detectado', 'success');
+
+                    // Obtener estado inicial
+                    const state = window.guiders.commercialAvailabilityService.getLastKnownState();
+                    if (state.available !== null) {
+                        updateAvailabilityDisplay(state.available, state.onlineCount);
+                    }
+
+                    // Actualizar estado de polling
+                    const isPolling = window.guiders.commercialAvailabilityService.isPollingActive();
+                    updatePollingStatus(isPolling);
+
+                    clearInterval(checkSDK);
+
+                    // Monitorear cambios (cada 5 segundos verificar estado)
+                    setInterval(() => {
+                        const state = window.guiders.commercialAvailabilityService.getLastKnownState();
+                        if (state.available !== null) {
+                            updateAvailabilityDisplay(state.available, state.onlineCount);
+                        }
+                        const isPolling = window.guiders.commercialAvailabilityService.isPollingActive();
+                        updatePollingStatus(isPolling);
+                    }, 5000);
+                }
+            }, 1000);
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            logEvent('🚀 Demo de disponibilidad de comerciales iniciada', 'success');
+            setupAvailabilityListener();
+        });
+    </script>
+</body>
+</html>

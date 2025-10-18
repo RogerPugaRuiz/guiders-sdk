@@ -128,7 +128,8 @@ class GuidersPublic {
             'requireConsent' => isset($this->settings['require_consent']) ? $this->settings['require_consent'] : false,
             'consentBanner' => $this->getConsentBannerConfig(),
             'chatPosition' => $this->getChatPositionConfig(),
-            'mobileDetection' => $this->getMobileDetectionConfig()
+            'mobileDetection' => $this->getMobileDetectionConfig(),
+            'trackingV2' => $this->getTrackingV2Config()
         );
 
         // Add environment-specific endpoints
@@ -687,6 +688,24 @@ class GuidersPublic {
             'pollingInterval' => isset($this->settings['commercial_availability_polling']) ? intval($this->settings['commercial_availability_polling']) : 30,
             'showBadge' => isset($this->settings['commercial_availability_show_badge']) ? $this->settings['commercial_availability_show_badge'] : false,
             'debug' => false // Could be made configurable if needed
+        );
+
+        return $config;
+    }
+
+    /**
+     * Get Tracking V2 configuration
+     *
+     * @return array Tracking V2 config
+     */
+    private function getTrackingV2Config() {
+        $config = array(
+            'enabled' => isset($this->settings['tracking_v2_enabled']) ? $this->settings['tracking_v2_enabled'] : true,
+            'batchSize' => isset($this->settings['tracking_v2_batch_size']) ? intval($this->settings['tracking_v2_batch_size']) : 500,
+            'flushInterval' => isset($this->settings['tracking_v2_flush_interval']) ? intval($this->settings['tracking_v2_flush_interval']) : 5000,
+            'maxQueueSize' => isset($this->settings['tracking_v2_max_queue_size']) ? intval($this->settings['tracking_v2_max_queue_size']) : 10000,
+            'persistQueue' => isset($this->settings['tracking_v2_persist_queue']) ? $this->settings['tracking_v2_persist_queue'] : true,
+            'bypassConsent' => isset($this->settings['tracking_v2_bypass_consent']) ? $this->settings['tracking_v2_bypass_consent'] : false
         );
 
         return $config;
