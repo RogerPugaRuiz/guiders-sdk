@@ -3,6 +3,7 @@ import { MessageV2, MessageListResponse } from '../types';
 import { MessageRenderer } from './utils/message-renderer';
 import { debugLog } from '../utils/debug-logger';
 import { TypingIndicator } from './components/typing-indicator';
+import { formatDate, createDateSeparator } from './utils/chat-utils';
 
 /**
  * Componente de UI de mensajes con scroll infinito
@@ -266,14 +267,17 @@ export class ChatMessagesUI {
             return;
         }
 
-        // Los mensajes vienen del más reciente al más antiguo, 
+        // Los mensajes vienen del más reciente al más antiguo,
         // los renderizamos en orden cronológico (más antiguo primero)
         const messages = [...response.messages].reverse();
-        
+
         messages.forEach(message => {
             const messageElement = this.createMessageElement(message);
             this.messagesContainer.appendChild(messageElement);
         });
+
+        // ✅ Reconstruir separadores de fecha después de renderizar
+        this.rebuildDateSeparators();
     }
 
     /**
@@ -286,10 +290,10 @@ export class ChatMessagesUI {
 
         // Los mensajes antiguos se insertan al principio en orden cronológico
         const messages = [...response.messages].reverse();
-        
+
         messages.forEach((message, index) => {
             const messageElement = this.createMessageElement(message);
-            
+
             // Insertar al principio del contenedor
             const firstMessage = this.messagesContainer.firstChild;
             if (firstMessage) {
@@ -298,6 +302,9 @@ export class ChatMessagesUI {
                 this.messagesContainer.appendChild(messageElement);
             }
         });
+
+        // ✅ Reconstruir separadores de fecha después de renderizar
+        this.rebuildDateSeparators();
     }
 
     /**
@@ -702,6 +709,43 @@ export class ChatMessagesUI {
      */
     public isTypingIndicatorVisible(): boolean {
         return this.typingIndicator.isShown();
+    }
+
+    /**
+     * Reconstruye los separadores de fecha para todos los mensajes
+     * Lee el timestamp desde el atributo data-created-at de cada mensaje
+     */
+    private rebuildDateSeparators(): void {
+        // Eliminar separadores existentes
+        const existingSeparators = this.messagesContainer.querySelectorAll('.chat-date-separator');
+        existingSeparators.forEach(sep => sep.parentNode?.removeChild(sep));
+
+        // Obtener todos los mensajes (excluyendo typing indicator y loading indicators)
+        const messageWrappers = Array.from(
+            this.messagesContainer.querySelectorAll('.chat-message-wrapper')
+        ) as HTMLElement[];
+
+        if (messageWrappers.length === 0) return;
+
+        let currentDateStr: string | null = null;
+
+        messageWrappers.forEach((wrapper) => {
+            // ✅ Leer timestamp del data attribute (agregado por MessageRenderer)
+            const createdAtAttr = wrapper.getAttribute('data-created-at');
+            const messageDate = createdAtAttr ? new Date(createdAtAttr) : new Date();
+            const messageDateStr = formatDate(messageDate);
+
+            if (messageDateStr !== currentDateStr) {
+                currentDateStr = messageDateStr;
+
+                const separator = createDateSeparator(messageDateStr);
+
+                // Insertar separador antes del mensaje
+                this.messagesContainer.insertBefore(separator, wrapper);
+            }
+        });
+
+        debugLog('[ChatMessagesUI] ✅ Date separators rebuilt');
     }
 
     /**
