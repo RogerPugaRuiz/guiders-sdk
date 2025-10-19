@@ -28,6 +28,7 @@ export class TrackingV2Service {
   private static readonly METADATA_CACHE_KEY = 'guiders_tracking_metadata';
   private static readonly MAX_BATCH_SIZE = 500;
   private static readonly MAX_RETRIES = 3;
+  private static readonly UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   private tenantId: string | null = null;
   private siteId: string | null = null;
@@ -37,6 +38,60 @@ export class TrackingV2Service {
   private constructor() {
     // Intentar cargar metadata desde localStorage
     this.loadMetadataFromCache();
+  }
+
+  /**
+   * Valida que un evento tenga el formato TrackingEventDto correcto
+   */
+  private isValidTrackingEvent(event: any): event is TrackingEventDto {
+    if (!event || typeof event !== 'object') {
+      return false;
+    }
+
+    // Validar campos requeridos
+    if (!event.visitorId || typeof event.visitorId !== 'string') {
+      debugLog('[TrackingV2Service] ❌ Evento inválido: falta visitorId', event);
+      return false;
+    }
+
+    if (!event.sessionId || typeof event.sessionId !== 'string') {
+      debugLog('[TrackingV2Service] ❌ Evento inválido: falta sessionId', event);
+      return false;
+    }
+
+    if (!event.eventType || typeof event.eventType !== 'string') {
+      debugLog('[TrackingV2Service] ❌ Evento inválido: falta eventType', event);
+      return false;
+    }
+
+    if (!event.metadata || typeof event.metadata !== 'object') {
+      debugLog('[TrackingV2Service] ❌ Evento inválido: falta metadata', event);
+      return false;
+    }
+
+    if (!event.occurredAt || typeof event.occurredAt !== 'string') {
+      debugLog('[TrackingV2Service] ❌ Evento inválido: falta occurredAt', event);
+      return false;
+    }
+
+    // Validar que sean UUIDs válidos
+    if (!TrackingV2Service.UUID_REGEX.test(event.visitorId)) {
+      debugLog('[TrackingV2Service] ❌ Evento inválido: visitorId no es UUID', event.visitorId);
+      return false;
+    }
+
+    if (!TrackingV2Service.UUID_REGEX.test(event.sessionId)) {
+      debugLog('[TrackingV2Service] ❌ Evento inválido: sessionId no es UUID', event.sessionId);
+      return false;
+    }
+
+    // Validar que no tenga campos del formato antiguo
+    if ('trackingEventId' in event || 'pageUrl' in event || 'pagePath' in event) {
+      debugLog('[TrackingV2Service] ❌ Evento inválido: contiene campos del formato antiguo', event);
+      return false;
+    }
+
+    return true;
   }
 
   public static getInstance(): TrackingV2Service {
@@ -106,21 +161,38 @@ export class TrackingV2Service {
       return null;
     }
 
-    // Validar tamaño del batch
-    if (events.length > TrackingV2Service.MAX_BATCH_SIZE) {
+    // ✅ FILTRAR eventos inválidos (formato antiguo, UUIDs inválidos, campos faltantes)
+    const originalCount = events.length;
+    const validEvents = events.filter((event) => this.isValidTrackingEvent(event));
+
+    if (validEvents.length < originalCount) {
       console.warn(
-        `[TrackingV2Service] ⚠️ Batch muy grande (${events.length}), truncando a ${TrackingV2Service.MAX_BATCH_SIZE}`
+        `[TrackingV2Service] ⚠️ Se descartaron ${originalCount - validEvents.length} eventos inválidos del batch`
       );
-      events = events.slice(0, TrackingV2Service.MAX_BATCH_SIZE);
+      console.warn('[TrackingV2Service] 💡 Limpia localStorage.removeItem("guiders_event_queue") para eliminar eventos antiguos');
+    }
+
+    if (validEvents.length === 0) {
+      console.warn('[TrackingV2Service] ❌ No hay eventos válidos para enviar después del filtrado');
+      return null;
+    }
+
+    // Validar tamaño del batch
+    let finalEvents = validEvents;
+    if (validEvents.length > TrackingV2Service.MAX_BATCH_SIZE) {
+      console.warn(
+        `[TrackingV2Service] ⚠️ Batch muy grande (${validEvents.length}), truncando a ${TrackingV2Service.MAX_BATCH_SIZE}`
+      );
+      finalEvents = validEvents.slice(0, TrackingV2Service.MAX_BATCH_SIZE);
     }
 
     const payload: IngestTrackingEventsBatchDto = {
       tenantId: this.tenantId!,
       siteId: this.siteId!,
-      events
+      events: finalEvents
     };
 
-    debugLog(`[TrackingV2Service] 📤 Enviando batch de ${events.length} eventos...`);
+    debugLog(`[TrackingV2Service] 📤 Enviando batch de ${finalEvents.length} eventos válidos...`);
 
     // Enviar con reintentos
     return this.sendBatchWithRetry(payload, TrackingV2Service.MAX_RETRIES);
@@ -141,10 +213,18 @@ export class TrackingV2Service {
       return false;
     }
 
+    // ✅ FILTRAR eventos inválidos antes de enviar
+    const validEvents = events.filter((event) => this.isValidTrackingEvent(event));
+
+    if (validEvents.length === 0) {
+      debugLog('[TrackingV2Service] ❌ No hay eventos válidos para sendBeacon');
+      return false;
+    }
+
     const payload: IngestTrackingEventsBatchDto = {
       tenantId: this.tenantId!,
       siteId: this.siteId!,
-      events: events.slice(0, TrackingV2Service.MAX_BATCH_SIZE)
+      events: validEvents.slice(0, TrackingV2Service.MAX_BATCH_SIZE)
     };
 
     const url = this.getTrackingEndpoint();
@@ -153,7 +233,7 @@ export class TrackingV2Service {
     try {
       const success = navigator.sendBeacon(url, blob);
       if (success) {
-        debugLog(`[TrackingV2Service] ✅ ${events.length} eventos enviados via sendBeacon`);
+        debugLog(`[TrackingV2Service] ✅ ${validEvents.length} eventos válidos enviados via sendBeacon`);
       } else {
         debugLog('[TrackingV2Service] ⚠️ sendBeacon falló');
       }
