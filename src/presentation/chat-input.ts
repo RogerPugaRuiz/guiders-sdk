@@ -184,4 +184,16 @@ export class ChatInputUI {
 		}
 		return container;
 	}
+
+	/**
+	 * Configura el servicio de presencia para typing indicators
+	 * Nota: Este es un stub. La funcionalidad real de typing está en chat-input-ui.ts
+	 * @param presenceService Servicio de presencia
+	 * @param chatId ID del chat actual
+	 */
+	public setPresenceService(presenceService: any, chatId: string): void {
+		debugLog('[ChatInputUI] PresenceService configurado (stub)');
+		// El typing detection está implementado en src/presentation/components/chat-input-ui.ts
+		// Este archivo es una versión más antigua que se mantiene por compatibilidad
+	}
 }
