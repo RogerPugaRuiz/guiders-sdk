@@ -163,7 +163,14 @@ class GuidersWPPlugin {
                 'tracking_v2_flush_interval' => 5000,
                 'tracking_v2_max_queue_size' => 10000,
                 'tracking_v2_persist_queue' => true,
-                'tracking_v2_bypass_consent' => false
+                'tracking_v2_bypass_consent' => false,
+                // Presence & Typing Indicators settings
+                'presence_enabled' => true,
+                'presence_show_typing_indicator' => true,
+                'presence_typing_debounce' => 300,
+                'presence_typing_timeout' => 2000,
+                'presence_polling_interval' => 30000,
+                'presence_show_offline_banner' => true
             ));
         }
         

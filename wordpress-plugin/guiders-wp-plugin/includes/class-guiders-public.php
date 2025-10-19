@@ -129,7 +129,8 @@ class GuidersPublic {
             'consentBanner' => $this->getConsentBannerConfig(),
             'chatPosition' => $this->getChatPositionConfig(),
             'mobileDetection' => $this->getMobileDetectionConfig(),
-            'trackingV2' => $this->getTrackingV2Config()
+            'trackingV2' => $this->getTrackingV2Config(),
+            'presence' => $this->getPresenceConfig()
         );
 
         // Add environment-specific endpoints
@@ -250,6 +251,11 @@ class GuidersPublic {
                     // Add mobile detection configuration if available
                     if (config.mobileDetection) {
                         sdkOptions.mobileDetection = config.mobileDetection;
+                    }
+
+                    // Add presence configuration if available
+                    if (config.presence) {
+                        sdkOptions.presence = config.presence;
                     }
 
                     // Asignar siempre endpoints explícitos (evita fallback a localhost y doble init)
@@ -706,6 +712,24 @@ class GuidersPublic {
             'maxQueueSize' => isset($this->settings['tracking_v2_max_queue_size']) ? intval($this->settings['tracking_v2_max_queue_size']) : 10000,
             'persistQueue' => isset($this->settings['tracking_v2_persist_queue']) ? $this->settings['tracking_v2_persist_queue'] : true,
             'bypassConsent' => isset($this->settings['tracking_v2_bypass_consent']) ? $this->settings['tracking_v2_bypass_consent'] : false
+        );
+
+        return $config;
+    }
+
+    /**
+     * Get Presence & Typing Indicators configuration
+     *
+     * @return array Presence config
+     */
+    private function getPresenceConfig() {
+        $config = array(
+            'enabled' => isset($this->settings['presence_enabled']) ? $this->settings['presence_enabled'] : true,
+            'showTypingIndicator' => isset($this->settings['presence_show_typing_indicator']) ? $this->settings['presence_show_typing_indicator'] : true,
+            'typingDebounce' => isset($this->settings['presence_typing_debounce']) ? intval($this->settings['presence_typing_debounce']) : 300,
+            'typingTimeout' => isset($this->settings['presence_typing_timeout']) ? intval($this->settings['presence_typing_timeout']) : 2000,
+            'pollingInterval' => isset($this->settings['presence_polling_interval']) ? intval($this->settings['presence_polling_interval']) : 30000,
+            'showOfflineBanner' => isset($this->settings['presence_show_offline_banner']) ? $this->settings['presence_show_offline_banner'] : true
         );
 
         return $config;
