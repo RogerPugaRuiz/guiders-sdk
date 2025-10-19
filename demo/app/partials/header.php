@@ -47,6 +47,14 @@
         maxQueueSize: 10000,    // Tamaño máximo de cola
         persistQueue: true,     // Persistir en localStorage
         bypassConsent: true     // ⚠️ BYPASS CONSENT (Solo desarrollo)
+      },
+      presence: {
+        enabled: true,                  // Habilitar sistema de presencia
+        showTypingIndicator: true,      // Mostrar indicadores de escritura
+        typingDebounce: 300,            // Delay antes de enviar "escribiendo" (ms)
+        typingTimeout: 2000,            // Auto-stop después de inactividad (ms)
+        pollingInterval: 30000,         // Consultar presencia cada 30s
+        showOfflineBanner: true         // Mostrar banner cuando comercial está offline
       }
     };
 
