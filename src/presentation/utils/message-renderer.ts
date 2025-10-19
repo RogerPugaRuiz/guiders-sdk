@@ -37,6 +37,14 @@ export class MessageRenderer {
         if (data.id) {
             messageDiv.setAttribute('data-message-id', data.id);
         }
+
+        // ✅ Agregar timestamp para date separators
+        if (data.timestamp) {
+            const timestamp = typeof data.timestamp === 'string'
+                ? data.timestamp
+                : new Date(data.timestamp).toISOString();
+            messageDiv.setAttribute('data-created-at', timestamp);
+        }
         
         // Crear estructura compatible con ChatUI pero con estilos modernos
         if (isUserMessage) {

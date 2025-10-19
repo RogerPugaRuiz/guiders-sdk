@@ -13,6 +13,11 @@ import { formatTime, formatDate, isBot, generateInitials, createDateSeparator } 
 import { MessageRenderer, MessageRenderData } from '../utils/message-renderer';
 import { resolvePosition, ResolvedPosition } from '../../utils/position-resolver';
 
+// Importar componentes de presencia
+import { PresenceIndicator } from './presence-indicator';
+import { PresenceService } from '../../services/presence-service';
+import { PresenceChangedEvent, TypingEvent } from '../../types/presence-types';
+
 /**
  * Clase ChatUI para renderizar mensajes en el chat.
  * Se incluye lógica para:
@@ -43,6 +48,14 @@ export class ChatUI {
 	private subtitleElement: HTMLElement | null = null;
 	private typingIndicator: HTMLElement | null = null;
 	private lastMessageDate: string | null = null;
+
+	// Componentes de presencia
+	private presenceIndicator: PresenceIndicator | null = null;
+	private offlineBanner: HTMLElement | null = null;
+	private presenceService: PresenceService | null = null;
+	private presenceUnsubscribe: (() => void) | null = null;
+	private typingUnsubscribe: (() => void) | null = null;
+	private showOfflineBannerEnabled: boolean = true; // Configuración para mostrar/ocultar banner
 
 	// Manager para mensajes de bienvenida
 	private welcomeMessageManager: WelcomeMessageManager;
@@ -144,6 +157,13 @@ export class ChatUI {
 		const headerEl = document.createElement('div');
 		headerEl.className = 'chat-header';
 
+		// Contenedor principal del título y presencia
+		const titleContainer = document.createElement('div');
+		titleContainer.className = 'chat-header-title-container';
+		titleContainer.style.display = 'flex';
+		titleContainer.style.flexDirection = 'column';
+		titleContainer.style.gap = '4px';
+
 		const titleEl = document.createElement('div');
 		titleEl.className = 'chat-header-title';
 		titleEl.textContent = 'Chat';
@@ -153,9 +173,18 @@ export class ChatUI {
 		subtitleEl.className = 'chat-header-subtitle';
 		subtitleEl.textContent = 'Atención personalizada';
 		this.subtitleElement = subtitleEl;
-		titleEl.appendChild(subtitleEl);
 
-		headerEl.appendChild(titleEl);
+		// Crear y renderizar el PresenceIndicator (oculto inicialmente)
+		this.presenceIndicator = new PresenceIndicator('offline');
+		const presenceElement = this.presenceIndicator.render();
+		presenceElement.style.display = 'none'; // Oculto por defecto
+
+		// Ensamblar header
+		titleContainer.appendChild(titleEl);
+		titleContainer.appendChild(subtitleEl);
+		titleContainer.appendChild(presenceElement);
+
+		headerEl.appendChild(titleContainer);
 
 		const actionsEl = document.createElement('div');
 		actionsEl.className = 'chat-header-actions';
@@ -178,10 +207,43 @@ export class ChatUI {
 	}
 
 	/**
+	 * Crea el banner de aviso offline
+	 */
+	private createOfflineBanner(): void {
+		if (!this.container) return;
+
+		this.offlineBanner = document.createElement('div');
+		this.offlineBanner.className = 'guiders-offline-banner';
+		this.offlineBanner.style.cssText = `
+			display: none;
+			background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+			color: #856404;
+			padding: 12px 16px;
+			text-align: center;
+			font-size: 13px;
+			border-bottom: 1px solid #ffeaa7;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+		`;
+		this.offlineBanner.innerHTML = `
+			<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#856404"/>
+				</svg>
+				<span>El agente está temporalmente desconectado. Te responderá cuando vuelva a estar disponible.</span>
+			</div>
+		`;
+
+		this.container.appendChild(this.offlineBanner);
+	}
+
+	/**
 	 * Crea el cuerpo del chat (mensajes y footer)
 	 */
 	private createChatBody(): void {
 		if (!this.container) return;
+
+		// Crear banner offline primero
+		this.createOfflineBanner();
 
 		// Contenedor para mensajes
 		const containerMessages = document.createElement('div');
@@ -533,6 +595,147 @@ export class ChatUI {
 				background-repeat: no-repeat;
 				background-position: center;
 			}
+
+			/* 🟢 Estilos para Presence Indicator */
+			.guiders-presence-indicator {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				margin-top: 2px;
+				padding: 0;
+			}
+
+			.guiders-status-dot {
+				width: 8px;
+				height: 8px;
+				border-radius: 50%;
+				flex-shrink: 0;
+				transition: background-color 0.3s ease, box-shadow 0.3s ease;
+			}
+
+			.guiders-status-online {
+				background-color: #4ade80;
+				box-shadow: 0 0 6px rgba(74, 222, 128, 0.6);
+			}
+
+			.guiders-status-offline {
+				background-color: #9ca3af;
+				box-shadow: none;
+			}
+
+			.guiders-status-busy {
+				background-color: #fbbf24;
+				box-shadow: 0 0 6px rgba(251, 191, 36, 0.6);
+			}
+
+			.guiders-status-away {
+				background-color: #fb923c;
+				box-shadow: 0 0 6px rgba(251, 146, 60, 0.6);
+			}
+
+			.guiders-status-chatting {
+				background-color: #60a5fa;
+				box-shadow: 0 0 6px rgba(96, 165, 250, 0.6);
+			}
+
+			.guiders-status-text {
+				font-size: 12px;
+				font-weight: 500;
+				color: rgba(255, 255, 255, 0.9);
+				letter-spacing: 0.01em;
+			}
+
+			.guiders-status-changing {
+				animation: statusPulse 0.3s ease;
+			}
+
+			@keyframes statusPulse {
+				0%, 100% { opacity: 1; }
+				50% { opacity: 0.7; }
+			}
+
+			/* 🔴 Estilos para Offline Banner */
+			.guiders-offline-banner {
+				background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+				color: #856404;
+				padding: 12px 16px;
+				text-align: center;
+				font-size: 13px;
+				border-bottom: 1px solid #ffeaa7;
+				box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+				animation: bannerSlideIn 0.3s ease-out;
+			}
+
+			@keyframes bannerSlideIn {
+				from {
+					opacity: 0;
+					transform: translateY(-10px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+
+			/* ✍️ Estilos para Typing Indicator */
+			.guiders-typing-indicator {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 12px 16px;
+				margin-bottom: 12px;
+				opacity: 0;
+				transition: opacity 0.2s ease;
+			}
+
+			.guiders-typing-bubble {
+				background: #fff;
+				border: 1px solid #e1e9f1;
+				border-radius: 18px;
+				padding: 12px 16px;
+				display: flex;
+				align-items: center;
+				gap: 4px;
+				box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
+			}
+
+			.guiders-typing-dot {
+				width: 8px;
+				height: 8px;
+				background-color: #8a9aa9;
+				border-radius: 50%;
+				animation: typingBounce 1.4s infinite ease-in-out;
+			}
+
+			.guiders-typing-dot:nth-child(1) {
+				animation-delay: 0s;
+			}
+
+			.guiders-typing-dot:nth-child(2) {
+				animation-delay: 0.15s;
+			}
+
+			.guiders-typing-dot:nth-child(3) {
+				animation-delay: 0.3s;
+			}
+
+			@keyframes typingBounce {
+				0%, 60%, 100% {
+					transform: translateY(0);
+					opacity: 0.4;
+				}
+				30% {
+					transform: translateY(-8px);
+					opacity: 1;
+				}
+			}
+
+			.guiders-typing-text {
+				font-size: 13px;
+				color: #8a9aa9;
+				font-style: italic;
+				margin-left: 4px;
+			}
 		`;
 	}
 
@@ -594,6 +797,9 @@ export class ChatUI {
 			return;
 		}
 
+		// 🔴 Desactivar sistema de presencia cuando se cierra el chat
+		this.deactivatePresence();
+
 		this.container.style.transform = 'translateY(20px)';
 		this.container.style.opacity = '0';
 
@@ -630,6 +836,9 @@ export class ChatUI {
 		// 🔧 RACE CONDITION FIX: Ya no usar timeout arbitrario
 		// La verificación del mensaje de bienvenida ahora se maneja en loadChatMessagesOnOpen()
 		// después de que termine la carga asíncrona de mensajes, eliminando la condición de carrera
+
+		// 🟢 Activar sistema de presencia cuando se abre el chat
+		this.activatePresence();
 
 		this.activeIntervals.forEach(intervalObj => {
 			if (intervalObj.id === null) {
@@ -992,7 +1201,9 @@ export class ChatUI {
 		let currentDateStr: string | null = null;
 
 		messageWrappers.forEach((wrapper) => {
-			const messageDate = new Date();
+			// ✅ Leer timestamp del data attribute (agregado por MessageRenderer)
+			const createdAtAttr = wrapper.getAttribute('data-created-at');
+			const messageDate = createdAtAttr ? new Date(createdAtAttr) : new Date();
 			const messageDateStr = formatDate(messageDate);
 
 			if (messageDateStr !== currentDateStr) {
@@ -1410,5 +1621,169 @@ export class ChatUI {
 	 */
 	public getResolvedPosition(): ResolvedPosition {
 		return this.resolvedPosition;
+	}
+
+	/**
+	 * Configura el servicio de presencia para el chat
+	 * @param presenceService Instancia del servicio de presencia
+	 */
+	public setPresenceService(presenceService: PresenceService): void {
+		this.presenceService = presenceService;
+		debugLog('💬 [ChatUI] PresenceService configurado');
+	}
+
+	/**
+	 * Configura si se debe mostrar el banner offline
+	 * @param enabled true para mostrar el banner, false para ocultarlo
+	 */
+	public setShowOfflineBanner(enabled: boolean): void {
+		this.showOfflineBannerEnabled = enabled;
+		debugLog('💬 [ChatUI] Banner offline:', enabled ? 'habilitado' : 'deshabilitado');
+
+		// Si se deshabilita mientras está visible, ocultarlo
+		if (!enabled) {
+			this.hideOfflineBanner();
+		}
+	}
+
+	/**
+	 * Activa el sistema de presencia para el chat actual
+	 * Se llama cuando se abre el chat
+	 */
+	private activatePresence(): void {
+		if (!this.presenceService || !this.chatId) {
+			debugLog('💬 [ChatUI] ⚠️ No se puede activar presencia: servicio o chatId faltante');
+			return;
+		}
+
+		debugLog('💬 [ChatUI] 🟢 Activando sistema de presencia para chat:', this.chatId);
+
+		// Unirse a la sala de chat
+		this.presenceService.joinChatRoom(this.chatId);
+
+		// Obtener estado inicial de presencia
+		this.presenceService.getChatPresence(this.chatId).then(presence => {
+			if (!presence) {
+				debugLog('💬 [ChatUI] ⚠️ No se pudo obtener presencia inicial');
+				return;
+			}
+
+			debugLog('💬 [ChatUI] ✅ Presencia inicial obtenida:', presence);
+
+			// Buscar el comercial en los participantes
+			const commercial = this.presenceService!.getCommercialFromParticipants(presence.participants);
+
+			if (commercial && this.presenceIndicator) {
+				// Actualizar indicador de presencia
+				this.presenceIndicator.updateStatus(commercial.connectionStatus);
+				this.presenceIndicator.show();
+				debugLog('💬 [ChatUI] PresenceIndicator actualizado:', commercial.connectionStatus);
+
+				// Mostrar/ocultar banner offline
+				if (commercial.connectionStatus === 'offline') {
+					this.showOfflineBanner();
+				} else {
+					this.hideOfflineBanner();
+				}
+			}
+		});
+
+		// Suscribirse a cambios de presencia
+		this.presenceUnsubscribe = this.presenceService.onPresenceChanged((event: PresenceChangedEvent) => {
+			debugLog('💬 [ChatUI] 🟢 Evento de presencia recibido:', event);
+
+			// Actualizar indicador visual
+			if (this.presenceIndicator && event.userType === 'commercial') {
+				this.presenceIndicator.updateStatus(event.status);
+
+				// Actualizar banner offline
+				if (event.status === 'offline') {
+					this.showOfflineBanner();
+				} else {
+					this.hideOfflineBanner();
+				}
+			}
+		});
+
+		// Suscribirse a cambios de typing
+		this.typingUnsubscribe = this.presenceService.onTypingChanged((event: TypingEvent, isTyping: boolean) => {
+			debugLog('💬 [ChatUI] ✍️ Evento de typing recibido:', { ...event, isTyping });
+
+			// Este evento se maneja en ChatMessagesUI, pero podríamos agregar lógica adicional aquí
+			// Por ejemplo, actualizar el subtítulo del header con "Escribiendo..."
+			if (event.userType === 'commercial' && this.subtitleElement) {
+				if (isTyping) {
+					this.subtitleElement.textContent = 'Escribiendo...';
+				} else {
+					// Restaurar texto original basado en estado de presencia
+					if (this.presenceIndicator) {
+						const status = this.presenceIndicator.getStatus();
+						const statusText = status === 'online' ? 'En línea' :
+										   status === 'busy' ? 'Ocupado' :
+										   status === 'away' ? 'Ausente' : 'Desconectado';
+						this.subtitleElement.textContent = statusText;
+					}
+				}
+			}
+		});
+
+		debugLog('💬 [ChatUI] ✅ Sistema de presencia activado');
+	}
+
+	/**
+	 * Desactiva el sistema de presencia
+	 * Se llama cuando se cierra el chat
+	 */
+	private deactivatePresence(): void {
+		if (!this.presenceService || !this.chatId) {
+			return;
+		}
+
+		debugLog('💬 [ChatUI] 🔴 Desactivando sistema de presencia para chat:', this.chatId);
+
+		// Desuscribirse de eventos
+		if (this.presenceUnsubscribe) {
+			this.presenceUnsubscribe();
+			this.presenceUnsubscribe = null;
+		}
+
+		if (this.typingUnsubscribe) {
+			this.typingUnsubscribe();
+			this.typingUnsubscribe = null;
+		}
+
+		// Salir de la sala de chat
+		this.presenceService.leaveChatRoom(this.chatId);
+
+		// Ocultar indicadores
+		if (this.presenceIndicator) {
+			this.presenceIndicator.hide();
+		}
+		this.hideOfflineBanner();
+
+		debugLog('💬 [ChatUI] ✅ Sistema de presencia desactivado');
+	}
+
+	/**
+	 * Muestra el banner de advertencia offline
+	 */
+	private showOfflineBanner(): void {
+		// Solo mostrar si está habilitado en la configuración
+		if (this.offlineBanner && this.showOfflineBannerEnabled) {
+			this.offlineBanner.style.display = 'block';
+			debugLog('💬 [ChatUI] 📢 Banner offline mostrado');
+		} else if (!this.showOfflineBannerEnabled) {
+			debugLog('💬 [ChatUI] ⚠️ Banner offline deshabilitado en configuración');
+		}
+	}
+
+	/**
+	 * Oculta el banner de advertencia offline
+	 */
+	private hideOfflineBanner(): void {
+		if (this.offlineBanner) {
+			this.offlineBanner.style.display = 'none';
+			debugLog('💬 [ChatUI] 📢 Banner offline ocultado');
+		}
 	}
 }
