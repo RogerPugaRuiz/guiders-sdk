@@ -40,6 +40,7 @@ import { ConsentBannerUI, ConsentBannerConfig } from "../presentation/consent-ba
 import { debugLog } from "../utils/debug-logger";
 import { CommercialAvailabilityService } from "../services/commercial-availability-service";
 import { CommercialAvailabilityConfig } from "../types";
+import { PresenceService } from "../services/presence-service";
 
 
 interface SDKOptions {
@@ -85,6 +86,15 @@ interface SDKOptions {
 	consentBanner?: ConsentBannerConfig; // Consent banner UI (auto-render banner for GDPR)
 	// Commercial Availability Configuration
 	commercialAvailability?: Partial<CommercialAvailabilityConfig>; // Auto show/hide chat based on commercial availability
+	// Presence & Typing Indicators Configuration
+	presence?: {
+		enabled?: boolean;              // Enable presence system (default: true)
+		showTypingIndicator?: boolean;  // Show typing indicators (default: true)
+		typingDebounce?: number;        // Debounce delay before sending typing:start in ms (default: 300)
+		typingTimeout?: number;         // Auto-stop typing after inactivity in ms (default: 2000)
+		pollingInterval?: number;       // Presence polling interval in ms (default: 30000)
+		showOfflineBanner?: boolean;    // Show offline banner when commercial is offline (default: true)
+	};
 	// Tracking V2 Configuration
 	trackingV2?: {
 		enabled?: boolean;        // Enable tracking V2 (default: true)
@@ -164,6 +174,7 @@ export class TrackingPixelSDK {
 	private fingerprint: string | null = null;
 	private chatUI: ChatUI | null = null;
 	private chatMessagesUI: ChatMessagesUI | null = null;
+	private chatInputUI: ChatInputUI | null = null;
 	private chatToggleButton: ChatToggleButtonUI | null = null;
 
 	private autoFlush = false;
@@ -184,11 +195,20 @@ export class TrackingPixelSDK {
 	private identifyExecuted: boolean = false; // Flag para prevenir múltiples llamadas a identify()
 	private wsService: WebSocketService;
 	private realtimeMessageManager: RealtimeMessageManager;
+	private presenceService: PresenceService | null = null;
 	private consentManager: ConsentManager;
 	private consentBackendService: ConsentBackendService;
 	private consentBanner: ConsentBannerUI | null = null;
 	private commercialAvailabilityService: CommercialAvailabilityService | null = null;
 	private commercialAvailabilityConfig?: Partial<CommercialAvailabilityConfig>;
+	private presenceConfig: {
+		enabled: boolean;
+		showTypingIndicator: boolean;
+		typingDebounce: number;
+		typingTimeout: number;
+		pollingInterval: number;
+		showOfflineBanner: boolean;
+	};
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -218,6 +238,18 @@ export class TrackingPixelSDK {
 
 		// Configurar detección de dispositivo móvil (opcional)
 		this.mobileDetectionConfig = options.mobileDetection;
+
+		// Configurar sistema de presencia y typing indicators
+		this.presenceConfig = {
+			enabled: options.presence?.enabled ?? true,
+			showTypingIndicator: options.presence?.showTypingIndicator ?? true,
+			typingDebounce: options.presence?.typingDebounce ?? 300,
+			typingTimeout: options.presence?.typingTimeout ?? 2000,
+			pollingInterval: options.presence?.pollingInterval ?? 30000,
+			showOfflineBanner: options.presence?.showOfflineBanner ?? true
+		};
+
+		debugLog('[TrackingPixelSDK] 🟢 Configuración de presencia:', this.presenceConfig);
 
 		// Configurar validador de horarios activos si se proporciona
 		if (options.activeHours && options.activeHours.enabled) {
@@ -274,6 +306,9 @@ export class TrackingPixelSDK {
 		// Inicializar servicios de WebSocket y mensajería en tiempo real
 		this.wsService = WebSocketService.getInstance();
 		this.realtimeMessageManager = RealtimeMessageManager.getInstance();
+
+		// Nota: PresenceService se inicializará después de identify() cuando tengamos visitorId
+		// Ver método `setupPresenceService()` para la inicialización real
 
 		// Inicializar el gestor de consentimiento GDPR
 		// requireConsent (default: false) controla si se requiere consentimiento
@@ -464,7 +499,8 @@ export class TrackingPixelSDK {
 			mobileDetection: this.mobileDetectionConfig,
 		});
 		const chat = this.chatUI; // Alias para mantener compatibilidad con el código existente
-		const chatInput = new ChatInputUI(chat);
+		this.chatInputUI = new ChatInputUI(chat);
+		const chatInput = this.chatInputUI; // Alias para compatibilidad con código existente
 		this.chatToggleButton = new ChatToggleButtonUI(chat);
 		const chatToggleButton = this.chatToggleButton; // Alias para compatibilidad con código existente
 
@@ -840,8 +876,11 @@ export class TrackingPixelSDK {
 		try {
 			debugLog('[TrackingPixelSDK] 🔍 Ejecutando identify...');
 
+			// Obtener versión actual del ConsentManager para enviar al backend
+			const consentVersion = this.consentManager.getState().version;
+
 			// Usar identitySignal en lugar de llamar directamente al servicio
-			const result = await this.identitySignal.identify(this.fingerprint!, this.apiKey);
+			const result = await this.identitySignal.identify(this.fingerprint!, this.apiKey, consentVersion);
 			if (result?.identity?.visitorId) {
 				debugLog('[TrackingPixelSDK] ✅ Visitante identificado con identitySignal:', result.identity.visitorId);
 
@@ -858,6 +897,10 @@ export class TrackingPixelSDK {
 					this.chatToggleButton.connectUnreadService(result.identity.visitorId);
 					debugLog('📬 [TrackingPixelSDK] ✅ Servicio de mensajes no leídos conectado tempranamente');
 				}
+
+				// 🟢 Inicializar servicio de presencia y typing indicators
+				this.setupPresenceService();
+				debugLog('🟢 [TrackingPixelSDK] ✅ Servicio de presencia configurado');
 
 				// REGISTRO AUTOMÁTICO DE CONSENTIMIENTOS:
 				// El backend ahora registra TODOS los consentimientos automáticamente en identify()
@@ -940,8 +983,14 @@ export class TrackingPixelSDK {
 				// 📡 Inicializar WebSocket SIEMPRE para recibir notificaciones proactivas
 				// IMPORTANTE: Esto debe ejecutarse independientemente de si hay chats o no
 				// para poder recibir el evento 'chat:created' cuando un comercial cree un chat proactivamente
+				console.log('📡 [TrackingPixelSDK] 🔍 DEBUG: Verificando condiciones WebSocket:', {
+					hasChatUI: !!this.chatUI,
+					isConnected: this.wsService.isConnected(),
+					visitorId: this.getVisitorId()?.substring(0, 8) + '...'
+				});
+
 				if (this.chatUI && !this.wsService.isConnected()) {
-					debugLog('📡 [TrackingPixelSDK] 🚀 Inicializando WebSocket para notificaciones en tiempo real');
+					console.log('📡 [TrackingPixelSDK] 🚀 Inicializando WebSocket para notificaciones en tiempo real');
 					this.initializeWebSocketConnection(this.chatUI);
 
 					// Si hay chat existente, configurarlo en el RealtimeMessageManager
@@ -1723,11 +1772,14 @@ export class TrackingPixelSDK {
 	public async identifyVisitor(fingerprint?: string, apiKey?: string) {
 		const fp = fingerprint || this.fingerprint || this.generateFingerprint();
 		const key = apiKey || this.apiKey;
-		
+
 		debugLog('[TrackingPixelSDK] 🔍 Identificando visitante con fingerprint:', fp);
-		
+
 		try {
-			const result = await this.identitySignal.identify(fp, key);
+			// Obtener versión actual del ConsentManager
+			const consentVersion = this.consentManager.getState().version;
+
+			const result = await this.identitySignal.identify(fp, key, consentVersion);
 			debugLog('[TrackingPixelSDK] ✅ Visitante identificado exitosamente:', result.identity.visitorId);
 			return result;
 		} catch (error) {
@@ -2161,16 +2213,21 @@ export class TrackingPixelSDK {
 	 * @param chat Instancia del ChatUI
 	 */
 	private initializeWebSocketConnection(chat: ChatUI): void {
+		console.log('📡 [TrackingPixelSDK] 🔍 DEBUG: initializeWebSocketConnection() LLAMADO');
 		const visitorId = this.getVisitorId();
-		
+
+		console.log('📡 [TrackingPixelSDK] 🔍 DEBUG: visitorId =', visitorId?.substring(0, 8) + '...');
+
 		if (!visitorId) {
 			console.warn('📡 [TrackingPixelSDK] ⚠️ No se puede conectar WebSocket sin visitorId');
 			return;
 		}
 
 		// Verificar si ya está conectado
+		console.log('📡 [TrackingPixelSDK] 🔍 DEBUG: Verificando si ya conectado:', this.wsService.isConnected());
+
 		if (this.wsService.isConnected()) {
-			debugLog('📡 [TrackingPixelSDK] ✅ WebSocket ya conectado');
+			console.log('📡 [TrackingPixelSDK] ✅ WebSocket ya conectado (skip init)');
 			// Actualizar chat actual si cambió
 			const currentChatId = chat.getChatId();
 			if (currentChatId && this.realtimeMessageManager.getCurrentChatId() !== currentChatId) {
@@ -2179,13 +2236,15 @@ export class TrackingPixelSDK {
 			return;
 		}
 
-		debugLog('📡 [TrackingPixelSDK] 🚀 Inicializando conexión WebSocket...');
+		console.log('📡 [TrackingPixelSDK] 🚀 Inicializando conexión WebSocket...');
 
 		try {
 			// Obtener sessionId para autenticación
 			const sessionId = sessionStorage.getItem('guiders_backend_session_id');
-			
+			console.log('📡 [TrackingPixelSDK] 🔍 DEBUG: sessionId encontrado:', sessionId ? sessionId.substring(0, 8) + '...' : 'NO');
+
 			// Configurar y conectar WebSocket
+			console.log('📡 [TrackingPixelSDK] 🔍 DEBUG: Llamando wsService.connect()...');
 			this.wsService.connect(
 				{
 					sessionId: sessionId || undefined,
@@ -2258,6 +2317,79 @@ export class TrackingPixelSDK {
 			debugLog('📡 [TrackingPixelSDK] ✅ Sistema de mensajería en tiempo real inicializado');
 		} catch (error) {
 			console.error('📡 [TrackingPixelSDK] ❌ Error inicializando WebSocket:', error);
+		}
+	}
+
+	/**
+	 * Inicializa el servicio de presencia y typing indicators
+	 * Debe llamarse después de identify() cuando tengamos visitorId
+	 */
+	private setupPresenceService(): void {
+		const visitorId = this.getVisitorId();
+
+		if (!visitorId) {
+			console.warn('🟢 [TrackingPixelSDK] ⚠️ No se puede configurar PresenceService sin visitorId');
+			return;
+		}
+
+		// Verificar si el sistema de presencia está habilitado
+		if (!this.presenceConfig.enabled) {
+			debugLog('🟢 [TrackingPixelSDK] ⚠️ Sistema de presencia deshabilitado en configuración');
+			return;
+		}
+
+		if (this.presenceService) {
+			debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService ya configurado');
+			return;
+		}
+
+		debugLog('🟢 [TrackingPixelSDK] 🚀 Configurando PresenceService...', this.presenceConfig);
+
+		try {
+			// Inicializar PresenceService con configuración personalizada
+			this.presenceService = new PresenceService(
+				this.wsService,
+				visitorId,
+				{
+					enabled: this.presenceConfig.enabled,
+					pollingInterval: this.presenceConfig.pollingInterval,
+					showTypingIndicator: this.presenceConfig.showTypingIndicator,
+					typingTimeout: this.presenceConfig.typingTimeout,
+					typingDebounce: this.presenceConfig.typingDebounce
+				}
+			);
+
+			debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService inicializado');
+
+			// Configurar PresenceService en ChatUI si existe
+			if (this.chatUI) {
+				this.chatUI.setPresenceService(this.presenceService);
+				// Configurar si se debe mostrar el banner offline
+				(this.chatUI as any).setShowOfflineBanner?.(this.presenceConfig.showOfflineBanner);
+				debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService configurado en ChatUI');
+			}
+
+			// Configurar PresenceService en ChatInputUI si existe
+			if (this.chatInputUI) {
+				const currentChatId = this.chatUI?.getChatId();
+				if (currentChatId) {
+					this.chatInputUI.setPresenceService(this.presenceService, currentChatId);
+					debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService configurado en ChatInputUI');
+				} else {
+					debugLog('🟢 [TrackingPixelSDK] ⚠️ No hay chatId disponible aún para ChatInputUI');
+				}
+			}
+
+			// Configurar PresenceService en ChatMessagesUI si existe
+			if (this.chatMessagesUI) {
+				// ChatMessagesUI ya maneja typing indicators via callbacks del PresenceService
+				// configurados en ChatUI, no necesita configuración adicional
+				debugLog('🟢 [TrackingPixelSDK] ✅ ChatMessagesUI usa typing indicators via ChatUI');
+			}
+
+			debugLog('🟢 [TrackingPixelSDK] ✅ Sistema de presencia configurado exitosamente');
+		} catch (error) {
+			console.error('🟢 [TrackingPixelSDK] ❌ Error configurando PresenceService:', error);
 		}
 	}
 
@@ -2383,7 +2515,8 @@ export class TrackingPixelSDK {
 			}
 
 			const chat = this.chatUI;
-			const chatInput = new ChatInputUI(chat);
+			this.chatInputUI = new ChatInputUI(chat);
+			const chatInput = this.chatInputUI; // Alias para compatibilidad
 			this.chatToggleButton = new ChatToggleButtonUI(chat);
 			const chatToggleButton = this.chatToggleButton; // Alias para compatibilidad
 
@@ -2591,7 +2724,10 @@ export class TrackingPixelSDK {
 		const client = new ClientJS();
 		const fingerprint = this.fingerprint || client.getFingerprint().toString();
 
-		this.identitySignal.identify(fingerprint, this.apiKey).catch(error => {
+		// Obtener versión actual del ConsentManager
+		const consentVersion = this.consentManager.getState().version;
+
+		this.identitySignal.identify(fingerprint, this.apiKey, consentVersion).catch(error => {
 			console.warn('[TrackingPixelSDK] ⚠️ No se pudo registrar el rechazo en el backend:', error);
 			// No es un error crítico - el usuario ya tiene acceso limitado localmente
 		});

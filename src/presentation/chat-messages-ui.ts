@@ -2,6 +2,7 @@ import { MessagePaginationService } from '../services/message-pagination-service
 import { MessageV2, MessageListResponse } from '../types';
 import { MessageRenderer } from './utils/message-renderer';
 import { debugLog } from '../utils/debug-logger';
+import { TypingIndicator } from './components/typing-indicator';
 
 /**
  * Componente de UI de mensajes con scroll infinito
@@ -9,12 +10,13 @@ import { debugLog } from '../utils/debug-logger';
  * - Scroll automático al bottom al abrir
  * - Scroll infinito hacia arriba para cargar mensajes antiguos
  * - Interfaz simple y fluida
+ * - Typing indicator cuando el comercial está escribiendo
  */
 export class ChatMessagesUI {
     private container: HTMLElement;
     private messagesContainer!: HTMLElement;
     private messagePaginationService: MessagePaginationService;
-    
+
     // Estado del scroll infinito
     private chatId: string | null = null;
     private currentCursor: string | null = null;
@@ -22,10 +24,14 @@ export class ChatMessagesUI {
     private isLoading: boolean = false;
     private isInitialLoad: boolean = true;
     private preventAutoScrollLoad: boolean = false; // Previene carga automática después de scrollToBottom
-    
+
     // Elementos de loading
     private topLoadingIndicator: HTMLElement | null = null;
-    
+
+    // Typing indicator
+    private typingIndicator: TypingIndicator;
+    private typingIndicatorContainer: HTMLElement | null = null;
+
     // Configuración
     private readonly SCROLL_THRESHOLD = 100; // pixels desde el top para activar carga
     private readonly MESSAGE_LIMIT = 20; // mensajes por página
@@ -33,6 +39,7 @@ export class ChatMessagesUI {
     constructor(container: HTMLElement) {
         this.container = container;
         this.messagePaginationService = MessagePaginationService.getInstance();
+        this.typingIndicator = new TypingIndicator();
         this.setupUI();
         this.setupScrollListener();
     }
@@ -44,14 +51,18 @@ export class ChatMessagesUI {
         // 🔧 No limpiar el contenedor, usar el contenedor existente como messagesContainer
         // El contenedor ya tiene la clase 'chat-messages' y el contenido de mensajes
         this.messagesContainer = this.container;
-        
+
         // Aplicar estilos de scroll infinito al contenedor existente
         this.messagesContainer.style.cssText += `
             overflow-y: auto;
             scroll-behavior: smooth;
         `;
-        
-        debugLog(`📦 [ChatMessagesUI] setupUI: Usando contenedor existente como messagesContainer`);
+
+        // Agregar typing indicator al final del contenedor
+        this.typingIndicatorContainer = this.typingIndicator.render();
+        this.messagesContainer.appendChild(this.typingIndicatorContainer);
+
+        debugLog(`📦 [ChatMessagesUI] setupUI: Usando contenedor existente como messagesContainer + typing indicator agregado`);
     }
 
     /**
@@ -621,9 +632,23 @@ export class ChatMessagesUI {
 
     /**
      * Limpia todos los mensajes del contenedor
+     * Nota: No elimina el typing indicator, solo lo oculta
      */
     private clearMessages(): void {
+        // Guardar referencia al typing indicator
+        const typingElement = this.typingIndicator.getElement();
+
+        // Limpiar todo el contenedor
         this.messagesContainer.innerHTML = '';
+
+        // Re-agregar el typing indicator al final
+        if (typingElement) {
+            this.messagesContainer.appendChild(typingElement);
+        }
+
+        // Ocultar typing indicator al limpiar mensajes
+        this.typingIndicator.hide();
+
         this.hideTopLoadingIndicator();
     }
 
@@ -649,11 +674,47 @@ export class ChatMessagesUI {
     }
 
     /**
+     * Muestra el typing indicator cuando el comercial está escribiendo
+     */
+    public showTypingIndicator(): void {
+        debugLog('[ChatMessagesUI] 📝 Mostrando typing indicator');
+        this.typingIndicator.show();
+
+        // Auto-scroll al typing indicator si el usuario está cerca del bottom
+        const { scrollTop, scrollHeight, clientHeight } = this.messagesContainer;
+        const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+
+        if (isNearBottom) {
+            this.scrollToBottom();
+        }
+    }
+
+    /**
+     * Oculta el typing indicator
+     */
+    public hideTypingIndicator(): void {
+        debugLog('[ChatMessagesUI] 📝 Ocultando typing indicator');
+        this.typingIndicator.hide();
+    }
+
+    /**
+     * Verifica si el typing indicator está visible
+     */
+    public isTypingIndicatorVisible(): boolean {
+        return this.typingIndicator.isShown();
+    }
+
+    /**
      * Destruye el componente y limpia listeners
      */
     public destroy(): void {
         this.messagesContainer.removeEventListener('scroll', this.handleScroll);
         this.clearMessages();
+
+        // Destruir typing indicator
+        this.typingIndicator.destroy();
+        this.typingIndicatorContainer = null;
+
         this.chatId = null;
         this.currentCursor = null;
         this.hasMoreMessages = true;
