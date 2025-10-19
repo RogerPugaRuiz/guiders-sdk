@@ -101,10 +101,16 @@ export interface WebSocketCallbacks {
 	onMessage?: (message: RealtimeMessage) => void;
 	/** Callback cuando cambia el estado del chat */
 	onChatStatus?: (status: ChatStatusUpdate) => void;
-	/** Callback cuando alguien está escribiendo */
+	/** Callback cuando alguien está escribiendo (legacy) */
 	onTyping?: (typing: TypingIndicator) => void;
 	/** Callback cuando un comercial crea un chat proactivamente */
 	onChatCreated?: (event: ChatCreatedEvent) => void;
+	/** Callback cuando alguien comienza a escribir (presencia V2) */
+	onTypingStart?: (event: any) => void;
+	/** Callback cuando alguien deja de escribir (presencia V2) */
+	onTypingStop?: (event: any) => void;
+	/** Callback cuando cambia el estado de presencia de un usuario */
+	onPresenceChanged?: (event: any) => void;
 }
 
 /**

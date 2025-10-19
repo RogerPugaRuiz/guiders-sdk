@@ -248,6 +248,44 @@ export class WebSocketService {
 			}
 		});
 
+		// Eventos de Presencia y Typing Indicators (nuevos)
+		this.socket.on('typing:start', (event: any) => {
+			debugLog('📡 [WebSocketService] ✍️ typing:start recibido:', {
+				chatId: event.chatId,
+				userId: event.userId,
+				userType: event.userType
+			});
+
+			if (this.callbacks.onTypingStart) {
+				this.callbacks.onTypingStart(event);
+			}
+		});
+
+		this.socket.on('typing:stop', (event: any) => {
+			debugLog('📡 [WebSocketService] ✍️ typing:stop recibido:', {
+				chatId: event.chatId,
+				userId: event.userId,
+				userType: event.userType
+			});
+
+			if (this.callbacks.onTypingStop) {
+				this.callbacks.onTypingStop(event);
+			}
+		});
+
+		this.socket.on('presence:changed', (event: any) => {
+			debugLog('📡 [WebSocketService] 🟢 presence:changed recibido:', {
+				userId: event.userId,
+				userType: event.userType,
+				status: event.status,
+				previousStatus: event.previousStatus
+			});
+
+			if (this.callbacks.onPresenceChanged) {
+				this.callbacks.onPresenceChanged(event);
+			}
+		});
+
 		// Confirmaciones de sala de visitante
 		this.socket.on('visitor:joined', (data: any) => {
 			debugLog('📡 [WebSocketService] ✅ Confirmación de unión a sala de visitante:', data);
@@ -298,6 +336,7 @@ export class WebSocketService {
 	 * Emite un typing indicator
 	 * @param chatId ID del chat
 	 * @param isTyping True si está escribiendo, false si dejó de escribir
+	 * @deprecated Usar emitTypingStart() y emitTypingStop() en su lugar
 	 */
 	public emitTyping(chatId: string, isTyping: boolean): void {
 		if (!this.socket || !this.socket.connected) {
@@ -307,6 +346,40 @@ export class WebSocketService {
 
 		const payload: TypingPayload = { chatId, isTyping };
 		this.socket.emit('user:typing', payload);
+	}
+
+	/**
+	 * Emite evento typing:start (visitante comenzó a escribir)
+	 * @param chatId ID del chat
+	 * @param userId ID del usuario (visitante)
+	 * @param userType Tipo de usuario (siempre 'visitor' en el SDK)
+	 */
+	public emitTypingStart(chatId: string, userId: string, userType: 'visitor' | 'commercial' = 'visitor'): void {
+		if (!this.socket || !this.socket.connected) {
+			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede emitir typing:start');
+			return;
+		}
+
+		const payload = { chatId, userId, userType };
+		debugLog('📡 [WebSocketService] ✍️ Emitiendo typing:start:', payload);
+		this.socket.emit('typing:start', payload);
+	}
+
+	/**
+	 * Emite evento typing:stop (visitante dejó de escribir)
+	 * @param chatId ID del chat
+	 * @param userId ID del usuario (visitante)
+	 * @param userType Tipo de usuario (siempre 'visitor' en el SDK)
+	 */
+	public emitTypingStop(chatId: string, userId: string, userType: 'visitor' | 'commercial' = 'visitor'): void {
+		if (!this.socket || !this.socket.connected) {
+			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede emitir typing:stop');
+			return;
+		}
+
+		const payload = { chatId, userId, userType };
+		debugLog('📡 [WebSocketService] ✍️ Emitiendo typing:stop:', payload);
+		this.socket.emit('typing:stop', payload);
 	}
 
 	/**
@@ -419,6 +492,9 @@ export class WebSocketService {
 		const oldOnChatStatus = this.callbacks.onChatStatus;
 		const oldOnTyping = this.callbacks.onTyping;
 		const oldOnChatCreated = this.callbacks.onChatCreated;
+		const oldOnTypingStart = this.callbacks.onTypingStart;
+		const oldOnTypingStop = this.callbacks.onTypingStop;
+		const oldOnPresenceChanged = this.callbacks.onPresenceChanged;
 
 		// Merge callbacks properly - if both old and new have the same callback, chain them
 		const mergedCallbacks: WebSocketCallbacks = {};
@@ -476,6 +552,30 @@ export class WebSocketService {
 			mergedCallbacks.onChatCreated = (event) => {
 				if (oldOnChatCreated) oldOnChatCreated(event);
 				if (callbacks.onChatCreated) callbacks.onChatCreated(event);
+			};
+		}
+
+		// Merge onTypingStart callbacks (presencia V2)
+		if (oldOnTypingStart || callbacks.onTypingStart) {
+			mergedCallbacks.onTypingStart = (event) => {
+				if (oldOnTypingStart) oldOnTypingStart(event);
+				if (callbacks.onTypingStart) callbacks.onTypingStart(event);
+			};
+		}
+
+		// Merge onTypingStop callbacks (presencia V2)
+		if (oldOnTypingStop || callbacks.onTypingStop) {
+			mergedCallbacks.onTypingStop = (event) => {
+				if (oldOnTypingStop) oldOnTypingStop(event);
+				if (callbacks.onTypingStop) callbacks.onTypingStop(event);
+			};
+		}
+
+		// Merge onPresenceChanged callbacks (presencia V2)
+		if (oldOnPresenceChanged || callbacks.onPresenceChanged) {
+			mergedCallbacks.onPresenceChanged = (event) => {
+				if (oldOnPresenceChanged) oldOnPresenceChanged(event);
+				if (callbacks.onPresenceChanged) callbacks.onPresenceChanged(event);
 			};
 		}
 
