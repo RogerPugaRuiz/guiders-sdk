@@ -323,9 +323,16 @@ export class ChatToggleButtonUI {
 			console.error("Badge element no encontrado");
 			return;
 		}
-		
+
+		// ✅ NO mostrar el badge si el botón está oculto
+		if (this.button && this.button.style.display === 'none') {
+			console.log('🚫 Badge no se mostrará porque el botón está oculto');
+			this.hideBadge();
+			return;
+		}
+
 		console.log(`📬 Actualizando badge: ${count} mensajes no leídos`);
-		
+
 		if (count <= 0) {
 			this.hideBadge();
 		} else {
@@ -333,12 +340,12 @@ export class ChatToggleButtonUI {
 			this.badgeElement.style.opacity = '1';
 			this.badgeElement.textContent = count > 99 ? '99+' : count.toString();
 			console.log(`🔴 Badge visible - ${count} mensajes no leídos`);
-			
+
 			// Asegurar que el badge sea visible con estilo explícito
 			this.badgeElement.style.display = 'flex';
 			this.badgeElement.style.opacity = '1';
 			this.badgeElement.style.transform = 'scale(1)';
-			
+
 			// Aplicar animación de pulso cuando se actualizan los mensajes
 			if (this.badgeElement) {
 				this.badgeElement.style.animation = 'none';
