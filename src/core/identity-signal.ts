@@ -60,8 +60,11 @@ export class IdentitySignal extends AsyncSignal<IdentityWithChatsData> {
 
   /**
    * Ejecuta la identificación del visitante y automáticamente carga sus chats
+   * @param fingerprint Huella digital del navegador
+   * @param apiKey API key del tenant
+   * @param consentVersion Versión del SDK para el consentimiento (opcional, se lee de localStorage si no se proporciona)
    */
-  public async identify(fingerprint: string, apiKey?: string): Promise<IdentityWithChatsData> {
+  public async identify(fingerprint: string, apiKey?: string, consentVersion?: string): Promise<IdentityWithChatsData> {
     console.log('[IdentitySignal] 🚀 Iniciando identificación del visitante...');
 
     return this.execute(async () => {
@@ -75,7 +78,9 @@ export class IdentitySignal extends AsyncSignal<IdentityWithChatsData> {
             const consentState = JSON.parse(consentStateStr);
             consentInfo = {
               hasAcceptedPrivacyPolicy: consentState.status === 'granted',
-              consentVersion: consentState.version || 'v1.0'
+              // IMPORTANTE: Usar la versión pasada como parámetro (del ConsentManager) si está disponible
+              // Esto garantiza que siempre se envíe la versión actual del SDK, no la guardada en localStorage
+              consentVersion: consentVersion || consentState.version || 'v1.0'
             };
             console.log('[IdentitySignal] 🔐 Estado de consentimiento:', consentInfo);
           } catch (e) {
@@ -224,10 +229,10 @@ export class IdentitySignal extends AsyncSignal<IdentityWithChatsData> {
  */
 export function useIdentitySignal() {
   const signal = IdentitySignal.getInstance();
-  
+
   return {
     signal,
-    identify: (fingerprint: string, apiKey?: string) => signal.identify(fingerprint, apiKey),
+    identify: (fingerprint: string, apiKey?: string, consentVersion?: string) => signal.identify(fingerprint, apiKey, consentVersion),
     reloadChats: () => signal.reloadChats(),
     getState: () => signal.getState(),
     getIdentity: () => signal.getIdentity(),
