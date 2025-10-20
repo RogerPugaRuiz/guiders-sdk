@@ -151,20 +151,73 @@ export type TypingChangeCallback = (event: TypingEvent, isTyping: boolean) => vo
  * Mapeo de estados de presencia a textos legibles
  */
 export const PresenceStatusText: Record<PresenceStatus, string> = {
-  online: 'Disponible',
+  online: 'En línea',
   busy: 'Ocupado',
   away: 'Ausente',
-  offline: 'Sin conexión',
+  offline: 'Desconectado',
   chatting: 'En conversación'
 };
 
 /**
- * Mapeo de estados de presencia a colores CSS
+ * Mapeo de estados de presencia a colores CSS (según guía de presencia)
  */
 export const PresenceStatusColor: Record<PresenceStatus, string> = {
-  online: '#4ade80',    // Verde
-  busy: '#fbbf24',      // Amarillo
-  away: '#fbbf24',      // Amarillo
-  offline: '#9ca3af',   // Gris
+  online: '#10B981',    // Verde (guía)
+  busy: '#EF4444',      // Rojo (guía)
+  away: '#F59E0B',      // Amarillo (guía)
+  offline: '#6B7280',   // Gris (guía)
   chatting: '#60a5fa'   // Azul
+};
+
+/**
+ * Configuración visual completa del badge de presencia (según guía)
+ */
+export interface PresenceBadgeConfig {
+  /** Icono emoji del badge */
+  icon: string;
+
+  /** Texto descriptivo corto */
+  text: string;
+
+  /** Color principal (hex) */
+  color: string;
+
+  /** Descripción adicional para tooltip */
+  description: string;
+}
+
+/**
+ * Mapeo de estados a configuración visual completa (según guía oficial)
+ */
+export const PRESENCE_BADGE_CONFIG: Record<PresenceStatus, PresenceBadgeConfig> = {
+  online: {
+    icon: '🟢',
+    text: 'En línea',
+    color: '#10B981',
+    description: 'Responderá pronto'
+  },
+  away: {
+    icon: '🟡',
+    text: 'Ausente',
+    color: '#F59E0B',
+    description: 'Puede tardar en responder'
+  },
+  busy: {
+    icon: '🔴',
+    text: 'Ocupado',
+    color: '#EF4444',
+    description: 'Atendiendo otro chat'
+  },
+  offline: {
+    icon: '⚫',
+    text: 'Desconectado',
+    color: '#6B7280',
+    description: 'No disponible'
+  },
+  chatting: {
+    icon: '💬',
+    text: 'En conversación',
+    color: '#60a5fa',
+    description: 'Atendiendo otro chat'
+  }
 };

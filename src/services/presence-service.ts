@@ -263,19 +263,53 @@ export class PresenceService {
   }
 
   /**
-   * Emite evento typing:start al WebSocket
+   * Emite evento typing:start via REST API (según guía oficial de presencia)
+   * Usa POST /api/presence/chat/:chatId/typing/start con auto-expiración en Redis (3s TTL)
    */
-  private emitTypingStart(chatId: string): void {
-    // Usar los nuevos métodos del WebSocketService que emiten eventos separados
-    this.webSocketService.emitTypingStart(chatId, this.visitorId, 'visitor');
+  private async emitTypingStart(chatId: string): Promise<void> {
+    try {
+      const endpoint = this.endpointManager.getEndpoint();
+      const url = `${endpoint}/presence/chat/${chatId}/typing/start`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'include', // ✅ Enviar cookies de sesión
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.warn('[PresenceService] ⚠️ Error al enviar typing:start:', response.status);
+      }
+    } catch (error) {
+      console.error('[PresenceService] ❌ Error en emitTypingStart:', error);
+    }
   }
 
   /**
-   * Emite evento typing:stop al WebSocket
+   * Emite evento typing:stop via REST API (según guía oficial de presencia)
+   * Usa POST /api/presence/chat/:chatId/typing/stop
    */
-  private emitTypingStop(chatId: string): void {
-    // Usar los nuevos métodos del WebSocketService que emiten eventos separados
-    this.webSocketService.emitTypingStop(chatId, this.visitorId, 'visitor');
+  private async emitTypingStop(chatId: string): Promise<void> {
+    try {
+      const endpoint = this.endpointManager.getEndpoint();
+      const url = `${endpoint}/presence/chat/${chatId}/typing/stop`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'include', // ✅ Enviar cookies de sesión
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.warn('[PresenceService] ⚠️ Error al enviar typing:stop:', response.status);
+      }
+    } catch (error) {
+      console.error('[PresenceService] ❌ Error en emitTypingStop:', error);
+    }
   }
 
   /**

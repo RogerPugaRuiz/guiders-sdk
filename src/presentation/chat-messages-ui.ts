@@ -4,6 +4,8 @@ import { MessageRenderer } from './utils/message-renderer';
 import { debugLog } from '../utils/debug-logger';
 import { TypingIndicator } from './components/typing-indicator';
 import { formatDate, createDateSeparator } from './utils/chat-utils';
+import { PresenceService } from '../services/presence-service';
+import { TypingEvent } from '../types/presence-types';
 
 /**
  * Componente de UI de mensajes con scroll infinito
@@ -33,6 +35,10 @@ export class ChatMessagesUI {
     private typingIndicator: TypingIndicator;
     private typingIndicatorContainer: HTMLElement | null = null;
 
+    // Presence service for typing indicators
+    private presenceService: PresenceService | null = null;
+    private typingUnsubscribe: (() => void) | null = null;
+
     // Configuración
     private readonly SCROLL_THRESHOLD = 100; // pixels desde el top para activar carga
     private readonly MESSAGE_LIMIT = 20; // mensajes por página
@@ -43,6 +49,30 @@ export class ChatMessagesUI {
         this.typingIndicator = new TypingIndicator();
         this.setupUI();
         this.setupScrollListener();
+    }
+
+    /**
+     * Configura el servicio de presencia para typing indicators
+     * @param presenceService Servicio de presencia
+     */
+    public setPresenceService(presenceService: PresenceService): void {
+        this.presenceService = presenceService;
+
+        // Suscribirse a eventos de typing (solo del comercial)
+        this.typingUnsubscribe = this.presenceService.onTypingChanged((event: TypingEvent, isTyping: boolean) => {
+            // ✅ Solo mostrar typing del comercial, no del visitante
+            if (event.userType === 'commercial') {
+                if (isTyping) {
+                    debugLog('[ChatMessagesUI] 📝 Comercial está escribiendo:', event);
+                    this.showTypingIndicator();
+                } else {
+                    debugLog('[ChatMessagesUI] 📝 Comercial dejó de escribir:', event);
+                    this.hideTypingIndicator();
+                }
+            }
+        });
+
+        debugLog('[ChatMessagesUI] ✅ PresenceService configurado y suscrito a typing events');
     }
 
     /**
@@ -755,9 +785,18 @@ export class ChatMessagesUI {
         this.messagesContainer.removeEventListener('scroll', this.handleScroll);
         this.clearMessages();
 
+        // Desuscribirse de typing events
+        if (this.typingUnsubscribe) {
+            this.typingUnsubscribe();
+            this.typingUnsubscribe = null;
+        }
+
         // Destruir typing indicator
         this.typingIndicator.destroy();
         this.typingIndicatorContainer = null;
+
+        // Limpiar referencias
+        this.presenceService = null;
 
         this.chatId = null;
         this.currentCursor = null;

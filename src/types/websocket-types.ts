@@ -106,11 +106,11 @@ export interface WebSocketCallbacks {
 	/** Callback cuando un comercial crea un chat proactivamente */
 	onChatCreated?: (event: ChatCreatedEvent) => void;
 	/** Callback cuando alguien comienza a escribir (presencia V2) */
-	onTypingStart?: (event: any) => void;
+	onTypingStart?: (event: import('../types/presence-types').TypingEvent) => void;
 	/** Callback cuando alguien deja de escribir (presencia V2) */
-	onTypingStop?: (event: any) => void;
+	onTypingStop?: (event: import('../types/presence-types').TypingEvent) => void;
 	/** Callback cuando cambia el estado de presencia de un usuario */
-	onPresenceChanged?: (event: any) => void;
+	onPresenceChanged?: (event: import('../types/presence-types').PresenceChangedEvent) => void;
 }
 
 /**
