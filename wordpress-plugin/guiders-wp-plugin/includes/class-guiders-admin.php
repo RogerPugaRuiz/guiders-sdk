@@ -233,6 +233,77 @@ class GuidersAdmin {
             'guiders_welcome_messages_section'
         );
 
+        // Chat Consent Message section
+        add_settings_section(
+            'guiders_chat_consent_message_section',
+            __('Mensaje de Consentimiento del Chat', 'guiders-wp-plugin'),
+            array($this, 'chatConsentMessageSectionCallback'),
+            'guiders-settings'
+        );
+
+        // Chat consent message enabled field
+        add_settings_field(
+            'chat_consent_message_enabled',
+            __('Habilitar Mensaje de Consentimiento', 'guiders-wp-plugin'),
+            array($this, 'chatConsentMessageEnabledFieldCallback'),
+            'guiders-settings',
+            'guiders_chat_consent_message_section'
+        );
+
+        // Chat consent message text field
+        add_settings_field(
+            'chat_consent_message_text',
+            __('Texto del Mensaje', 'guiders-wp-plugin'),
+            array($this, 'chatConsentMessageTextFieldCallback'),
+            'guiders-settings',
+            'guiders_chat_consent_message_section'
+        );
+
+        // Chat consent privacy URL field
+        add_settings_field(
+            'chat_consent_privacy_url',
+            __('URL Política de Privacidad', 'guiders-wp-plugin'),
+            array($this, 'chatConsentPrivacyUrlFieldCallback'),
+            'guiders-settings',
+            'guiders_chat_consent_message_section'
+        );
+
+        // Chat consent privacy text field
+        add_settings_field(
+            'chat_consent_privacy_text',
+            __('Texto Enlace Privacidad', 'guiders-wp-plugin'),
+            array($this, 'chatConsentPrivacyTextFieldCallback'),
+            'guiders-settings',
+            'guiders_chat_consent_message_section'
+        );
+
+        // Chat consent cookies URL field
+        add_settings_field(
+            'chat_consent_cookies_url',
+            __('URL Política de Cookies', 'guiders-wp-plugin'),
+            array($this, 'chatConsentCookiesUrlFieldCallback'),
+            'guiders-settings',
+            'guiders_chat_consent_message_section'
+        );
+
+        // Chat consent cookies text field
+        add_settings_field(
+            'chat_consent_cookies_text',
+            __('Texto Enlace Cookies', 'guiders-wp-plugin'),
+            array($this, 'chatConsentCookiesTextFieldCallback'),
+            'guiders-settings',
+            'guiders_chat_consent_message_section'
+        );
+
+        // Chat consent show once field
+        add_settings_field(
+            'chat_consent_show_once',
+            __('Mostrar Solo Una Vez', 'guiders-wp-plugin'),
+            array($this, 'chatConsentShowOnceFieldCallback'),
+            'guiders-settings',
+            'guiders_chat_consent_message_section'
+        );
+
         // Active Hours section
         add_settings_section(
             'guiders_active_hours_section',
@@ -1009,7 +1080,7 @@ class GuidersAdmin {
      */
     public function welcomeMessageEnabledFieldCallback() {
         $settings = get_option('guiders_wp_plugin_settings', array());
-        $enabled = isset($settings['welcome_message_enabled']) ? $settings['welcome_message_enabled'] : true;
+        $enabled = isset($settings['welcome_message_enabled']) ? $settings['welcome_message_enabled'] : false;
         echo '<input type="checkbox" id="welcome_message_enabled" name="guiders_wp_plugin_settings[welcome_message_enabled]" value="1" ' . checked($enabled, true, false) . ' />';
         echo '<label for="welcome_message_enabled">' . __('Mostrar mensajes de bienvenida automáticamente', 'guiders-wp-plugin') . '</label>';
     }
@@ -1118,6 +1189,94 @@ class GuidersAdmin {
             });
         });
         </script>';
+    }
+
+    // === Chat Consent Message Field Callbacks ===
+
+    /**
+     * Chat consent message section callback
+     */
+    public function chatConsentMessageSectionCallback() {
+        echo '<p>' . __('Configura el mensaje de consentimiento que aparecerá al abrir el chat. Similar al mensaje de Zara: "Al unirte al chat, confirmas que has leído y entiendes nuestra Política de Privacidad y Cookies".', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat consent message enabled field callback
+     */
+    public function chatConsentMessageEnabledFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $enabled = isset($settings['chat_consent_message_enabled']) ? $settings['chat_consent_message_enabled'] : false;
+
+        echo '<input type="checkbox" id="chat_consent_message_enabled" name="guiders_wp_plugin_settings[chat_consent_message_enabled]" value="1" ' . checked($enabled, true, false) . ' />';
+        echo '<label for="chat_consent_message_enabled">' . __('Mostrar mensaje de consentimiento en el chat', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('El mensaje aparecerá antes del mensaje de bienvenida.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat consent message text field callback
+     */
+    public function chatConsentMessageTextFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $text = isset($settings['chat_consent_message_text']) ? $settings['chat_consent_message_text'] : 'Al unirte al chat, confirmas que has leído y entiendes nuestra';
+
+        echo '<textarea id="chat_consent_message_text" name="guiders_wp_plugin_settings[chat_consent_message_text]" rows="3" class="large-text">' . esc_textarea($text) . '</textarea>';
+        echo '<p class="description">' . __('Texto principal del mensaje (sin incluir los enlaces a políticas).', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat consent privacy URL field callback
+     */
+    public function chatConsentPrivacyUrlFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $url = isset($settings['chat_consent_privacy_url']) ? $settings['chat_consent_privacy_url'] : '/privacy-policy';
+
+        echo '<input type="url" id="chat_consent_privacy_url" name="guiders_wp_plugin_settings[chat_consent_privacy_url]" value="' . esc_attr($url) . '" class="regular-text" />';
+        echo '<p class="description">' . __('URL de tu página de Política de Privacidad (ej: /privacy-policy o https://tudominio.com/privacidad).', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat consent privacy text field callback
+     */
+    public function chatConsentPrivacyTextFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $text = isset($settings['chat_consent_privacy_text']) ? $settings['chat_consent_privacy_text'] : 'Política de Privacidad';
+
+        echo '<input type="text" id="chat_consent_privacy_text" name="guiders_wp_plugin_settings[chat_consent_privacy_text]" value="' . esc_attr($text) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Texto del enlace a la Política de Privacidad.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat consent cookies URL field callback
+     */
+    public function chatConsentCookiesUrlFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $url = isset($settings['chat_consent_cookies_url']) ? $settings['chat_consent_cookies_url'] : '/cookies-policy';
+
+        echo '<input type="url" id="chat_consent_cookies_url" name="guiders_wp_plugin_settings[chat_consent_cookies_url]" value="' . esc_attr($url) . '" class="regular-text" />';
+        echo '<p class="description">' . __('URL de tu página de Política de Cookies (déjalo vacío si no quieres mostrar este enlace).', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat consent cookies text field callback
+     */
+    public function chatConsentCookiesTextFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $text = isset($settings['chat_consent_cookies_text']) ? $settings['chat_consent_cookies_text'] : 'Política de Cookies';
+
+        echo '<input type="text" id="chat_consent_cookies_text" name="guiders_wp_plugin_settings[chat_consent_cookies_text]" value="' . esc_attr($text) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Texto del enlace a la Política de Cookies.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat consent show once field callback
+     */
+    public function chatConsentShowOnceFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $show_once = isset($settings['chat_consent_show_once']) ? $settings['chat_consent_show_once'] : true;
+
+        echo '<input type="checkbox" id="chat_consent_show_once" name="guiders_wp_plugin_settings[chat_consent_show_once]" value="1" ' . checked($show_once, true, false) . ' />';
+        echo '<label for="chat_consent_show_once">' . __('Mostrar solo una vez por sesión', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('Si está activado, el mensaje se mostrará solo la primera vez que el usuario abra el chat.', 'guiders-wp-plugin') . '</p>';
     }
 
     // === Active Hours Field Callbacks ===

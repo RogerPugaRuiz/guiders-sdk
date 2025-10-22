@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo: Mensaje de Consentimiento del Chat - Guiders SDK</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-top: 0;
+            font-size: 32px;
+        }
+
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            font-size: 20px;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #0084ff;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .code-block {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .keyword { color: #c678dd; }
+        .string { color: #98c379; }
+        .comment { color: #5c6370; font-style: italic; }
+        .property { color: #e06c75; }
+        .value { color: #d19a66; }
+
+        button {
+            background: linear-gradient(145deg, #0084ff, #00c6fb);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px 10px 10px 0;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 132, 255, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #27ae60;
+            font-weight: bold;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Mensaje de Consentimiento del Chat</h1>
+
+        <div class="info-box">
+            <strong>Nuevo:</strong> Ahora puedes añadir un mensaje de consentimiento similar al de Zara en tu chat.
+            Este mensaje aparece cuando el usuario abre el chat por primera vez y confirma que ha leído las políticas de privacidad.
+        </div>
+
+        <h2>Características:</h2>
+        <ul class="feature-list">
+            <li>Mensaje personalizable con enlaces a políticas</li>
+            <li>Se muestra antes del mensaje de bienvenida</li>
+            <li>Opción de mostrar solo una vez por sesión</li>
+            <li>Diseño responsivo para móvil y desktop</li>
+            <li>Enlaces clickeables con efecto hover</li>
+        </ul>
+
+        <h2>Ejemplo de Configuración:</h2>
+        <div class="code-block">
+<span class="keyword">const</span> sdk = <span class="keyword">new</span> TrackingPixelSDK({
+  <span class="property">apiKey</span>: <span class="string">'TU_API_KEY'</span>,
+
+  <span class="comment">// Configuración del mensaje de consentimiento del chat</span>
+  <span class="property">chatConsentMessage</span>: {
+    <span class="property">enabled</span>: <span class="value">true</span>,
+    <span class="property">message</span>: <span class="string">'Al unirte al chat, confirmas que has leído y entiendes nuestra'</span>,
+    <span class="property">privacyPolicyUrl</span>: <span class="string">'/privacy-policy'</span>,
+    <span class="property">privacyPolicyText</span>: <span class="string">'Política de Privacidad'</span>,
+    <span class="property">cookiesPolicyUrl</span>: <span class="string">'/cookies-policy'</span>,
+    <span class="property">cookiesPolicyText</span>: <span class="string">'Política de Cookies'</span>,
+    <span class="property">showOnce</span>: <span class="value">true</span> <span class="comment">// Mostrar solo una vez por sesión</span>
+  }
+});
+
+<span class="comment">// Inicializar el SDK</span>
+sdk.init();
+        </div>
+
+        <h2>Configuración Mínima:</h2>
+        <div class="code-block">
+<span class="keyword">const</span> sdk = <span class="keyword">new</span> TrackingPixelSDK({
+  <span class="property">apiKey</span>: <span class="string">'TU_API_KEY'</span>,
+
+  <span class="property">chatConsentMessage</span>: {
+    <span class="property">enabled</span>: <span class="value">true</span> <span class="comment">// Usa valores por defecto</span>
+  }
+});
+        </div>
+
+        <h2>Prueba en Vivo:</h2>
+        <button onclick="openChat()">Abrir Chat con Mensaje de Consentimiento</button>
+
+        <div class="info-box" style="margin-top: 30px;">
+            <strong>Nota:</strong> El mensaje de consentimiento aparecerá automáticamente al abrir el chat por primera vez.
+            Si ya abriste el chat antes, recarga la página para verlo nuevamente.
+        </div>
+    </div>
+
+    <!-- Cargar el SDK de Guiders -->
+    <script src="../dist/index.js"></script>
+    <script>
+        // Configurar endpoint local para desarrollo
+        window.GUIDERS_CONFIG = {
+            endpoint: 'http://localhost:3000/api',
+            webSocketEndpoint: 'ws://localhost:3000'
+        };
+
+        // Inicializar el SDK con mensaje de consentimiento
+        const sdk = new TrackingPixelSDK({
+            apiKey: 'gds_test_key',
+            authMode: 'session',
+
+            // ✨ Configuración del mensaje de consentimiento del chat
+            chatConsentMessage: {
+                enabled: true,
+                message: 'Al unirte al chat, confirmas que has leído y entiendes nuestra',
+                privacyPolicyUrl: 'https://guiders.app/privacy',
+                privacyPolicyText: 'Política de Privacidad',
+                cookiesPolicyUrl: 'https://guiders.app/cookies',
+                cookiesPolicyText: 'Política de Cookies',
+                showOnce: true
+            },
+
+            // Mensaje de bienvenida (aparecerá después del mensaje de consentimiento)
+            welcomeMessage: {
+                enabled: true,
+                style: 'friendly',
+                language: 'es',
+                showTips: false
+            },
+
+            // Desactivar requisito de consentimiento para la demo
+            requireConsent: false
+        });
+
+        // Función para abrir el chat
+        function openChat() {
+            if (window.guiders && window.guiders.chatToggleButton) {
+                window.guiders.chatToggleButton.showChat();
+            }
+        }
+
+        // Inicializar el SDK
+        sdk.init();
+
+        console.log('✅ Demo de Mensaje de Consentimiento del Chat cargada');
+        console.log('Haz clic en "Abrir Chat" para ver el mensaje de consentimiento');
+    </script>
+</body>
+</html>

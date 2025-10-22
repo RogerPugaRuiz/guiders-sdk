@@ -60,6 +60,10 @@ export class ChatUI {
 	// Manager para mensajes de bienvenida
 	private welcomeMessageManager: WelcomeMessageManager;
 
+	// Configuración y estado del mensaje de consentimiento del chat
+	private chatConsentMessageConfig: import('../types/chat-types').ChatConsentMessageConfig;
+	private chatConsentMessageShown: boolean = false;
+
 	// Control de estado para evitar creación de múltiples chats
 	private isCreatingChatFlag: boolean = false;
 	private chatCreationPromise: Promise<void> | null = null;
@@ -82,6 +86,18 @@ export class ChatUI {
 
 		// Inicializar el manager de mensajes de bienvenida
 		this.welcomeMessageManager = new WelcomeMessageManager(options.welcomeMessage);
+
+		// Inicializar configuración del mensaje de consentimiento del chat
+		this.chatConsentMessageConfig = {
+			enabled: false,
+			message: 'Al unirte al chat, confirmas que has leído y entiendes nuestra',
+			privacyPolicyUrl: '/privacy',
+			privacyPolicyText: 'Política de Privacidad',
+			cookiesPolicyUrl: '/cookies',
+			cookiesPolicyText: 'Política de Cookies',
+			showOnce: true,
+			...options.chatConsentMessage
+		};
 
 		// Resolver posición del widget
 		this.resolvedPosition = resolvePosition(options.position, options.mobileDetection);
@@ -735,6 +751,60 @@ export class ChatUI {
 				color: #8a9aa9;
 				font-style: italic;
 				margin-left: 4px;
+			}
+
+			/* 📋 Estilos para Mensaje de Consentimiento del Chat */
+			.chat-consent-message-wrapper {
+				align-self: center;
+				max-width: 90%;
+				margin: 16px auto 20px auto;
+			}
+
+			.chat-consent-message {
+				background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+				border: 1px solid #dee2e6;
+				border-radius: 12px;
+				padding: 14px 18px;
+				text-align: center;
+				box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+			}
+
+			.chat-consent-message-content {
+				font-size: 12px;
+				line-height: 1.5;
+				color: #495057;
+			}
+
+			.chat-consent-link {
+				color: #0084ff;
+				text-decoration: none;
+				font-weight: 500;
+				transition: color 0.2s ease, text-decoration 0.2s ease;
+			}
+
+			.chat-consent-link:hover {
+				color: #0066cc;
+				text-decoration: underline;
+			}
+
+			.chat-consent-link:active {
+				color: #004999;
+			}
+
+			/* 📱 Estilos móvil para mensaje de consentimiento */
+			@media (max-width: 768px) {
+				.chat-consent-message-wrapper {
+					max-width: 95%;
+					margin: 12px auto 16px auto;
+				}
+
+				.chat-consent-message {
+					padding: 12px 14px;
+				}
+
+				.chat-consent-message-content {
+					font-size: 11px;
+				}
 			}
 		`;
 	}
@@ -1414,7 +1484,7 @@ export class ChatUI {
 			return;
 		}
 
-		// Contar mensajes reales (excluyendo indicadores de carga y separadores de fecha)
+		// Contar mensajes reales (excluyendo indicadores de carga, separadores de fecha y mensaje de consentimiento)
 		const messageElements = Array.from(this.containerMessages.children).filter(el =>
 			el.classList && (
 				el.classList.contains('chat-message-user-wrapper') ||
@@ -1425,10 +1495,15 @@ export class ChatUI {
 		debugLog(`💬 [ChatUI] Verificación automática: ${messageElements.length} mensajes encontrados`);
 
 		if (messageElements.length === 0) {
-			debugLog('💬 [ChatUI] ✅ Chat vacío confirmado, agregando mensaje de bienvenida automáticamente');
+			debugLog('💬 [ChatUI] ✅ Chat vacío confirmado, agregando mensajes iniciales');
+
+			// Añadir mensaje de consentimiento primero (si está habilitado)
+			this.addChatConsentMessage();
+
+			// Luego añadir mensaje de bienvenida
 			this.addWelcomeMessage();
 		} else {
-			debugLog('💬 [ChatUI] Chat tiene mensajes, omitiendo mensaje de bienvenida automático');
+			debugLog('💬 [ChatUI] Chat tiene mensajes, omitiendo mensajes iniciales');
 		}
 	}
 
@@ -1449,6 +1524,94 @@ export class ChatUI {
 
 		this.containerMessages.appendChild(systemMessageDiv);
 		this.scrollToBottom(true);
+	}
+
+	/**
+	 * Añade el mensaje de consentimiento del chat
+	 * Similar al de Zara: "Al unirte al chat, confirmas que has leído y entiendes nuestra..."
+	 */
+	public addChatConsentMessage(): void {
+		if (!this.container || !this.containerMessages) {
+			throw new Error('No se ha inicializado el chat');
+		}
+
+		// Verificar si está habilitado
+		if (!this.chatConsentMessageConfig.enabled) {
+			debugLog('💬 [ChatUI] Mensaje de consentimiento del chat deshabilitado');
+			return;
+		}
+
+		// Verificar si ya se mostró (si showOnce está activo)
+		if (this.chatConsentMessageConfig.showOnce && this.chatConsentMessageShown) {
+			debugLog('💬 [ChatUI] Mensaje de consentimiento del chat ya fue mostrado');
+			return;
+		}
+
+		// Crear el wrapper del mensaje
+		const consentMessageDiv = document.createElement('div');
+		consentMessageDiv.classList.add('chat-message-wrapper', 'chat-consent-message-wrapper');
+
+		// Crear el contenedor del mensaje de consentimiento
+		const messageDiv = document.createElement('div');
+		messageDiv.classList.add('chat-message', 'chat-consent-message');
+
+		// Construir el contenido del mensaje con enlaces
+		const messageContent = document.createElement('div');
+		messageContent.className = 'chat-consent-message-content';
+
+		// Texto principal
+		const messageText = document.createElement('span');
+		messageText.textContent = this.chatConsentMessageConfig.message + ' ';
+		messageContent.appendChild(messageText);
+
+		// Enlaces de políticas
+		const links: HTMLAnchorElement[] = [];
+
+		if (this.chatConsentMessageConfig.privacyPolicyUrl) {
+			const privacyLink = document.createElement('a');
+			privacyLink.href = this.chatConsentMessageConfig.privacyPolicyUrl;
+			privacyLink.textContent = this.chatConsentMessageConfig.privacyPolicyText || 'Política de Privacidad';
+			privacyLink.className = 'chat-consent-link';
+			privacyLink.target = '_blank';
+			privacyLink.rel = 'noopener noreferrer';
+			links.push(privacyLink);
+		}
+
+		if (this.chatConsentMessageConfig.cookiesPolicyUrl) {
+			const cookiesLink = document.createElement('a');
+			cookiesLink.href = this.chatConsentMessageConfig.cookiesPolicyUrl;
+			cookiesLink.textContent = this.chatConsentMessageConfig.cookiesPolicyText || 'Política de Cookies';
+			cookiesLink.className = 'chat-consent-link';
+			cookiesLink.target = '_blank';
+			cookiesLink.rel = 'noopener noreferrer';
+			links.push(cookiesLink);
+		}
+
+		// Añadir enlaces al mensaje con separador " y "
+		links.forEach((link, index) => {
+			if (index > 0) {
+				const separator = document.createElement('span');
+				separator.textContent = ' y ';
+				messageContent.appendChild(separator);
+			}
+			messageContent.appendChild(link);
+		});
+
+		messageDiv.appendChild(messageContent);
+		consentMessageDiv.appendChild(messageDiv);
+
+		// Añadir al contenedor de mensajes (al principio, antes de otros mensajes)
+		const firstMessage = this.containerMessages.querySelector('.chat-message-wrapper');
+		if (firstMessage) {
+			this.containerMessages.insertBefore(consentMessageDiv, firstMessage);
+		} else {
+			this.containerMessages.appendChild(consentMessageDiv);
+		}
+
+		// Marcar como mostrado
+		this.chatConsentMessageShown = true;
+
+		debugLog('💬 [ChatUI] ✅ Mensaje de consentimiento del chat agregado');
 	}
 
 	public async refreshChatDetails(): Promise<void> {

@@ -74,6 +74,8 @@ interface SDKOptions {
 	};
 	// Welcome message options
 	welcomeMessage?: Partial<WelcomeMessageConfig>;
+	// Chat consent message options (GDPR-style consent notice in chat)
+	chatConsentMessage?: Partial<import('../presentation/types/chat-types').ChatConsentMessageConfig>;
 	// Active hours configuration
 	activeHours?: Partial<ActiveHoursConfig>;
 	// Chat widget positioning
@@ -189,6 +191,7 @@ export class TrackingPixelSDK {
 	private authMode: 'jwt' | 'session';
 	private identitySignal: IdentitySignal;
 	private welcomeMessageConfig?: Partial<WelcomeMessageConfig>;
+	private chatConsentMessageConfig?: Partial<import('../presentation/types/chat-types').ChatConsentMessageConfig>;
 	private chatPositionConfig?: ChatPositionConfig;
 	private mobileDetectionConfig?: MobileDetectionConfig;
 	private activeHoursValidator?: ActiveHoursValidator;
@@ -232,6 +235,9 @@ export class TrackingPixelSDK {
 			language: 'es',
 			showTips: true
 		};
+
+		// Configurar mensaje de consentimiento del chat (opcional)
+		this.chatConsentMessageConfig = options.chatConsentMessage;
 
 		// Configurar posición del chat (opcional)
 		this.chatPositionConfig = options.chatPosition;
@@ -495,6 +501,7 @@ export class TrackingPixelSDK {
 		this.chatUI = new ChatUI({
 			widget: true,
 			welcomeMessage: this.welcomeMessageConfig,
+			chatConsentMessage: this.chatConsentMessageConfig,
 			position: this.chatPositionConfig,
 			mobileDetection: this.mobileDetectionConfig,
 		});
@@ -1452,6 +1459,13 @@ export class TrackingPixelSDK {
 			debugLog('[TrackingPixelSDK] 📡 CommercialAvailabilityService limpiado');
 		}
 
+		// Cleanup presence service (incluye detener heartbeat)
+		if (this.presenceService) {
+			this.presenceService.cleanup();
+			this.presenceService = null;
+			debugLog('[TrackingPixelSDK] 💓 PresenceService limpiado (heartbeat detenido)');
+		}
+
 		debugLog('[TrackingPixelSDK] Cleanup completed');
 	}
 
@@ -2361,6 +2375,11 @@ export class TrackingPixelSDK {
 
 			debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService inicializado');
 
+			// 💓 Iniciar heartbeat para mantener estado activo del visitante
+			// Esto previene que el backend marque al visitante como away/offline falsamente
+			this.presenceService.startHeartbeat();
+			debugLog('🟢 [TrackingPixelSDK] 💓 Heartbeat iniciado (cada 30s)');
+
 			// Configurar PresenceService en ChatUI si existe
 			if (this.chatUI) {
 				this.chatUI.setPresenceService(this.presenceService);
@@ -2501,6 +2520,7 @@ export class TrackingPixelSDK {
 		this.chatUI = new ChatUI({
 			widget: true,
 			welcomeMessage: this.welcomeMessageConfig,
+			chatConsentMessage: this.chatConsentMessageConfig,
 			position: this.chatPositionConfig,
 			mobileDetection: this.mobileDetectionConfig,
 		});

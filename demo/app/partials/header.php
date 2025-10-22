@@ -26,6 +26,15 @@
         language: 'es',
         showTips: false
       },
+      chatConsentMessage: {
+        enabled: true,
+        message: 'Al unirte al chat, confirmas que has leído y entiendes nuestra',
+        privacyPolicyUrl: '/privacy-policy',
+        privacyPolicyText: 'Política de Privacidad',
+        cookiesPolicyUrl: '/cookies-policy',
+        cookiesPolicyText: 'Política de Cookies',
+        showOnce: true
+      },
       activeHours: {
         enabled: false,
         timezone: 'Europe/Madrid',
@@ -46,7 +55,7 @@
         flushInterval: 5000,    // Flush cada 5 segundos
         maxQueueSize: 10000,    // Tamaño máximo de cola
         persistQueue: true,     // Persistir en localStorage
-        bypassConsent: true     // ⚠️ BYPASS CONSENT (Solo desarrollo)
+        bypassConsent: false     // ⚠️ BYPASS CONSENT (Solo desarrollo)
       },
       presence: {
         enabled: true,                  // Habilitar sistema de presencia

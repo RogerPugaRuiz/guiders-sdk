@@ -42,6 +42,11 @@ export class PresenceService {
   private typingTimeouts: Map<string, NodeJS.Timeout> = new Map();
   private currentlyTypingIn: Set<string> = new Set();
 
+  // Heartbeat para mantener estado activo
+  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private heartbeatIntervalMs: number = 30000; // 30 segundos (según guía oficial)
+  private heartbeatCount: number = 0; // Contador de heartbeats enviados
+
   constructor(
     webSocketService: WebSocketService,
     visitorId: string,
@@ -313,6 +318,144 @@ export class PresenceService {
   }
 
   /**
+   * Inicia el sistema de heartbeats para mantener la presencia activa
+   * Envía POST /visitors/session/heartbeat cada 30 segundos (según guía oficial)
+   * Esto previene que el visitante sea marcado como away/offline falsamente
+   */
+  public startHeartbeat(): void {
+    if (!this.config.enabled) {
+      console.warn('[PresenceService] ⚠️ Presencia deshabilitada, no se inicia heartbeat');
+      return;
+    }
+
+    if (this.heartbeatInterval) {
+      console.warn('[PresenceService] ⚠️ Heartbeat ya está activo');
+      return;
+    }
+
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('[PresenceService] 💓 INICIANDO SISTEMA DE HEARTBEAT');
+    console.log(`[PresenceService] ⏰ Intervalo: ${this.heartbeatIntervalMs / 1000} segundos`);
+    console.log(`[PresenceService] 👤 Visitor ID: ${this.visitorId.substring(0, 8)}...`);
+    console.log(`[PresenceService] 🎯 Objetivo: Mantener estado "online" activo`);
+    console.log('═══════════════════════════════════════════════════════');
+
+    // Resetear contador
+    this.heartbeatCount = 0;
+
+    // Enviar heartbeat inmediatamente
+    this.sendHeartbeat();
+
+    // Programar envíos periódicos
+    this.heartbeatInterval = setInterval(() => {
+      this.sendHeartbeat();
+    }, this.heartbeatIntervalMs);
+  }
+
+  /**
+   * Detiene el sistema de heartbeats
+   */
+  public stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+
+      console.log('═══════════════════════════════════════════════════════');
+      console.log('[PresenceService] 💓 DETENIENDO SISTEMA DE HEARTBEAT');
+      console.log(`[PresenceService] 📊 Total heartbeats enviados: ${this.heartbeatCount}`);
+      console.log('═══════════════════════════════════════════════════════');
+    }
+  }
+
+  /**
+   * Envía un heartbeat al backend para actualizar lastActivity
+   * Endpoint: POST /visitors/session/heartbeat (según guía oficial de presencia)
+   * Esto mantiene al visitante como "online" y previene detección de inactividad
+   */
+  private async sendHeartbeat(): Promise<void> {
+    try {
+      const endpoint = this.endpointManager.getEndpoint();
+      const url = `${endpoint}/visitors/session/heartbeat`;
+
+      // Incrementar contador
+      this.heartbeatCount++;
+      const timestamp = new Date().toISOString();
+
+      console.log(`[PresenceService] 💓 Enviando heartbeat #${this.heartbeatCount} a las ${timestamp}`);
+      console.log(`[PresenceService] 📍 URL: ${url}`);
+      console.log(`[PresenceService] 👤 Visitor ID: ${this.visitorId.substring(0, 8)}...`);
+
+      // Obtener sessionId para el header x-guiders-sid
+      const sessionId = typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem('guiders_backend_session_id')
+        : null;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+
+      // Añadir header x-guiders-sid si existe sessionId (REQUERIDO por backend)
+      if (sessionId) {
+        headers['x-guiders-sid'] = sessionId;
+        console.log(`[PresenceService] 🔐 Enviando x-guiders-sid: ${sessionId.substring(0, 8)}...`);
+      } else {
+        console.warn('[PresenceService] ⚠️ No se encontró sessionId en sessionStorage');
+      }
+
+      const startTime = Date.now();
+
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'include', // ✅ Enviar cookies de sesión para autenticación
+        headers
+      });
+
+      const duration = Date.now() - startTime;
+
+      if (!response.ok) {
+        console.error(`[PresenceService] ❌ Heartbeat #${this.heartbeatCount} FALLÓ`);
+        console.error(`[PresenceService] 📊 Status: ${response.status} ${response.statusText}`);
+        console.error(`[PresenceService] ⏱️ Duración: ${duration}ms`);
+
+        // Intentar leer el cuerpo de la respuesta de error
+        try {
+          const errorBody = await response.text();
+          if (errorBody) {
+            console.error(`[PresenceService] 📄 Respuesta del servidor: ${errorBody}`);
+          }
+        } catch (e) {
+          // Ignorar si no se puede leer el body
+        }
+      } else {
+        console.log(`[PresenceService] ✅ Heartbeat #${this.heartbeatCount} enviado EXITOSAMENTE`);
+        console.log(`[PresenceService] 📊 Status: ${response.status} ${response.statusText}`);
+        console.log(`[PresenceService] ⏱️ Duración: ${duration}ms`);
+
+        // Intentar leer la respuesta del servidor si existe
+        try {
+          const responseBody = await response.text();
+          if (responseBody) {
+            console.log(`[PresenceService] 📄 Respuesta del servidor: ${responseBody}`);
+          }
+        } catch (e) {
+          // Ignorar si no se puede leer el body
+        }
+
+        // Log resumen cada 10 heartbeats
+        if (this.heartbeatCount % 10 === 0) {
+          console.log(`[PresenceService] 📈 RESUMEN: ${this.heartbeatCount} heartbeats enviados exitosamente`);
+        }
+      }
+    } catch (error) {
+      console.error(`[PresenceService] ❌ EXCEPCIÓN en heartbeat #${this.heartbeatCount}:`, error);
+      if (error instanceof Error) {
+        console.error(`[PresenceService] 📛 Error: ${error.message}`);
+        console.error(`[PresenceService] 📚 Stack: ${error.stack}`);
+      }
+    }
+  }
+
+  /**
    * Suscribe a cambios de presencia
    */
   public onPresenceChanged(callback: PresenceChangeCallback): () => void {
@@ -417,6 +560,9 @@ export class PresenceService {
    */
   public cleanup(): void {
     debugLog('[PresenceService] 🧹 Limpiando recursos...');
+
+    // Detener heartbeat
+    this.stopHeartbeat();
 
     // Detener todos los typing activos
     this.currentlyTypingIn.forEach(chatId => {

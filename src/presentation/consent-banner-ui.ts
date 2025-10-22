@@ -7,12 +7,13 @@
 
 export interface ConsentBannerConfig {
   enabled?: boolean;
-  style?: 'bottom_bar' | 'modal' | 'corner' | 'none';
+  style?: 'bottom_bar' | 'modal' | 'corner' | 'inline' | 'none';
   text?: string;
   acceptText?: string;
   denyText?: string;
   preferencesText?: string;
   showPreferences?: boolean;
+  privacyPolicyUrl?: string; // URL para "Política de Privacidad y Cookies"
   colors?: {
     background?: string;
     text?: string;
@@ -31,7 +32,7 @@ export interface ConsentBannerConfig {
  */
 interface InternalConsentBannerConfig {
   enabled: boolean;
-  style: 'bottom_bar' | 'modal' | 'corner' | 'none';
+  style: 'bottom_bar' | 'modal' | 'corner' | 'inline' | 'none';
   text: string;
   acceptText: string;
   denyText: string;

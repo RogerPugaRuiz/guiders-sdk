@@ -123,6 +123,7 @@ class GuidersPublic {
                 'pageType' => $this->getPageType()
             ),
             'welcomeMessage' => $this->getWelcomeMessageConfig(),
+            'chatConsentMessage' => $this->getChatConsentMessageConfig(),
             'activeHours' => $this->getActiveHoursConfig(),
             'commercialAvailability' => $this->getCommercialAvailabilityConfig(),
             'requireConsent' => isset($this->settings['require_consent']) ? $this->settings['require_consent'] : false,
@@ -256,6 +257,11 @@ class GuidersPublic {
                     // Add presence configuration if available
                     if (config.presence) {
                         sdkOptions.presence = config.presence;
+                    }
+
+                    // Add chat consent message configuration if available
+                    if (config.chatConsentMessage) {
+                        sdkOptions.chatConsentMessage = config.chatConsentMessage;
                     }
 
                     // Asignar siempre endpoints explícitos (evita fallback a localhost y doble init)
@@ -441,7 +447,7 @@ class GuidersPublic {
      */
     private function getWelcomeMessageConfig() {
         $config = array(
-            'enabled' => isset($this->settings['welcome_message_enabled']) ? $this->settings['welcome_message_enabled'] : true,
+            'enabled' => isset($this->settings['welcome_message_enabled']) ? $this->settings['welcome_message_enabled'] : false,
             'style' => isset($this->settings['welcome_message_style']) ? $this->settings['welcome_message_style'] : 'friendly',
             'language' => isset($this->settings['welcome_message_language']) ? $this->settings['welcome_message_language'] : 'es',
             'includeEmojis' => isset($this->settings['welcome_message_include_emojis']) ? $this->settings['welcome_message_include_emojis'] : true,
@@ -457,6 +463,23 @@ class GuidersPublic {
         elseif (!empty($this->settings['welcome_message_custom']) && $config['style'] === 'custom') {
             $config['customMessage'] = $this->settings['welcome_message_custom'];
         }
+
+        return $config;
+    }
+
+    /**
+     * Get chat consent message configuration
+     */
+    private function getChatConsentMessageConfig() {
+        $config = array(
+            'enabled' => isset($this->settings['chat_consent_message_enabled']) ? $this->settings['chat_consent_message_enabled'] : false,
+            'message' => isset($this->settings['chat_consent_message_text']) ? $this->settings['chat_consent_message_text'] : 'Al unirte al chat, confirmas que has leído y entiendes nuestra',
+            'privacyPolicyUrl' => isset($this->settings['chat_consent_privacy_url']) ? $this->settings['chat_consent_privacy_url'] : '/privacy-policy',
+            'privacyPolicyText' => isset($this->settings['chat_consent_privacy_text']) ? $this->settings['chat_consent_privacy_text'] : 'Política de Privacidad',
+            'cookiesPolicyUrl' => isset($this->settings['chat_consent_cookies_url']) ? $this->settings['chat_consent_cookies_url'] : '/cookies-policy',
+            'cookiesPolicyText' => isset($this->settings['chat_consent_cookies_text']) ? $this->settings['chat_consent_cookies_text'] : 'Política de Cookies',
+            'showOnce' => isset($this->settings['chat_consent_show_once']) ? $this->settings['chat_consent_show_once'] : true
+        );
 
         return $config;
     }

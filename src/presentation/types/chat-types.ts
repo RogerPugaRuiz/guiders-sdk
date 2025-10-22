@@ -34,6 +34,8 @@ export interface ChatUIOptions {
 	position?: ChatPositionConfig;
 	/** Configuración de detección de dispositivo móvil */
 	mobileDetection?: MobileDetectionConfig;
+	/** Configuración del mensaje de consentimiento del chat */
+	chatConsentMessage?: Partial<ChatConsentMessageConfig>;
 }
 
 /**
@@ -60,4 +62,25 @@ export interface ActiveInterval {
 	callback: () => void;
 	/** Intervalo en milisegundos */
 	intervalMs: number;
+}
+
+/**
+ * Configuración del mensaje de consentimiento del chat
+ * Similar al mensaje de Zara: "Al unirte al chat, confirmas que has leído..."
+ */
+export interface ChatConsentMessageConfig {
+	/** Habilitar el mensaje de consentimiento */
+	enabled: boolean;
+	/** Texto del mensaje (sin incluir enlaces) */
+	message: string;
+	/** URL de la política de privacidad */
+	privacyPolicyUrl?: string;
+	/** Texto del enlace de política de privacidad */
+	privacyPolicyText?: string;
+	/** URL de la política de cookies */
+	cookiesPolicyUrl?: string;
+	/** Texto del enlace de política de cookies */
+	cookiesPolicyText?: string;
+	/** Mostrar solo una vez por sesión */
+	showOnce?: boolean;
 }
