@@ -17,7 +17,12 @@
       dev: true,
       endpoint: 'http://localhost:3000/api',
       webSocketEndpoint: 'ws://localhost:3000',
-      requireConsent: false, // No requiere consentimiento GDPR
+      requireConsent: false, // ✅ Consentimiento DESACTIVADO - SDK funciona sin barreras GDPR
+      consentBanner: {
+        enabled: false        // ✅ Banner de consentimiento DESACTIVADO
+      },
+      autoFlush: true,        // ✅ IMPORTANTE: Habilitar envío automático de eventos
+      flushInterval: 5000,    // Enviar eventos cada 5 segundos
       welcomeMessage: {
         enabled: true,
         style: 'custom',
@@ -55,7 +60,25 @@
         flushInterval: 5000,    // Flush cada 5 segundos
         maxQueueSize: 10000,    // Tamaño máximo de cola
         persistQueue: true,     // Persistir en localStorage
-        bypassConsent: false     // ⚠️ BYPASS CONSENT (Solo desarrollo)
+        bypassConsent: true,    // ✅ BYPASS CONSENT ACTIVADO (Solo desarrollo - NUNCA en producción)
+        throttling: {
+          enabled: true,
+          rules: {
+            'SCROLL': 100,        // Max 10 eventos/segundo
+            'MOUSE_MOVE': 50,     // Max 20 eventos/segundo
+            'HOVER': 200,         // Max 5 eventos/segundo
+            'RESIZE': 300,        // Max ~3 eventos/segundo
+            'MOUSE_ENTER': 150,
+            'MOUSE_LEAVE': 150
+          },
+          debug: true             // Ver eventos throttled en consola
+        },
+        aggregation: {
+          enabled: true,
+          windowMs: 1000,         // Ventana de agregación de 1 segundo
+          maxBufferSize: 1000,    // Flush forzado si buffer lleno
+          debug: true             // Ver eventos agregados en consola
+        }
       },
       presence: {
         enabled: true,                  // Habilitar sistema de presencia
@@ -77,7 +100,7 @@
   </script>
 
   <!-- Guiders SDK Script -->
-  <script src="/guiders-sdk.js?dev=true" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script>
+  <script src="/guiders-sdk.js?dev=true&v=<?php echo time(); ?>" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script>
 
   <!-- Desarrollo (servidor webpack): -->
   <!-- <script src="http://127.0.0.1:8081/index.js?dev=true" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script> -->
@@ -87,6 +110,6 @@
 </head>
 <body>
   <?php
-  // Incluir banner de consentimiento GDPR
-  require_once __DIR__ . '/gdpr-banner.php';
+  // ✅ BANNER GDPR DESACTIVADO - No se requiere consentimiento en modo desarrollo
+  // require_once __DIR__ . '/gdpr-banner.php';
   ?>

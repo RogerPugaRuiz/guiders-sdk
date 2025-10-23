@@ -15,6 +15,7 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
       <a href="/vehicle-search">Búsqueda Vehículos</a>
       <a href="/vehicle-comparison">Comparar Vehículos</a>
       <a href="/heuristic-demo">🎯 Demo Heurístico</a>
+      <a href="/tracking-demo" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 16px; border-radius: 6px; font-weight: 600;">📊 Tracking V2</a>
     </nav>
   </div>
 </header>
@@ -41,19 +42,26 @@ echo "<link rel=\"stylesheet\" href=\"$link\">";
         <h3>Análisis en tiempo real</h3>
         <p>Obtén métricas precisas del comportamiento de usuarios</p>
       </div>
-      
+
       <div class="feature-item">
         <div class="feature-icon">🎯</div>
         <h3>Seguimiento avanzado</h3>
         <p>Rastrea eventos específicos con alta precisión</p>
       </div>
-      
+
+      <div class="feature-item" style="border: 2px solid #667eea; background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);">
+        <div class="feature-icon">⚡</div>
+        <h3>Tracking V2 <span style="background: #667eea; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; margin-left: 5px;">NUEVO</span></h3>
+        <p>Throttling y agregación inteligente: reduce hasta 95% el tráfico de red</p>
+        <a href="/tracking-demo" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.9rem;">Ver Demo Interactivo →</a>
+      </div>
+
       <div class="feature-item">
         <div class="feature-icon">💬</div>
         <h3>Chat integrado</h3>
         <p>Sistema de mensajería en tiempo real</p>
       </div>
-      
+
       <div class="feature-item">
         <div class="feature-icon">🔒</div>
         <h3>Seguro y privado</h3>

@@ -39,6 +39,10 @@ switch ($page) {
         require 'pages/politica-cookies.php';
         break;
 
+    case 'tracking-demo':
+        require 'pages/tracking-demo.php';
+        break;
+
     case 'ecommerce/pages/product-detail.php':
         require 'pages/product-detail.php';
         break;
