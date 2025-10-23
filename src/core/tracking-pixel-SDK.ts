@@ -13,6 +13,8 @@ import { TrackingEventV2Stage } from "../pipeline/stages/tracking-event-v2-stage
 import { TrackingV2TransformStage } from "../pipeline/stages/tracking-v2-transform-stage";
 import { EventQueueManager } from "./event-queue-manager";
 import { TrackingV2Service } from "../services/tracking-v2-service";
+import { EventThrottler } from "./event-throttler";
+import { EventAggregator } from "./event-aggregator";
 import { ChatUI } from "../presentation/chat";
 import { ChatMessagesUI } from "../presentation/chat-messages-ui";
 import { VisitorsV2Service } from "../services/visitors-v2-service";
@@ -105,6 +107,8 @@ interface SDKOptions {
 		maxQueueSize?: number;    // Max queue size (default: 10000)
 		persistQueue?: boolean;   // Persist queue in localStorage (default: true)
 		bypassConsent?: boolean;  // Bypass consent checks (development only, default: false)
+		throttling?: Partial<import('../types').TrackingV2ThrottlingConfig>;  // Throttling configuration
+		aggregation?: Partial<import('../types').TrackingV2AggregationConfig>; // Aggregation configuration
 	};
 }
 
@@ -169,6 +173,8 @@ export class TrackingPixelSDK {
 	private eventQueueManager: EventQueueManager | null = null;
 	private trackingV2Service: TrackingV2Service | null = null;
 	private trackingV2Enabled: boolean = true;
+	private eventThrottler: EventThrottler | null = null;
+	private eventAggregator: EventAggregator | null = null;
 	private bypassConsentForTracking: boolean = false; // Development only: bypass consent checks
 	private endpoint: string;
 	private webSocketEndpoint: string;
@@ -294,9 +300,35 @@ export class TrackingPixelSDK {
 			// Inicializar TrackingV2Service (singleton)
 			this.trackingV2Service = TrackingV2Service.getInstance();
 
+			// Inicializar EventThrottler
+			this.eventThrottler = new EventThrottler({
+				enabled: options.trackingV2?.throttling?.enabled ?? true,
+				rules: options.trackingV2?.throttling?.rules ?? {},
+				debug: options.trackingV2?.throttling?.debug ?? false
+			});
+
+			// Inicializar EventAggregator
+			this.eventAggregator = new EventAggregator({
+				enabled: options.trackingV2?.aggregation?.enabled ?? true,
+				windowMs: options.trackingV2?.aggregation?.windowMs ?? 1000,
+				maxBufferSize: options.trackingV2?.aggregation?.maxBufferSize ?? 1000,
+				debug: options.trackingV2?.aggregation?.debug ?? false,
+				onFlush: (events) => {
+					// Callback para auto-flush: encolar eventos agregados
+					events.forEach(event => {
+						if (this.eventQueueManager) {
+							this.eventQueueManager.enqueue(event);
+						}
+					});
+					debugLog(`[TrackingPixelSDK] 🔗 Auto-flush agregador: ${events.length} eventos encolados`);
+				}
+			});
+
 			debugLog('[TrackingPixelSDK] 📊 Tracking V2 habilitado', {
 				batchSize: options.trackingV2?.batchSize ?? 500,
 				flushInterval: options.trackingV2?.flushInterval ?? 5000,
+				throttling: this.eventThrottler.isEnabled(),
+				aggregation: this.eventAggregator.isEnabled(),
 				bypassConsent: this.bypassConsentForTracking
 			});
 		} else {
@@ -1247,6 +1279,19 @@ export class TrackingPixelSDK {
 	public async flush(): Promise<void> {
 		// Usar Tracking V2 si está habilitado
 		if (this.trackingV2Enabled && this.eventQueueManager && this.trackingV2Service) {
+			// NUEVO: Flushear agregador primero (si está habilitado)
+			if (this.eventAggregator && this.eventAggregator.isEnabled()) {
+				const aggregatedEvents = this.eventAggregator.flush();
+				// Encolar eventos agregados para envío
+				aggregatedEvents.forEach(event => {
+					this.eventQueueManager!.enqueue(event);
+				});
+
+				if (aggregatedEvents.length > 0) {
+					debugLog(`[TrackingPixelSDK] 🔗 ${aggregatedEvents.length} eventos agregados añadidos a la cola`);
+				}
+			}
+
 			if (this.eventQueueManager.isEmpty()) {
 				debugLog('[TrackingPixelSDK] 📭 No hay eventos para enviar (V2)');
 				return;
@@ -1356,7 +1401,21 @@ export class TrackingPixelSDK {
 		if (this.trackingV2Enabled && this.eventQueueManager) {
 			// El evento ya fue transformado a TrackingEventDto por el pipeline
 			const trackingEvent = processedEvent.data as any;
-			this.eventQueueManager.enqueue(trackingEvent);
+
+			// NUEVO: Aplicar throttling
+			if (this.eventThrottler && !this.eventThrottler.shouldAllow(trackingEvent.eventType)) {
+				// Evento throttled, descartar silenciosamente
+				return;
+			}
+
+			// NUEVO: Añadir al agregador (si está habilitado)
+			if (this.eventAggregator && this.eventAggregator.isEnabled()) {
+				// El agregador acumulará eventos y los enviará en su flush automático
+				this.eventAggregator.add(trackingEvent);
+			} else {
+				// Sin agregación: encolar directamente
+				this.eventQueueManager.enqueue(trackingEvent);
+			}
 		} else {
 			// Fallback a cola tradicional
 			this.eventQueue.push(processedEvent);

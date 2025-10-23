@@ -291,6 +291,32 @@ export interface TenantMetadataDto {
 }
 
 /**
+ * Configuración de throttling para tracking V2
+ */
+export interface TrackingV2ThrottlingConfig {
+	/** Habilitar throttling (default: true) */
+	enabled: boolean;
+	/** Reglas de throttling: eventType → intervalo mínimo en ms */
+	rules: Record<string, number>;
+	/** Modo debug (default: false) */
+	debug?: boolean;
+}
+
+/**
+ * Configuración de agregación para tracking V2
+ */
+export interface TrackingV2AggregationConfig {
+	/** Habilitar agregación (default: true) */
+	enabled: boolean;
+	/** Ventana de agregación en ms (default: 1000) */
+	windowMs: number;
+	/** Tamaño máximo del buffer antes de flush forzado (default: 1000) */
+	maxBufferSize: number;
+	/** Modo debug (default: false) */
+	debug?: boolean;
+}
+
+/**
  * Configuración del sistema de tracking V2
  */
 export interface TrackingV2Config {
@@ -304,4 +330,8 @@ export interface TrackingV2Config {
 	maxQueueSize?: number;
 	/** Persistir cola en localStorage (default: true) */
 	persistQueue?: boolean;
+	/** Configuración de throttling (frontend) */
+	throttling?: Partial<TrackingV2ThrottlingConfig>;
+	/** Configuración de agregación (frontend) */
+	aggregation?: Partial<TrackingV2AggregationConfig>;
 }
