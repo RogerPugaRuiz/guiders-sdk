@@ -8,7 +8,9 @@ El sistema de Tracking V2 implementa un sistema robusto de tracking de eventos c
 - ✅ **Cola persistente**: Eventos guardados en localStorage (recuperación tras recargas)
 - ✅ **Reintentos con backoff exponencial**: 3 intentos con delays de 1s, 2s, 4s
 - ✅ **sendBeacon**: Garantía de entrega en beforeunload/pagehide
-- ✅ **Throttling del backend**: Descarte probabilístico de eventos de alta frecuencia
+- ✅ **Throttling frontend**: Límite de frecuencia por tipo de evento (SCROLL: max 1 cada 100ms)
+- ✅ **Agregación frontend**: Consolidación de eventos similares con contadores
+- ✅ **Throttling del backend**: Descarte probabilístico adicional de eventos de alta frecuencia
 - ✅ **Transformación automática**: Mapeo de tipos internos a formato backend
 
 ## 📦 Componentes Implementados
@@ -34,7 +36,29 @@ Stage del pipeline que transforma eventos internos al formato backend:
 - Normalización de metadata
 - Timestamps en formato ISO 8601
 
-### 4. Tipos TypeScript (`src/types/index.ts`)
+### 4. EventThrottler (`src/core/event-throttler.ts`) **[NUEVO]**
+Componente que limita la frecuencia de eventos de alta frecuencia:
+- **Estrategia**: Time-based throttling (sliding window)
+- **Reglas configurables** por tipo de evento:
+  - `SCROLL`: max 1 cada 100ms (10 eventos/segundo)
+  - `MOUSE_MOVE`: max 1 cada 50ms (20 eventos/segundo)
+  - `HOVER`: max 1 cada 200ms (5 eventos/segundo)
+  - `RESIZE`: max 1 cada 300ms (~3 eventos/segundo)
+- **Eventos críticos sin throttle**: `FORM_SUBMIT`, `ADD_TO_CART`, `PRODUCT_VIEW`, `SEARCH`
+- **Estadísticas en tiempo real**: eventos permitidos, throttled, ratio de reducción
+
+### 5. EventAggregator (`src/core/event-aggregator.ts`) **[NUEVO]**
+Componente que consolida eventos similares en ventanas de tiempo:
+- **Estrategia**: Time-window aggregation con event fingerprinting
+- **Ventana de agregación**: 1000ms (configurable)
+- **Eventos agregables**: `SCROLL`, `MOUSE_MOVE`, `HOVER`, `RESIZE`, `FOCUS`, `BLUR`
+- **Consolidación inteligente**:
+  - Eventos del mismo tipo + contexto → 1 evento con `aggregatedCount`
+  - Metadata fusionada: último valor, min/max para numéricos, ranges
+- **Auto-flush** cada windowMs con callback a EventQueueManager
+- **Reducción típica**: 60-80% menos eventos enviados
+
+### 6. Tipos TypeScript (`src/types/index.ts`)
 Interfaces para tracking V2:
 ```typescript
 interface TrackingEventDto {
@@ -79,7 +103,23 @@ const sdk = new TrackingPixelSDK({
     flushInterval: 5000,    // default: 5000ms
     maxQueueSize: 10000,    // default: 10000
     persistQueue: true,     // default: true
-    bypassConsent: false    // default: false (SOLO DESARROLLO)
+    // NUEVO: Throttling (optimización frontend)
+    throttling: {
+      enabled: true,        // default: true
+      rules: {              // Intervalos mínimos en ms
+        'SCROLL': 100,      // Max 10 eventos/segundo
+        'MOUSE_MOVE': 50,   // Max 20 eventos/segundo
+        'HOVER': 200        // Max 5 eventos/segundo
+      },
+      debug: false          // Logs de throttling
+    },
+    // NUEVO: Agregación (optimización frontend)
+    aggregation: {
+      enabled: true,        // default: true
+      windowMs: 1000,       // Ventana de consolidación: 1 segundo
+      maxBufferSize: 1000,  // Buffer máximo antes de flush forzado
+      debug: false          // Logs de agregación
+    }
   }
 });
 
@@ -701,16 +741,143 @@ POST /api/tracking-v2/events
 | **beforeunload** | sendBeacon (garantizado) |
 | **QuotaExceeded** | Limpiar 50% de eventos antiguos |
 
+## 🚀 Optimizaciones Frontend (NUEVO)
+
+### Throttling de Eventos
+
+El **EventThrottler** reduce la frecuencia de eventos de alta recurrencia antes de encolarlos:
+
+#### ¿Cómo funciona?
+
+- **Estrategia**: Time-based sliding window
+- **Criterio**: Solo permite 1 evento por intervalo de tiempo
+- **Eventos descartados**: Silenciosamente (no se encolan)
+
+#### Ejemplo: SCROLL Events
+
+```javascript
+// Usuario hace scroll rápido: genera 50 eventos en 500ms
+// Sin throttling → 50 eventos enviados al backend
+// Con throttling (100ms) → ~5 eventos enviados al backend (reducción 90%)
+
+// Configuración
+throttling: {
+  rules: {
+    'SCROLL': 100  // Max 1 evento cada 100ms
+  }
+}
+
+// Resultado:
+// t=0ms    → SCROLL permitido ✅
+// t=10ms   → SCROLL throttled ⏱️
+// t=50ms   → SCROLL throttled ⏱️
+// t=100ms  → SCROLL permitido ✅
+// t=150ms  → SCROLL throttled ⏱️
+// t=200ms  → SCROLL permitido ✅
+```
+
+#### Reglas Default
+
+| Tipo de Evento | Intervalo | Frecuencia Máxima |
+|----------------|-----------|-------------------|
+| `SCROLL` | 100ms | 10 eventos/seg |
+| `MOUSE_MOVE` | 50ms | 20 eventos/seg |
+| `HOVER` | 200ms | 5 eventos/seg |
+| `RESIZE` | 300ms | ~3 eventos/seg |
+| **Eventos críticos** | Sin throttle | Ilimitado |
+
+**Eventos críticos sin throttle**: `FORM_SUBMIT`, `ADD_TO_CART`, `PRODUCT_VIEW`, `SEARCH`, `PAGE_VIEW`
+
+### Agregación de Eventos
+
+El **EventAggregator** consolida eventos similares en ventanas de tiempo:
+
+#### ¿Cómo funciona?
+
+- **Estrategia**: Time-window aggregation con event fingerprinting
+- **Ventana**: 1000ms (configurable)
+- **Consolidación**: Eventos del mismo tipo + contexto → 1 evento con contador
+
+#### Ejemplo: Múltiples SCROLL
+
+**Sin agregación** (50 eventos en 2 segundos):
+```json
+[
+  { "eventType": "SCROLL", "metadata": { "depth": 10 } },
+  { "eventType": "SCROLL", "metadata": { "depth": 15 } },
+  { "eventType": "SCROLL", "metadata": { "depth": 20 } },
+  { "eventType": "SCROLL", "metadata": { "depth": 25 } },
+  // ... 46 eventos más
+]
+// → 50 eventos enviados al backend
+```
+
+**Con agregación** (ventana de 1000ms):
+```json
+[
+  {
+    "eventType": "SCROLL",
+    "metadata": {
+      "depth": 25,              // Último valor
+      "depthMin": 10,           // Mínimo
+      "depthMax": 25,           // Máximo
+      "aggregatedCount": 50,    // Total de eventos consolidados
+      "firstOccurredAt": "2025-01-20T10:00:00.000Z",
+      "lastOccurredAt": "2025-01-20T10:00:02.000Z"
+    }
+  }
+]
+// → 1 evento enviado al backend (reducción 98%)
+```
+
+#### Event Fingerprinting
+
+Eventos se consideran "similares" si comparten:
+
+| Tipo | Fingerprint | Ejemplo |
+|------|-------------|---------|
+| `SCROLL` | `eventType + visitorId + sessionId + url` | Todos los scroll de la misma página |
+| `MOUSE_MOVE` | `eventType + visitorId + sessionId + elementId` | Movimientos sobre el mismo elemento |
+| `HOVER` | `eventType + visitorId + sessionId + elementId` | Hover sobre el mismo elemento |
+| `CLICK` | `eventType + visitorId + sessionId + elementId` | Clicks en el mismo botón |
+
+#### Metadata Fusionada
+
+El agregador fusiona metadata de forma inteligente:
+
+```javascript
+// Evento 1: { "depth": 10, "speed": 5 }
+// Evento 2: { "depth": 20, "speed": 10 }
+// Evento 3: { "depth": 15, "speed": 8 }
+
+// Resultado agregado:
+{
+  "depth": 15,              // Último valor
+  "depthMin": 10,           // Mínimo
+  "depthMax": 20,           // Máximo
+  "speed": 8,               // Último valor
+  "speedMin": 5,            // Mínimo
+  "speedMax": 10,           // Máximo
+  "aggregatedCount": 3
+}
+```
+
 ### Performance
 
-- **Bundle size**: 365 KB (minificado)
+- **Bundle size**: ~380 KB (minificado, incluye throttling + agregación)
 - **Queue overhead**: ~100 bytes por evento en memoria
 - **localStorage limit**: ~5 MB (manejado automáticamente)
 - **Batch size**: 500 eventos máximo por request
 - **Flush interval**: Configurable (default: 5 segundos)
+- **Reducción típica con throttling**: 60-90% menos eventos
+- **Reducción típica con agregación**: 70-95% menos payload
+
+### Demo Interactivo
+
+Ver `examples/throttling-aggregation-demo.html` para una demostración visual del sistema de throttling y agregación.
 
 ---
 
-**Versión del SDK**: 1.5.2
-**Última actualización**: 2025-01-18
+**Versión del SDK**: 1.5.3
+**Última actualización**: 2025-10-22
 **Autor**: Guiders SDK Team
