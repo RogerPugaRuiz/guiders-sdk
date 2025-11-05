@@ -85,8 +85,13 @@
         showTypingIndicator: true,      // Mostrar indicadores de escritura
         typingDebounce: 300,            // Delay antes de enviar "escribiendo" (ms)
         typingTimeout: 2000,            // Auto-stop después de inactividad (ms)
-        pollingInterval: 30000,         // Consultar presencia cada 30s
-        showOfflineBanner: true         // Mostrar banner cuando comercial está offline
+        pollingInterval: 30000,         // Consultar presencia cada 30s (fallback REST API)
+        showOfflineBanner: true,        // Mostrar banner cuando comercial está offline
+        // 🆕 2025: Sistema optimizado
+        // - Auto-join automático a sala personal (visitor:{id})
+        // - Eventos filtrados: solo recibes presencia del comercial asignado a tu chat
+        // - Heartbeat automático cada 30s para mantener estado online
+        // - Detección automática: 5 min → away, 15 min → offline
       }
     };
 

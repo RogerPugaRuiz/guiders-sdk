@@ -8,9 +8,19 @@
  * - Suscribirse a cambios de presencia y typing
  * - Gestión de recursos y cleanup
  *
+ * 🆕 NOVEDADES 2025:
+ * - Auto-join automático: Al autenticarse, el backend une automáticamente al visitante
+ *   a su sala personal (visitor:{id}). Ya no requiere código adicional.
+ * - Eventos filtrados: Los eventos presence:changed SOLO se envían a usuarios con chats activos.
+ *   Reducción del 99%+ en tráfico WebSocket.
+ * - Nuevo evento presence:joined: Confirma el auto-join automático a sala personal.
+ * - Heartbeat recomendado: Enviar cada 30 segundos para mantener estado online.
+ *
  * Arquitectura:
  * - REST API: GET /presence/chat/:chatId (estado inicial)
- * - WebSocket: Eventos en tiempo real (typing, presence changes)
+ * - REST API: POST /presence/chat/:chatId/typing/start|stop (typing indicators)
+ * - REST API: POST /visitors/session/heartbeat (mantener presencia activa)
+ * - WebSocket: Eventos en tiempo real (typing, presence changes, auto-join confirmación)
  * - Integración con WebSocketService existente
  */
 
@@ -21,6 +31,7 @@ import {
   ChatPresence,
   PresenceChangedEvent,
   TypingEvent,
+  PresenceJoinedEvent,
   PresenceConfig,
   PresenceChangeCallback,
   TypingChangeCallback,
@@ -36,6 +47,7 @@ export class PresenceService {
   // Suscripciones a eventos
   private presenceCallbacks: Set<PresenceChangeCallback> = new Set();
   private typingCallbacks: Set<TypingChangeCallback> = new Set();
+  private presenceJoinedCallbacks: Set<(event: PresenceJoinedEvent) => void> = new Set();
 
   // Estado interno
   private activeChats: Set<string> = new Set();
@@ -99,13 +111,41 @@ export class PresenceService {
       },
 
       onPresenceChanged: (event: PresenceChangedEvent) => {
-        // Notificar sobre cambios de presencia (típicamente del comercial)
+        // 🆕 2025: Eventos ahora están FILTRADOS - solo recibes cambios de usuarios con chats activos
+        console.log('═══════════════════════════════════════════════════════');
+        console.log('🔔 EVENTO DE PRESENCIA FILTRADO RECIBIDO');
+        console.log(`👤 Usuario: ${event.userId.substring(0, 8)}... (${event.userType})`);
+        console.log(`📊 Estado: ${event.previousStatus} → ${event.status}`);
+        console.log('✅ Este evento fue filtrado por el backend (solo chats activos)');
+        console.log('═══════════════════════════════════════════════════════');
+
         debugLog('[PresenceService] 🟢 Presencia cambió:', {
           userId: event.userId,
+          userType: event.userType,
           status: event.status,
-          previousStatus: event.previousStatus
+          previousStatus: event.previousStatus,
+          filtered: true // Indicar que es un evento filtrado
         });
+
         this.notifyPresenceChange(event);
+      },
+
+      onPresenceJoined: (event: PresenceJoinedEvent) => {
+        // 🆕 2025: Confirmación de auto-join a sala personal
+        debugLog('[PresenceService] ✅ Auto-join confirmado:', {
+          userId: event.userId,
+          roomName: event.roomName,
+          automatic: event.automatic
+        });
+
+        // Log adicional para debugging
+        if (event.automatic) {
+          console.log('[PresenceService] 🎯 Auto-join automático detectado');
+          console.log('[PresenceService] 📍 Sala personal:', event.roomName);
+          console.log('[PresenceService] 🔔 Eventos de presencia filtrados activos (solo chats activos)');
+        }
+
+        this.notifyPresenceJoined(event);
       }
     });
 
@@ -484,6 +524,21 @@ export class PresenceService {
   }
 
   /**
+   * Suscribe a eventos de confirmación de auto-join (🆕 2025)
+   * Se emite cuando el backend confirma la unión automática a la sala personal
+   */
+  public onPresenceJoined(callback: (event: PresenceJoinedEvent) => void): () => void {
+    this.presenceJoinedCallbacks.add(callback);
+    debugLog('[PresenceService] 📞 Callback de presence:joined registrado');
+
+    // Retornar función para desuscribirse
+    return () => {
+      this.presenceJoinedCallbacks.delete(callback);
+      debugLog('[PresenceService] 📞 Callback de presence:joined removido');
+    };
+  }
+
+  /**
    * Notifica a todos los callbacks de cambio de presencia
    */
   private notifyPresenceChange(event: PresenceChangedEvent): void {
@@ -509,6 +564,21 @@ export class PresenceService {
         callback(event, isTyping);
       } catch (error) {
         console.error('[PresenceService] ❌ Error en callback de typing:', error);
+      }
+    });
+  }
+
+  /**
+   * Notifica a todos los callbacks de confirmación de auto-join (🆕 2025)
+   */
+  private notifyPresenceJoined(event: PresenceJoinedEvent): void {
+    debugLog('[PresenceService] 📢 Notificando presence:joined:', event);
+
+    this.presenceJoinedCallbacks.forEach(callback => {
+      try {
+        callback(event);
+      } catch (error) {
+        console.error('[PresenceService] ❌ Error en callback de presence:joined:', error);
       }
     });
   }
@@ -581,6 +651,7 @@ export class PresenceService {
     // Limpiar callbacks
     this.presenceCallbacks.clear();
     this.typingCallbacks.clear();
+    this.presenceJoinedCallbacks.clear();
 
     // Limpiar sets
     this.activeChats.clear();

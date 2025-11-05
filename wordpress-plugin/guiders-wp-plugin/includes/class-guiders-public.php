@@ -130,6 +130,8 @@ class GuidersPublic {
             'consentBanner' => $this->getConsentBannerConfig(),
             'chatPosition' => $this->getChatPositionConfig(),
             'mobileDetection' => $this->getMobileDetectionConfig(),
+            'autoFlush' => isset($this->settings['auto_flush']) ? $this->settings['auto_flush'] : true,
+            'flushInterval' => isset($this->settings['flush_interval']) ? intval($this->settings['flush_interval']) : 5000,
             'trackingV2' => $this->getTrackingV2Config(),
             'presence' => $this->getPresenceConfig()
         );
@@ -234,14 +236,15 @@ class GuidersPublic {
                     // Create SDK options
                     var sdkOptions = {
                         apiKey: config.apiKey,
-                        autoFlush: true,
-                        flushInterval: 1000,
+                        autoFlush: config.autoFlush !== undefined ? config.autoFlush : true,
+                        flushInterval: config.flushInterval || 5000,
                         maxRetries: 2,
                         heuristicDetection: {
                             enabled: config.features.heuristicDetection,
                             config: config.heuristicConfig
                         },
-                        sessionTracking: config.sessionTracking
+                        sessionTracking: config.sessionTracking,
+                        trackingV2: config.trackingV2
                     };
 
                     // Add chat position configuration if available
@@ -734,7 +737,25 @@ class GuidersPublic {
             'flushInterval' => isset($this->settings['tracking_v2_flush_interval']) ? intval($this->settings['tracking_v2_flush_interval']) : 5000,
             'maxQueueSize' => isset($this->settings['tracking_v2_max_queue_size']) ? intval($this->settings['tracking_v2_max_queue_size']) : 10000,
             'persistQueue' => isset($this->settings['tracking_v2_persist_queue']) ? $this->settings['tracking_v2_persist_queue'] : true,
-            'bypassConsent' => isset($this->settings['tracking_v2_bypass_consent']) ? $this->settings['tracking_v2_bypass_consent'] : false
+            'bypassConsent' => isset($this->settings['tracking_v2_bypass_consent']) ? $this->settings['tracking_v2_bypass_consent'] : false,
+            'throttling' => array(
+                'enabled' => isset($this->settings['tracking_v2_throttling_enabled']) ? $this->settings['tracking_v2_throttling_enabled'] : true,
+                'rules' => array(
+                    'SCROLL' => isset($this->settings['tracking_v2_throttle_scroll']) ? intval($this->settings['tracking_v2_throttle_scroll']) : 100,
+                    'MOUSE_MOVE' => isset($this->settings['tracking_v2_throttle_mouse_move']) ? intval($this->settings['tracking_v2_throttle_mouse_move']) : 50,
+                    'HOVER' => isset($this->settings['tracking_v2_throttle_hover']) ? intval($this->settings['tracking_v2_throttle_hover']) : 200,
+                    'RESIZE' => isset($this->settings['tracking_v2_throttle_resize']) ? intval($this->settings['tracking_v2_throttle_resize']) : 300,
+                    'MOUSE_ENTER' => isset($this->settings['tracking_v2_throttle_mouse_enter']) ? intval($this->settings['tracking_v2_throttle_mouse_enter']) : 150,
+                    'MOUSE_LEAVE' => isset($this->settings['tracking_v2_throttle_mouse_leave']) ? intval($this->settings['tracking_v2_throttle_mouse_leave']) : 150
+                ),
+                'debug' => isset($this->settings['tracking_v2_throttling_debug']) ? $this->settings['tracking_v2_throttling_debug'] : false
+            ),
+            'aggregation' => array(
+                'enabled' => isset($this->settings['tracking_v2_aggregation_enabled']) ? $this->settings['tracking_v2_aggregation_enabled'] : true,
+                'windowMs' => isset($this->settings['tracking_v2_aggregation_window']) ? intval($this->settings['tracking_v2_aggregation_window']) : 1000,
+                'maxBufferSize' => isset($this->settings['tracking_v2_aggregation_buffer_size']) ? intval($this->settings['tracking_v2_aggregation_buffer_size']) : 1000,
+                'debug' => isset($this->settings['tracking_v2_aggregation_debug']) ? $this->settings['tracking_v2_aggregation_debug'] : false
+            )
         );
 
         return $config;

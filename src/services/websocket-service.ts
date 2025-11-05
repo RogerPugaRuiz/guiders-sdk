@@ -286,9 +286,35 @@ export class WebSocketService {
 			}
 		});
 
-		// Confirmaciones de sala de visitante
+		// 🆕 2025: Auto-join automático a sala personal (visitor:{id} o commercial:{id})
+		this.socket.on('presence:joined', (event: any) => {
+			debugLog('📡 [WebSocketService] ✅ presence:joined recibido (auto-join):', {
+				userId: event.userId,
+				userType: event.userType,
+				roomName: event.roomName,
+				automatic: event.automatic,
+				timestamp: event.timestamp
+			});
+
+			// Log especial para auto-join automático
+			if (event.automatic) {
+				console.log('═══════════════════════════════════════════════════════');
+				console.log('✅ AUTO-JOIN AUTOMÁTICO CONFIRMADO');
+				console.log(`📍 Sala personal: ${event.roomName}`);
+				console.log(`👤 Usuario: ${event.userId.substring(0, 8)}...`);
+				console.log(`🎯 Tipo: ${event.userType}`);
+				console.log('🔔 Ahora recibirás eventos de presencia filtrados (solo chats activos)');
+				console.log('═══════════════════════════════════════════════════════');
+			}
+
+			if (this.callbacks.onPresenceJoined) {
+				this.callbacks.onPresenceJoined(event);
+			}
+		});
+
+		// Confirmaciones de sala de visitante (legacy - mantener por compatibilidad)
 		this.socket.on('visitor:joined', (data: any) => {
-			debugLog('📡 [WebSocketService] ✅ Confirmación de unión a sala de visitante:', data);
+			debugLog('📡 [WebSocketService] ✅ Confirmación de unión a sala de visitante (legacy):', data);
 		});
 
 		this.socket.on('visitor:left', (data: any) => {

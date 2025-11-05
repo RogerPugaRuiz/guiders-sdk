@@ -111,6 +111,8 @@ export interface WebSocketCallbacks {
 	onTypingStop?: (event: import('../types/presence-types').TypingEvent) => void;
 	/** Callback cuando cambia el estado de presencia de un usuario */
 	onPresenceChanged?: (event: import('../types/presence-types').PresenceChangedEvent) => void;
+	/** Callback cuando se confirma la unión a una sala personal (🆕 2025: auto-join automático) */
+	onPresenceJoined?: (event: import('../types/presence-types').PresenceJoinedEvent) => void;
 }
 
 /**

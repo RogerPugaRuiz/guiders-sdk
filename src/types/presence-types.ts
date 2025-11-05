@@ -3,6 +3,17 @@
  *
  * Tipos para el sistema de presencia en tiempo real y typing indicators
  * del SDK de Guiders (frontend para visitantes).
+ *
+ * 🆕 NOVEDADES 2025:
+ * - Eventos filtrados por chats activos (99%+ reducción de tráfico)
+ * - Auto-join automático a sala personal (visitor:{id})
+ * - Nuevo evento PresenceJoinedEvent para confirmar auto-join
+ * - Detección automática de inactividad (5 min → away, 15 min → offline)
+ * - Sistema de heartbeat recomendado (30 segundos)
+ *
+ * Referencias:
+ * - Guía oficial: PRESENCIA_CHAT_GUIA.md
+ * - Backend endpoints: /presence/chat/:id, /visitors/session/heartbeat
  */
 
 /**
@@ -90,6 +101,27 @@ export interface TypingEvent {
 
   /** Timestamp del evento */
   timestamp: string;
+}
+
+/**
+ * Evento de confirmación de unión a sala personal (WebSocket)
+ * 🆕 Nuevo en 2025: Confirma auto-join automático a sala personal
+ */
+export interface PresenceJoinedEvent {
+  /** ID del usuario que se unió */
+  userId: string;
+
+  /** Tipo de usuario */
+  userType: UserType;
+
+  /** Nombre de la sala a la que se unió (ej: 'visitor:uuid' o 'commercial:uuid') */
+  roomName: string;
+
+  /** Timestamp del evento */
+  timestamp: number;
+
+  /** Indica si fue auto-join automático (true) o manual (false) */
+  automatic: boolean;
 }
 
 /**
