@@ -46,6 +46,7 @@ export class UnreadMessagesService {
 	private onCountChangeCallback: ((count: number) => void) | null = null;
 	private wsService: WebSocketService;
 	private debug: boolean = false;
+	private isChatOpen: boolean = false; // Track if chat is currently open
 
 	private constructor() {
 		this.wsService = WebSocketService.getInstance();
@@ -98,6 +99,21 @@ export class UnreadMessagesService {
 
 		// Cargar mensajes no leídos del nuevo chat
 		this.refreshUnreadMessages();
+	}
+
+	/**
+	 * Establece el estado de visibilidad del chat
+	 * Cuando el chat está abierto, las notificaciones de badge se pausan
+	 */
+	public setChatOpenState(isOpen: boolean): void {
+		this.isChatOpen = isOpen;
+		this.log('💬 Estado del chat cambiado:', isOpen ? 'abierto' : 'cerrado');
+
+		// Si se cierra el chat, refrescar el contador para mostrar badge si hay mensajes
+		if (!isOpen && this.unreadCount > 0) {
+			this.log('📢 Chat cerrado con mensajes no leídos, notificando badge');
+			this.notifyCountChange();
+		}
 	}
 
 	/**
@@ -290,8 +306,15 @@ export class UnreadMessagesService {
 
 	/**
 	 * Notifica el cambio de contador a los listeners
+	 * Si el chat está abierto, pausa las notificaciones para evitar badge flickering
 	 */
 	private notifyCountChange(): void {
+		// Si el chat está abierto, no notificar (pausa las notificaciones de badge)
+		if (this.isChatOpen) {
+			this.log('⏸️ Chat abierto - pausando notificaciones de badge (contador:', this.unreadCount + ')');
+			return;
+		}
+
 		if (this.onCountChangeCallback) {
 			this.log('📢 Notificando cambio de contador:', this.unreadCount);
 			this.onCountChangeCallback(this.unreadCount);

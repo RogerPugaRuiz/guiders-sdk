@@ -554,6 +554,22 @@ export class ChatToggleButtonUI {
 	}
 
 	/**
+	 * Notifica al servicio de mensajes no leídos sobre el estado del chat
+	 * Cuando el chat está abierto, las notificaciones de badge se pausan automáticamente
+	 * @param isOpen true si el chat está abierto, false si está cerrado
+	 */
+	public notifyChatOpenState(isOpen: boolean): void {
+		console.log(`💬 Notificando estado del chat al UnreadMessagesService: ${isOpen ? 'abierto' : 'cerrado'}`);
+		this.unreadService.setChatOpenState(isOpen);
+
+		// Si el chat se abre, ocultar el badge inmediatamente
+		if (isOpen) {
+			this.hideBadge();
+			console.log('🚫 Badge ocultado porque el chat está abierto');
+		}
+	}
+
+	/**
 	 * Obtiene el servicio de mensajes no leídos (para uso avanzado)
 	 */
 	public getUnreadService(): UnreadMessagesService {

@@ -640,6 +640,11 @@ export class TrackingPixelSDK {
 				// 📡 Actualizar estado del toggle button
 				chatToggleButton.updateState(true);
 
+				// 💬 Notificar al servicio de mensajes no leídos que el chat está abierto
+				// Esto pausa las notificaciones de badge mientras el chat está visible
+				chatToggleButton.notifyChatOpenState(true);
+				debugLog('💬 [TrackingPixelSDK] Notificado: chat abierto - badge pausado');
+
 				// 📡 Inicializar WebSocket si no está conectado
 				this.initializeWebSocketConnection(chat);
 
@@ -662,6 +667,18 @@ export class TrackingPixelSDK {
 
 				// 📡 Actualizar estado del toggle button
 				chatToggleButton.updateState(false);
+
+				// 💬 Notificar al servicio de mensajes no leídos que el chat está cerrado
+				// Esto reanuda las notificaciones de badge
+				chatToggleButton.notifyChatOpenState(false);
+				debugLog('💬 [TrackingPixelSDK] Notificado: chat cerrado - badge reactivado');
+
+				// 📬 Refrescar estado de mensajes no leídos al cerrar el chat
+				const chatIdForRefresh = chat.getChatId();
+				if (chatIdForRefresh) {
+					chatToggleButton.setActiveChatForUnread(chatIdForRefresh);
+					debugLog('📬 [TrackingPixelSDK] Refrescando mensajes no leídos al cerrar chat');
+				}
 			});
 		
 			chat.onActiveInterval(() => {
@@ -2339,6 +2356,13 @@ export class TrackingPixelSDK {
 							this.wsService.joinVisitorRoom(visitorId);
 							debugLog('📡 [TrackingPixelSDK] 🚀 Unido a sala de visitante para notificaciones proactivas');
 						}
+
+						// ✅ Unirse a la sala del chat DESPUÉS de que el WebSocket esté conectado
+						const currentChatId = chat.getChatId();
+						if (currentChatId) {
+							this.realtimeMessageManager.setCurrentChat(currentChatId);
+							debugLog('📡 [TrackingPixelSDK] ✅ Unido a sala de chat:', currentChatId);
+						}
 					},
 					onDisconnect: (reason) => {
 						debugLog('📡 [TrackingPixelSDK] ⚠️ WebSocket desconectado:', reason);
@@ -2376,19 +2400,17 @@ export class TrackingPixelSDK {
 				enableTypingIndicators: true
 			});
 
-			// Establecer chat actual si existe
-			const currentChatId = chat.getChatId();
-			if (currentChatId) {
-				this.realtimeMessageManager.setCurrentChat(currentChatId);
-			}
+			// NOTA: setCurrentChat se llama dentro del callback onConnect (línea 2346)
+			// para asegurar que el WebSocket esté conectado antes de unirse a la sala
 
 			// Inicializar servicio de mensajes no leídos con badge
 			if (this.chatToggleButton) {
 				this.chatToggleButton.connectUnreadService(visitorId);
 
 				// Establecer chat activo si existe
-				if (currentChatId) {
-					this.chatToggleButton.setActiveChatForUnread(currentChatId);
+				const chatId = chat.getChatId();
+				if (chatId) {
+					this.chatToggleButton.setActiveChatForUnread(chatId);
 				}
 
 				debugLog('📬 [TrackingPixelSDK] ✅ Servicio de mensajes no leídos inicializado');
