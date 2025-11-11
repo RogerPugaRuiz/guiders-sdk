@@ -155,13 +155,21 @@ export class ChatToggleButtonUI {
 				const style = document.createElement('style');
 				style.setAttribute('data-chat-toggle-btn', 'true');
 				style.textContent = `
+					@keyframes gradientRotate {
+						0% { background-position: 0% 50%; }
+						50% { background-position: 100% 50%; }
+						100% { background-position: 0% 50%; }
+					}
+
 					.chat-toggle-btn {
 						position: fixed;
 						${buttonPositionCSS}
 						width: 56px;
 						height: 56px;
 						border-radius: 50%;
-						background: linear-gradient(145deg, #0084ff, #0062cc);
+						background: linear-gradient(135deg, #0062cc 0%, #0084ff 20%, #00a8ff 40%, #00c6fb 60%, #0084ff 80%, #0062cc 100%);
+						background-size: 300% 300%;
+						animation: gradientRotate 4s ease-in-out infinite;
 						color: #fff !important;
 						border: none;
 						cursor: pointer;
@@ -170,8 +178,8 @@ export class ChatToggleButtonUI {
 						align-items: center;
 						justify-content: center;
 						font-weight: bold;
-						box-shadow: 0 4px 10px rgba(0,123,255,0.3), 0 0 0 rgba(0,123,255,0);
-						transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+						box-shadow: 0 4px 16px rgba(0, 132, 255, 0.5);
+						transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
 						position: relative; /* Asegurar que el badge se posicione correctamente */
 						overflow: hidden;
 					}
@@ -189,14 +197,12 @@ export class ChatToggleButtonUI {
 						background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z' fill='white'/%3E%3C/svg%3E");
 					}
 					.chat-toggle-btn:hover {
-						transform: translateY(-3px);
-						box-shadow: 0 6px 16px rgba(0,123,255,0.4);
-						background: linear-gradient(145deg, #0090ff, #0070e0);
+						transform: translateY(-3px) scale(1.05);
+						box-shadow: 0 8px 24px rgba(0, 132, 255, 0.6), 0 0 20px rgba(0, 198, 251, 0.4);
 					}
 					.chat-toggle-btn:active {
 						transform: translateY(0) scale(0.95);
-						box-shadow: 0 2px 8px rgba(0,123,255,0.3);
-						background: linear-gradient(145deg, #0062cc, #0084ff);
+						box-shadow: 0 2px 10px rgba(0, 132, 255, 0.5);
 					}
 					.chat-unread-badge {
 						position: fixed;
@@ -272,7 +278,9 @@ export class ChatToggleButtonUI {
 				
 				// Aplicar estilos adicionales si es necesario
 				const baseColor = this.options.backgroundColor || '#0084ff';
-				this.button.style.background = `linear-gradient(145deg, ${baseColor}, #0062cc)`;
+				this.button.style.background = `linear-gradient(135deg, #0062cc 0%, #0084ff 20%, #00a8ff 40%, #00c6fb 60%, #0084ff 80%, #0062cc 100%)`;
+				this.button.style.backgroundSize = '300% 300%';
+				this.button.style.animation = 'gradientRotate 4s ease-in-out infinite';
 				this.button.style.color = this.options.textColor || '#ffffff';
 	}
 
@@ -370,7 +378,9 @@ export class ChatToggleButtonUI {
 			width: '56px',
 			height: '56px',
 			borderRadius: '50%',
-			background: `linear-gradient(145deg, ${this.options.backgroundColor || '#0084ff'}, #0062cc)`,
+			background: 'linear-gradient(135deg, #0062cc 0%, #0084ff 20%, #00a8ff 40%, #00c6fb 60%, #0084ff 80%, #0062cc 100%)',
+			backgroundSize: '300% 300%',
+			animation: 'gradientRotate 4s ease-in-out infinite',
 			color: this.options.textColor || '#ffffff',
 			border: 'none',
 			cursor: 'pointer',
@@ -379,8 +389,8 @@ export class ChatToggleButtonUI {
 			alignItems: 'center',
 			justifyContent: 'center',
 			fontWeight: 'bold',
-			boxShadow: '0 4px 10px rgba(0,123,255,0.3)',
-			transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+			boxShadow: '0 4px 16px rgba(0, 132, 255, 0.5)',
+			transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease',
 			overflow: 'hidden'
 		};
 

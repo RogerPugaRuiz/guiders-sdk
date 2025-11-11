@@ -14,9 +14,8 @@ import { MessageRenderer, MessageRenderData } from '../utils/message-renderer';
 import { resolvePosition, ResolvedPosition } from '../../utils/position-resolver';
 
 // Importar componentes de presencia
-import { PresenceIndicator } from './presence-indicator';
 import { PresenceService } from '../../services/presence-service';
-import { PresenceChangedEvent, TypingEvent } from '../../types/presence-types';
+import { PresenceChangedEvent, TypingEvent, PresenceStatus } from '../../types/presence-types';
 
 /**
  * Clase ChatUI para renderizar mensajes en el chat.
@@ -48,9 +47,9 @@ export class ChatUI {
 	private subtitleElement: HTMLElement | null = null;
 	private typingIndicator: HTMLElement | null = null;
 	private lastMessageDate: string | null = null;
+	private avatarStatusDot: HTMLElement | null = null;
 
 	// Componentes de presencia
-	private presenceIndicator: PresenceIndicator | null = null;
 	private offlineBanner: HTMLElement | null = null;
 	private presenceService: PresenceService | null = null;
 	private presenceUnsubscribe: (() => void) | null = null;
@@ -173,34 +172,57 @@ export class ChatUI {
 		const headerEl = document.createElement('div');
 		headerEl.className = 'chat-header';
 
-		// Contenedor principal del título y presencia
+		// Contenedor principal con avatar + información
+		const mainContainer = document.createElement('div');
+		mainContainer.className = 'chat-header-main';
+		mainContainer.style.display = 'flex';
+		mainContainer.style.alignItems = 'center';
+		mainContainer.style.gap = '12px';
+		mainContainer.style.flex = '1';
+
+		// Avatar del comercial
+		const avatarContainer = document.createElement('div');
+		avatarContainer.className = 'chat-header-avatar-container';
+		avatarContainer.style.position = 'relative';
+
+		const avatar = document.createElement('div');
+		avatar.className = 'chat-header-avatar';
+		avatar.innerHTML = `
+			<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="white"/>
+			</svg>
+		`;
+
+		// Punto de estado en el avatar (estilo WhatsApp/Messenger)
+		const statusDot = document.createElement('span');
+		statusDot.className = 'avatar-status-dot status-offline'; // Por defecto offline
+
+		avatarContainer.appendChild(avatar);
+		avatarContainer.appendChild(statusDot);
+
+		// Guardar referencia al punto de estado para actualizarlo después
+		this.avatarStatusDot = statusDot;
+
+		// Contenedor de título (simplificado - solo nombre)
 		const titleContainer = document.createElement('div');
 		titleContainer.className = 'chat-header-title-container';
 		titleContainer.style.display = 'flex';
 		titleContainer.style.flexDirection = 'column';
-		titleContainer.style.gap = '4px';
+		titleContainer.style.flex = '1';
+		titleContainer.style.minWidth = '0'; // Para permitir truncamiento de texto
 
 		const titleEl = document.createElement('div');
 		titleEl.className = 'chat-header-title';
 		titleEl.textContent = 'Chat';
 		this.titleElement = titleEl;
 
-		const subtitleEl = document.createElement('div');
-		subtitleEl.className = 'chat-header-subtitle';
-		subtitleEl.textContent = 'Atención personalizada';
-		this.subtitleElement = subtitleEl;
-
-		// Crear y renderizar el PresenceIndicator (oculto inicialmente)
-		this.presenceIndicator = new PresenceIndicator('offline');
-		const presenceElement = this.presenceIndicator.render();
-		presenceElement.style.display = 'none'; // Oculto por defecto
-
-		// Ensamblar header
+		// Ensamblar header main
 		titleContainer.appendChild(titleEl);
-		titleContainer.appendChild(subtitleEl);
-		titleContainer.appendChild(presenceElement);
 
-		headerEl.appendChild(titleContainer);
+		mainContainer.appendChild(avatarContainer);
+		mainContainer.appendChild(titleContainer);
+
+		headerEl.appendChild(mainContainer);
 
 		const actionsEl = document.createElement('div');
 		actionsEl.className = 'chat-header-actions';
@@ -311,10 +333,10 @@ export class ChatUI {
 			:host { all: initial; font-family: 'Inter', sans-serif; }
 
 			.chat-widget {
-				box-shadow: 0 8px 48px 0 rgba(0,0,0,0.22), 0 1.5px 8px 0 rgba(0,0,0,0.10);
-				border-radius: 8px;
+				box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+				border-radius: 12px;
 				overflow: hidden;
-				background: linear-gradient(135deg, #f7faff 0%, #e3e9f6 100%);
+				background: #ffffff;
 				font-family: 'Inter', sans-serif;
 				display: flex;
 				flex-direction: column;
@@ -348,48 +370,115 @@ export class ChatUI {
 			}
 			
 			.chat-header {
-				background: #0084ff;
+				background: linear-gradient(135deg, #0084ff 0%, #00c6fb 100%);
 				color: #fff;
-				padding: 18px 20px 14px 20px;
+				padding: 16px 20px;
 				display: flex;
 				align-items: center;
 				justify-content: space-between;
-				border-top-left-radius: 8px;
-				border-top-right-radius: 8px;
-				box-shadow: 0 2px 8px rgba(0,132,255,0.08);
+				border-top-left-radius: 12px;
+				border-top-right-radius: 12px;
+				box-shadow: 0 2px 8px rgba(0, 132, 255, 0.1);
 			}
-			
+
 			/* 📱 Header móvil sin border-radius superior */
 			@media (max-width: 768px) {
 				.chat-header {
 					border-top-left-radius: 0 !important;
 					border-top-right-radius: 0 !important;
-					padding: 20px 20px 16px 20px;
+					padding: 18px 20px;
 				}
 			}
-			
-			.chat-header-title {
-				font-weight: 700;
-				font-size: 17px;
+
+			.chat-header-main {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				flex: 1;
+				min-width: 0;
+			}
+
+			.chat-header-avatar-container {
+				position: relative;
+				flex-shrink: 0;
+			}
+
+			.chat-header-avatar {
+				width: 44px;
+				height: 44px;
+				border-radius: 50%;
+				background: rgba(255, 255, 255, 0.2);
+				backdrop-filter: blur(10px);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				border: 2px solid rgba(255, 255, 255, 0.3);
+				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+			}
+
+			.chat-header-avatar svg {
+				width: 24px;
+				height: 24px;
+			}
+
+			/* Punto de estado en el avatar (estilo WhatsApp/Messenger) */
+			.avatar-status-dot {
+				position: absolute;
+				bottom: 0;
+				right: 0;
+				width: 10px;
+				height: 10px;
+				border-radius: 50%;
+				border: 1.5px solid #0084ff; /* Mismo color del gradiente para consistencia */
+				transition: all 0.3s ease;
+			}
+
+			.avatar-status-dot.status-online {
+				background-color: #10b981;
+				box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+			}
+
+			.avatar-status-dot.status-offline {
+				background-color: #6b7280;
+			}
+
+			.avatar-status-dot.status-away {
+				background-color: #f59e0b;
+				box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+			}
+
+			.avatar-status-dot.status-busy {
+				background-color: #ef4444;
+				box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+			}
+
+			.avatar-status-dot.status-chatting {
+				background-color: #60a5fa;
+				box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+			}
+
+			.chat-header-title-container {
 				display: flex;
 				flex-direction: column;
-				align-items: flex-start;
 				gap: 4px;
-				letter-spacing: 0.01em;
+				flex: 1;
+				min-width: 0;
 			}
-			
-			.chat-header-subtitle {
-				font-size: 13px;
-				font-weight: 400;
-				opacity: 0.85;
-				margin-top: 2px;
-				color: #fff;
+
+			.chat-header-title {
+				font-weight: 600;
+				font-size: 16px;
+				letter-spacing: -0.01em;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
 			}
-			
+
 			.chat-header-actions {
 				display: flex;
 				align-items: center;
 				gap: 8px;
+				flex-shrink: 0;
 			}
 			
 			.chat-close-btn {
@@ -447,50 +536,52 @@ export class ChatUI {
 				flex: 1;
 				overflow-y: auto;
 				padding: 18px 16px 12px 16px;
-				background: linear-gradient(120deg, #f7faff 60%, #e3e9f6 100%);
+				background: #f8f9fa;
 				scroll-behavior: smooth;
 			}
 			
 			.chat-message-wrapper {
 				position: relative;
 				margin-bottom: 16px;
-				max-width: 85%;
+				max-width: 75%;
 				display: flex;
 				flex-direction: column;
 			}
 			
 			.chat-message {
 				padding: 12px 16px;
-				border-radius: 18px;
-				white-space: pre-wrap;
-				word-break: break-word;
+				border-radius: 16px;
+				white-space: normal;
+				overflow-wrap: break-word;
+				word-wrap: break-word;
 				line-height: 1.5;
 				font-size: 14px;
 				position: relative;
-				box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 			}
-			
+
 			.chat-message-user-wrapper {
+				display: flex;
 				align-self: flex-end;
 			}
-			
+
 			.chat-message-user {
-				background: linear-gradient(145deg, #0084ff 70%, #00c6fb 100%);
+				background: linear-gradient(135deg, #0084ff 0%, #00c6fb 100%);
 				color: #fff;
-				border-bottom-right-radius: 8px;
-				box-shadow: 0 2px 8px rgba(0,132,255,0.08);
+				border-bottom-right-radius: 4px;
+				box-shadow: 0 2px 8px rgba(0, 132, 255, 0.15);
 			}
-			
+
 			.chat-message-other-wrapper {
 				align-self: flex-start;
 				display: flex;
 				gap: 8px;
 			}
-			
+
 			.chat-message-other {
 				background: #fff;
-				color: #333;
-				border: 1px solid #e1e9f1;
+				color: #111827;
+				border: 1px solid #e5e7eb;
 				border-bottom-left-radius: 4px;
 			}
 			
@@ -507,24 +598,26 @@ export class ChatUI {
 			
 			.chat-message-time {
 				font-size: 11px;
-				color: #8a9aa9;
+				color: #6b7280;
 				margin-top: 4px;
-				opacity: 0.8;
+				opacity: 0.85;
 			}
 
 			.chat-input-container {
 				padding: 12px 16px;
-				background: linear-gradient(120deg, #f7faff 60%, #e3e9f6 100%);
+				background: #ffffff;
+				border-top: 1px solid #e5e7eb;
 				display: -webkit-flex;
 				display: flex;
 				-webkit-align-items: center;
 				align-items: center;
 				gap: 8px;
-				border-bottom-left-radius: 8px;
-				border-bottom-right-radius: 8px;
+				border-bottom-left-radius: 12px;
+				border-bottom-right-radius: 12px;
 				/* Fix Safari: Asegurar que el contenedor mantenga su altura */
 				min-height: 60px;
 				box-sizing: border-box;
+				position: relative;
 			}
 			
 			/* 📱 Input móvil sin border-radius inferior */
@@ -539,24 +632,24 @@ export class ChatUI {
 			.chat-input-field {
 				-webkit-flex: 1;
 				flex: 1;
-				border: 1px solid #e1e9f1;
-				border-radius: 8px;
-				padding: 10px 16px;
+				border: 1px solid #e5e7eb;
+				border-radius: 10px;
+				padding: 11px 48px 11px 16px;
 				font-size: 14px;
 				font-family: 'Inter', sans-serif;
 				outline: none;
-				background: #f8fafb;
-				color: #333;
+				background: #f9fafb;
+				color: #111827;
 				transition: all 0.2s ease;
 				/* Fix Safari: Asegurar que el input no cause overflow */
 				min-width: 0;
 				box-sizing: border-box;
 			}
-			
+
 			.chat-input-field:focus {
 				border-color: #0084ff;
-				background: #fff;
-				box-shadow: 0 0 0 3px rgba(0, 132, 255, 0.1);
+				background: #ffffff;
+				box-shadow: 0 0 0 3px rgba(0, 132, 255, 0.08);
 			}
 			
 			.chat-input-field::placeholder {
@@ -564,9 +657,10 @@ export class ChatUI {
 			}
 			
 			.chat-send-btn {
-				background: -webkit-linear-gradient(145deg, #0084ff, #00c6fb);
-				background: linear-gradient(145deg, #0084ff, #00c6fb);
-				color: white;
+				position: absolute;
+				right: 20px;
+				background: transparent;
+				color: #6b7280;
 				border: none;
 				border-radius: 50%;
 				width: 36px;
@@ -587,78 +681,86 @@ export class ChatUI {
 				max-width: 36px;
 				max-height: 36px;
 				box-sizing: border-box;
-				/* Asegurar que el botón mantenga su posición */
-				margin-left: auto;
 			}
-			
+
 			.chat-send-btn:hover {
-				background: -webkit-linear-gradient(145deg, #0090ff, #00d6fb);
-				background: linear-gradient(145deg, #0090ff, #00d6fb);
+				background: #f3f4f6;
+				color: #111827;
 				-webkit-transform: scale(1.05);
 				transform: scale(1.05);
 			}
-			
+
 			.chat-send-btn:active {
 				-webkit-transform: scale(0.95);
 				transform: scale(0.95);
+				background: #e5e7eb;
 			}
 			
 			.chat-send-btn::before {
 				content: '';
 				width: 20px;
 				height: 20px;
-				background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.29106 3.3088C3.00745 3.18938 2.67967 3.25533 2.4643 3.47514C2.24894 3.69495 2.1897 4.02401 2.31488 4.30512L5.40752 11.25H13C13.4142 11.25 13.75 11.5858 13.75 12C13.75 12.4142 13.4142 12.75 13 12.75H5.40754L2.31488 19.6949C2.1897 19.976 2.24894 20.3051 2.4643 20.5249C2.67967 20.7447 3.00745 20.8107 3.29106 20.6912L22.2911 12.6913C22.5692 12.5742 22.75 12.3018 22.75 12C22.75 11.6983 22.5692 11.4259 22.2911 11.3088L3.29106 3.3088Z' fill='white'/%3E%3C/svg%3E");
+				background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.29106 3.3088C3.00745 3.18938 2.67967 3.25533 2.4643 3.47514C2.24894 3.69495 2.1897 4.02401 2.31488 4.30512L5.40752 11.25H13C13.4142 11.25 13.75 11.5858 13.75 12C13.75 12.4142 13.4142 12.75 13 12.75H5.40754L2.31488 19.6949C2.1897 19.976 2.24894 20.3051 2.4643 20.5249C2.67967 20.7447 3.00745 20.8107 3.29106 20.6912L22.2911 12.6913C22.5692 12.5742 22.75 12.3018 22.75 12C22.75 11.6983 22.5692 11.4259 22.2911 11.3088L3.29106 3.3088Z' fill='%236b7280'/%3E%3C/svg%3E");
 				background-repeat: no-repeat;
 				background-position: center;
+				transition: all 0.2s ease;
+			}
+
+			.chat-send-btn:hover::before {
+				background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.29106 3.3088C3.00745 3.18938 2.67967 3.25533 2.4643 3.47514C2.24894 3.69495 2.1897 4.02401 2.31488 4.30512L5.40752 11.25H13C13.4142 11.25 13.75 11.5858 13.75 12C13.75 12.4142 13.4142 12.75 13 12.75H5.40754L2.31488 19.6949C2.1897 19.976 2.24894 20.3051 2.4643 20.5249C2.67967 20.7447 3.00745 20.8107 3.29106 20.6912L22.2911 12.6913C22.5692 12.5742 22.75 12.3018 22.75 12C22.75 11.6983 22.5692 11.4259 22.2911 11.3088L3.29106 3.3088Z' fill='%23111827'/%3E%3C/svg%3E");
 			}
 
 			/* 🟢 Estilos para Presence Indicator */
 			.guiders-presence-indicator {
-				display: flex;
+				display: inline-flex;
 				align-items: center;
 				gap: 6px;
-				margin-top: 2px;
-				padding: 0;
+				padding: 4px 10px;
+				background: rgba(255, 255, 255, 0.15);
+				backdrop-filter: blur(10px);
+				border-radius: 12px;
+				border: 1px solid rgba(255, 255, 255, 0.2);
 			}
 
 			.guiders-status-dot {
-				width: 8px;
-				height: 8px;
+				width: 6px;
+				height: 6px;
 				border-radius: 50%;
 				flex-shrink: 0;
-				transition: background-color 0.3s ease, box-shadow 0.3s ease;
+				transition: all 0.3s ease;
 			}
 
 			.guiders-status-online {
-				background-color: #4ade80;
-				box-shadow: 0 0 6px rgba(74, 222, 128, 0.6);
+				background-color: #10b981;
+				box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 			}
 
 			.guiders-status-offline {
-				background-color: #9ca3af;
+				background-color: #6b7280;
 				box-shadow: none;
 			}
 
 			.guiders-status-busy {
-				background-color: #fbbf24;
-				box-shadow: 0 0 6px rgba(251, 191, 36, 0.6);
+				background-color: #ef4444;
+				box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
 			}
 
 			.guiders-status-away {
-				background-color: #fb923c;
-				box-shadow: 0 0 6px rgba(251, 146, 60, 0.6);
+				background-color: #f59e0b;
+				box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
 			}
 
 			.guiders-status-chatting {
 				background-color: #60a5fa;
-				box-shadow: 0 0 6px rgba(96, 165, 250, 0.6);
+				box-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
 			}
 
 			.guiders-status-text {
-				font-size: 12px;
+				font-size: 11px;
 				font-weight: 500;
-				color: rgba(255, 255, 255, 0.9);
-				letter-spacing: 0.01em;
+				color: rgba(255, 255, 255, 0.95);
+				letter-spacing: 0.02em;
+				text-transform: capitalize;
 			}
 
 			.guiders-status-changing {
@@ -1368,49 +1470,20 @@ export class ChatUI {
 	}
 
 	private updateChatHeader(): void {
-		if (!this.chatDetail || !this.titleElement || !this.subtitleElement) return;
+		if (!this.chatDetail || !this.titleElement) return;
 
 		const commercialParticipants = this.chatDetail.participants.filter(p => p.isCommercial);
 
-		if (this.chatDetail.status === 'pending' && commercialParticipants.length > 1) {
-			this.titleElement.textContent = 'Chat';
-			this.subtitleElement.textContent = `Conectando con asesor (${commercialParticipants.length} disponibles)...`;
-		} else if (this.chatDetail.status === 'pending' && commercialParticipants.length === 1) {
-			this.titleElement.textContent = 'Chat';
-			this.subtitleElement.textContent = `Conectando con ${commercialParticipants[0].name}...`;
-		} else if (commercialParticipants.length > 0) {
+		// Actualizar solo el título del chat con el nombre del comercial
+		if (commercialParticipants.length > 0) {
 			const advisor = commercialParticipants[0];
-			
-			if (this.chatDetail.status === 'active') {
-				const titleWithIndicator = document.createElement('div');
-				titleWithIndicator.className = 'chat-online-indicator';
-				
-				const statusDot = document.createElement('span');
-				statusDot.className = `chat-status-dot ${advisor.isOnline ? 'online' : 'offline'}`;
-				
-				const titleText = document.createElement('span');
-				titleText.textContent = `Chat con ${advisor.name}`;
-				
-				titleWithIndicator.appendChild(statusDot);
-				titleWithIndicator.appendChild(titleText);
-				
-				this.titleElement.innerHTML = '';
-				this.titleElement.appendChild(titleWithIndicator);
-				
-				const onlineStatus = advisor.isOnline ? 'En línea' : 'Desconectado';
-				const typingStatus = advisor.isTyping ? ' • Escribiendo...' : '';
-				this.subtitleElement.textContent = `${onlineStatus}${typingStatus}`;
-			} else {
-				this.titleElement.textContent = `Chat con ${advisor.name}`;
-				const chatStatusText = this.chatDetail.status === 'inactive' ? 'Inactivo' : 
-								   this.chatDetail.status === 'closed' ? 'Cerrado' : 
-								   this.chatDetail.status === 'archived' ? 'Archivado' : 'Conectando...';
-				this.subtitleElement.textContent = chatStatusText;
-			}
+			this.titleElement.textContent = advisor.name || 'Asesor';
 		} else {
 			this.titleElement.textContent = 'Chat';
-			this.subtitleElement.textContent = 'Buscando asesor disponible...';
 		}
+
+		// El punto de estado en el avatar maneja la presencia visualmente
+		// No necesitamos subtitleElement - se elimina
 	}
 
 	private sendOfflineNotificationMessage(commercialName: string, isInitialLoad: boolean = false): void {
@@ -1810,6 +1883,22 @@ export class ChatUI {
 	}
 
 	/**
+	 * Actualiza el punto de estado en el avatar según el estado de presencia
+	 * @param status Estado de presencia del comercial
+	 */
+	private updateAvatarStatus(status: PresenceStatus): void {
+		if (!this.avatarStatusDot) return;
+
+		// Limpiar clases anteriores de estado
+		this.avatarStatusDot.className = 'avatar-status-dot';
+
+		// Aplicar nueva clase de estado
+		this.avatarStatusDot.classList.add(`status-${status}`);
+
+		debugLog('💬 [ChatUI] Avatar status dot actualizado a:', status);
+	}
+
+	/**
 	 * Activa el sistema de presencia para el chat actual
 	 * Se llama cuando se abre el chat
 	 */
@@ -1836,11 +1925,10 @@ export class ChatUI {
 			// Buscar el comercial en los participantes
 			const commercial = this.presenceService!.getCommercialFromParticipants(presence.participants);
 
-			if (commercial && this.presenceIndicator) {
-				// Actualizar indicador de presencia
-				this.presenceIndicator.updateStatus(commercial.connectionStatus);
-				this.presenceIndicator.show();
-				debugLog('💬 [ChatUI] PresenceIndicator actualizado:', commercial.connectionStatus);
+			if (commercial && this.avatarStatusDot) {
+				// Actualizar punto de estado en el avatar
+				this.updateAvatarStatus(commercial.connectionStatus);
+				debugLog('💬 [ChatUI] Avatar status dot actualizado:', commercial.connectionStatus);
 
 				// Mostrar/ocultar banner offline
 				if (commercial.connectionStatus === 'offline') {
@@ -1855,9 +1943,9 @@ export class ChatUI {
 		this.presenceUnsubscribe = this.presenceService.onPresenceChanged((event: PresenceChangedEvent) => {
 			debugLog('💬 [ChatUI] 🟢 Evento de presencia recibido:', event);
 
-			// Actualizar indicador visual
-			if (this.presenceIndicator && event.userType === 'commercial') {
-				this.presenceIndicator.updateStatus(event.status);
+			// Actualizar punto de estado en el avatar
+			if (this.avatarStatusDot && event.userType === 'commercial') {
+				this.updateAvatarStatus(event.status);
 
 				// Actualizar banner offline
 				if (event.status === 'offline') {
@@ -1872,22 +1960,9 @@ export class ChatUI {
 		this.typingUnsubscribe = this.presenceService.onTypingChanged((event: TypingEvent, isTyping: boolean) => {
 			debugLog('💬 [ChatUI] ✍️ Evento de typing recibido:', { ...event, isTyping });
 
-			// Este evento se maneja en ChatMessagesUI, pero podríamos agregar lógica adicional aquí
-			// Por ejemplo, actualizar el subtítulo del header con "Escribiendo..."
-			if (event.userType === 'commercial' && this.subtitleElement) {
-				if (isTyping) {
-					this.subtitleElement.textContent = 'Escribiendo...';
-				} else {
-					// Restaurar texto original basado en estado de presencia
-					if (this.presenceIndicator) {
-						const status = this.presenceIndicator.getStatus();
-						const statusText = status === 'online' ? 'En línea' :
-										   status === 'busy' ? 'Ocupado' :
-										   status === 'away' ? 'Ausente' : 'Desconectado';
-						this.subtitleElement.textContent = statusText;
-					}
-				}
-			}
+			// El indicador de typing se maneja en ChatMessagesUI
+			// El punto de estado en el avatar muestra la presencia visualmente
+			// No necesitamos actualizar texto adicional aquí
 		});
 
 		debugLog('💬 [ChatUI] ✅ Sistema de presencia activado');
@@ -1918,9 +1993,9 @@ export class ChatUI {
 		// Salir de la sala de chat
 		this.presenceService.leaveChatRoom(this.chatId);
 
-		// Ocultar indicadores
-		if (this.presenceIndicator) {
-			this.presenceIndicator.hide();
+		// Resetear punto de estado a offline
+		if (this.avatarStatusDot) {
+			this.updateAvatarStatus('offline');
 		}
 		this.hideOfflineBanner();
 

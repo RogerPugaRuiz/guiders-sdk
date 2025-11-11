@@ -47,32 +47,31 @@ export class MessageRenderer {
         }
         
         // Crear estructura compatible con ChatUI pero con estilos modernos
-        if (isUserMessage) {
-            // Estructura para mensajes del usuario - hora dentro de la burbuja
-            messageDiv.innerHTML = `
-                <div class="message-content-wrapper">
-                    <div class="chat-message chat-message-user">
-                        <div class="message-text">${this.escapeHtml(data.content)}</div>
-                        <div class="chat-message-time">${this.formatTime(data.timestamp)} ✓</div>
-                    </div>
-                </div>
-            `;
-        } else {
-            // Estructura para mensajes de otros con avatar - hora dentro de la burbuja
-            messageDiv.innerHTML = `
-                <div class="chat-avatar">
-                    <div class="avatar-circle">
-                        <span class="avatar-text">${this.getParticipantInitials(data.senderId || '')}</span>
-                    </div>
-                </div>
-                <div class="message-content-wrapper">
-                    <div class="chat-message chat-message-other">
-                        <div class="message-text">${this.escapeHtml(data.content)}</div>
-                        <div class="chat-message-time">${this.formatTime(data.timestamp)}</div>
-                    </div>
-                </div>
-            `;
-        }
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = 'message-content-wrapper';
+
+        const chatMessage = document.createElement('div');
+        chatMessage.className = isUserMessage ? 'chat-message chat-message-user' : 'chat-message chat-message-other';
+
+        const messageText = document.createElement('div');
+        messageText.className = 'message-text';
+        // Limpiar saltos de línea y espacios múltiples del contenido
+        const cleanContent = data.content
+            .replace(/\r\n/g, ' ')  // Reemplazar saltos de línea Windows
+            .replace(/\n/g, ' ')     // Reemplazar saltos de línea Unix
+            .replace(/\r/g, ' ')     // Reemplazar retornos de carro
+            .replace(/\s+/g, ' ')    // Reemplazar múltiples espacios con uno solo
+            .trim();                 // Eliminar espacios al inicio/final
+        messageText.textContent = cleanContent;
+
+        const messageTime = document.createElement('div');
+        messageTime.className = 'chat-message-time';
+        messageTime.textContent = isUserMessage ? `${this.formatTime(data.timestamp)} ✓` : this.formatTime(data.timestamp);
+
+        chatMessage.appendChild(messageText);
+        chatMessage.appendChild(messageTime);
+        contentWrapper.appendChild(chatMessage);
+        messageDiv.appendChild(contentWrapper);
         
         // Aplicar estilos modernos formales
         this.applyModernMessageStyles(messageDiv, isUserMessage);
@@ -232,34 +231,33 @@ export class MessageRenderer {
             contentWrapper.style.cssText = `
                 display: flex;
                 flex-direction: column;
-                ${isUserMessage ? 'align-items: flex-end; max-width: 85%;' : 'align-items: flex-start; max-width: 80%;'}
-                min-width: 120px;
+                ${isUserMessage ? 'align-items: flex-end;' : 'align-items: flex-start;'}
+                max-width: 100%;
             `;
         }
 
-        // ✅ MENSAJE PRINCIPAL - Con layout en columna para texto + hora
+        // ✅ MENSAJE PRINCIPAL - Con layout en fila para texto + hora
         if (messageEl) {
             messageEl.style.cssText = `
                 padding: 8px 12px;
                 border-radius: 10px;
                 position: relative;
-                word-break: break-word;
-                white-space: normal;
+                overflow-wrap: break-word;
+                word-wrap: break-word;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                display: flex;
+                display: inline-flex;
                 flex-direction: row;
-                align-items: baseline;
+                flex-wrap: nowrap;
+                align-items: flex-end;
                 gap: 6px;
+                max-width: 75%;
                 ${isUserMessage ?
                     `background: #D1E7FF;
                      color: #2c3e50;
-                     border-bottom-right-radius: 2px;
-                     max-width: 90%;
-                     margin-left: auto;` :
+                     border-bottom-right-radius: 2px;` :
                     `background: #FFFFFF;
                      color: #2c3e50;
-                     border-bottom-left-radius: 2px;
-                     max-width: 90%;`
+                     border-bottom-left-radius: 2px;`
                 }
                 transition: all 0.2s ease;
             `;
@@ -271,11 +269,12 @@ export class MessageRenderer {
                 font-size: 14px;
                 line-height: 1.4;
                 margin: 0;
-                word-break: break-word;
+                overflow-wrap: break-word;
+                word-wrap: break-word;
+                white-space: normal;
                 -webkit-font-smoothing: antialiased;
                 -moz-osx-font-smoothing: grayscale;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                flex: 0 1 auto;
                 color: #2c3e50;
             `;
         }
@@ -290,7 +289,6 @@ export class MessageRenderer {
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
                 white-space: nowrap;
                 flex-shrink: 0;
-                margin-left: auto;
                 opacity: 0.9;
             `;
         }
