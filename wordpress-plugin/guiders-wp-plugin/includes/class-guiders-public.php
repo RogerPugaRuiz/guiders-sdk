@@ -133,7 +133,8 @@ class GuidersPublic {
             'autoFlush' => isset($this->settings['auto_flush']) ? $this->settings['auto_flush'] : true,
             'flushInterval' => isset($this->settings['flush_interval']) ? intval($this->settings['flush_interval']) : 5000,
             'trackingV2' => $this->getTrackingV2Config(),
-            'presence' => $this->getPresenceConfig()
+            'presence' => $this->getPresenceConfig(),
+            'autoOpenChatOnMessage' => isset($this->settings['auto_open_chat_on_message']) ? (bool)$this->settings['auto_open_chat_on_message'] : true
         );
 
         // Add environment-specific endpoints
@@ -265,6 +266,11 @@ class GuidersPublic {
                     // Add chat consent message configuration if available
                     if (config.chatConsentMessage) {
                         sdkOptions.chatConsentMessage = config.chatConsentMessage;
+                    }
+
+                    // Add auto-open chat on message configuration if available
+                    if (config.autoOpenChatOnMessage !== undefined) {
+                        sdkOptions.autoOpenChatOnMessage = config.autoOpenChatOnMessage;
                     }
 
                     // Asignar siempre endpoints explícitos (evita fallback a localhost y doble init)

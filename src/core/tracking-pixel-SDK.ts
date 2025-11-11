@@ -99,6 +99,8 @@ interface SDKOptions {
 		pollingInterval?: number;       // Presence polling interval in ms (default: 30000)
 		showOfflineBanner?: boolean;    // Show offline banner when commercial is offline (default: true)
 	};
+	// Auto-open chat when message received
+	autoOpenChatOnMessage?: boolean;    // Auto-open chat when new message arrives (default: true)
 	// Tracking V2 Configuration
 	trackingV2?: {
 		enabled?: boolean;        // Enable tracking V2 (default: true)
@@ -218,6 +220,7 @@ export class TrackingPixelSDK {
 		pollingInterval: number;
 		showOfflineBanner: boolean;
 	};
+	private autoOpenChatOnMessage: boolean = true;
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -262,6 +265,10 @@ export class TrackingPixelSDK {
 		};
 
 		debugLog('[TrackingPixelSDK] 🟢 Configuración de presencia:', this.presenceConfig);
+
+		// Configurar auto-apertura del chat al recibir mensajes
+		this.autoOpenChatOnMessage = options.autoOpenChatOnMessage ?? true;
+		debugLog('[TrackingPixelSDK] 📬 Auto-apertura del chat:', this.autoOpenChatOnMessage ? 'habilitada' : 'deshabilitada');
 
 		// Configurar validador de horarios activos si se proporciona
 		if (options.activeHours && options.activeHours.enabled) {
@@ -971,8 +978,16 @@ export class TrackingPixelSDK {
 
 				// 📬 Inicializar servicio de mensajes no leídos con badge tempranamente
 				// Esto asegura que el badge se actualice correctamente al refrescar la página
-				if (this.chatToggleButton) {
-					this.chatToggleButton.connectUnreadService(result.identity.visitorId);
+				if (this.chatToggleButton && this.chatUI) {
+					this.chatToggleButton.connectUnreadService(
+						result.identity.visitorId,
+						() => {
+							// Callback para abrir el chat automáticamente al recibir un mensaje
+							debugLog('📬 [TrackingPixelSDK] 🔓 Auto-abriendo chat por mensaje recibido');
+							this.chatUI!.show();
+						},
+						this.autoOpenChatOnMessage
+					);
 					debugLog('📬 [TrackingPixelSDK] ✅ Servicio de mensajes no leídos conectado tempranamente');
 				}
 
@@ -2427,7 +2442,15 @@ export class TrackingPixelSDK {
 
 			// Inicializar servicio de mensajes no leídos con badge
 			if (this.chatToggleButton) {
-				this.chatToggleButton.connectUnreadService(visitorId);
+				this.chatToggleButton.connectUnreadService(
+					visitorId,
+					() => {
+						// Callback para abrir el chat automáticamente al recibir un mensaje
+						debugLog('📬 [TrackingPixelSDK] 🔓 Auto-abriendo chat por mensaje recibido');
+						this.chatUI!.show();
+					},
+					this.autoOpenChatOnMessage
+				);
 
 				// Establecer chat activo si existe
 				const chatId = chat.getChatId();

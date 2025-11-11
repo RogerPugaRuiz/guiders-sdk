@@ -116,7 +116,16 @@ class GuidersAdmin {
             'guiders-settings',
             'guiders_features_section'
         );
-        
+
+        // Auto-open chat on message field
+        add_settings_field(
+            'auto_open_chat_on_message',
+            __('Auto-abrir Chat al Recibir Mensaje', 'guiders-wp-plugin'),
+            array($this, 'autoOpenChatOnMessageFieldCallback'),
+            'guiders-settings',
+            'guiders_features_section'
+        );
+
         // Tracking enabled field
         add_settings_field(
             'tracking_enabled',
@@ -1006,7 +1015,18 @@ class GuidersAdmin {
         echo '<input type="checkbox" id="chat_enabled" name="guiders_wp_plugin_settings[chat_enabled]" value="1" ' . checked(1, $chat_enabled, false) . ' />';
         echo '<label for="chat_enabled">' . __('Habilitar el chat en vivo con carga diferida', 'guiders-wp-plugin') . '</label>';
     }
-    
+
+    /**
+     * Auto-open chat on message field callback
+     */
+    public function autoOpenChatOnMessageFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $auto_open = isset($settings['auto_open_chat_on_message']) ? $settings['auto_open_chat_on_message'] : false;
+        echo '<input type="checkbox" id="auto_open_chat_on_message" name="guiders_wp_plugin_settings[auto_open_chat_on_message]" value="1" ' . checked(1, $auto_open, false) . ' />';
+        echo '<label for="auto_open_chat_on_message">' . __('Abrir automáticamente el chat cuando llega un mensaje nuevo', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('Si está habilitado, el chat se abrirá automáticamente cuando el visitante reciba un mensaje nuevo (solo si el chat está cerrado).', 'guiders-wp-plugin') . '</p>';
+    }
+
     /**
      * Tracking enabled field callback
      */

@@ -33,6 +33,10 @@ export interface UnreadMessagesServiceOptions {
 	visitorId: string;
 	/** Callback cuando el contador cambia */
 	onCountChange?: (count: number) => void;
+	/** Callback cuando se recibe un mensaje nuevo (con chat cerrado) */
+	onMessageReceived?: () => void;
+	/** Auto-abrir el chat cuando se recibe un mensaje (solo si el chat está cerrado) */
+	autoOpenChatOnMessage?: boolean;
 	/** Habilitar logs de debug */
 	debug?: boolean;
 }
@@ -44,6 +48,8 @@ export class UnreadMessagesService {
 	private unreadCount: number = 0;
 	private unreadMessages: UnreadMessage[] = [];
 	private onCountChangeCallback: ((count: number) => void) | null = null;
+	private onMessageReceivedCallback: (() => void) | null = null;
+	private autoOpenChatOnMessage: boolean = false;
 	private wsService: WebSocketService;
 	private debug: boolean = false;
 	private isChatOpen: boolean = false; // Track if chat is currently open
@@ -66,11 +72,14 @@ export class UnreadMessagesService {
 	public initialize(options: UnreadMessagesServiceOptions): void {
 		this.visitorId = options.visitorId;
 		this.onCountChangeCallback = options.onCountChange || null;
+		this.onMessageReceivedCallback = options.onMessageReceived || null;
+		this.autoOpenChatOnMessage = options.autoOpenChatOnMessage || false;
 		this.debug = options.debug || false;
 
 		this.log('🚀 Inicializando servicio con:', {
 			visitorId: this.visitorId,
-			hasCallback: !!this.onCountChangeCallback
+			hasCallback: !!this.onCountChangeCallback,
+			autoOpenChatOnMessage: this.autoOpenChatOnMessage
 		});
 
 		// Registrar listener para mensajes nuevos del WebSocket
@@ -311,6 +320,12 @@ export class UnreadMessagesService {
 		this.unreadCount = this.unreadMessages.length;
 
 		this.log('✅ Contador actualizado:', this.unreadCount);
+
+		// Si está habilitada la auto-apertura, llamar al callback
+		if (this.autoOpenChatOnMessage && this.onMessageReceivedCallback) {
+			this.log('🔓 Auto-apertura habilitada - llamando callback para abrir chat');
+			this.onMessageReceivedCallback();
+		}
 
 		// Notificar cambio de contador
 		this.notifyCountChange();
