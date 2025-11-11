@@ -631,11 +631,22 @@ export class TrackingPixelSDK {
 			// Escuchar eventos de cambio de estado online de participantes
 			this.setupParticipantEventsListener(chat, chatToggleButton);
 		
-			chat.onOpen(() => {
+			chat.onOpen(async () => {
 				this.captureEvent("visitor:open-chat", {
 					timestamp: new Date().getTime(),
 					chatId: chat.getChatId(),
 				});
+
+			// 🔓 Notificar al backend que el chat se ha abierto
+			const openingChatId = chat.getChatId();
+			if (openingChatId) {
+				try {
+					await ChatV2Service.getInstance().openChat(openingChatId);
+					debugLog("🔓 [TrackingPixelSDK] Chat abierto en backend:", openingChatId);
+				} catch (error) {
+					console.error("[TrackingPixelSDK] ❌ Error al abrir chat en backend:", error);
+				}
+			}
 
 				// 📡 Actualizar estado del toggle button
 				chatToggleButton.updateState(true);
@@ -656,14 +667,25 @@ export class TrackingPixelSDK {
 					setTimeout(async () => {
 						await this.chatToggleButton!.markAllMessagesAsRead();
 						debugLog('📬 [TrackingPixelSDK] Mensajes marcados como leídos al abrir chat');
-					}, 1000); // Esperar 1 segundo para dar tiempo a que el usuario vea los mensajes
+					}, 500); // Reducido a 500ms ya que openChat() ya esperó su respuesta
 				}
 			});
-			chat.onClose(() => {
+			chat.onClose(async () => {
 				this.captureEvent("visitor:close-chat", {
 					timestamp: new Date().getTime(),
 					chatId: chat.getChatId(),
 				});
+
+			// 🔒 Notificar al backend que el chat se ha cerrado
+			const closingChatId = chat.getChatId();
+			if (closingChatId) {
+				try {
+					await ChatV2Service.getInstance().closeChat(closingChatId);
+					debugLog("🔒 [TrackingPixelSDK] Chat cerrado en backend:", closingChatId);
+				} catch (error) {
+					console.error("[TrackingPixelSDK] ❌ Error al cerrar chat en backend:", error);
+				}
+			}
 
 				// 📡 Actualizar estado del toggle button
 				chatToggleButton.updateState(false);

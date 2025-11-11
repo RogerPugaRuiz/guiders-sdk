@@ -220,10 +220,27 @@ export class ChatV2Service {
 	}
 
 	/**
-	 * Cierra un chat
+	 * Abre un chat (notifica al backend que el visitante está viendo el chat)
 	 * @param chatId ID del chat
 	 * @returns Promise con el chat actualizado
 	 */
+	async openChat(chatId: string): Promise<ChatV2> {
+		debugLog(`[ChatV2Service] 🔓 Abriendo chat ${chatId}`);
+
+		const response = await fetch(`${this.getBaseUrl()}/${chatId}/open`, this.getFetchOptions('PUT'));
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error(`[ChatV2Service] ❌ Error al abrir chat:`, errorText);
+			throw new Error(`Error al abrir chat (${response.status}): ${errorText}`);
+		}
+
+		const chat = await response.json() as ChatV2;
+		debugLog(`[ChatV2Service] ✅ Chat abierto exitosamente`);
+
+		return chat;
+	}
+
 	async closeChat(chatId: string): Promise<ChatV2> {
 		debugLog(`[ChatV2Service] 🔒 Cerrando chat ${chatId}`);
 
