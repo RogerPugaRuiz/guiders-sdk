@@ -2306,6 +2306,13 @@ export class TrackingPixelSDK {
 			if (currentChatId && this.realtimeMessageManager.getCurrentChatId() !== currentChatId) {
 				this.realtimeMessageManager.setCurrentChat(currentChatId);
 			}
+
+			// 📬 Actualizar UnreadMessagesService con el chat actual
+			if (this.chatToggleButton && currentChatId) {
+				this.chatToggleButton.setActiveChatForUnread(currentChatId);
+				debugLog('📬 [TrackingPixelSDK] ✅ UnreadMessagesService actualizado con chat:', currentChatId);
+			}
+
 			return;
 		}
 
