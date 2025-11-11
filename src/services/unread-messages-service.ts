@@ -274,12 +274,24 @@ export class UnreadMessagesService {
 			return;
 		}
 
-		this.log('📨 Nuevo mensaje no leído recibido:', {
+		this.log('📨 Nuevo mensaje recibido:', {
 			messageId: message.messageId,
-			senderId: message.senderId
+			senderId: message.senderId,
+			chatAbierto: this.isChatOpen
 		});
 
-		// Añadir a la lista de no leídos
+		// Si el chat está abierto, marcar como leído automáticamente
+		if (this.isChatOpen) {
+			this.log('✅ Chat abierto - marcando mensaje como leído automáticamente');
+			// Marcar como leído en el backend de forma asíncrona
+			this.markAsRead([message.messageId]).catch(error => {
+				console.error('[UnreadMessagesService] ❌ Error al marcar mensaje como leído automáticamente:', error);
+			});
+			// No añadir a la lista de no leídos ni notificar cambio de contador
+			return;
+		}
+
+		// Si el chat está cerrado, añadir a la lista de no leídos
 		const unreadMessage: UnreadMessage = {
 			id: message.messageId,
 			chatId: message.chatId,
