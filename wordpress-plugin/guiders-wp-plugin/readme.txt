@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.5.2
+Stable tag: 1.6.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,39 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.6.0 =
+* **✨ Sistema Completo de Presencia en Tiempo Real**: Indicadores avanzados de estado y actividad de usuarios
+  * **Presence System**: Sistema completo para mostrar estado online/offline de visitantes y comerciales
+  * **Typing Indicators**: Indicadores de escritura en tiempo real con debounce inteligente
+  * **Smart Debounce**: Detección automática cuando el visitante está escribiendo sin saturar el servidor
+  * **Real-time Updates**: Actualización instantánea del estado de presencia vía WebSocket
+  * **WordPress Integration**: Nueva sección de configuración en admin para activar/desactivar indicadores de presencia
+  * **Visual Feedback**: Indicadores visuales de "escribiendo..." tanto para visitantes como comerciales
+  * Implementación completa: `presence-service.ts`, integración en `ChatUI` y `SDK core`
+* **🚀 Tracking V2 con Event Aggregation**: Sistema optimizado de tracking con batching inteligente
+  * **EventThrottler**: Control de frecuencia de eventos para reducir carga del servidor
+  * **EventAggregator**: Agregación y batching de eventos antes de envío
+  * **Event Transformation**: Pipeline para transformar eventos antes de persistir
+  * **UUID Validation**: Validación automática de UUIDs, filtrado de eventos inválidos en queue
+  * **Callback Preservation**: Fix para preservar callback `onFlush` en configuración de EventAggregator
+  * **Demo Interactivo**: Guías completas de Tracking V2 con ejemplos prácticos
+  * Configurado por defecto en demo: requiere opt-in para activar en producción
+* **💬 Mensaje de Consentimiento en Chat**: Nueva funcionalidad estilo Zara para mejor UX
+  * Mensaje informativo sobre consentimiento integrado directamente en el chat
+  * Permite a usuarios gestionar preferencias sin salir del flujo de conversación
+  * Diseño no intrusivo y profesional
+* **🐛 Correcciones Críticas**:
+  * **Date Separators**: Separadores de fecha ahora usan timestamp real (`createdAt`) de mensajes
+  * **Identity Version**: Uso de versión actual del SDK para consentimiento en lugar de versión cacheada
+  * **Badge Notifications**: Fix para prevenir badge visible cuando botón de chat está oculto
+  * **Demo Configuration**: Actualización de configuración de presencia y rebuild de bundle SDK
+* **📚 Documentación Mejorada**:
+  * Guías completas de Tracking V2 con arquitectura y ejemplos de uso
+  * Demo interactivo para testing de nuevas funcionalidades
+  * Documentación de sistema de presencia y configuración
+* **📦 Bundle Size**: ~355 KB (incremento por nuevas funcionalidades de presencia y tracking)
+* **🔗 Compatibilidad**: 100% retrocompatible, nuevas features son opcionales
 
 = 1.5.2 =
 * **🐛 Fix Crítico**: Badge de notificaciones ahora se oculta correctamente junto con el botón de chat
