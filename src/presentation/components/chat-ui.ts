@@ -1990,8 +1990,11 @@ export class ChatUI {
 			this.typingUnsubscribe = null;
 		}
 
-		// Salir de la sala de chat
-		this.presenceService.leaveChatRoom(this.chatId);
+		// 🚨 NO salir de la sala de chat cuando se cierra el widget
+		// El visitante DEBE permanecer en la sala para seguir recibiendo mensajes
+		// y poder mostrar notificaciones de badge cuando el chat está cerrado
+		// Solo se debe salir cuando el usuario abandona el sitio web (beforeunload)
+		// this.presenceService.leaveChatRoom(this.chatId); // ← COMENTADO
 
 		// Resetear punto de estado a offline
 		if (this.avatarStatusDot) {
@@ -1999,7 +2002,7 @@ export class ChatUI {
 		}
 		this.hideOfflineBanner();
 
-		debugLog('💬 [ChatUI] ✅ Sistema de presencia desactivado');
+		debugLog('💬 [ChatUI] ✅ Sistema de presencia desactivado (permanece en sala WebSocket)');
 	}
 
 	/**
