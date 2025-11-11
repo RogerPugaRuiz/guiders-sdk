@@ -184,12 +184,12 @@ export class MessageRenderer {
         const time = messageDiv.querySelector('.chat-message-time') as HTMLElement;
         const contentWrapper = messageDiv.querySelector('.message-content-wrapper') as HTMLElement;
 
-        // ✅ ESTILOS WRAPPER - Compatible con ChatUI (MÁRGENES ULTRA MÍNIMOS)
+        // ✅ ESTILOS WRAPPER - Compatible con ChatUI
         messageDiv.style.cssText = `
             display: flex;
             align-items: flex-end;
             margin-bottom: 3px;
-            ${isUserMessage ? 'flex-direction: row-reverse; padding-left: 4px;' : 'flex-direction: row; padding-right: 4px;'}
+            ${isUserMessage ? 'flex-direction: row-reverse; margin-left: 30%;' : 'flex-direction: row; margin-right: 30%;'}
             opacity: 1;
             transform: translateY(0);
         `;
@@ -250,7 +250,7 @@ export class MessageRenderer {
                 flex-wrap: nowrap;
                 align-items: flex-end;
                 gap: 6px;
-                max-width: 75%;
+                max-width: 100%;
                 ${isUserMessage ?
                     `background: #D1E7FF;
                      color: #2c3e50;
