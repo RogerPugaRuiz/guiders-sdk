@@ -98,6 +98,8 @@ interface SDKOptions {
 		typingTimeout?: number;         // Auto-stop typing after inactivity in ms (default: 2000)
 		pollingInterval?: number;       // Presence polling interval in ms (default: 30000)
 		showOfflineBanner?: boolean;    // Show offline banner when commercial is offline (default: true)
+		heartbeatInterval?: number;     // Heartbeat interval in ms (default: 30000 = 30s según guía oficial)
+		userInteractionThrottle?: number; // User interaction throttle in ms (default: 5000 = 5s)
 	};
 	// Auto-open chat when message received
 	autoOpenChatOnMessage?: boolean;    // Auto-open chat when new message arrives (default: true)
@@ -219,6 +221,8 @@ export class TrackingPixelSDK {
 		typingTimeout: number;
 		pollingInterval: number;
 		showOfflineBanner: boolean;
+		heartbeatInterval?: number;
+		userInteractionThrottle?: number;
 	};
 	private autoOpenChatOnMessage: boolean = true;
 
@@ -261,7 +265,9 @@ export class TrackingPixelSDK {
 			typingDebounce: options.presence?.typingDebounce ?? 300,
 			typingTimeout: options.presence?.typingTimeout ?? 2000,
 			pollingInterval: options.presence?.pollingInterval ?? 30000,
-			showOfflineBanner: options.presence?.showOfflineBanner ?? true
+			showOfflineBanner: options.presence?.showOfflineBanner ?? true,
+			heartbeatInterval: options.presence?.heartbeatInterval ?? 60000,
+			userInteractionThrottle: options.presence?.userInteractionThrottle ?? 5000
 		};
 
 		debugLog('[TrackingPixelSDK] 🟢 Configuración de presencia:', this.presenceConfig);
@@ -459,7 +465,18 @@ export class TrackingPixelSDK {
 			this.sessionTrackingManager = new SessionTrackingManager(
 				(params) => {
 					setTimeout(() => {
-						this.track(params)
+						this.track(params);
+
+						// 🟢 INTEGRACIÓN CON PRESENCIA: Cuando el usuario vuelve a estar activo,
+						// enviar un heartbeat al backend para actualizar presencia
+						// El throttling automático (5s) previene saturar el backend
+						if (this.presenceService && (params.event === 'user_resume' || params.event === 'session_reactivate')) {
+							debugLog('[TrackingPixelSDK] 🟢 Usuario reactivado, enviando heartbeat de interacción...');
+							this.presenceService.recordUserInteraction() // Usa throttling de 5s para user-interaction
+								.catch(error => {
+									console.error('[TrackingPixelSDK] ❌ Error al enviar heartbeat de reactivación:', error);
+								});
+						}
 					}, 500); // Delay to ensure session data is ready
 				},
 				enhancedConfig
@@ -2502,16 +2519,25 @@ export class TrackingPixelSDK {
 					pollingInterval: this.presenceConfig.pollingInterval,
 					showTypingIndicator: this.presenceConfig.showTypingIndicator,
 					typingTimeout: this.presenceConfig.typingTimeout,
-					typingDebounce: this.presenceConfig.typingDebounce
+					typingDebounce: this.presenceConfig.typingDebounce,
+					heartbeatInterval: this.presenceConfig.heartbeatInterval,
+					userInteractionThrottle: this.presenceConfig.userInteractionThrottle
 				}
 			);
 
 			debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService inicializado');
 
-			// 💓 Iniciar heartbeat para mantener estado activo del visitante
-			// Esto previene que el backend marque al visitante como away/offline falsamente
+			// 💓 Iniciar heartbeat automático para mantener sesión viva
+			// Heartbeat tipo 'heartbeat' se envía cada 30s automáticamente (según guía oficial)
+			// Esto previene que la sesión expire por inactividad
 			this.presenceService.startHeartbeat();
-			debugLog('🟢 [TrackingPixelSDK] 💓 Heartbeat iniciado (cada 30s)');
+			debugLog('🟢 [TrackingPixelSDK] 💓 Heartbeat automático iniciado (cada 30s)');
+
+			// 👂 Configurar detección de actividad del usuario (🆕 2025)
+			// Envía heartbeat tipo 'user-interaction' cuando el usuario interactúa
+			// Reactiva al visitante a estado ONLINE si está en AWAY u OFFLINE
+			this.setupUserActivityDetection();
+			debugLog('🟢 [TrackingPixelSDK] 👂 Detección de actividad del usuario configurada');
 
 			// Configurar PresenceService en ChatUI si existe
 			if (this.chatUI) {
@@ -2543,6 +2569,65 @@ export class TrackingPixelSDK {
 		} catch (error) {
 			console.error('🟢 [TrackingPixelSDK] ❌ Error configurando PresenceService:', error);
 		}
+	}
+
+	/**
+	 * Configura listeners de actividad del usuario para enviar heartbeats de tipo 'user-interaction'
+	 * Se registra DESPUÉS de que PresenceService esté inicializado
+	 *
+	 * 🆕 2025: Nuevo método para gestión de inactividad del visitante
+	 *
+	 * Detecta actividad del usuario mediante eventos:
+	 * - click, keydown, mousemove, scroll, touchstart
+	 * - visibilitychange (usuario vuelve a la pestaña)
+	 *
+	 * Cuando se detecta actividad, envía heartbeat tipo 'user-interaction' al backend
+	 * que reactiva al visitante a estado ONLINE si está en AWAY u OFFLINE
+	 */
+	private setupUserActivityDetection(): void {
+		if (!this.presenceService) {
+			console.warn('[TrackingPixelSDK] ⚠️ No se puede configurar detección de actividad sin PresenceService');
+			return;
+		}
+
+		debugLog('[TrackingPixelSDK] 👂 Configurando detección de actividad del usuario...');
+
+		// Eventos que indican actividad real del usuario
+		const activityEvents = ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'];
+
+		// Handler throttled para evitar demasiadas llamadas
+		// Throttle local de 1 segundo (el throttle real de 5s está en PresenceService)
+		let throttleTimeout: NodeJS.Timeout | null = null;
+		const activityHandler = () => {
+			if (throttleTimeout) return;
+
+			throttleTimeout = setTimeout(() => {
+				throttleTimeout = null;
+			}, 1000); // Throttle local de 1 segundo
+
+			if (this.presenceService) {
+				this.presenceService.recordUserInteraction().catch(error => {
+					console.error('[TrackingPixelSDK] ❌ Error registrando interacción de usuario:', error);
+				});
+			}
+		};
+
+		// Registrar listeners
+		activityEvents.forEach(eventType => {
+			window.addEventListener(eventType, activityHandler, { passive: true });
+		});
+
+		// Listener especial para visibilitychange (usuario vuelve a la pestaña)
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'visible' && this.presenceService) {
+				debugLog('[TrackingPixelSDK] 👁️ Página visible, usuario volvió a la pestaña');
+				this.presenceService.recordTabFocus().catch(error => {
+					console.error('[TrackingPixelSDK] ❌ Error registrando regreso a pestaña:', error);
+				});
+			}
+		});
+
+		debugLog('[TrackingPixelSDK] ✅ Detección de actividad configurada');
 	}
 
 	/**

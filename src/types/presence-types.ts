@@ -167,6 +167,27 @@ export interface PresenceConfig {
 
   /** Debounce para detectar typing (ms) */
   typingDebounce: number;
+
+  /** Intervalo de heartbeat automático en milisegundos (default: 30000 = 30s según guía oficial) */
+  heartbeatInterval?: number;
+
+  /** Throttle para heartbeats de user-interaction en milisegundos (default: 5000 = 5s) */
+  userInteractionThrottle?: number;
+}
+
+/**
+ * Tipo de actividad para heartbeat
+ * - 'heartbeat': Mantiene sesión viva (automático cada 30s según guía oficial)
+ * - 'user-interaction': Usuario interactuó (reactiva a ONLINE)
+ */
+export type ActivityType = 'heartbeat' | 'user-interaction';
+
+/**
+ * Payload para enviar heartbeat al backend
+ */
+export interface HeartbeatPayload {
+  /** Tipo de actividad que genera el heartbeat */
+  activityType: ActivityType;
 }
 
 /**

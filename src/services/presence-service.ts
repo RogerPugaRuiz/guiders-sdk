@@ -35,7 +35,8 @@ import {
   PresenceConfig,
   PresenceChangeCallback,
   TypingChangeCallback,
-  ChatParticipant
+  ChatParticipant,
+  ActivityType
 } from '../types/presence-types';
 
 export class PresenceService {
@@ -56,8 +57,18 @@ export class PresenceService {
 
   // Heartbeat para mantener estado activo
   private heartbeatInterval: NodeJS.Timeout | null = null;
-  private heartbeatIntervalMs: number = 30000; // 30 segundos (según guía oficial)
+  private heartbeatIntervalMs: number = 30000; // 30 segundos (según guía oficial de presencia)
   private heartbeatCount: number = 0; // Contador de heartbeats enviados
+  private lastHeartbeatTime: number = 0; // Timestamp del último heartbeat enviado
+  private minHeartbeatInterval: number = 5000; // Mínimo 5 segundos entre heartbeats (throttling)
+
+  // Activity tracking para user-interaction (🆕 2025)
+  private lastUserInteractionTime: number = 0; // Timestamp de última interacción real del usuario
+  private userInteractionThrottleMs: number = 5000; // Throttle de 5 segundos para user-interaction
+
+  // Event listeners para detectar actividad del usuario (🆕 2025 - según guía oficial)
+  private boundUserInteractionHandler: EventListener | null = null;
+  private boundVisibilityChangeHandler: EventListener | null = null;
 
   constructor(
     webSocketService: WebSocketService,
@@ -74,8 +85,18 @@ export class PresenceService {
       pollingInterval: config.pollingInterval ?? 30000,
       showTypingIndicator: config.showTypingIndicator ?? true,
       typingTimeout: config.typingTimeout ?? 2000,
-      typingDebounce: config.typingDebounce ?? 300
+      typingDebounce: config.typingDebounce ?? 300,
+      heartbeatInterval: config.heartbeatInterval ?? 30000, // 30 segundos según guía oficial
+      userInteractionThrottle: config.userInteractionThrottle ?? 5000
     };
+
+    // Aplicar configuración de heartbeat (🆕 2025)
+    if (this.config.heartbeatInterval) {
+      this.heartbeatIntervalMs = this.config.heartbeatInterval;
+    }
+    if (this.config.userInteractionThrottle) {
+      this.userInteractionThrottleMs = this.config.userInteractionThrottle;
+    }
 
     debugLog('[PresenceService] 🟢 Inicializado', {
       visitorId: this.visitorId.substring(0, 8) + '...',
@@ -84,6 +105,9 @@ export class PresenceService {
 
     // Registrar listeners de WebSocket
     this.setupWebSocketListeners();
+
+    // 🆕 2025: Configurar listeners de actividad del usuario (según guía oficial de presencia)
+    this.setupUserActivityListeners();
   }
 
   /**
@@ -150,6 +174,53 @@ export class PresenceService {
     });
 
     debugLog('[PresenceService] 📡 Listeners de WebSocket configurados');
+  }
+
+  /**
+   * Configura listeners de eventos de usuario para detectar actividad
+   * Según guía oficial de presencia 2025:
+   * - Escucha: click, keydown, touchstart, scroll, mousemove
+   * - Throttling: 5 segundos para evitar spam
+   * - Envía heartbeat tipo 'user-interaction' para reactivar desde AWAY
+   *
+   * 🆕 2025: Sistema automático de detección de actividad
+   */
+  private setupUserActivityListeners(): void {
+    if (!this.config.enabled) {
+      debugLog('[PresenceService] ⚠️ Presencia deshabilitada, no se configuran listeners de actividad');
+      return;
+    }
+
+    // Crear handler con throttling incorporado (EventListener compatible)
+    this.boundUserInteractionHandler = (_event: Event) => {
+      // El throttling está implementado dentro de recordUserInteraction()
+      this.recordUserInteraction();
+    };
+
+    // Eventos a escuchar (según guía oficial)
+    const userActivityEvents = ['click', 'keydown', 'touchstart', 'scroll', 'mousemove'];
+
+    // Registrar listeners con { passive: true } para mejor performance
+    if (this.boundUserInteractionHandler) {
+      userActivityEvents.forEach(eventType => {
+        document.addEventListener(eventType, this.boundUserInteractionHandler!, { passive: true });
+      });
+      debugLog('[PresenceService] 👂 Listeners de actividad de usuario configurados:', userActivityEvents);
+    }
+
+    // 🆕 2025: Listener de visibilitychange para detectar cuando el usuario vuelve a la pestaña
+    this.boundVisibilityChangeHandler = (_event: Event) => {
+      if (document.visibilityState === 'visible') {
+        debugLog('[PresenceService] 👁️ Usuario volvió a la pestaña (visibilitychange)');
+        // Enviar heartbeat inmediato al volver a la pestaña
+        this.recordTabFocus();
+      }
+    };
+
+    if (this.boundVisibilityChangeHandler) {
+      document.addEventListener('visibilitychange', this.boundVisibilityChangeHandler);
+      debugLog('[PresenceService] 👂 Listener de visibilitychange configurado');
+    }
   }
 
   /**
@@ -410,9 +481,40 @@ export class PresenceService {
   /**
    * Envía un heartbeat al backend para actualizar lastActivity
    * Endpoint: POST /visitors/session/heartbeat (según guía oficial de presencia)
-   * Esto mantiene al visitante como "online" y previene detección de inactividad
+   *
+   * 🆕 2025: Ahora diferencia entre dos tipos de actividad:
+   * - 'heartbeat': Mantiene sesión viva (automático cada 30s según guía oficial)
+   * - 'user-interaction': Usuario interactuó (reactiva a ONLINE)
+   *
+   * @param activityType Tipo de actividad: 'heartbeat' (automático) o 'user-interaction' (reactivación)
+   * @param immediate Si es true, fuerza el envío inmediato omitiendo el throttling
    */
-  private async sendHeartbeat(): Promise<void> {
+  public async sendHeartbeat(
+    activityType: ActivityType = 'heartbeat',
+    immediate: boolean = false
+  ): Promise<void> {
+    const now = Date.now();
+    const timeSinceLastHeartbeat = now - this.lastHeartbeatTime;
+
+    // Throttling diferenciado según tipo de actividad
+    if (!immediate) {
+      if (activityType === 'heartbeat' && timeSinceLastHeartbeat < this.minHeartbeatInterval) {
+        debugLog(
+          `[PresenceService] ⏳ Heartbeat automático omitido por throttling (${timeSinceLastHeartbeat}ms < ${this.minHeartbeatInterval}ms)`
+        );
+        return;
+      }
+
+      if (activityType === 'user-interaction') {
+        const timeSinceLastInteraction = now - this.lastUserInteractionTime;
+        if (timeSinceLastInteraction < this.userInteractionThrottleMs) {
+          debugLog(
+            `[PresenceService] ⏳ User-interaction omitido por throttling (${Math.round(timeSinceLastInteraction / 1000)}s < 5s)`
+          );
+          return;
+        }
+      }
+    }
     try {
       const endpoint = this.endpointManager.getEndpoint();
       const url = `${endpoint}/visitors/session/heartbeat`;
@@ -421,9 +523,10 @@ export class PresenceService {
       this.heartbeatCount++;
       const timestamp = new Date().toISOString();
 
-      console.log(`[PresenceService] 💓 Enviando heartbeat #${this.heartbeatCount} a las ${timestamp}`);
+      console.log(`[PresenceService] 💓 Enviando heartbeat #${this.heartbeatCount} (${activityType}) a las ${timestamp}`);
       console.log(`[PresenceService] 📍 URL: ${url}`);
       console.log(`[PresenceService] 👤 Visitor ID: ${this.visitorId.substring(0, 8)}...`);
+      console.log(`[PresenceService] 🎯 Activity Type: ${activityType}`);
 
       // Obtener sessionId para el header x-guiders-sid
       const sessionId = typeof sessionStorage !== 'undefined'
@@ -447,13 +550,22 @@ export class PresenceService {
       const response = await fetch(url, {
         method: 'POST',
         credentials: 'include', // ✅ Enviar cookies de sesión para autenticación
-        headers
+        headers,
+        body: JSON.stringify({
+          activityType
+        })
       });
+
+      // Actualizar timestamps según tipo de actividad
+      this.lastHeartbeatTime = now;
+      if (activityType === 'user-interaction') {
+        this.lastUserInteractionTime = now;
+      }
 
       const duration = Date.now() - startTime;
 
       if (!response.ok) {
-        console.error(`[PresenceService] ❌ Heartbeat #${this.heartbeatCount} FALLÓ`);
+        console.error(`[PresenceService] ❌ Heartbeat #${this.heartbeatCount} (${activityType}) FALLÓ`);
         console.error(`[PresenceService] 📊 Status: ${response.status} ${response.statusText}`);
         console.error(`[PresenceService] ⏱️ Duración: ${duration}ms`);
 
@@ -467,7 +579,7 @@ export class PresenceService {
           // Ignorar si no se puede leer el body
         }
       } else {
-        console.log(`[PresenceService] ✅ Heartbeat #${this.heartbeatCount} enviado EXITOSAMENTE`);
+        console.log(`[PresenceService] ✅ Heartbeat #${this.heartbeatCount} (${activityType}) enviado EXITOSAMENTE`);
         console.log(`[PresenceService] 📊 Status: ${response.status} ${response.statusText}`);
         console.log(`[PresenceService] ⏱️ Duración: ${duration}ms`);
 
@@ -487,12 +599,48 @@ export class PresenceService {
         }
       }
     } catch (error) {
-      console.error(`[PresenceService] ❌ EXCEPCIÓN en heartbeat #${this.heartbeatCount}:`, error);
+      console.error(`[PresenceService] ❌ EXCEPCIÓN en heartbeat #${this.heartbeatCount} (${activityType}):`, error);
       if (error instanceof Error) {
         console.error(`[PresenceService] 📛 Error: ${error.message}`);
         console.error(`[PresenceService] 📚 Stack: ${error.stack}`);
       }
     }
+  }
+
+  /**
+   * Registra una interacción del usuario y envía heartbeat de tipo 'user-interaction'
+   * Este método debe ser llamado cuando se detecta actividad real del usuario
+   * (click, keydown, mousemove, scroll, touchstart, visibilitychange)
+   *
+   * El throttling de 5 segundos previene enviar demasiados heartbeats
+   *
+   * 🆕 2025: Nuevo método para gestión de inactividad del visitante
+   */
+  public async recordUserInteraction(): Promise<void> {
+    const now = Date.now();
+    const timeSinceLastInteraction = now - this.lastUserInteractionTime;
+
+    // Throttling: máximo 1 interacción cada 5 segundos
+    if (timeSinceLastInteraction < this.userInteractionThrottleMs) {
+      debugLog(
+        `[PresenceService] ⏳ User interaction omitida por throttling (${Math.round(timeSinceLastInteraction / 1000)}s < 5s)`
+      );
+      return;
+    }
+
+    debugLog('[PresenceService] 👆 Interacción de usuario detectada, enviando heartbeat...');
+    await this.sendHeartbeat('user-interaction', false);
+  }
+
+  /**
+   * Registra que el usuario volvió a la pestaña y envía heartbeat inmediato
+   * Este método se llama cuando visibilitychange detecta que la página volvió a estar visible
+   *
+   * 🆕 2025: Nuevo método para gestión de inactividad del visitante
+   */
+  public async recordTabFocus(): Promise<void> {
+    debugLog('[PresenceService] 👁️ Usuario volvió a la pestaña, enviando heartbeat inmediato...');
+    await this.sendHeartbeat('user-interaction', true); // immediate = true para bypass throttling
   }
 
   /**
@@ -633,6 +781,23 @@ export class PresenceService {
 
     // Detener heartbeat
     this.stopHeartbeat();
+
+    // 🆕 2025: Remover listeners de actividad de usuario (según guía oficial)
+    if (this.boundUserInteractionHandler) {
+      const userActivityEvents = ['click', 'keydown', 'touchstart', 'scroll', 'mousemove'];
+      userActivityEvents.forEach(eventType => {
+        document.removeEventListener(eventType, this.boundUserInteractionHandler!);
+      });
+      this.boundUserInteractionHandler = null;
+      debugLog('[PresenceService] ✅ Listeners de actividad de usuario removidos');
+    }
+
+    // 🆕 2025: Remover listener de visibilitychange
+    if (this.boundVisibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', this.boundVisibilityChangeHandler);
+      this.boundVisibilityChangeHandler = null;
+      debugLog('[PresenceService] ✅ Listener de visibilitychange removido');
+    }
 
     // Detener todos los typing activos
     this.currentlyTypingIn.forEach(chatId => {
