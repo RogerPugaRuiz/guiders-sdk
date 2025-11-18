@@ -221,41 +221,86 @@ export class ChatV2Service {
 
 	/**
 	 * Abre un chat (notifica al backend que el visitante está viendo el chat)
+	 *
+	 * NOTA: Este endpoint es OPCIONAL. Si el backend no lo tiene implementado,
+	 * el chat seguirá funcionando normalmente (solo no se sincronizará el estado).
+	 *
 	 * @param chatId ID del chat
-	 * @returns Promise con el chat actualizado
+	 * @returns Promise con el chat actualizado, o null si el endpoint no está disponible
 	 */
-	async openChat(chatId: string): Promise<ChatV2> {
+	async openChat(chatId: string): Promise<ChatV2 | null> {
 		debugLog(`[ChatV2Service] 🔓 Abriendo chat ${chatId}`);
 
-		const response = await fetch(`${this.getBaseUrl()}/${chatId}/open`, this.getFetchOptions('PUT'));
+		try {
+			const response = await fetch(`${this.getBaseUrl()}/${chatId}/open`, this.getFetchOptions('PUT'));
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			console.error(`[ChatV2Service] ❌ Error al abrir chat:`, errorText);
-			throw new Error(`Error al abrir chat (${response.status}): ${errorText}`);
+			// Si el endpoint no existe (404) o no está implementado (501), es opcional
+			if (response.status === 404 || response.status === 501) {
+				console.warn(`[ChatV2Service] ⚠️ Endpoint /open no disponible (${response.status}) - continuando sin sincronizar estado`);
+				return null;
+			}
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				console.error(`[ChatV2Service] ❌ Error al abrir chat:`, errorText);
+				throw new Error(`Error al abrir chat (${response.status}): ${errorText}`);
+			}
+
+			const chat = await response.json() as ChatV2;
+			debugLog(`[ChatV2Service] ✅ Chat abierto exitosamente`);
+
+			return chat;
+		} catch (error) {
+			// Si es error de red o endpoint no existe, no es crítico
+			if (error instanceof TypeError) {
+				console.warn(`[ChatV2Service] ⚠️ No se pudo conectar al endpoint /open - continuando sin sincronizar estado`);
+				return null;
+			}
+			// Re-lanzar otros errores
+			throw error;
 		}
-
-		const chat = await response.json() as ChatV2;
-		debugLog(`[ChatV2Service] ✅ Chat abierto exitosamente`);
-
-		return chat;
 	}
 
-	async closeChat(chatId: string): Promise<ChatV2> {
+	/**
+	 * Cierra un chat (notifica al backend que el visitante cerró el chat)
+	 *
+	 * NOTA: Este endpoint es OPCIONAL. Si el backend no lo tiene implementado,
+	 * el chat seguirá funcionando normalmente (solo no se sincronizará el estado).
+	 *
+	 * @param chatId ID del chat
+	 * @returns Promise con el chat actualizado, o null si el endpoint no está disponible
+	 */
+	async closeChat(chatId: string): Promise<ChatV2 | null> {
 		debugLog(`[ChatV2Service] 🔒 Cerrando chat ${chatId}`);
 
-		const response = await fetch(`${this.getBaseUrl()}/${chatId}/close`, this.getFetchOptions('PUT'));
+		try {
+			const response = await fetch(`${this.getBaseUrl()}/${chatId}/close`, this.getFetchOptions('PUT'));
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			console.error(`[ChatV2Service] ❌ Error al cerrar chat:`, errorText);
-			throw new Error(`Error al cerrar chat (${response.status}): ${errorText}`);
+			// Si el endpoint no existe (404) o no está implementado (501), es opcional
+			if (response.status === 404 || response.status === 501) {
+				console.warn(`[ChatV2Service] ⚠️ Endpoint /close no disponible (${response.status}) - continuando sin sincronizar estado`);
+				return null;
+			}
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				console.error(`[ChatV2Service] ❌ Error al cerrar chat:`, errorText);
+				throw new Error(`Error al cerrar chat (${response.status}): ${errorText}`);
+			}
+
+			const chat = await response.json() as ChatV2;
+			debugLog(`[ChatV2Service] ✅ Chat cerrado exitosamente`);
+
+			return chat;
+		} catch (error) {
+			// Si es error de red o endpoint no existe, no es crítico
+			if (error instanceof TypeError) {
+				console.warn(`[ChatV2Service] ⚠️ No se pudo conectar al endpoint /close - continuando sin sincronizar estado`);
+				return null;
+			}
+			// Re-lanzar otros errores
+			throw error;
 		}
-
-		const chat = await response.json() as ChatV2;
-		debugLog(`[ChatV2Service] ✅ Chat cerrado exitosamente`);
-
-		return chat;
 	}
 
 	/**
