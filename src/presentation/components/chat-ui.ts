@@ -47,6 +47,7 @@ export class ChatUI {
 	private subtitleElement: HTMLElement | null = null;
 	private typingIndicator: HTMLElement | null = null;
 	private lastMessageDate: string | null = null;
+	private avatarElement: HTMLElement | null = null;
 	private avatarStatusDot: HTMLElement | null = null;
 
 	// Componentes de presencia
@@ -200,7 +201,8 @@ export class ChatUI {
 		avatarContainer.appendChild(avatar);
 		avatarContainer.appendChild(statusDot);
 
-		// Guardar referencia al punto de estado para actualizarlo después
+		// Guardar referencias para actualizarlas después
+		this.avatarElement = avatar;
 		this.avatarStatusDot = statusDot;
 
 		// Contenedor de título (simplificado - solo nombre)
@@ -1480,6 +1482,41 @@ export class ChatUI {
 			this.titleElement.textContent = advisor.name || 'Asesor';
 		} else {
 			this.titleElement.textContent = 'Chat';
+		}
+
+		// Actualizar avatar si hay avatarUrl disponible
+		if (this.chatDetail.assignedCommercial?.avatarUrl && this.avatarElement) {
+			// Reemplazar el SVG con una imagen
+			const avatarUrl = this.chatDetail.assignedCommercial.avatarUrl;
+			const avatarName = this.chatDetail.assignedCommercial.name;
+
+			// Crear elemento de imagen
+			const img = document.createElement('img');
+			img.src = avatarUrl;
+			img.alt = avatarName;
+			img.style.cssText = `
+				width: 44px;
+				height: 44px;
+				object-fit: cover;
+				border-radius: 50%;
+				display: block;
+			`;
+
+			// Manejar error de carga
+			img.onerror = () => {
+				// Si falla, restaurar el SVG por defecto
+				this.avatarElement!.innerHTML = `
+					<svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="white"/>
+					</svg>
+				`;
+			};
+
+			// Limpiar contenido anterior, quitar fondo y añadir imagen
+			this.avatarElement.innerHTML = '';
+			this.avatarElement.style.background = 'transparent';
+			this.avatarElement.style.padding = '0';
+			this.avatarElement.appendChild(img);
 		}
 
 		// El punto de estado en el avatar maneja la presencia visualmente

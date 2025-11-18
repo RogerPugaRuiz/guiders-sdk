@@ -51,6 +51,7 @@ export interface ChatDetail {
 	lastMessage: any | null;
 	lastMessageAt: string | null;
 	createdAt: string;
+	assignedCommercial?: AssignedCommercial;
 }
 
 /**
@@ -204,7 +205,8 @@ export function convertV2ToLegacy(chatDetailV2: ChatDetailV2): ChatDetail {
 		status: chatDetailV2.status,
 		lastMessage: null, // V2 no incluye el último mensaje directamente
 		lastMessageAt: chatDetailV2.lastMessageDate?.toISOString() || null,
-		createdAt: chatDetailV2.createdAt.toISOString()
+		createdAt: chatDetailV2.createdAt.toISOString(),
+		assignedCommercial: chatDetailV2.assignedCommercial
 	};
 }
 

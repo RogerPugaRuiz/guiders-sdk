@@ -64,11 +64,17 @@ export class PresenceService {
 
   // Activity tracking para user-interaction (🆕 2025)
   private lastUserInteractionTime: number = 0; // Timestamp de última interacción real del usuario
-  private userInteractionThrottleMs: number = 5000; // Throttle de 5 segundos para user-interaction
+  private userInteractionThrottleMs: number = 10000; // Throttle de 10 segundos para user-interaction (incrementado desde 5s)
+  private isThrottlingActive: boolean = false; // Flag para evitar llamadas redundantes durante throttling
 
   // Event listeners para detectar actividad del usuario (🆕 2025 - según guía oficial)
   private boundUserInteractionHandler: EventListener | null = null;
+  private boundHighFrequencyHandler: EventListener | null = null;
   private boundVisibilityChangeHandler: EventListener | null = null;
+
+  // Throttling para eventos de alta frecuencia (mousemove, scroll)
+  private highFrequencyThrottleMs: number = 30000; // 30 segundos para eventos de alta frecuencia
+  private lastHighFrequencyTime: number = 0;
 
   constructor(
     webSocketService: WebSocketService,
@@ -87,7 +93,8 @@ export class PresenceService {
       typingTimeout: config.typingTimeout ?? 2000,
       typingDebounce: config.typingDebounce ?? 300,
       heartbeatInterval: config.heartbeatInterval ?? 30000, // 30 segundos según guía oficial
-      userInteractionThrottle: config.userInteractionThrottle ?? 5000
+      userInteractionThrottle: config.userInteractionThrottle ?? 10000, // Incrementado de 5s a 10s
+      highFrequencyThrottle: config.highFrequencyThrottle ?? 30000 // 30s para eventos de alta frecuencia
     };
 
     // Aplicar configuración de heartbeat (🆕 2025)
@@ -96,6 +103,9 @@ export class PresenceService {
     }
     if (this.config.userInteractionThrottle) {
       this.userInteractionThrottleMs = this.config.userInteractionThrottle;
+    }
+    if (this.config.highFrequencyThrottle) {
+      this.highFrequencyThrottleMs = this.config.highFrequencyThrottle;
     }
 
     debugLog('[PresenceService] 🟢 Inicializado', {
@@ -179,11 +189,11 @@ export class PresenceService {
   /**
    * Configura listeners de eventos de usuario para detectar actividad
    * Según guía oficial de presencia 2025:
-   * - Escucha: click, keydown, touchstart, scroll, mousemove
-   * - Throttling: 5 segundos para evitar spam
+   * - Escucha: click, keydown, touchstart (throttle 10s)
+   * - Escucha: scroll, mousemove (throttle 30s - eventos de alta frecuencia)
    * - Envía heartbeat tipo 'user-interaction' para reactivar desde AWAY
    *
-   * 🆕 2025: Sistema automático de detección de actividad
+   * 🆕 2025: Sistema automático de detección de actividad con throttling diferenciado
    */
   private setupUserActivityListeners(): void {
     if (!this.config.enabled) {
@@ -191,21 +201,36 @@ export class PresenceService {
       return;
     }
 
-    // Crear handler con throttling incorporado (EventListener compatible)
+    // Handler para eventos de baja frecuencia (click, keydown, touchstart) - throttle 10s
     this.boundUserInteractionHandler = (_event: Event) => {
-      // El throttling está implementado dentro de recordUserInteraction()
       this.recordUserInteraction();
     };
 
-    // Eventos a escuchar (según guía oficial)
-    const userActivityEvents = ['click', 'keydown', 'touchstart', 'scroll', 'mousemove'];
+    // Handler para eventos de alta frecuencia (mousemove, scroll) - throttle 30s
+    this.boundHighFrequencyHandler = (_event: Event) => {
+      this.recordHighFrequencyInteraction();
+    };
 
-    // Registrar listeners con { passive: true } para mejor performance
+    // Eventos de baja frecuencia (throttle 10s)
+    const lowFrequencyEvents = ['click', 'keydown', 'touchstart'];
+
+    // Eventos de alta frecuencia (throttle 30s)
+    const highFrequencyEvents = ['mousemove', 'scroll'];
+
+    // Registrar listeners de baja frecuencia con { passive: true } para mejor performance
     if (this.boundUserInteractionHandler) {
-      userActivityEvents.forEach(eventType => {
+      lowFrequencyEvents.forEach(eventType => {
         document.addEventListener(eventType, this.boundUserInteractionHandler!, { passive: true });
       });
-      debugLog('[PresenceService] 👂 Listeners de actividad de usuario configurados:', userActivityEvents);
+      debugLog('[PresenceService] 👂 Listeners de baja frecuencia configurados:', lowFrequencyEvents);
+    }
+
+    // Registrar listeners de alta frecuencia con { passive: true } para mejor performance
+    if (this.boundHighFrequencyHandler) {
+      highFrequencyEvents.forEach(eventType => {
+        document.addEventListener(eventType, this.boundHighFrequencyHandler!, { passive: true });
+      });
+      debugLog('[PresenceService] 👂 Listeners de alta frecuencia configurados:', highFrequencyEvents);
     }
 
     // 🆕 2025: Listener de visibilitychange para detectar cuando el usuario vuelve a la pestaña
@@ -608,27 +633,66 @@ export class PresenceService {
   }
 
   /**
-   * Registra una interacción del usuario y envía heartbeat de tipo 'user-interaction'
-   * Este método debe ser llamado cuando se detecta actividad real del usuario
-   * (click, keydown, mousemove, scroll, touchstart, visibilitychange)
+   * Registra una interacción del usuario de baja frecuencia (click, keydown, touchstart)
+   * y envía heartbeat de tipo 'user-interaction'
    *
-   * El throttling de 5 segundos previene enviar demasiados heartbeats
+   * El throttling de 10 segundos previene enviar demasiados heartbeats
    *
-   * 🆕 2025: Nuevo método para gestión de inactividad del visitante
+   * 🆕 2025: Mejorado con flag de throttling para evitar ejecuciones redundantes
    */
   public async recordUserInteraction(): Promise<void> {
+    // Early return si el throttling está activo (sin verificar timestamps)
+    if (this.isThrottlingActive) {
+      return;
+    }
+
     const now = Date.now();
     const timeSinceLastInteraction = now - this.lastUserInteractionTime;
 
-    // Throttling: máximo 1 interacción cada 5 segundos
+    // Throttling: máximo 1 interacción cada 10 segundos
     if (timeSinceLastInteraction < this.userInteractionThrottleMs) {
       debugLog(
-        `[PresenceService] ⏳ User interaction omitida por throttling (${Math.round(timeSinceLastInteraction / 1000)}s < 5s)`
+        `[PresenceService] ⏳ User interaction omitida por throttling (${Math.round(timeSinceLastInteraction / 1000)}s < ${this.userInteractionThrottleMs / 1000}s)`
       );
       return;
     }
 
-    debugLog('[PresenceService] 👆 Interacción de usuario detectada, enviando heartbeat...');
+    // Activar flag de throttling para evitar múltiples llamadas simultáneas
+    this.isThrottlingActive = true;
+
+    debugLog('[PresenceService] 👆 Interacción de usuario detectada (baja frecuencia), enviando heartbeat...');
+
+    try {
+      await this.sendHeartbeat('user-interaction', false);
+    } finally {
+      // Desactivar flag después del throttle configurado
+      setTimeout(() => {
+        this.isThrottlingActive = false;
+      }, this.userInteractionThrottleMs);
+    }
+  }
+
+  /**
+   * Registra una interacción del usuario de alta frecuencia (mousemove, scroll)
+   * y envía heartbeat de tipo 'user-interaction' con throttling más agresivo
+   *
+   * El throttling de 30 segundos previene spam de eventos de alta frecuencia
+   *
+   * 🆕 2025: Nuevo método para eventos que se disparan múltiples veces por segundo
+   */
+  public async recordHighFrequencyInteraction(): Promise<void> {
+    const now = Date.now();
+    const timeSinceLastHighFrequency = now - this.lastHighFrequencyTime;
+
+    // Throttling: máximo 1 interacción cada 30 segundos para eventos de alta frecuencia
+    if (timeSinceLastHighFrequency < this.highFrequencyThrottleMs) {
+      // No log para eventos de alta frecuencia (demasiado verbose)
+      return;
+    }
+
+    this.lastHighFrequencyTime = now;
+
+    debugLog('[PresenceService] 🔄 Interacción de usuario detectada (alta frecuencia), enviando heartbeat...');
     await this.sendHeartbeat('user-interaction', false);
   }
 
@@ -784,12 +848,22 @@ export class PresenceService {
 
     // 🆕 2025: Remover listeners de actividad de usuario (según guía oficial)
     if (this.boundUserInteractionHandler) {
-      const userActivityEvents = ['click', 'keydown', 'touchstart', 'scroll', 'mousemove'];
-      userActivityEvents.forEach(eventType => {
+      const lowFrequencyEvents = ['click', 'keydown', 'touchstart'];
+      lowFrequencyEvents.forEach(eventType => {
         document.removeEventListener(eventType, this.boundUserInteractionHandler!);
       });
       this.boundUserInteractionHandler = null;
-      debugLog('[PresenceService] ✅ Listeners de actividad de usuario removidos');
+      debugLog('[PresenceService] ✅ Listeners de baja frecuencia removidos');
+    }
+
+    // Remover listeners de alta frecuencia
+    if (this.boundHighFrequencyHandler) {
+      const highFrequencyEvents = ['mousemove', 'scroll'];
+      highFrequencyEvents.forEach(eventType => {
+        document.removeEventListener(eventType, this.boundHighFrequencyHandler!);
+      });
+      this.boundHighFrequencyHandler = null;
+      debugLog('[PresenceService] ✅ Listeners de alta frecuencia removidos');
     }
 
     // 🆕 2025: Remover listener de visibilitychange

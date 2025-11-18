@@ -171,8 +171,11 @@ export interface PresenceConfig {
   /** Intervalo de heartbeat automático en milisegundos (default: 30000 = 30s según guía oficial) */
   heartbeatInterval?: number;
 
-  /** Throttle para heartbeats de user-interaction en milisegundos (default: 5000 = 5s) */
+  /** Throttle para heartbeats de user-interaction en milisegundos (default: 10000 = 10s) */
   userInteractionThrottle?: number;
+
+  /** Throttle para eventos de alta frecuencia (mousemove, scroll) en milisegundos (default: 30000 = 30s) */
+  highFrequencyThrottle?: number;
 }
 
 /**

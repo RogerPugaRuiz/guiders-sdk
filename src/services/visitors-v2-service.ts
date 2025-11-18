@@ -155,8 +155,12 @@ export class VisitorsV2Service {
 
   /**
    * Envía heartbeat para mantener viva la sesión backend.
+   *
+   * 🆕 2025: Ahora soporta tipo de actividad para gestión de inactividad
+   *
+   * @param activityType (Opcional) Tipo de actividad: 'heartbeat' o 'user-interaction'
    */
-  public async heartbeat(): Promise<boolean> {
+  public async heartbeat(activityType?: 'heartbeat' | 'user-interaction'): Promise<boolean> {
     try {
       const sessionId = sessionStorage.getItem('guiders_backend_session_id');
       if (!sessionId) {
@@ -165,22 +169,29 @@ export class VisitorsV2Service {
       }
 
       const url = `${this.getBaseUrl()}/session/heartbeat`;
+
+      // Construir body con sessionId y activityType si se proporciona
+      const body: any = { sessionId };
+      if (activityType) {
+        body.activityType = activityType;
+      }
+
       const res = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-guiders-sid': sessionId
         },
-        body: JSON.stringify({ sessionId }),
+        body: JSON.stringify(body),
         credentials: 'include'
       });
-      
+
       if (!res.ok) {
         const errorText = await res.text();
         console.warn('[VisitorsV2Service] ❌ Heartbeat fallido:', res.status, errorText);
         return false;
       }
-      console.log('[VisitorsV2Service] ✅ Heartbeat exitoso');
+      console.log('[VisitorsV2Service] ✅ Heartbeat exitoso' + (activityType ? ` (${activityType})` : ''));
       return true;
     } catch (e) {
       console.warn('[VisitorsV2Service] ❌ Excepción heartbeat:', e);

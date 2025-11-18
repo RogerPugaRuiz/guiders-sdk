@@ -116,6 +116,7 @@ export interface ChatMetadataV2 {
 export interface AssignedCommercial {
 	id: string;
 	name: string;
+	avatarUrl?: string;
 }
 
 export interface ChatV2 {
