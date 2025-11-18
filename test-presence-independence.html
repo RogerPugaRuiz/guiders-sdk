@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test: Presencia Independiente del Chat</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      max-width: 1400px;
+      margin: 40px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #ffffff;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      color: #ffffff;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      border-bottom: 3px solid rgba(255, 255, 255, 0.3);
+      padding-bottom: 15px;
+    }
+    h2 {
+      color: #f0f0f0;
+      margin-top: 0;
+    }
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin: 25px 0;
+    }
+    .status-card {
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    .status-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+    .status-card.active {
+      border-color: #10B981;
+      background: rgba(16, 185, 129, 0.2);
+    }
+    .status-label {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .status-value {
+      font-size: 36px;
+      font-weight: bold;
+      color: #ffffff;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    .event-log {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 20px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    .log-entry {
+      margin: 8px 0;
+      padding: 8px 12px;
+      border-left: 4px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      line-height: 1.6;
+    }
+    .log-entry.heartbeat { border-left-color: #3B82F6; }
+    .log-entry.interaction { border-left-color: #10B981; }
+    .log-entry.system { border-left-color: #F59E0B; }
+    .log-entry.error { border-left-color: #EF4444; }
+    .button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    }
+    .button.danger {
+      background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+    }
+    .instructions {
+      background: rgba(255, 255, 255, 0.1);
+      border-left: 5px solid #F59E0B;
+      padding: 20px;
+      margin: 25px 0;
+      border-radius: 8px;
+    }
+    .instructions h3 {
+      margin-top: 0;
+      color: #FCD34D;
+    }
+    .instructions ol {
+      margin: 15px 0;
+      padding-left: 25px;
+    }
+    .instructions li {
+      margin: 12px 0;
+      line-height: 1.6;
+    }
+    .highlight {
+      background: rgba(252, 211, 77, 0.3);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+    }
+    .chat-status {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .chat-status.open {
+      background: rgba(16, 185, 129, 0.3);
+      border: 2px solid #10B981;
+      color: #10B981;
+    }
+    .chat-status.closed {
+      background: rgba(107, 114, 128, 0.3);
+      border: 2px solid #6B7280;
+      color: #D1D5DB;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Test: Sistema de Presencia Independiente del Chat</h1>
+
+  <div class="instructions">
+    <h3>📋 Objetivo de la Prueba</h3>
+    <p>Verificar que el sistema de presencia detecta la actividad del usuario <span class="highlight">INDEPENDIENTEMENTE</span> de si el chat está abierto o cerrado.</p>
+
+    <ol>
+      <li><strong>NO abras el chat</strong> - Déjalo cerrado todo el tiempo</li>
+      <li><strong>Interactúa con la página</strong>:
+        <ul>
+          <li>Haz scroll hacia arriba y abajo</li>
+          <li>Haz clicks en cualquier parte</li>
+          <li>Mueve el mouse por la página</li>
+          <li>Presiona teclas (ej: flechas)</li>
+        </ul>
+      </li>
+      <li><strong>Observa el contador</strong> de "User Interactions Detected"</li>
+      <li><strong>Verifica que aumenta</strong> incluso con el chat <span class="highlight">CERRADO</span></li>
+    </ol>
+  </div>
+
+  <div class="container">
+    <h2>🎯 Estado del Chat</h2>
+    <div style="text-align: center; padding: 20px;">
+      <div id="chat-status" class="chat-status closed">
+        CHAT CERRADO ⚫
+      </div>
+      <p style="margin-top: 15px; font-size: 14px; opacity: 0.8;">
+        Si el sistema funciona correctamente, los contadores deberían aumentar <strong>sin importar</strong> este estado
+      </p>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>📊 Métricas del Sistema de Presencia</h2>
+    <div class="status-grid">
+      <div class="status-card">
+        <div class="status-label">Heartbeats Automáticos</div>
+        <div class="status-value" id="heartbeat-count">0</div>
+        <div style="font-size: 12px; margin-top: 10px; opacity: 0.7;">
+          Enviados cada 30s automáticamente
+        </div>
+      </div>
+
+      <div class="status-card active" id="interaction-card">
+        <div class="status-label">🎯 User Interactions Detected</div>
+        <div class="status-value" id="interaction-count">0</div>
+        <div style="font-size: 12px; margin-top: 10px; opacity: 0.9;">
+          <strong>Este debe aumentar con chat CERRADO</strong>
+        </div>
+      </div>
+
+      <div class="status-card">
+        <div class="status-label">Tiempo Desde Última Interacción</div>
+        <div class="status-value" id="inactive-time" style="font-size: 24px;">0s</div>
+      </div>
+
+      <div class="status-card">
+        <div class="status-label">Eventos de Usuario Capturados</div>
+        <div class="status-value" id="event-count">0</div>
+        <div style="font-size: 12px; margin-top: 10px; opacity: 0.7;">
+          Clicks, scroll, teclas, mouse
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>🎮 Controles de Prueba</h2>
+    <div style="text-align: center;">
+      <button class="button" onclick="simulateInteraction()">
+        👆 Simular Interacción Manual
+      </button>
+      <button class="button danger" onclick="clearEventLog()">
+        🗑️ Limpiar Log
+      </button>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>📜 Log de Eventos del Sistema</h2>
+    <div class="event-log" id="event-log"></div>
+  </div>
+
+  <script src="./guiders-sdk.js"></script>
+  <script>
+    // Contadores globales
+    let heartbeatCount = 0;
+    let interactionCount = 0;
+    let eventCount = 0;
+    let lastInteractionTime = Date.now();
+
+    // Inicializar SDK
+    const sdk = new TrackingPixelSDK({
+      apiKey: 'gds_test_presence_independence',
+      domain: window.location.hostname,
+      requireConsent: false,
+      presence: {
+        enabled: true,
+        heartbeatInterval: 30000, // 30 segundos
+        userInteractionThrottle: 5000 // 5 segundos
+      }
+    });
+
+    // Función para agregar logs
+    function addLog(message, type = 'system') {
+      const log = document.getElementById('event-log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      const timestamp = new Date().toLocaleTimeString();
+      entry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+      log.insertBefore(entry, log.firstChild);
+
+      // Limitar a 50 entradas
+      if (log.children.length > 50) {
+        log.removeChild(log.lastChild);
+      }
+    }
+
+    // Interceptar heartbeats del PresenceService
+    if (sdk.presenceService) {
+      const originalSendHeartbeat = sdk.presenceService.sendHeartbeat.bind(sdk.presenceService);
+
+      sdk.presenceService.sendHeartbeat = async function(activityType = 'heartbeat', immediate = false) {
+        if (activityType === 'heartbeat') {
+          heartbeatCount++;
+          document.getElementById('heartbeat-count').textContent = heartbeatCount;
+          addLog(`💓 Heartbeat automático #${heartbeatCount}`, 'heartbeat');
+        } else if (activityType === 'user-interaction') {
+          interactionCount++;
+          lastInteractionTime = Date.now();
+          document.getElementById('interaction-count').textContent = interactionCount;
+
+          // Animación visual
+          const card = document.getElementById('interaction-card');
+          card.style.transform = 'scale(1.05)';
+          setTimeout(() => { card.style.transform = 'scale(1)'; }, 200);
+
+          addLog(`👆 <strong>User-interaction detectada</strong> #${interactionCount} (Chat CERRADO)`, 'interaction');
+        }
+
+        return originalSendHeartbeat(activityType, immediate);
+      };
+
+      addLog('✅ Sistema de presencia inicializado correctamente', 'system');
+      addLog('👂 Listeners GLOBALES activos en document (independientes del chat)', 'system');
+    } else {
+      addLog('❌ ERROR: PresenceService no se inicializó', 'error');
+    }
+
+    // Detectar eventos de usuario MANUALMENTE para el contador
+    const userEvents = ['click', 'keydown', 'scroll', 'mousemove', 'touchstart'];
+    let lastEventLog = 0;
+
+    userEvents.forEach(eventType => {
+      document.addEventListener(eventType, (e) => {
+        eventCount++;
+        document.getElementById('event-count').textContent = eventCount;
+
+        // Log throttled (máximo 1 log por segundo)
+        const now = Date.now();
+        if (now - lastEventLog > 1000) {
+          lastEventLog = now;
+          addLog(`🎯 Evento de usuario: <code>${eventType}</code> (Chat sigue CERRADO)`, 'interaction');
+        }
+      }, { passive: true });
+    });
+
+    // Actualizar tiempo de inactividad
+    setInterval(() => {
+      const inactiveMs = Date.now() - lastInteractionTime;
+      const inactiveSec = Math.floor(inactiveMs / 1000);
+      const inactiveMin = Math.floor(inactiveSec / 60);
+      const sec = inactiveSec % 60;
+
+      const timeText = inactiveMin > 0 ? `${inactiveMin}m ${sec}s` : `${sec}s`;
+      document.getElementById('inactive-time').textContent = timeText;
+    }, 1000);
+
+    // Detectar si el chat se abre (para actualizar el indicador)
+    const chatObserver = new MutationObserver(() => {
+      const chatElement = document.querySelector('.guiders-chat-container');
+      const statusEl = document.getElementById('chat-status');
+
+      if (chatElement && chatElement.classList.contains('visible')) {
+        statusEl.className = 'chat-status open';
+        statusEl.textContent = 'CHAT ABIERTO 🟢';
+        addLog('🔓 Chat ABIERTO - Presencia debería seguir funcionando igual', 'system');
+      } else {
+        statusEl.className = 'chat-status closed';
+        statusEl.textContent = 'CHAT CERRADO ⚫';
+      }
+    });
+
+    // Observar cambios en el body
+    chatObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    // Funciones de control
+    function simulateInteraction() {
+      if (sdk.presenceService) {
+        sdk.presenceService.recordUserInteraction();
+        addLog('🎮 Interacción manual simulada', 'interaction');
+      }
+    }
+
+    function clearEventLog() {
+      document.getElementById('event-log').innerHTML = '';
+      addLog('🧹 Log limpiado', 'system');
+    }
+
+    // Log inicial
+    addLog('🚀 Test iniciado - Chat debe permanecer CERRADO', 'system');
+    addLog('📝 Instrucciones: Interactúa con la página (scroll, clicks, teclas)', 'system');
+    addLog('🎯 Objetivo: Verificar que el contador de interacciones aumenta SIN abrir el chat', 'system');
+  </script>
+</body>
+</html>

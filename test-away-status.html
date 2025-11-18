@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test: AWAY Status Detection</title>
+  <style>
+    body {
+      font-family: 'Monaco', 'Courier New', monospace;
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+    }
+    .container {
+      background: #252526;
+      border: 1px solid #3c3c3c;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      color: #4ec9b0;
+      border-bottom: 2px solid #4ec9b0;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #dcdcaa;
+      margin-top: 0;
+    }
+    .status-box {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .status-item {
+      background: #1e1e1e;
+      border: 2px solid #3c3c3c;
+      border-radius: 6px;
+      padding: 15px;
+    }
+    .status-item.online { border-color: #10B981; }
+    .status-item.away { border-color: #F59E0B; }
+    .status-item.offline { border-color: #6B7280; }
+    .status-label {
+      font-size: 12px;
+      color: #858585;
+      margin-bottom: 5px;
+    }
+    .status-value {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .log {
+      background: #1e1e1e;
+      border: 1px solid #3c3c3c;
+      border-radius: 4px;
+      padding: 15px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .log-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-left: 3px solid #3c3c3c;
+      padding-left: 10px;
+    }
+    .log-entry.heartbeat { border-left-color: #569cd6; }
+    .log-entry.interaction { border-left-color: #4ec9b0; }
+    .log-entry.error { border-left-color: #f48771; }
+    .button {
+      background: #0e639c;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+    .button:hover {
+      background: #1177bb;
+    }
+    .button.danger {
+      background: #a1260d;
+    }
+    .button.danger:hover {
+      background: #c72e0d;
+    }
+    .button.success {
+      background: #0e639c;
+    }
+    .instructions {
+      background: #2d2d30;
+      border-left: 4px solid #dcdcaa;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .instructions ol {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    .instructions li {
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Test: Sistema de Detección de Estado AWAY</h1>
+
+  <div class="instructions">
+    <h2>📋 Instrucciones de Prueba</h2>
+    <ol>
+      <li><strong>Abre la consola del navegador</strong> (F12 → Console)</li>
+      <li><strong>Observa los heartbeats automáticos</strong> cada 30 segundos</li>
+      <li><strong>NO interactúes</strong> con la página (no hagas click, no muevas el mouse)</li>
+      <li><strong>Espera 5+ minutos</strong> sin interactuar</li>
+      <li><strong>Verifica en el dashboard del backend</strong>:
+        <ul>
+          <li>Si el estado sigue "ONLINE" 🟢 → Backend NO diferencia entre activityType</li>
+          <li>Si el estado cambia a "AWAY" 🟡 → Backend SÍ diferencia correctamente</li>
+        </ul>
+      </li>
+      <li><strong>Haz un click</strong> después de 5 min → Debería volver a ONLINE</li>
+    </ol>
+  </div>
+
+  <div class="container">
+    <h2>📊 Estado del Sistema</h2>
+    <div class="status-box">
+      <div class="status-item" id="heartbeat-status">
+        <div class="status-label">Heartbeats Enviados</div>
+        <div class="status-value" id="heartbeat-count">0</div>
+      </div>
+      <div class="status-item" id="interaction-status">
+        <div class="status-label">Interacciones Detectadas</div>
+        <div class="status-value" id="interaction-count">0</div>
+      </div>
+      <div class="status-item">
+        <div class="status-label">Tiempo Sin Interacción</div>
+        <div class="status-value" id="inactive-time">0s</div>
+      </div>
+      <div class="status-item">
+        <div class="status-label">Estado Esperado</div>
+        <div class="status-value" id="expected-status">ONLINE 🟢</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>🎮 Controles Manuales</h2>
+    <button class="button" onclick="sendManualHeartbeat()">
+      💓 Enviar Heartbeat Manual
+    </button>
+    <button class="button success" onclick="sendManualInteraction()">
+      👆 Simular Interacción
+    </button>
+    <button class="button danger" onclick="clearLogs()">
+      🗑️ Limpiar Log
+    </button>
+  </div>
+
+  <div class="container">
+    <h2>📜 Log de Eventos</h2>
+    <div class="log" id="log"></div>
+  </div>
+
+  <script src="./guiders-sdk.js"></script>
+  <script>
+    // Estado global
+    let heartbeatCount = 0;
+    let interactionCount = 0;
+    let lastInteractionTime = Date.now();
+    let inactiveTimer;
+
+    // Inicializar SDK
+    const sdk = new TrackingPixelSDK({
+      apiKey: 'gds_test_away_status',
+      domain: window.location.hostname,
+      requireConsent: false,
+      presence: {
+        enabled: true,
+        heartbeatInterval: 30000, // 30 segundos
+        userInteractionThrottle: 5000 // 5 segundos
+      }
+    });
+
+    // Función para agregar logs
+    function addLog(message, type = 'info') {
+      const log = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      log.insertBefore(entry, log.firstChild);
+    }
+
+    // Interceptar heartbeats para logging
+    if (sdk.presenceService) {
+      const originalSendHeartbeat = sdk.presenceService.sendHeartbeat.bind(sdk.presenceService);
+
+      sdk.presenceService.sendHeartbeat = async function(activityType = 'heartbeat', immediate = false) {
+        if (activityType === 'heartbeat') {
+          heartbeatCount++;
+          document.getElementById('heartbeat-count').textContent = heartbeatCount;
+          addLog(`💓 Heartbeat automático #${heartbeatCount} (activityType: 'heartbeat')`, 'heartbeat');
+        } else {
+          interactionCount++;
+          lastInteractionTime = Date.now();
+          document.getElementById('interaction-count').textContent = interactionCount;
+          addLog(`👆 User interaction #${interactionCount} (activityType: 'user-interaction')`, 'interaction');
+        }
+
+        return originalSendHeartbeat(activityType, immediate);
+      };
+    }
+
+    // Actualizar tiempo de inactividad
+    function updateInactiveTime() {
+      const inactiveMs = Date.now() - lastInteractionTime;
+      const inactiveSec = Math.floor(inactiveMs / 1000);
+      const inactiveMin = Math.floor(inactiveSec / 60);
+      const sec = inactiveSec % 60;
+
+      document.getElementById('inactive-time').textContent =
+        inactiveMin > 0 ? `${inactiveMin}m ${sec}s` : `${sec}s`;
+
+      // Calcular estado esperado
+      const expectedStatus = document.getElementById('expected-status');
+      if (inactiveMs < 5 * 60 * 1000) {
+        expectedStatus.textContent = 'ONLINE 🟢';
+        expectedStatus.parentElement.className = 'status-item online';
+      } else {
+        expectedStatus.textContent = 'AWAY 🟡';
+        expectedStatus.parentElement.className = 'status-item away';
+      }
+    }
+
+    // Actualizar cada segundo
+    setInterval(updateInactiveTime, 1000);
+
+    // Funciones de control manual
+    function sendManualHeartbeat() {
+      if (sdk.presenceService) {
+        sdk.presenceService.sendHeartbeat('heartbeat', true);
+      }
+    }
+
+    function sendManualInteraction() {
+      if (sdk.presenceService) {
+        sdk.presenceService.recordUserInteraction();
+      }
+    }
+
+    function clearLogs() {
+      document.getElementById('log').innerHTML = '';
+      addLog('Log limpiado', 'info');
+    }
+
+    // Log inicial
+    addLog('🟢 Sistema de detección de AWAY iniciado', 'info');
+    addLog('⏰ Esperando 5 minutos sin interacción para probar AWAY...', 'info');
+    addLog('👀 Observa el estado en el dashboard del backend', 'info');
+  </script>
+</body>
+</html>
