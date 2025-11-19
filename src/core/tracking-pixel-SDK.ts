@@ -984,12 +984,20 @@ export class TrackingPixelSDK {
 				if (this.chatToggleButton && this.chatUI) {
 					this.chatToggleButton.connectUnreadService(
 						result.identity.visitorId,
-						() => {
+						(chatId: string) => {
 							// Callback para abrir el chat automáticamente al recibir un mensaje
-							debugLog('📬 [TrackingPixelSDK] 🔓 Auto-abriendo chat por mensaje recibido');
+							debugLog('📬 [TrackingPixelSDK] 🔓 Auto-abriendo chat por mensaje recibido con chatId:', chatId);
+
+							// 1️⃣ Actualizar chatId en ChatUI (crítico para chats nuevos iniciados por comercial)
+							if (!this.chatUI!.getChatId() || this.chatUI!.getChatId() !== chatId) {
+								debugLog('📬 [TrackingPixelSDK] 🆕 Actualizando chatId en ChatUI:', chatId);
+								this.chatUI!.setChatId(chatId);
+							}
+
+							// 2️⃣ Abrir el chat
 							this.chatUI!.show();
 
-							// 🔄 Forzar refresh de detalles del chat para obtener datos actualizados del comercial
+							// 3️⃣ Forzar refresh de detalles del chat para obtener datos actualizados del comercial
 							debugLog('📬 [TrackingPixelSDK] 🔄 Forzando refresh de detalles del chat para obtener comercial asignado');
 							this.chatUI!.refreshChatDetailsForced().catch(err => {
 								console.warn('⚠️ Error al refrescar detalles del chat:', err);

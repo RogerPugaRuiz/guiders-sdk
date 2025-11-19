@@ -519,12 +519,12 @@ export class ChatToggleButtonUI {
 	/**
 	 * Conecta el servicio de mensajes no leídos con el badge
 	 * @param visitorId ID del visitante actual
-	 * @param onMessageReceived Callback opcional para cuando se recibe un mensaje (con chat cerrado)
+	 * @param onMessageReceived Callback opcional para cuando se recibe un mensaje (con chat cerrado) - recibe chatId
 	 * @param autoOpenChatOnMessage Si es true, el chat se abre automáticamente al recibir un mensaje
 	 */
 	public connectUnreadService(
 		visitorId: string,
-		onMessageReceived?: () => void,
+		onMessageReceived?: (chatId: string) => void,
 		autoOpenChatOnMessage?: boolean
 	): void {
 		console.log('🔌 Conectando servicio de mensajes no leídos con visitorId:', visitorId);
@@ -539,7 +539,7 @@ export class ChatToggleButtonUI {
 			},
 			onMessageReceived,
 			autoOpenChatOnMessage,
-			debug: false
+			debug: true // Habilitar logs de debug para troubleshooting
 		});
 
 		console.log('✅ Servicio de mensajes no leídos conectado');

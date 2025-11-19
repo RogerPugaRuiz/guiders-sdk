@@ -33,8 +33,8 @@ export interface UnreadMessagesServiceOptions {
 	visitorId: string;
 	/** Callback cuando el contador cambia */
 	onCountChange?: (count: number) => void;
-	/** Callback cuando se recibe un mensaje nuevo (con chat cerrado) */
-	onMessageReceived?: () => void;
+	/** Callback cuando se recibe un mensaje nuevo (con chat cerrado) - recibe chatId del mensaje */
+	onMessageReceived?: (chatId: string) => void;
 	/** Auto-abrir el chat cuando se recibe un mensaje (solo si el chat está cerrado) */
 	autoOpenChatOnMessage?: boolean;
 	/** Habilitar logs de debug */
@@ -48,7 +48,7 @@ export class UnreadMessagesService {
 	private unreadCount: number = 0;
 	private unreadMessages: UnreadMessage[] = [];
 	private onCountChangeCallback: ((count: number) => void) | null = null;
-	private onMessageReceivedCallback: (() => void) | null = null;
+	private onMessageReceivedCallback: ((chatId: string) => void) | null = null;
 	private autoOpenChatOnMessage: boolean = false;
 	private wsService: WebSocketService;
 	private debug: boolean = false;
@@ -203,7 +203,25 @@ export class UnreadMessagesService {
 				mensajes: this.unreadMessages.map(m => ({ id: m.id, senderId: m.senderId }))
 			});
 
-			// Notificar cambio de contador
+			// Si hay mensajes no leídos Y auto-open habilitado Y chat cerrado → abrir chat
+			if (this.unreadCount > 0 && this.autoOpenChatOnMessage && !this.isChatOpen && this.onMessageReceivedCallback) {
+				this.log('🔓 Auto-apertura: mensajes no leídos previos detectados - abriendo chat con chatId:', this.currentChatId);
+				this.onMessageReceivedCallback(this.currentChatId);
+				this.isChatOpen = true;
+
+				// Marcar todos los mensajes como leídos
+				const messageIds = this.unreadMessages.map(m => m.id);
+				this.markAsRead(messageIds).catch(error => {
+					console.error('[UnreadMessagesService] ❌ Error al marcar mensajes previos como leídos:', error);
+				});
+
+				// Limpiar lista de no leídos
+				this.unreadMessages = [];
+				this.unreadCount = 0;
+				return; // No notificar badge (el chat se está abriendo)
+			}
+
+			// Notificar cambio de contador (solo si el chat no se abrió automáticamente)
 			this.notifyCountChange();
 
 		} catch (error) {
@@ -265,9 +283,18 @@ export class UnreadMessagesService {
 	 * Maneja la llegada de un nuevo mensaje via WebSocket
 	 */
 	private handleNewMessage(message: RealtimeMessage): void {
-		// Verificar que pertenece al chat actual
+		// Si no hay chat asignado y llega un mensaje, este es un nuevo chat iniciado por el comercial
+		if (!this.currentChatId && message.chatId) {
+			this.log('🆕 Nuevo chat iniciado por comercial, asignando chatId:', message.chatId);
+			this.currentChatId = message.chatId;
+		}
+
+		// Verificar que pertenece al chat actual (después de asignar si es nuevo)
 		if (message.chatId !== this.currentChatId) {
-			this.log('⚠️ Mensaje de otro chat, ignorando');
+			this.log('⚠️ Mensaje de otro chat, ignorando:', {
+				mensajeChatId: message.chatId,
+				currentChatId: this.currentChatId
+			});
 			return;
 		}
 
@@ -283,36 +310,38 @@ export class UnreadMessagesService {
 			return;
 		}
 
-		// Detectar si es el primer mensaje del comercial en esta conversación
-		const isFirstCommercialMessage = this.unreadMessages.length === 0 && !this.isChatOpen;
-
 		this.log('📨 Nuevo mensaje recibido:', {
 			messageId: message.messageId,
 			senderId: message.senderId,
 			chatAbierto: this.isChatOpen,
-			primerMensaje: isFirstCommercialMessage
+			autoOpenHabilitado: this.autoOpenChatOnMessage
 		});
 
-		// Si es el primer mensaje del comercial, auto-abrir el chat (antes de marcarlo como leído)
-		if (isFirstCommercialMessage && this.autoOpenChatOnMessage && this.onMessageReceivedCallback) {
-			this.log('🔓 Primer mensaje del comercial - auto-abriendo chat');
-			this.onMessageReceivedCallback();
-			// Actualizar estado: el chat ahora está abierto después del callback
-			// Esto previene bucles de auto-apertura en mensajes subsecuentes
-		}
-
-		// Si el chat está abierto (o acaba de abrirse), marcar como leído automáticamente
+		// Si el chat está abierto, marcar como leído automáticamente
 		if (this.isChatOpen) {
 			this.log('✅ Chat abierto - marcando mensaje como leído automáticamente');
-			// Marcar como leído en el backend de forma asíncrona
 			this.markAsRead([message.messageId]).catch(error => {
 				console.error('[UnreadMessagesService] ❌ Error al marcar mensaje como leído automáticamente:', error);
 			});
-			// No añadir a la lista de no leídos ni notificar cambio de contador
-			return;
+			return; // No añadir a no leídos ni notificar badge
 		}
 
-		// Si el chat está cerrado, añadir a la lista de no leídos
+		// Si el chat está cerrado Y auto-open está habilitado → abrir chat inmediatamente
+		if (this.autoOpenChatOnMessage && this.onMessageReceivedCallback) {
+			this.log('🔓 Auto-apertura habilitada - abriendo chat con chatId:', message.chatId);
+			this.onMessageReceivedCallback(message.chatId);
+			this.isChatOpen = true;
+			this.log('💬 Chat abierto por auto-apertura - marcando mensaje como leído');
+
+			// Marcar mensaje como leído inmediatamente
+			this.markAsRead([message.messageId]).catch(error => {
+				console.error('[UnreadMessagesService] ❌ Error al marcar mensaje como leído:', error);
+			});
+			return; // No añadir a no leídos ni mostrar badge
+		}
+
+		// Si llegamos aquí, el chat está cerrado y auto-open NO habilitado
+		// Añadir a la lista de no leídos
 		const unreadMessage: UnreadMessage = {
 			id: message.messageId,
 			chatId: message.chatId,
@@ -332,12 +361,6 @@ export class UnreadMessagesService {
 		this.unreadCount = this.unreadMessages.length;
 
 		this.log('✅ Contador actualizado:', this.unreadCount);
-
-		// Si está habilitada la auto-apertura, llamar al callback
-		if (this.autoOpenChatOnMessage && this.onMessageReceivedCallback) {
-			this.log('🔓 Auto-apertura habilitada - llamando callback para abrir chat');
-			this.onMessageReceivedCallback();
-		}
 
 		// Notificar cambio de contador
 		this.notifyCountChange();
