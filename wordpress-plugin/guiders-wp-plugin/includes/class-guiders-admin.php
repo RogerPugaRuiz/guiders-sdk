@@ -910,6 +910,47 @@ class GuidersAdmin {
         // Validate auto show
         $validated['consent_auto_show'] = isset($input['consent_auto_show']) ? true : false;
 
+        // Validate chat consent message settings
+        $validated['chat_consent_message_enabled'] = isset($input['chat_consent_message_enabled']) ? true : false;
+
+        // Validate chat consent message text
+        if (isset($input['chat_consent_message_text'])) {
+            $validated['chat_consent_message_text'] = sanitize_textarea_field($input['chat_consent_message_text']);
+        } else {
+            $validated['chat_consent_message_text'] = 'Al usar este chat, aceptas nuestra política de tratamiento de datos.';
+        }
+
+        // Validate chat consent privacy URL
+        if (isset($input['chat_consent_privacy_url']) && !empty($input['chat_consent_privacy_url'])) {
+            $validated['chat_consent_privacy_url'] = esc_url_raw($input['chat_consent_privacy_url']);
+        } else {
+            $validated['chat_consent_privacy_url'] = '';
+        }
+
+        // Validate chat consent privacy text
+        if (isset($input['chat_consent_privacy_text'])) {
+            $validated['chat_consent_privacy_text'] = sanitize_text_field($input['chat_consent_privacy_text']);
+        } else {
+            $validated['chat_consent_privacy_text'] = 'Política de Privacidad';
+        }
+
+        // Validate chat consent cookies URL
+        if (isset($input['chat_consent_cookies_url']) && !empty($input['chat_consent_cookies_url'])) {
+            $validated['chat_consent_cookies_url'] = esc_url_raw($input['chat_consent_cookies_url']);
+        } else {
+            $validated['chat_consent_cookies_url'] = '';
+        }
+
+        // Validate chat consent cookies text
+        if (isset($input['chat_consent_cookies_text'])) {
+            $validated['chat_consent_cookies_text'] = sanitize_text_field($input['chat_consent_cookies_text']);
+        } else {
+            $validated['chat_consent_cookies_text'] = 'Política de Cookies';
+        }
+
+        // Validate chat consent show once
+        $validated['chat_consent_show_once'] = isset($input['chat_consent_show_once']) ? true : false;
+
         return $validated;
     }
     
@@ -1248,10 +1289,10 @@ class GuidersAdmin {
      */
     public function chatConsentPrivacyUrlFieldCallback() {
         $settings = get_option('guiders_wp_plugin_settings', array());
-        $url = isset($settings['chat_consent_privacy_url']) ? $settings['chat_consent_privacy_url'] : '/privacy-policy';
+        $url = isset($settings['chat_consent_privacy_url']) ? $settings['chat_consent_privacy_url'] : '';
 
-        echo '<input type="url" id="chat_consent_privacy_url" name="guiders_wp_plugin_settings[chat_consent_privacy_url]" value="' . esc_attr($url) . '" class="regular-text" />';
-        echo '<p class="description">' . __('URL de tu página de Política de Privacidad (ej: /privacy-policy o https://tudominio.com/privacidad).', 'guiders-wp-plugin') . '</p>';
+        echo '<input type="url" id="chat_consent_privacy_url" name="guiders_wp_plugin_settings[chat_consent_privacy_url]" value="' . esc_attr($url) . '" class="regular-text" placeholder="https://tudominio.com/privacidad" />';
+        echo '<p class="description">' . __('URL de tu página de Política de Privacidad (ej: https://tudominio.com/privacidad).', 'guiders-wp-plugin') . '</p>';
     }
 
     /**
@@ -1270,9 +1311,9 @@ class GuidersAdmin {
      */
     public function chatConsentCookiesUrlFieldCallback() {
         $settings = get_option('guiders_wp_plugin_settings', array());
-        $url = isset($settings['chat_consent_cookies_url']) ? $settings['chat_consent_cookies_url'] : '/cookies-policy';
+        $url = isset($settings['chat_consent_cookies_url']) ? $settings['chat_consent_cookies_url'] : '';
 
-        echo '<input type="url" id="chat_consent_cookies_url" name="guiders_wp_plugin_settings[chat_consent_cookies_url]" value="' . esc_attr($url) . '" class="regular-text" />';
+        echo '<input type="url" id="chat_consent_cookies_url" name="guiders_wp_plugin_settings[chat_consent_cookies_url]" value="' . esc_attr($url) . '" class="regular-text" placeholder="https://tudominio.com/cookies" />';
         echo '<p class="description">' . __('URL de tu página de Política de Cookies (déjalo vacío si no quieres mostrar este enlace).', 'guiders-wp-plugin') . '</p>';
     }
 
