@@ -29,6 +29,7 @@ export class ChatUI {
 
 	private currentIndex: string | null = null;
 	private chatId: string | null = null;
+	private visitorId: string | null = null;
 	private chatDetail: ChatDetail | null = null;
 	private lastKnownChatStatus: string | null = null;
 	private lastNotificationType: 'online' | 'offline' | null = null;
@@ -928,12 +929,21 @@ export class ChatUI {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
 		}
-		
+
 		if (!this.chatId) {
 			this.chatId = ChatMemoryStore.getInstance().getChatId();
 		}
-		
+
 		return this.chatId;
+	}
+
+	public setVisitorId(visitorId: string): void {
+		this.visitorId = visitorId;
+		debugLog('👤 [ChatUI] Visitor ID establecido:', visitorId);
+	}
+
+	public getVisitorId(): string | null {
+		return this.visitorId;
 	}
 
 	public getMessagesContainer(): HTMLElement | null {
@@ -997,7 +1007,19 @@ export class ChatUI {
 		this.container.style.transform = 'translateY(0)';
 
 		this.loadChatContent();
-		this.refreshChatDetails();
+
+		// Si tenemos visitorId, usar el método más robusto de obtener detalles desde lista de chats
+		if (this.visitorId) {
+			debugLog('👤 [ChatUI] Usando refreshChatDetailsFromVisitorList con visitorId:', this.visitorId);
+			this.refreshChatDetailsFromVisitorList(this.visitorId).catch(err => {
+				console.warn('⚠️ Error al obtener detalles desde lista, usando fallback:', err);
+				this.refreshChatDetails();
+			});
+		} else {
+			debugLog('⚠️ [ChatUI] No hay visitorId, usando refreshChatDetails tradicional');
+			this.refreshChatDetails();
+		}
+
 		this.scrollToBottom(true);
 
 		// 🔧 RACE CONDITION FIX: Ya no usar timeout arbitrario
@@ -1761,6 +1783,7 @@ export class ChatUI {
 			const { convertV2ToLegacy } = await import('../../services/chat-detail-service');
 
 			// Crear un ChatDetailV2 a partir del ChatV2
+			// IMPORTANTE: Convertir strings de fecha a objetos Date
 			const chatDetailV2 = {
 				id: chat.id,
 				status: chat.status,
@@ -1770,17 +1793,17 @@ export class ChatUI {
 				assignedCommercial: chat.assignedCommercial,
 				availableCommercialIds: chat.availableCommercialIds,
 				metadata: chat.metadata,
-				createdAt: chat.createdAt,
-				assignedAt: chat.assignedAt,
-				closedAt: chat.closedAt,
-				lastMessageDate: chat.lastMessageDate,
+				createdAt: new Date(chat.createdAt),
+				assignedAt: chat.assignedAt ? new Date(chat.assignedAt) : undefined,
+				closedAt: chat.closedAt ? new Date(chat.closedAt) : undefined,
+				lastMessageDate: chat.lastMessageDate ? new Date(chat.lastMessageDate) : undefined,
 				totalMessages: chat.totalMessages,
 				unreadMessagesCount: chat.unreadMessagesCount,
 				isActive: chat.isActive,
 				visitorId: chat.visitorId,
 				department: chat.department,
 				tags: chat.tags,
-				updatedAt: chat.updatedAt
+				updatedAt: chat.updatedAt ? new Date(chat.updatedAt) : undefined
 			};
 
 			// Convertir a formato legacy para compatibilidad

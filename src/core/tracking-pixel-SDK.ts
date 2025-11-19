@@ -982,6 +982,10 @@ export class TrackingPixelSDK {
 				// 📬 Inicializar servicio de mensajes no leídos con badge tempranamente
 				// Esto asegura que el badge se actualice correctamente al refrescar la página
 				if (this.chatToggleButton && this.chatUI) {
+					// Establecer el visitorId en ChatUI para usar en refreshChatDetailsFromVisitorList
+					this.chatUI.setVisitorId(result.identity.visitorId);
+					debugLog('📬 [TrackingPixelSDK] VisitorId establecido en ChatUI:', result.identity.visitorId);
+
 					this.chatToggleButton.connectUnreadService(
 						result.identity.visitorId,
 						(chatId: string) => {
