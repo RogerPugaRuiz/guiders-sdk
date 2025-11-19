@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.6.0
+Stable tag: 1.7.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,43 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 1.7.0 =
+* **⚡ Optimización de Rendimiento - Throttling Inteligente**: Sistema mejorado para reducir peticiones al servidor
+  * **Throttling Diferenciado**: Eventos de baja frecuencia (clicks, teclas) con throttle de 10s
+  * **Control de Alta Frecuencia**: Eventos de scroll/mousemove con throttle de 30s para evitar saturación
+  * **Reducción de Peticiones**: Disminución drástica de 100+ peticiones/min a solo 6-8 peticiones/min
+  * **Configuración Flexible**: Nuevos parámetros `userInteractionThrottle` y `highFrequencyThrottle`
+  * **Flag de Throttling**: Previene ejecuciones redundantes durante períodos de throttle activo
+* **👤 Avatar de Comerciales en Chat**: Visualización de fotos de perfil de comerciales asignados
+  * **Integración con API v2**: Usa el campo `avatarUrl` del endpoint `/api/v2/chats/visitor/{id}`
+  * **Fallback Automático**: Si la imagen falla, muestra ícono SVG por defecto
+  * **Estilo Profesional**: Avatares circulares de 44x44px con `object-fit: cover`
+  * **Sin Duplicación**: Sistema mejorado que evita superposición de imagen y fondo
+* **🔔 Auto-apertura de Chat**: Nueva funcionalidad para mejorar engagement
+  * **Apertura Automática**: Chat se abre automáticamente al recibir mensaje de comercial
+  * **Configurable**: Habilitado por defecto, se puede desactivar desde configuración
+  * **Sincronización con Backend**: Nuevo endpoint `/open` para estado consistente
+* **✍️ Detección Automática de Actividad**: Sistema inteligente para gestión de presencia
+  * **Listeners Optimizados**: Detecta clicks, teclas, toques, scroll y cambios de pestaña
+  * **Throttling Incorporado**: 10s para eventos normales, 30s para alta frecuencia
+  * **Reactivación Inteligente**: Usuario vuelve a estado "online" al interactuar
+  * **Gestión de Visibilidad**: Heartbeat inmediato al volver a la pestaña
+* **📬 Marcado Automático de Mensajes Leídos**: Mejora en experiencia de usuario
+  * **Auto-mark as Read**: Mensajes se marcan como leídos automáticamente al abrir chat
+  * **Sincronización**: Sistema coordinado entre badge, chat UI y backend
+  * **Sin Intervención Manual**: No requiere acción del usuario
+* **🐛 Correcciones Importantes**:
+  * **Endpoints Opcionales**: `/open` y `/close` ahora son opcionales y no bloqueantes
+  * **Notificaciones**: Sistema de pausa/resume para badge cuando chat está cerrado
+  * **WebSocket Persistente**: Conexión se mantiene activa incluso con chat cerrado
+  * **Ancho de Mensajes**: Corregido a 70% para mensajes de usuario
+  * **Servicio de No Leídos**: Fix al reabrir chat con conexión WebSocket existente
+* **📚 Documentación**:
+  * Guías completas del sistema de presencia y endpoints opcionales
+  * Documentación de throttling y detección de actividad
+* **📦 Bundle Size**: ~427 KB (incremento por nuevas funcionalidades)
+* **🔗 Compatibilidad**: 100% retrocompatible, todas las nuevas features son opcionales
 
 = 1.6.0 =
 * **✨ Sistema Completo de Presencia en Tiempo Real**: Indicadores avanzados de estado y actividad de usuarios
