@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.0.1
+Stable tag: 2.0.2
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,18 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.0.2 =
+* **🐛 Correcciones**:
+  * **Auto-apertura de chat para chats nuevos**: El chat ahora se abre automáticamente cuando un comercial inicia una conversación completamente nueva, no solo para mensajes en chats existentes
+  * **Información del comercial visible**: El visitante ahora puede ver el nombre, avatar y estado de conexión del comercial desde el primer mensaje
+  * **Obtención robusta de datos**: Usa GET /api/v2/chats/visitor/{id} en lugar de GET /api/v2/chats/{id} que fallaba con error 500 para chats nuevos
+  * **Conversión de fechas corregida**: Solucionado error "toISOString is not a function" al convertir fechas de la API
+* **🔧 Mejoras técnicas**:
+  * Nuevo método refreshChatDetailsFromVisitorList() para obtener datos del comercial
+  * Propiedad visitorId almacenada en ChatUI para uso en métodos
+  * Fallback automático al método tradicional si falla la obtención desde lista
+  * Debug logging habilitado en UnreadMessagesService
 
 = 2.0.1 =
 * **🐛 Correcciones**:
