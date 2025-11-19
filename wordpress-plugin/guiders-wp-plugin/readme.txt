@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.7.0
+Stable tag: 2.0.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,29 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.0.0 =
+* **💥 CAMBIO IMPORTANTE - Breaking Change**
+  * **Eliminación de Mensajes de Bienvenida**: Se ha eliminado completamente la funcionalidad de mensajes de bienvenida del chat tanto del SDK como del plugin
+  * Esta versión no es compatible con configuraciones anteriores que usaban mensajes de bienvenida personalizados
+  * **NOTA**: Los mensajes de consentimiento del chat (GDPR) siguen funcionando normalmente
+
+* **✨ Simplificación del Plugin**
+  * Eliminada la sección "Mensajes de Bienvenida del Chat" del panel de administración
+  * Interfaz más limpia y enfocada en funcionalidades esenciales
+  * Reducción del tamaño del código (593 líneas eliminadas)
+
+* **🐛 Correcciones**
+  * **Configuración de Mensajes de Consentimiento**: Corregidos problemas con URLs de política de privacidad y cookies
+  * Las URLs ahora se guardan correctamente entre sesiones
+  * Eliminados valores por defecto inválidos ('/privacy-policy', '/cookies-policy')
+  * Agregados ejemplos válidos en los placeholders de los campos
+  * Sanitización mejorada usando esc_url_raw() para seguridad
+
+* **🔧 Mejoras Técnicas**
+  * SDK reconstruido con optimizaciones (419 KB)
+  * Métodos internos renombrados para mayor claridad (checkAndAddInitialMessages)
+  * Validación mejorada de campos en el panel de administración
 
 = 1.7.0 =
 * **⚡ Optimización de Rendimiento - Throttling Inteligente**: Sistema mejorado para reducir peticiones al servidor
