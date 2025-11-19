@@ -283,13 +283,25 @@ export class UnreadMessagesService {
 			return;
 		}
 
+		// Detectar si es el primer mensaje del comercial en esta conversación
+		const isFirstCommercialMessage = this.unreadMessages.length === 0 && !this.isChatOpen;
+
 		this.log('📨 Nuevo mensaje recibido:', {
 			messageId: message.messageId,
 			senderId: message.senderId,
-			chatAbierto: this.isChatOpen
+			chatAbierto: this.isChatOpen,
+			primerMensaje: isFirstCommercialMessage
 		});
 
-		// Si el chat está abierto, marcar como leído automáticamente
+		// Si es el primer mensaje del comercial, auto-abrir el chat (antes de marcarlo como leído)
+		if (isFirstCommercialMessage && this.autoOpenChatOnMessage && this.onMessageReceivedCallback) {
+			this.log('🔓 Primer mensaje del comercial - auto-abriendo chat');
+			this.onMessageReceivedCallback();
+			// Actualizar estado: el chat ahora está abierto después del callback
+			// Esto previene bucles de auto-apertura en mensajes subsecuentes
+		}
+
+		// Si el chat está abierto (o acaba de abrirse), marcar como leído automáticamente
 		if (this.isChatOpen) {
 			this.log('✅ Chat abierto - marcando mensaje como leído automáticamente');
 			// Marcar como leído en el backend de forma asíncrona

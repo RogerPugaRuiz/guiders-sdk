@@ -1431,17 +1431,17 @@ export class ChatUI {
 		}
 	}
 
-	private async loadChatDetails(): Promise<void> {
+	private async loadChatDetails(force: boolean = false): Promise<void> {
 		if (!this.chatId) return;
-		
+
 		try {
-			debugLog("Cargando detalles del chat...");
-			this.chatDetail = await fetchChatDetail(this.chatId);
+			debugLog(force ? "🔄 Forzando carga de detalles del chat desde backend..." : "Cargando detalles del chat...");
+			this.chatDetail = await fetchChatDetail(this.chatId, force);
 			debugLog("Detalles del chat:", this.chatDetail);
-			
+
 			this.lastKnownChatStatus = this.chatDetail.status;
 			debugLog("Estado actual del chat:", this.lastKnownChatStatus);
-			
+
 			this.updateChatHeader();
 		} catch (error) {
 			console.warn("Error al cargar detalles del chat:", error);
@@ -1467,18 +1467,37 @@ export class ChatUI {
 	private updateChatHeader(): void {
 		if (!this.chatDetail || !this.titleElement) return;
 
+		// 🔍 Logging detallado para debugging
+		debugLog('🔍 [ChatUI] Actualizando header con chatDetail:', {
+			chatId: this.chatDetail.id,
+			status: this.chatDetail.status,
+			assignedCommercial: this.chatDetail.assignedCommercial,
+			participants: this.chatDetail.participants.map(p => ({
+				id: p.id,
+				name: p.name,
+				isCommercial: p.isCommercial,
+				isOnline: p.isOnline
+			}))
+		});
+
 		const commercialParticipants = this.chatDetail.participants.filter(p => p.isCommercial);
 
 		// Actualizar solo el título del chat con el nombre del comercial
 		if (commercialParticipants.length > 0) {
 			const advisor = commercialParticipants[0];
 			this.titleElement.textContent = advisor.name || 'Asesor';
+			debugLog('✅ [ChatUI] Título del header actualizado:', advisor.name);
 		} else {
 			this.titleElement.textContent = 'Chat';
+			debugLog('⚠️ [ChatUI] No hay comerciales asignados, usando título genérico');
 		}
 
 		// Actualizar avatar si hay avatarUrl disponible
 		if (this.chatDetail.assignedCommercial?.avatarUrl && this.avatarElement) {
+			debugLog('👤 [ChatUI] Actualizando avatar del comercial:', {
+				name: this.chatDetail.assignedCommercial.name,
+				avatarUrl: this.chatDetail.assignedCommercial.avatarUrl
+			});
 			// Reemplazar el SVG con una imagen
 			const avatarUrl = this.chatDetail.assignedCommercial.avatarUrl;
 			const avatarName = this.chatDetail.assignedCommercial.name;
@@ -1683,8 +1702,20 @@ export class ChatUI {
 		debugLog('💬 [ChatUI] ✅ Mensaje de consentimiento del chat agregado');
 	}
 
-	public async refreshChatDetails(): Promise<void> {
-		await this.loadChatDetails();
+	/**
+	 * Refresca los detalles del chat desde el backend
+	 * @param force Si es true, ignora caché y fuerza carga desde backend (útil para obtener datos actualizados del comercial)
+	 */
+	public async refreshChatDetails(force: boolean = false): Promise<void> {
+		await this.loadChatDetails(force);
+	}
+
+	/**
+	 * Alias conveniente para forzar refresh de detalles del chat desde backend
+	 * Útil cuando se recibe el primer mensaje del comercial para obtener datos actualizados
+	 */
+	public async refreshChatDetailsForced(): Promise<void> {
+		await this.loadChatDetails(true);
 	}
 
 	public onOpen(callback: () => void): void {

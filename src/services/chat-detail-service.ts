@@ -57,18 +57,21 @@ export interface ChatDetail {
 /**
  * Obtiene los detalles completos de un chat usando la API V2
  * @param chatId ID del chat a consultar
+ * @param force Si es true, fuerza la carga desde backend ignorando caché (útil para obtener datos actualizados del comercial asignado)
  * @returns Promesa con los detalles del chat en formato V2
  */
-export async function fetchChatDetailV2(chatId: string): Promise<ChatDetailV2> {
+export async function fetchChatDetailV2(chatId: string, force: boolean = false): Promise<ChatDetailV2> {
 	if (!chatId) {
 		console.warn('[chat-detail-service] ❌ fetchChatDetailV2 llamado sin chatId');
 		throw new Error('chatId requerido');
 	}
 
 	// 1) Intentar resolver desde cache guiders_recent_chats para evitar GET por ID
-	try {
-		const cachedRaw = localStorage.getItem('guiders_recent_chats');
-		if (cachedRaw) {
+	// PERO si force=true, saltar caché y hacer GET directo al backend
+	if (!force) {
+		try {
+			const cachedRaw = localStorage.getItem('guiders_recent_chats');
+			if (cachedRaw) {
 			const list = JSON.parse(cachedRaw) as any[];
 			const found = list.find(c => c && c.id === chatId);
 			if (found) {
@@ -104,6 +107,9 @@ export async function fetchChatDetailV2(chatId: string): Promise<ChatDetailV2> {
 		}
 	} catch (cacheErr) {
 		console.warn('[chat-detail-service] ⚠️ Error procesando cache guiders_recent_chats:', cacheErr);
+	}
+	} else {
+		debugLog('[chat-detail-service] 🔄 Force refresh habilitado - ignorando caché y consultando backend directamente');
 	}
 
 	const accessToken = localStorage.getItem('accessToken');
@@ -214,9 +220,10 @@ export function convertV2ToLegacy(chatDetailV2: ChatDetailV2): ChatDetail {
  * Obtiene los detalles completos de un chat (legacy, mantiene compatibilidad)
  * Internamente usa la API V2 y convierte al formato legacy
  * @param chatId ID del chat a consultar
+ * @param force Si es true, fuerza la carga desde backend ignorando caché
  * @returns Promesa con los detalles del chat en formato legacy
  */
-export async function fetchChatDetail(chatId: string): Promise<ChatDetail> {
-	const chatDetailV2 = await fetchChatDetailV2(chatId);
+export async function fetchChatDetail(chatId: string, force: boolean = false): Promise<ChatDetail> {
+	const chatDetailV2 = await fetchChatDetailV2(chatId, force);
 	return convertV2ToLegacy(chatDetailV2);
 }

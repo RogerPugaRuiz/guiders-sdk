@@ -988,6 +988,12 @@ export class TrackingPixelSDK {
 							// Callback para abrir el chat automáticamente al recibir un mensaje
 							debugLog('📬 [TrackingPixelSDK] 🔓 Auto-abriendo chat por mensaje recibido');
 							this.chatUI!.show();
+
+							// 🔄 Forzar refresh de detalles del chat para obtener datos actualizados del comercial
+							debugLog('📬 [TrackingPixelSDK] 🔄 Forzando refresh de detalles del chat para obtener comercial asignado');
+							this.chatUI!.refreshChatDetailsForced().catch(err => {
+								console.warn('⚠️ Error al refrescar detalles del chat:', err);
+							});
 						},
 						this.autoOpenChatOnMessage
 					);
