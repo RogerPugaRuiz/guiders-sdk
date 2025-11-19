@@ -23,14 +23,7 @@
       },
       autoFlush: true,        // ✅ IMPORTANTE: Habilitar envío automático de eventos
       flushInterval: 5000,    // Enviar eventos cada 5 segundos
-      welcomeMessage: {
-        enabled: true,
-        style: 'custom',
-        customMessage: 'Estamos aquí para orientarte y responder lo que necesites. ¿Empezamos?',
-        includeEmojis: false,
-        language: 'es',
-        showTips: false
-      },
+      autoOpenChatOnMessage: true, // ✅ Auto-abrir chat cuando comercial envía mensaje
       chatConsentMessage: {
         enabled: true,
         message: 'Al unirte al chat, confirmas que has leído y entiendes nuestra',
