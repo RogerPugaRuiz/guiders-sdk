@@ -95,32 +95,15 @@ function initializeGuidersSDK() {
 					trackBackgroundTime: false
 				}
 			},
-			// Default welcome message for CDN/non-WordPress usage
-			welcomeMessage: {
-				enabled: true,
-				style: 'friendly',
-				includeEmojis: true,
-				language: 'es',
-				showTips: true
-			},
 			endpoint,
 			webSocketEndpoint
 		};
 
 		// Merge with GUIDERS_CONFIG if it exists (WordPress or custom configuration)
 		if (window.GUIDERS_CONFIG) {
-			// Deep merge the configuration, prioritizing GUIDERS_CONFIG
-			if (window.GUIDERS_CONFIG.welcomeMessage) {
-				sdkOptions.welcomeMessage = {
-					...sdkOptions.welcomeMessage,
-					...window.GUIDERS_CONFIG.welcomeMessage
-				};
-			}
-			// Merge other config properties
+			// Merge config properties
 			Object.keys(window.GUIDERS_CONFIG).forEach(key => {
-				if (key !== 'welcomeMessage') {
-					sdkOptions[key] = window.GUIDERS_CONFIG![key];
-				}
+				sdkOptions[key] = window.GUIDERS_CONFIG![key];
 			});
 		}
 

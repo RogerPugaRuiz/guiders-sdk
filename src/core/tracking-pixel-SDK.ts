@@ -25,7 +25,6 @@ import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
 import { fetchChatDetail, fetchChatDetailV2, ChatDetail, ChatDetailV2, ChatParticipant } from "../services/chat-detail-service";
 import { VisitorInfoV2, ChatMetadataV2, ChatPositionConfig, MobileDetectionConfig } from "../types";
 import { v4 as uuidv4 } from "uuid";
-import { WelcomeMessageConfig } from "./welcome-message-manager";
 import { DomTrackingManager, DefaultTrackDataExtractor } from "./dom-tracking-manager";
 import { EnhancedDomTrackingManager } from "./enhanced-dom-tracking-manager";
 import { HeuristicDetectionConfig } from "./heuristic-element-detector";
@@ -74,8 +73,6 @@ interface SDKOptions {
 			crossTabSync?: boolean;
 		};
 	};
-	// Welcome message options
-	welcomeMessage?: Partial<WelcomeMessageConfig>;
 	// Chat consent message options (GDPR-style consent notice in chat)
 	chatConsentMessage?: Partial<import('../presentation/types/chat-types').ChatConsentMessageConfig>;
 	// Active hours configuration
@@ -200,7 +197,6 @@ export class TrackingPixelSDK {
 	private visitorHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	private authMode: 'jwt' | 'session';
 	private identitySignal: IdentitySignal;
-	private welcomeMessageConfig?: Partial<WelcomeMessageConfig>;
 	private chatConsentMessageConfig?: Partial<import('../presentation/types/chat-types').ChatConsentMessageConfig>;
 	private chatPositionConfig?: ChatPositionConfig;
 	private mobileDetectionConfig?: MobileDetectionConfig;
@@ -239,15 +235,6 @@ export class TrackingPixelSDK {
 		this.autoFlush = options.autoFlush ?? false;
 		this.flushInterval = options.flushInterval ?? 10000;
 		this.maxRetries = options.maxRetries ?? 3;
-
-		// Configurar mensaje de bienvenida con valores por defecto si no se proporciona
-		this.welcomeMessageConfig = options.welcomeMessage || {
-			enabled: true,
-			style: 'friendly',
-			includeEmojis: true,
-			language: 'es',
-			showTips: true
-		};
 
 		// Configurar mensaje de consentimiento del chat (opcional)
 		this.chatConsentMessageConfig = options.chatConsentMessage;
@@ -556,7 +543,6 @@ export class TrackingPixelSDK {
 		// Guardar la referencia al chat para usarla más tarde (ej: mostrar mensajes del sistema)
 		this.chatUI = new ChatUI({
 			widget: true,
-			welcomeMessage: this.welcomeMessageConfig,
 			chatConsentMessage: this.chatConsentMessageConfig,
 			position: this.chatPositionConfig,
 			mobileDetection: this.mobileDetectionConfig,
@@ -1079,11 +1065,11 @@ export class TrackingPixelSDK {
 				} else {
 					// No hay chats previos, mostrar mensaje de bienvenida automáticamente
 					debugLog('[TrackingPixelSDK] 💬 No hay chats previos, mostrando mensaje de bienvenida automáticamente');
-					if (this.chatUI && this.chatUI.checkAndAddWelcomeMessage) {
+					if (this.chatUI && this.chatUI.checkAndAddInitialMessages) {
 						// Pequeño delay para asegurar que el chat esté completamente inicializado
 						setTimeout(() => {
-							if (this.chatUI && this.chatUI.checkAndAddWelcomeMessage) {
-								this.chatUI.checkAndAddWelcomeMessage();
+							if (this.chatUI && this.chatUI.checkAndAddInitialMessages) {
+								this.chatUI.checkAndAddInitialMessages();
 								debugLog('[TrackingPixelSDK] ✅ Mensaje de bienvenida mostrado automáticamente');
 							}
 						}, 500);
@@ -2018,30 +2004,6 @@ export class TrackingPixelSDK {
 	}
 
 	/**
-	 * Actualiza la configuración del mensaje de bienvenida.
-	 * @param config Nueva configuración del mensaje de bienvenida
-	 */
-	public updateWelcomeMessage(config: WelcomeMessageConfig): void {
-		debugLog('[TrackingPixelSDK] 🎨 Actualizando mensaje de bienvenida:', config);
-		
-		// Guardar en configuración para futuras inicializaciones
-		this.welcomeMessageConfig = config;
-		
-		// Si el chat ya está inicializado, aplicar la configuración
-		if (this.chatUI) {
-			this.chatUI.setWelcomeMessage(config);
-		}
-	}
-
-	/**
-	 * Obtiene la configuración actual del mensaje de bienvenida.
-	 * @returns Configuración actual del mensaje de bienvenida
-	 */
-	public getWelcomeMessageConfig(): Partial<WelcomeMessageConfig> | null {
-		return this.welcomeMessageConfig || null;
-	}
-
-	/**
 	 * Verifica si el chat UI está visible.
 	 * @returns true si el chat está visible
 	 */
@@ -2077,7 +2039,7 @@ export class TrackingPixelSDK {
 			if (!chatId) {
 				debugLog('[TrackingPixelSDK] 💬 No hay chatId, omitiendo carga de mensajes');
 				// Verificar si mostrar mensaje de bienvenida al no haber chat
-				chat.checkAndAddWelcomeMessage?.();
+				chat.checkAndAddInitialMessages?.();
 				return;
 			}
 
@@ -2090,8 +2052,8 @@ export class TrackingPixelSDK {
 
 				// ✅ Después de cargar exitosamente, verificar si mostrar mensaje de bienvenida
 				debugLog('[TrackingPixelSDK] 💬 Carga completa, verificando necesidad de mensaje de bienvenida');
-				if (chat.checkAndAddWelcomeMessage) {
-					chat.checkAndAddWelcomeMessage();
+				if (chat.checkAndAddInitialMessages) {
+					chat.checkAndAddInitialMessages();
 				}
 				return;
 			}
@@ -2156,8 +2118,8 @@ export class TrackingPixelSDK {
 			// ✅ CONSOLIDACIÓN: Después de cargar, verificar si mostrar mensaje de bienvenida
 			// Esto reemplaza la lógica duplicada anterior
 			debugLog('[TrackingPixelSDK] 💬 Carga legacy completa, verificando necesidad de mensaje de bienvenida');
-			if (chat.checkAndAddWelcomeMessage) {
-				chat.checkAndAddWelcomeMessage();
+			if (chat.checkAndAddInitialMessages) {
+				chat.checkAndAddInitialMessages();
 			}
 
 		} catch (error) {
@@ -2166,8 +2128,8 @@ export class TrackingPixelSDK {
 
 			// En caso de error, también verificar si mostrar mensaje de bienvenida
 			debugLog('[TrackingPixelSDK] ⚠️ Error en carga, verificando mensaje de bienvenida como fallback');
-			if (chat.checkAndAddWelcomeMessage) {
-				chat.checkAndAddWelcomeMessage();
+			if (chat.checkAndAddInitialMessages) {
+				chat.checkAndAddInitialMessages();
 			}
 		} finally {
 			// 🔒 PROTECCIÓN CONTRA RACE CONDITION: Limpiar bandera de carga
@@ -2737,7 +2699,6 @@ export class TrackingPixelSDK {
 		// Inicializar solo los componentes del chat
 		this.chatUI = new ChatUI({
 			widget: true,
-			welcomeMessage: this.welcomeMessageConfig,
 			chatConsentMessage: this.chatConsentMessageConfig,
 			position: this.chatPositionConfig,
 			mobileDetection: this.mobileDetectionConfig,

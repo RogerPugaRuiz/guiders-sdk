@@ -1,6 +1,5 @@
 // chat-types.ts - Tipos e interfaces para el sistema de chat
 
-import { WelcomeMessageConfig } from "../../core/welcome-message-manager";
 import { ChatPositionConfig, MobileDetectionConfig } from "../../types";
 
 /**
@@ -28,8 +27,6 @@ export interface ChatUIOptions {
 	textColor?: string;
 	/** Ancho máximo de los mensajes */
 	maxWidthMessage?: string;
-	/** Configuración del mensaje de bienvenida */
-	welcomeMessage?: Partial<WelcomeMessageConfig>;
 	/** Configuración de posicionamiento del chat widget */
 	position?: ChatPositionConfig;
 	/** Configuración de detección de dispositivo móvil */

@@ -5,7 +5,6 @@ import { debugLog } from "../../utils/debug-logger";
 import { ChatSessionStore } from "../../services/chat-session-store";
 import { fetchChatDetail, ChatDetail, ChatParticipant } from "../../services/chat-detail-service";
 import { ChatMemoryStore } from "../../core/chat-memory-store";
-import { WelcomeMessageManager, WelcomeMessageConfig } from "../../core/welcome-message-manager";
 
 // Importar tipos y utilidades
 import { ChatUIOptions, Sender, ChatMessageParams, ActiveInterval } from '../types/chat-types';
@@ -57,9 +56,6 @@ export class ChatUI {
 	private typingUnsubscribe: (() => void) | null = null;
 	private showOfflineBannerEnabled: boolean = true; // Configuración para mostrar/ocultar banner
 
-	// Manager para mensajes de bienvenida
-	private welcomeMessageManager: WelcomeMessageManager;
-
 	// Configuración y estado del mensaje de consentimiento del chat
 	private chatConsentMessageConfig: import('../types/chat-types').ChatConsentMessageConfig;
 	private chatConsentMessageShown: boolean = false;
@@ -83,9 +79,6 @@ export class ChatUI {
 			maxWidthMessage: '80%',
 			...options
 		};
-
-		// Inicializar el manager de mensajes de bienvenida
-		this.welcomeMessageManager = new WelcomeMessageManager(options.welcomeMessage);
 
 		// Inicializar configuración del mensaje de consentimiento del chat
 		this.chatConsentMessageConfig = {
@@ -1405,7 +1398,7 @@ export class ChatUI {
 			}
 		} catch (err) {
 			console.error("Error iniciando chat:", err);
-			// No agregar mensaje de bienvenida aquí ya que se maneja automáticamente en checkAndAddWelcomeMessage()
+			// Mensajes iniciales se manejan automáticamente en checkAndAddInitialMessages()
 		}
 	}
 
@@ -1430,8 +1423,8 @@ export class ChatUI {
 			}
 		} catch (error) {
 			console.error("Error al cargar el contenido del chat:", error);
-			// No agregar mensaje de bienvenida aquí ya que se maneja automáticamente en checkAndAddWelcomeMessage()
-			
+			// Mensajes iniciales se manejan automáticamente en checkAndAddInitialMessages()
+
 			if (this.chatDetail && this.chatDetail.status === 'active') {
 				this.checkInitialCommercialStatus();
 			}
@@ -1537,60 +1530,29 @@ export class ChatUI {
 	}
 
 	// Métodos públicos adicionales para la API
-	public addWelcomeMessage(): void {
-		debugLog('💬 [ChatUI] Verificando si agregar mensaje de bienvenida...');
-		
-		const hasMessages = this.containerMessages &&
-			Array.from(this.containerMessages.children).some(el =>
-				el.classList && (
-					el.classList.contains('chat-message-user-wrapper') ||
-					el.classList.contains('chat-message-other-wrapper')
-				)
-			);
-
-		if (!hasMessages) {
-			const welcomeText = this.welcomeMessageManager.getWelcomeMessage();
-			
-			if (welcomeText) {
-				this.addMessage(welcomeText, 'other');
-				debugLog('💬 [ChatUI] ✅ Mensaje de bienvenida agregado');
-				
-				const tips = this.welcomeMessageManager.getTips();
-				if (tips.length > 0) {
-					setTimeout(() => {
-						tips.forEach((tip, index) => {
-							setTimeout(() => {
-								this.addMessage(tip, 'other');
-							}, index * 1000);
-						});
-					}, 2000);
-				}
-			}
-		}
-	}
 
 	/**
-	 * Verifica si el chat está vacío y agrega el mensaje de bienvenida si es necesario
+	 * Verifica si el chat está vacío y agrega mensajes iniciales si es necesario
 	 * Este método se llama automáticamente cuando se abre el chat
-	 * Ahora es público para ser llamado desde TrackingPixelSDK después de cargar mensajes
+	 * Público para ser llamado desde TrackingPixelSDK después de cargar mensajes
 	 */
-	public checkAndAddWelcomeMessage(): void {
-		// Solo agregar mensaje de bienvenida si no hay mensajes y no se están cargando
+	public checkAndAddInitialMessages(): void {
+		// Solo agregar mensajes iniciales si no hay mensajes y no se están cargando
 		if (!this.containerMessages) {
-			debugLog('💬 [ChatUI] Container de mensajes no disponible, omitiendo verificación de bienvenida');
+			debugLog('💬 [ChatUI] Container de mensajes no disponible, omitiendo verificación de mensajes iniciales');
 			return;
 		}
 
 		// 🔒 PROTECCIÓN CONTRA RACE CONDITION: Verificar si se está cargando mensajes iniciales
 		if (this.isLoadingInitialMessages) {
-			debugLog('💬 [ChatUI] 🔒 Carga inicial de mensajes en progreso, omitiendo verificación de bienvenida para evitar race condition');
+			debugLog('💬 [ChatUI] 🔒 Carga inicial de mensajes en progreso, omitiendo verificación de mensajes iniciales para evitar race condition');
 			return;
 		}
 
 		// Verificar si hay indicador de carga activo
 		const hasLoadingIndicator = this.containerMessages.querySelector('.loading-messages-indicator') as HTMLElement;
 		if (hasLoadingIndicator && hasLoadingIndicator.style.display !== 'none') {
-			debugLog('💬 [ChatUI] Indicador de carga visible, omitiendo mensaje de bienvenida automático');
+			debugLog('💬 [ChatUI] Indicador de carga visible, omitiendo mensajes iniciales automáticos');
 			return;
 		}
 
@@ -1607,11 +1569,8 @@ export class ChatUI {
 		if (messageElements.length === 0) {
 			debugLog('💬 [ChatUI] ✅ Chat vacío confirmado, agregando mensajes iniciales');
 
-			// Añadir mensaje de consentimiento primero (si está habilitado)
+			// Añadir mensaje de consentimiento (si está habilitado)
 			this.addChatConsentMessage();
-
-			// Luego añadir mensaje de bienvenida
-			this.addWelcomeMessage();
 		} else {
 			debugLog('💬 [ChatUI] Chat tiene mensajes, omitiendo mensajes iniciales');
 		}
@@ -1734,21 +1693,6 @@ export class ChatUI {
 
 	public onClose(callback: () => void): void {
 		this.closeCallbacks.push(callback);
-	}
-
-	public setWelcomeMessage(config: Partial<WelcomeMessageConfig>): void {
-		this.welcomeMessageManager.updateConfig(config);
-	}
-
-	public setCustomWelcomeMessage(message: string): void {
-		this.welcomeMessageManager.updateConfig({
-			style: 'custom',
-			customMessage: message
-		});
-	}
-
-	public getWelcomeMessageConfig(): WelcomeMessageConfig {
-		return this.welcomeMessageManager.getConfig();
 	}
 
 	// Métodos adicionales requeridos por tracking-pixel-SDK.ts
