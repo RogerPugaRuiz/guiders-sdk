@@ -997,10 +997,16 @@ export class TrackingPixelSDK {
 							// 2️⃣ Abrir el chat
 							this.chatUI!.show();
 
-							// 3️⃣ Forzar refresh de detalles del chat para obtener datos actualizados del comercial
-							debugLog('📬 [TrackingPixelSDK] 🔄 Forzando refresh de detalles del chat para obtener comercial asignado');
-							this.chatUI!.refreshChatDetailsForced().catch(err => {
-								console.warn('⚠️ Error al refrescar detalles del chat:', err);
+							// 3️⃣ Obtener detalles del chat desde la lista de chats del visitante
+							// Esto es más robusto que GET /chats/{id} para chats recién creados
+							debugLog('📬 [TrackingPixelSDK] 🔄 Obteniendo detalles del chat desde lista del visitante');
+							this.chatUI!.refreshChatDetailsFromVisitorList(result.identity.visitorId).catch(err => {
+								console.warn('⚠️ Error al obtener detalles del chat:', err);
+								// Fallback: intentar con el método tradicional
+								debugLog('📬 [TrackingPixelSDK] 🔄 Fallback: intentando método tradicional');
+								this.chatUI!.refreshChatDetailsForced().catch(err2 => {
+									console.warn('⚠️ Error en fallback al refrescar detalles del chat:', err2);
+								});
 							});
 						},
 						this.autoOpenChatOnMessage

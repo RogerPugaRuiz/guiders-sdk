@@ -1718,6 +1718,84 @@ export class ChatUI {
 		await this.loadChatDetails(true);
 	}
 
+	/**
+	 * Obtiene los detalles del chat listando todos los chats del visitante
+	 * Útil cuando un chat nuevo es creado por el comercial y GET /chats/{id} aún no funciona
+	 * @param visitorId ID del visitante
+	 */
+	public async refreshChatDetailsFromVisitorList(visitorId: string): Promise<void> {
+		if (!this.chatId) {
+			debugLog('⚠️ [ChatUI] No hay chatId, omitiendo refresh desde lista de visitante');
+			return;
+		}
+
+		try {
+			debugLog('🔄 [ChatUI] Obteniendo chats del visitante para encontrar chat:', this.chatId);
+
+			const ChatV2Service = (await import('../../services/chat-v2-service')).ChatV2Service;
+			const chatService = ChatV2Service.getInstance();
+
+			// Obtener lista de chats del visitante
+			const chatList = await chatService.getVisitorChats(visitorId, undefined, 50);
+
+			debugLog('✅ [ChatUI] Chats del visitante obtenidos:', {
+				total: chatList.total,
+				count: chatList.chats.length
+			});
+
+			// Buscar el chat específico en la lista
+			const chat = chatList.chats.find(c => c.id === this.chatId);
+
+			if (!chat) {
+				console.warn('⚠️ [ChatUI] Chat no encontrado en la lista del visitante:', this.chatId);
+				return;
+			}
+
+			debugLog('✅ [ChatUI] Chat encontrado en lista:', {
+				chatId: chat.id,
+				status: chat.status,
+				assignedCommercial: chat.assignedCommercial
+			});
+
+			// Convertir ChatV2 a ChatDetailV2 para actualizar el header
+			const { convertV2ToLegacy } = await import('../../services/chat-detail-service');
+
+			// Crear un ChatDetailV2 a partir del ChatV2
+			const chatDetailV2 = {
+				id: chat.id,
+				status: chat.status,
+				priority: chat.priority,
+				visitorInfo: chat.visitorInfo,
+				assignedCommercialId: chat.assignedCommercialId,
+				assignedCommercial: chat.assignedCommercial,
+				availableCommercialIds: chat.availableCommercialIds,
+				metadata: chat.metadata,
+				createdAt: chat.createdAt,
+				assignedAt: chat.assignedAt,
+				closedAt: chat.closedAt,
+				lastMessageDate: chat.lastMessageDate,
+				totalMessages: chat.totalMessages,
+				unreadMessagesCount: chat.unreadMessagesCount,
+				isActive: chat.isActive,
+				visitorId: chat.visitorId,
+				department: chat.department,
+				tags: chat.tags,
+				updatedAt: chat.updatedAt
+			};
+
+			// Convertir a formato legacy para compatibilidad
+			this.chatDetail = convertV2ToLegacy(chatDetailV2);
+			this.lastKnownChatStatus = this.chatDetail.status;
+
+			debugLog('✅ [ChatUI] Chat detail actualizado desde lista del visitante');
+
+			// Actualizar header con información del comercial
+			this.updateChatHeader();
+		} catch (error) {
+			console.error('❌ [ChatUI] Error al obtener chats del visitante:', error);
+		}
+	}
+
 	public onOpen(callback: () => void): void {
 		this.openCallbacks.push(callback);
 	}
