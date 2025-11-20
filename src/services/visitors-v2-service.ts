@@ -202,6 +202,7 @@ export class VisitorsV2Service {
   /**
    * Cierra explícitamente la sesión backend.
    * Cuando useBeacon=true, usa sendBeacon para garantizar entrega durante page unload.
+   * Detecta refreshes rápidos y evita desconectar al visitante innecesariamente.
    */
   public async endSession(options: { useBeacon?: boolean; reason?: string } = {}): Promise<boolean> {
     const sessionId = sessionStorage.getItem('guiders_backend_session_id');
@@ -209,19 +210,28 @@ export class VisitorsV2Service {
       console.warn('[VisitorsV2Service] ❌ No sessionId disponible para endSession');
       return false;
     }
-    
+
+    // Verificar si es un refresh rápido - NO enviar endSession si es así
+    const isRefresh = sessionStorage.getItem('guiders_is_refresh') === 'true';
+    if (isRefresh && options.useBeacon) {
+      console.log('[VisitorsV2Service] 🔄 Refresh detectado - manteniendo sesión activa');
+      // NO limpiar sessionStorage para que la nueva página pueda reanudar
+      sessionStorage.removeItem('guiders_is_refresh');
+      return true; // Simular éxito sin enviar beacon
+    }
+
     const url = `${this.getBaseUrl()}/session/end`;
-    const payload = { 
+    const payload = {
       sessionId,
       reason: options.reason || (options.useBeacon ? 'page_unload' : 'manual')
     };
-    
+
     // Intentar sendBeacon primero si se solicita (más confiable para page unload)
     if (options.useBeacon && typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
       try {
         const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
         const success = (navigator as any).sendBeacon(url, blob);
-        
+
         if (success) {
           console.log('[VisitorsV2Service] ✅ endSession enviado via beacon');
           sessionStorage.removeItem('guiders_backend_session_id');
@@ -233,7 +243,7 @@ export class VisitorsV2Service {
         console.warn('[VisitorsV2Service] ❌ Error con sendBeacon, fallback a fetch:', e);
       }
     }
-    
+
     // Fallback a fetch normal (solo si no es page unload crítico)
     if (!options.useBeacon) {
       try {
@@ -247,13 +257,13 @@ export class VisitorsV2Service {
           credentials: 'include',
           keepalive: true // Permite que la petición sobreviva page unload
         });
-        
+
         if (!res.ok) {
           const errorText = await res.text();
           console.warn('[VisitorsV2Service] ❌ endSession fallido:', res.status, errorText);
           return false;
         }
-        
+
         console.log('[VisitorsV2Service] ✅ endSession exitoso via fetch');
         sessionStorage.removeItem('guiders_backend_session_id');
         return true;
@@ -262,7 +272,7 @@ export class VisitorsV2Service {
         return false;
       }
     }
-    
+
     // Si llegamos aquí, beacon falló y no podemos usar fetch
     console.warn('[VisitorsV2Service] ❌ No se pudo enviar endSession');
     return false;

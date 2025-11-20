@@ -1138,6 +1138,7 @@ export class TrackingPixelSDK {
 	/**
 	 * Configura listeners simplificados para detectar cuando se cierra la ventana/pestaña.
 	 * Ejecuta /endSession únicamente cuando se cierra la ventana.
+	 * Incluye detección de refresh para evitar desconexiones falsas.
 	 */
 	private setupPageUnloadHandlers(): void {
 		if (typeof window === 'undefined') return;
@@ -1145,18 +1146,55 @@ export class TrackingPixelSDK {
 		// Flag para evitar múltiples llamadas a endSession
 		let sessionEndCalled = false;
 
+		// Constante para período de gracia de refresh (3 segundos)
+		const REFRESH_GRACE_PERIOD_MS = 3000;
+
+		// Detectar si esta página se cargó como refresh usando Navigation API
+		let isPageRefresh = false;
+		try {
+			const navEntries = performance.getEntriesByType('navigation');
+			if (navEntries.length > 0) {
+				const navEntry = navEntries[0] as PerformanceNavigationTiming;
+				isPageRefresh = navEntry.type === 'reload';
+			}
+		} catch (e) {
+			// Fallback para navegadores antiguos
+		}
+
+		// Verificar si esta carga es un refresh rápido (dentro del período de gracia)
+		const lastUnloadTime = sessionStorage.getItem('guiders_last_unload_time');
+		if (lastUnloadTime) {
+			const timeSinceUnload = Date.now() - parseInt(lastUnloadTime, 10);
+			if (timeSinceUnload < REFRESH_GRACE_PERIOD_MS || isPageRefresh) {
+				debugLog(`[TrackingPixelSDK] 🔄 Refresh rápido detectado (${timeSinceUnload}ms, isReload=${isPageRefresh}) - reanudando sesión`);
+				// Marcar como refresh para que el próximo endSession lo sepa
+				sessionStorage.setItem('guiders_is_refresh', 'true');
+			} else {
+				sessionStorage.removeItem('guiders_is_refresh');
+			}
+			// Limpiar timestamp de unload
+			sessionStorage.removeItem('guiders_last_unload_time');
+		} else if (isPageRefresh) {
+			// Es un refresh pero no tenemos timestamp (primera vez o sesión expirada)
+			debugLog(`[TrackingPixelSDK] 🔄 Página cargada como refresh - configurando flag`);
+			sessionStorage.setItem('guiders_is_refresh', 'true');
+		}
+
 		const endSessionOnce = (reason: string) => {
 			if (sessionEndCalled) return;
 			sessionEndCalled = true;
-			
+
 			try {
+				// Guardar timestamp de unload para detectar refresh rápido
+				sessionStorage.setItem('guiders_last_unload_time', Date.now().toString());
+
 				debugLog(`[TrackingPixelSDK] 🚪 Finalizando sesión por: ${reason}`);
-				
+
 				// 1. Flush eventos pendientes si los hay
 				if (this.eventQueue.length > 0) {
 					const eventsToSend = [...this.eventQueue];
 					this.eventQueue = [];
-					
+
 					if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
 						try {
 							const endpoint = EndpointManager.getInstance().getEndpoint();
@@ -1170,10 +1208,11 @@ export class TrackingPixelSDK {
 						}
 					}
 				}
-				
+
 				// 2. Finalizar sesión backend usando beacon
+				// NOTA: endSession ahora verifica internamente si es un refresh
 				VisitorsV2Service.getInstance().endSession({ useBeacon: true });
-				
+
 			} catch (e) {
 				console.warn(`[TrackingPixelSDK] ❌ Error en endSession (${reason}):`, e);
 			}
