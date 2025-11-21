@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.0.3
+Stable tag: 2.0.4
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,13 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.0.4 =
+* 🐛 **Corrección de reconexión automática de sesión**: Soluciona el problema donde las peticiones fallaban con error 401 después de estar desconectado por un tiempo prolongado
+  * Reconexión automática al volver a la pestaña (visibility handler)
+  * Keepalive de sesión cada 4 minutos para prevenir timeout
+  * Retry automático en peticiones con error 401
+  * Corrección de URLs de endpoints (identify, heartbeat)
 
 = 2.0.3 =
 * 🐛 **Corrección de desconexión en refresh rápido**: Soluciona el problema donde el visitante aparecía como desconectado para el comercial cuando se refrescaba la página rápidamente
