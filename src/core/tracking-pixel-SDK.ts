@@ -529,6 +529,11 @@ export class TrackingPixelSDK {
 			}
 		}
 
+		// Inicializar ChatV2Service temprano para activar el visibility handler
+		// Esto asegura que la sesión se reconecte cuando el usuario vuelve a la pestaña
+		ChatV2Service.getInstance();
+		debugLog('[TrackingPixelSDK] ✅ ChatV2Service inicializado (session keepalive activo)');
+
 		debugLog("✅ SDK inicializado sin servicios de WebSocket.");
 
 		if (this.autoFlush) {

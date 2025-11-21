@@ -13,7 +13,7 @@ export class ChatInputUI {
 	private chatUI: any; // Cambiar a any temporalmente para evitar dependencia circular
 	private inputContainer: HTMLElement | null = null;
 	private submitCallbacks: Array<(message: string) => void> = [];
-	private inputElement: HTMLInputElement | null = null;
+	private inputElement: HTMLTextAreaElement | null = null;
 
 	// Typing indicators con debounce
 	private presenceService: PresenceService | null = null;
@@ -42,19 +42,93 @@ export class ChatInputUI {
 	 * Crea un input de texto y un botón de envío con sus event listeners
 	 */
 	public init(): void {
-		// Por simplicidad, creamos un input text y lo pegamos debajo del chat.
+		// Contenedor principal
 		this.inputContainer = document.createElement('div');
 		this.inputContainer.style.display = 'flex';
-		this.inputContainer.style.padding = '5px';
+		this.inputContainer.style.padding = '8px 12px';
+		this.inputContainer.style.background = '#ffffff';
 
-		const input = document.createElement('input');
-		input.type = 'text';
+		// Wrapper del input con estilo moderno
+		const inputWrapper = document.createElement('div');
+		inputWrapper.style.display = 'flex';
+		inputWrapper.style.alignItems = 'flex-end';
+		inputWrapper.style.flex = '1';
+		inputWrapper.style.background = '#ffffff';
+		inputWrapper.style.borderRadius = '24px';
+		inputWrapper.style.padding = '6px 6px 6px 16px';
+		inputWrapper.style.gap = '8px';
+		inputWrapper.style.minHeight = '44px';
+		inputWrapper.style.boxSizing = 'border-box';
+		inputWrapper.style.border = '1px solid #e4e4e7';
+		inputWrapper.style.transition = 'all 0.2s ease';
+
+		const input = document.createElement('textarea');
+		input.rows = 1;
 		input.style.flex = '1';
+		input.style.border = 'none';
+		input.style.background = 'transparent';
+		input.style.outline = 'none';
+		input.style.fontSize = '14px';
+		input.style.fontFamily = 'Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+		input.style.color = '#18181b';
+		input.style.padding = '4px 0';
+		input.style.resize = 'none';
+		input.style.overflow = 'hidden';
+		input.style.lineHeight = '1.4';
+		input.style.maxHeight = '120px';
+		input.style.minHeight = '24px';
 		input.placeholder = 'Escribe un mensaje...';
-		this.inputElement = input; // Guardar referencia
+		this.inputElement = input;
+
+		// Auto-resize del textarea
+		const autoResize = () => {
+			input.style.height = 'auto';
+			input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+			// Permitir scroll si excede maxHeight
+			if (input.scrollHeight > 120) {
+				input.style.overflow = 'auto';
+			} else {
+				input.style.overflow = 'hidden';
+			}
+		};
+
+		// Focus styles
+		input.addEventListener('focus', () => {
+			inputWrapper.style.background = '#ffffff';
+			inputWrapper.style.borderColor = '#d4d4d8';
+			inputWrapper.style.boxShadow = '0 0 0 3px rgba(0, 0, 0, 0.04)';
+		});
+		input.addEventListener('blur', () => {
+			inputWrapper.style.background = '#ffffff';
+			inputWrapper.style.borderColor = '#e4e4e7';
+			inputWrapper.style.boxShadow = 'none';
+			this.stopTyping();
+		});
 
 		const button = document.createElement('button');
-		button.textContent = 'Enviar';
+		button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.29106 3.3088C3.00745 3.18938 2.67967 3.25533 2.4643 3.47514C2.24894 3.69495 2.1897 4.02401 2.31488 4.30512L5.40752 11.25H13C13.4142 11.25 13.75 11.5858 13.75 12C13.75 12.4142 13.4142 12.75 13 12.75H5.40754L2.31488 19.6949C2.1897 19.976 2.24894 20.3051 2.4643 20.5249C2.67967 20.7447 3.00745 20.8107 3.29106 20.6912L22.2911 12.6913C22.5692 12.5742 22.75 12.3018 22.75 12C22.75 11.6983 22.5692 11.4259 22.2911 11.3088L3.29106 3.3088Z" fill="currentColor"/></svg>';
+		button.style.display = 'flex';
+		button.style.alignItems = 'center';
+		button.style.justifyContent = 'center';
+		button.style.width = '32px';
+		button.style.height = '32px';
+		button.style.border = 'none';
+		button.style.borderRadius = '50%';
+		button.style.background = '#18181b';
+		button.style.color = 'white';
+		button.style.cursor = 'pointer';
+		button.style.transition = 'all 0.15s ease';
+		button.style.flexShrink = '0';
+
+		// Hover styles
+		button.addEventListener('mouseenter', () => {
+			button.style.background = '#27272a';
+			button.style.transform = 'scale(1.05)';
+		});
+		button.addEventListener('mouseleave', () => {
+			button.style.background = '#18181b';
+			button.style.transform = 'scale(1)';
+		});
 
 		button.addEventListener('click', () => {
 			const msg = input.value.trim();
@@ -66,19 +140,25 @@ export class ChatInputUI {
 				// Opcional, también podemos renderizarlo en el chat de inmediato
 				this.chatUI.renderChatMessage({ text: msg, sender: 'user' });
 				input.value = '';
+				// Resetear altura del textarea
+				input.style.height = 'auto';
+				input.style.overflow = 'hidden';
 			}
 		});
 
-		// EventListener para Enter
+		// EventListener para Enter (enviar) y Shift+Enter (nueva línea)
 		input.addEventListener('keydown', (e) => {
-			if (e.key === 'Enter') {
+			if (e.key === 'Enter' && !e.shiftKey) {
+				e.preventDefault();
 				button.click();
 			}
+			// Shift+Enter permite nueva línea naturalmente
 		});
 
-		// EventListener para typing detection (oninput)
+		// EventListener para typing detection y auto-resize
 		input.addEventListener('input', () => {
 			this.handleTypingInput();
+			autoResize();
 		});
 
 		// EventListener para detener typing al perder foco (onblur)
@@ -86,8 +166,9 @@ export class ChatInputUI {
 			this.stopTyping();
 		});
 
-		this.inputContainer.appendChild(input);
-		this.inputContainer.appendChild(button);
+		inputWrapper.appendChild(input);
+		inputWrapper.appendChild(button);
+		this.inputContainer.appendChild(inputWrapper);
 
 		document.body.appendChild(this.inputContainer);
 	}

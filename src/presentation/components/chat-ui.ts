@@ -366,15 +366,15 @@ export class ChatUI {
 			}
 			
 			.chat-header {
-				background: linear-gradient(135deg, #0084ff 0%, #00c6fb 100%);
-				color: #fff;
+				background: #ffffff;
+				color: #111827;
 				padding: 16px 20px;
 				display: flex;
 				align-items: center;
 				justify-content: space-between;
 				border-top-left-radius: 12px;
 				border-top-right-radius: 12px;
-				box-shadow: 0 2px 8px rgba(0, 132, 255, 0.1);
+				border-bottom: 1px solid #e5e7eb;
 			}
 
 			/* 📱 Header móvil sin border-radius superior */
@@ -425,7 +425,7 @@ export class ChatUI {
 				width: 10px;
 				height: 10px;
 				border-radius: 50%;
-				border: 1.5px solid #0084ff; /* Mismo color del gradiente para consistencia */
+				border: 1.5px solid #ffffffff; /* Mismo color del gradiente para consistencia */
 				transition: all 0.3s ease;
 			}
 
@@ -480,7 +480,7 @@ export class ChatUI {
 			.chat-close-btn {
 				background: transparent;
 				border: none;
-				color: #fff;
+				color: #6b7280;
 				cursor: pointer;
 				width: 32px;
 				height: 32px;
@@ -495,12 +495,13 @@ export class ChatUI {
 
 			.chat-close-btn:hover {
 				opacity: 1;
-				background: rgba(255, 255, 255, 0.1);
+				background: rgba(0, 0, 0, 0.05);
+				color: #111827;
 			}
 
 			.chat-close-btn:active {
 				transform: scale(0.95);
-				background: rgba(255, 255, 255, 0.15);
+				background: rgba(0, 0, 0, 0.1);
 			}
 			
 			.chat-close-btn svg {
@@ -531,8 +532,8 @@ export class ChatUI {
 				flex-direction: column;
 				flex: 1;
 				overflow-y: auto;
-				padding: 18px 16px 12px 16px;
-				background: #f8f9fa;
+				padding: 18px 16px 80px 16px;
+				background: #ffffff;
 				scroll-behavior: smooth;
 			}
 			
@@ -545,15 +546,14 @@ export class ChatUI {
 			}
 			
 			.chat-message {
-				padding: 12px 16px;
-				border-radius: 16px;
+				padding: 10px 14px;
+				border-radius: 18px;
 				white-space: normal;
 				overflow-wrap: break-word;
 				word-wrap: break-word;
-				line-height: 1.5;
+				line-height: 1.4;
 				font-size: 14px;
 				position: relative;
-				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 			}
 
 			.chat-message-user-wrapper {
@@ -562,10 +562,9 @@ export class ChatUI {
 			}
 
 			.chat-message-user {
-				background: linear-gradient(135deg, #0084ff 0%, #00c6fb 100%);
-				color: #fff;
+				background: #18181b;
+				color: #ffffff;
 				border-bottom-right-radius: 4px;
-				box-shadow: 0 2px 8px rgba(0, 132, 255, 0.15);
 			}
 
 			.chat-message-other-wrapper {
@@ -575,9 +574,8 @@ export class ChatUI {
 			}
 
 			.chat-message-other {
-				background: #fff;
-				color: #111827;
-				border: 1px solid #e5e7eb;
+				background: #e4e4e7 !important;
+				color: #18181b;
 				border-bottom-left-radius: 4px;
 			}
 			
@@ -600,52 +598,56 @@ export class ChatUI {
 			}
 
 			.chat-input-container {
-				padding: 12px 16px;
+				position: absolute;
 				background: #ffffff;
-				border-top: 1px solid #e5e7eb;
+				bottom: 12px;
+				left: 12px;
+				right: 12px;
 				display: -webkit-flex;
 				display: flex;
-				-webkit-align-items: center;
-				align-items: center;
+				-webkit-align-items: flex-end;
+				align-items: flex-end;
 				gap: 8px;
-				border-bottom-left-radius: 12px;
-				border-bottom-right-radius: 12px;
+				border-radius: 28px;
+				box-shadow: none;
+				border: 1px solid #e5e7eb;
+				padding: 6px 6px 6px 16px;
 				/* Fix Safari: Asegurar que el contenedor mantenga su altura */
-				min-height: 60px;
 				box-sizing: border-box;
-				position: relative;
 			}
 			
-			/* 📱 Input móvil sin border-radius inferior */
+			/* 📱 Input móvil */
 			@media (max-width: 768px) {
 				.chat-input-container {
-					border-bottom-left-radius: 0 !important;
-					border-bottom-right-radius: 0 !important;
-					padding: 14px 16px;
+					bottom: 8px;
+					left: 8px;
+					right: 8px;
 				}
 			}
 			
 			.chat-input-field {
 				-webkit-flex: 1;
 				flex: 1;
-				border: 1px solid #e5e7eb;
-				border-radius: 10px;
-				padding: 11px 48px 11px 16px;
+				border: none;
+				padding: 8px 0;
 				font-size: 14px;
 				font-family: 'Inter', sans-serif;
 				outline: none;
-				background: #f9fafb;
+				background: transparent;
 				color: #111827;
-				transition: all 0.2s ease;
 				/* Fix Safari: Asegurar que el input no cause overflow */
 				min-width: 0;
 				box-sizing: border-box;
+				/* Textarea specific */
+				resize: none;
+				overflow: hidden;
+				line-height: 1.4;
+				max-height: 120px;
+				min-height: 20px;
 			}
 
 			.chat-input-field:focus {
-				border-color: #0084ff;
-				background: #ffffff;
-				box-shadow: 0 0 0 3px rgba(0, 132, 255, 0.08);
+				background: transparent;
 			}
 			
 			.chat-input-field::placeholder {
@@ -653,10 +655,8 @@ export class ChatUI {
 			}
 			
 			.chat-send-btn {
-				position: absolute;
-				right: 20px;
-				background: transparent;
-				color: #6b7280;
+				background: #18181b;
+				color: #ffffff;
 				border: none;
 				border-radius: 50%;
 				width: 36px;
@@ -668,7 +668,7 @@ export class ChatUI {
 				align-items: center;
 				-webkit-justify-content: center;
 				justify-content: center;
-				transition: all 0.2s ease;
+				transition: all 0.15s ease;
 				-webkit-flex-shrink: 0;
 				flex-shrink: 0;
 				/* Fix Safari: Asegurar dimensiones exactas y prevenir compresión */
@@ -680,23 +680,20 @@ export class ChatUI {
 			}
 
 			.chat-send-btn:hover {
-				background: #f3f4f6;
-				color: #111827;
-				-webkit-transform: scale(1.05);
+				background: #27272a;
 				transform: scale(1.05);
 			}
 
 			.chat-send-btn:active {
 				-webkit-transform: scale(0.95);
 				transform: scale(0.95);
-				background: #e5e7eb;
 			}
-			
+
 			.chat-send-btn::before {
 				content: '';
-				width: 20px;
-				height: 20px;
-				background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.29106 3.3088C3.00745 3.18938 2.67967 3.25533 2.4643 3.47514C2.24894 3.69495 2.1897 4.02401 2.31488 4.30512L5.40752 11.25H13C13.4142 11.25 13.75 11.5858 13.75 12C13.75 12.4142 13.4142 12.75 13 12.75H5.40754L2.31488 19.6949C2.1897 19.976 2.24894 20.3051 2.4643 20.5249C2.67967 20.7447 3.00745 20.8107 3.29106 20.6912L22.2911 12.6913C22.5692 12.5742 22.75 12.3018 22.75 12C22.75 11.6983 22.5692 11.4259 22.2911 11.3088L3.29106 3.3088Z' fill='%236b7280'/%3E%3C/svg%3E");
+				width: 16px;
+				height: 16px;
+				background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.29106 3.3088C3.00745 3.18938 2.67967 3.25533 2.4643 3.47514C2.24894 3.69495 2.1897 4.02401 2.31488 4.30512L5.40752 11.25H13C13.4142 11.25 13.75 11.5858 13.75 12C13.75 12.4142 13.4142 12.75 13 12.75H5.40754L2.31488 19.6949C2.1897 19.976 2.24894 20.3051 2.4643 20.5249C2.67967 20.7447 3.00745 20.8107 3.29106 20.6912L22.2911 12.6913C22.5692 12.5742 22.75 12.3018 22.75 12C22.75 11.6983 22.5692 11.4259 22.2911 11.3088L3.29106 3.3088Z' fill='%23ffffff'/%3E%3C/svg%3E");
 				background-repeat: no-repeat;
 				background-position: center;
 				transition: all 0.2s ease;
@@ -724,6 +721,7 @@ export class ChatUI {
 				border-radius: 50%;
 				flex-shrink: 0;
 				transition: all 0.3s ease;
+				border: 2px solid white;
 			}
 
 			.guiders-status-online {

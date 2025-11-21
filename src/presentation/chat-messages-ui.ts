@@ -318,23 +318,46 @@ export class ChatMessagesUI {
             return;
         }
 
+        // Guardar posición de scroll antes de añadir mensajes
+        const previousScrollHeight = this.messagesContainer.scrollHeight;
+        const previousScrollTop = this.messagesContainer.scrollTop;
+
         // Los mensajes antiguos se insertan al principio en orden cronológico
+        // reverse() convierte [más reciente, ..., más antiguo] en [más antiguo, ..., más reciente]
         const messages = [...response.messages].reverse();
 
-        messages.forEach((message, index) => {
+        // Usar DocumentFragment para insertar todos los mensajes de una vez
+        // manteniendo el orden correcto
+        const fragment = document.createDocumentFragment();
+        messages.forEach((message) => {
             const messageElement = this.createMessageElement(message);
-
-            // Insertar al principio del contenedor
-            const firstMessage = this.messagesContainer.firstChild;
-            if (firstMessage) {
-                this.messagesContainer.insertBefore(messageElement, firstMessage);
-            } else {
-                this.messagesContainer.appendChild(messageElement);
-            }
+            fragment.appendChild(messageElement);
         });
+
+        // Insertar el fragment completo al principio del contenedor
+        const firstExisting = this.messagesContainer.firstChild;
+        if (firstExisting) {
+            this.messagesContainer.insertBefore(fragment, firstExisting);
+        } else {
+            this.messagesContainer.appendChild(fragment);
+        }
 
         // ✅ Reconstruir separadores de fecha después de renderizar
         this.rebuildDateSeparators();
+
+        // Restaurar posición de scroll para evitar saltos
+        // Desactivar scroll suave temporalmente
+        const originalScrollBehavior = this.messagesContainer.style.scrollBehavior;
+        this.messagesContainer.style.scrollBehavior = 'auto';
+
+        const newScrollHeight = this.messagesContainer.scrollHeight;
+        const heightDifference = newScrollHeight - previousScrollHeight;
+        this.messagesContainer.scrollTop = previousScrollTop + heightDifference;
+
+        // Restaurar scroll suave
+        requestAnimationFrame(() => {
+            this.messagesContainer.style.scrollBehavior = originalScrollBehavior || 'smooth';
+        });
     }
 
     /**

@@ -74,61 +74,46 @@ export function createDateSeparator(dateStr: string): HTMLDivElement {
 	separator.className = 'chat-date-separator';
 	separator.setAttribute('data-date', dateStr);
 	
-	// Aplicar estilos directamente para un diseño más estético
+	// Aplicar estilos minimalistas monocromos
 	separator.style.cssText = `
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		margin: 16px 0;
+		margin: 20px 0;
 		position: relative;
 	`;
-	
+
 	// Crear línea horizontal izquierda
 	const leftLine = document.createElement('div');
 	leftLine.style.cssText = `
 		flex: 1;
 		height: 1px;
-		background: linear-gradient(to right, transparent, #e1e9f1);
+		background: #e4e4e7;
 		margin-right: 12px;
 	`;
-	
-	// Crear contenedor del texto con diseño mejorado
+
+	// Crear contenedor del texto con diseño minimalista
 	const textContainer = document.createElement('div');
 	textContainer.style.cssText = `
-		background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-		color: #64748b;
-		padding: 6px 16px;
-		border-radius: 16px;
-		font-size: 12px;
+		color: #71717a;
+		padding: 4px 0;
+		font-size: 11px;
 		font-weight: 500;
-		border: 1px solid #e2e8f0;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 		white-space: nowrap;
-		position: relative;
-		letter-spacing: 0.025em;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
 	`;
-	
-	// Añadir un pequeño icono para "Hoy" si es el caso
-	if (dateStr === 'Hoy') {
-		const icon = document.createElement('span');
-		icon.innerHTML = '📅';
-		icon.style.cssText = `
-			margin-right: 6px;
-			font-size: 11px;
-		`;
-		textContainer.appendChild(icon);
-	}
 	
 	const text = document.createElement('span');
 	text.textContent = dateStr;
 	textContainer.appendChild(text);
-	
+
 	// Crear línea horizontal derecha
 	const rightLine = document.createElement('div');
 	rightLine.style.cssText = `
 		flex: 1;
 		height: 1px;
-		background: linear-gradient(to left, transparent, #e1e9f1);
+		background: #e4e4e7;
 		margin-left: 12px;
 	`;
 	

@@ -11,7 +11,7 @@ interface ChatInputUIOptions {
 export class ChatInputUI {
 	private chatUI: ChatUI;
 	private inputContainer: HTMLDivElement;
-	private inputField: HTMLInputElement;
+	private inputField: HTMLTextAreaElement;
 	private options: ChatInputUIOptions;
 
 	private listeners: { [event: string]: (message: string) => void } = {};
@@ -27,17 +27,19 @@ export class ChatInputUI {
 		this.inputContainer = document.createElement('div');
 		this.inputContainer.className = 'chat-input-container';
 
-		// Creamos el campo de texto
-		this.inputField = document.createElement('input');
-		this.inputField.type = 'text';
+		// Creamos el campo de texto como textarea
+		this.inputField = document.createElement('textarea');
 		this.inputField.placeholder = this.options.placeholder!;
 		this.inputField.className = 'chat-input-field';
+		this.inputField.rows = 1;
 
-		// Suscribimos el evento "keydown" para que "Enter" envíe el mensaje
+		// Suscribimos el evento "keydown" para Enter/Shift+Enter
 		this.inputField.addEventListener('keydown', (event) => {
-			if (event.key === 'Enter') {
+			if (event.key === 'Enter' && !event.shiftKey) {
+				event.preventDefault();
 				this.handleSendMessage();
 			}
+			// Shift+Enter permite nueva línea naturalmente
 		});
 	}
 
@@ -52,12 +54,18 @@ export class ChatInputUI {
 		this.inputContainer = document.createElement('div');
 		this.inputContainer.className = 'chat-input-container';
 
-		// Campo de entrada de texto
-		this.inputField = document.createElement('input');
-		this.inputField.type = 'text';
+		// Campo de entrada de texto como textarea
+		this.inputField = document.createElement('textarea');
 		this.inputField.className = 'chat-input-field';
 		this.inputField.placeholder = this.options.placeholder || 'Escribe un mensaje...';
 		this.inputField.setAttribute('aria-label', 'Mensaje');
+		this.inputField.rows = 1;
+
+		// Función para auto-resize del textarea
+		const autoResize = () => {
+			this.inputField.style.height = 'auto';
+			this.inputField.style.height = Math.min(this.inputField.scrollHeight, 120) + 'px';
+		};
 
 		// Botón de envío
 		const sendButton = document.createElement('button');
@@ -69,13 +77,19 @@ export class ChatInputUI {
 		// Agregar elementos al contenedor
 		this.inputContainer.appendChild(this.inputField);
 		this.inputContainer.appendChild(sendButton);
-		
-		// Evento para enviar con Enter
+
+		// Evento para enviar con Enter, nueva línea con Shift+Enter
 		this.inputField.addEventListener('keydown', (event) => {
-			if (event.key === 'Enter') {
-				this.handleSendMessage();
+			if (event.key === 'Enter' && !event.shiftKey) {
 				event.preventDefault();
+				this.handleSendMessage();
 			}
+			// Shift+Enter permite nueva línea naturalmente
+		});
+
+		// Auto-resize en cada input
+		this.inputField.addEventListener('input', () => {
+			autoResize();
 		});
 
 		// Agregamos el contenedor de input al chat
@@ -109,8 +123,9 @@ export class ChatInputUI {
 		// Mandamos el texto al ChatUI como remitente "user"
 		this.chatUI.renderChatMessage({ text, sender: 'user' });
 
-		// Limpiamos el campo de texto
+		// Limpiamos el campo de texto y reseteamos altura
 		this.inputField.value = '';
+		this.inputField.style.height = 'auto';
 		
 		// Ya no mostramos el indicador de escritura aquí, será controlado por WebSocket.
 

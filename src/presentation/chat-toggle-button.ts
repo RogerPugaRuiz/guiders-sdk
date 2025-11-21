@@ -46,6 +46,11 @@ export class ChatToggleButtonUI {
 		this.button = document.createElement('button');
 		this.button.className = 'chat-toggle-btn';
 
+		// Crear elemento de fondo blanco
+		const bgElement = document.createElement('div');
+		bgElement.className = 'btn-background';
+		this.button.appendChild(bgElement);
+
 		// Inicializar servicio de mensajes no leídos
 		this.unreadService = UnreadMessagesService.getInstance();
 
@@ -121,10 +126,31 @@ export class ChatToggleButtonUI {
 	}
 
 	/**
+	 * Registra la propiedad CSS --deg para animación del gradiente
+	 */
+	private registerCSSProperty(): void {
+		try {
+			if (CSS && 'registerProperty' in CSS) {
+				CSS.registerProperty({
+					name: '--deg',
+					syntax: '<angle>',
+					initialValue: '0deg',
+					inherits: false
+				});
+			}
+		} catch (e) {
+			// La propiedad ya está registrada o no es soportada
+		}
+	}
+
+	/**
 	 * Añade el botón al DOM, intentando primero añadirlo al shadow DOM del chat
 	 * y si no existe, lo añade al body del documento.
 	 */
 	private addButtonToDOM(): void {
+		// Registrar propiedad CSS para animación
+		this.registerCSSProperty();
+
 		// Buscar el host del Shadow DOM del chat
 		const shadowHost = document.querySelector('.chat-widget-host') as HTMLElement;
 		if (shadowHost && shadowHost.shadowRoot) {
@@ -137,11 +163,11 @@ export class ChatToggleButtonUI {
 			// Insertar el botón flotante dentro del shadowRoot, pero antes del chat-widget para que quede visible
 			shadowHost.shadowRoot.insertBefore(this.button, shadowHost.shadowRoot.firstChild);
 			
-			// Crear el badge para los mensajes no leídos
+			// Crear el badge para los mensajes no leídos (dentro del botón)
 			this.badgeElement = document.createElement('div');
 			this.badgeElement.className = 'chat-unread-badge';
 			this.badgeElement.setAttribute('id', 'chat-unread-badge');
-			shadowHost.shadowRoot.appendChild(this.badgeElement);
+			this.button.appendChild(this.badgeElement);
 			
 			// Ocultar el badge inicialmente (sin mensajes no leídos)
 			this.hideBadge();
@@ -155,74 +181,103 @@ export class ChatToggleButtonUI {
 				const style = document.createElement('style');
 				style.setAttribute('data-chat-toggle-btn', 'true');
 				style.textContent = `
-					@keyframes gradientRotate {
-						0% { background-position: 0% 50%; }
-						50% { background-position: 100% 50%; }
-						100% { background-position: 0% 50%; }
-					}
-
 					.chat-toggle-btn {
 						position: fixed;
 						${buttonPositionCSS}
 						width: 56px;
 						height: 56px;
-						border-radius: 50%;
-						background: linear-gradient(135deg, #0062cc 0%, #0084ff 20%, #00a8ff 40%, #00c6fb 60%, #0084ff 80%, #0062cc 100%);
-						background-size: 300% 300%;
-						animation: gradientRotate 4s ease-in-out infinite;
-						color: #fff !important;
+						border-radius: 16px;
+						background: transparent;
+						color: #111827 !important;
 						border: none;
 						cursor: pointer;
-						z-index: 2147483647;
 						display: flex;
 						align-items: center;
 						justify-content: center;
 						font-weight: bold;
-						box-shadow: 0 4px 16px rgba(0, 132, 255, 0.5);
-						transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
-						position: relative; /* Asegurar que el badge se posicione correctamente */
-						overflow: hidden;
+						box-shadow: none;
+						transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+						z-index: 2147483647;
 					}
+
+					/* Animación de rotación del gradiente */
+					@keyframes rotate-gradient {
+						from {
+							--deg: 0deg;
+						}
+						to {
+							--deg: 360deg;
+						}
+					}
+
+					/* Capa de glow multicolor con blur */
+					.chat-toggle-btn::after {
+						content: '';
+						position: absolute;
+						inset: 0;
+						background: conic-gradient(from var(--deg, 0deg), #ff0000, #ff8000, #ffff00, #80ff00, #00ff00, #00ff80, #00ffff, #0080ff, #0000ff, #8000ff, #ff00ff, #ff0080, #ff0000);
+						filter: blur(8px);
+						border-radius: 16px;
+						opacity: 0.7;
+						z-index: 1;
+						animation: rotate-gradient 4s linear infinite;
+						transition: filter 0.3s ease, opacity 0.3s ease;
+					}
+
+					/* Fondo blanco encima del glow */
+					.chat-toggle-btn .btn-background {
+						position: absolute;
+						inset: 0;
+						background: #ffffff;
+						border-radius: 16px;
+						z-index: 2;
+					}
+
 					.chat-toggle-btn::before {
 						content: '';
 						display: block;
 						width: 24px;
 						height: 24px;
-						background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 3C6.5 3 2 6.58 2 11C2.05 13.15 3.06 15.17 4.75 16.5C4.75 17.1 4.33 18.67 2 21C4.37 20.89 6.64 20 8.47 18.5C9.61 18.83 10.81 19 12 19C17.5 19 22 15.42 22 11C22 6.58 17.5 3 12 3ZM12 17C7.58 17 4 14.31 4 11C4 7.69 7.58 5 12 5C16.42 5 20 7.69 20 11C20 14.31 16.42 17 12 17Z' fill='white'/%3E%3C/svg%3E");
+						background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M1.25 12C1.25 6.06294 6.06294 1.25 12 1.25C17.937 1.25 22.75 6.06293 22.75 12C22.75 17.937 17.937 22.75 12 22.75C10.1437 22.75 8.39536 22.2788 6.87016 21.4493L2.63727 22.2373C2.39422 22.2826 2.14448 22.2051 1.96967 22.0303C1.79485 21.8555 1.71742 21.6058 1.76267 21.3627L2.55076 17.1298C1.72113 15.6046 1.25 13.8563 1.25 12ZM7.25 10C7.25 9.58579 7.58579 9.25 8 9.25H12H16C16.4142 9.25 16.75 9.58579 16.75 10C16.75 10.4142 16.4142 10.75 16 10.75H12H8C7.58579 10.75 7.25 10.4142 7.25 10ZM8 13.25C7.58579 13.25 7.25 13.5858 7.25 14C7.25 14.4142 7.58579 14.75 8 14.75H10H12C12.4142 14.75 12.75 14.4142 12.75 14C12.75 13.5858 12.4142 13.25 12 13.25H10H8Z' fill='%23111827'/%3E%3C/svg%3E");
 						background-repeat: no-repeat;
 						background-position: center;
 						transition: transform 0.3s ease;
+						z-index: 3;
+						position: relative;
 					}
 					.chat-toggle-btn.open::before {
-						background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z' fill='white'/%3E%3C/svg%3E");
+						background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z' fill='%23111827'/%3E%3C/svg%3E");
 					}
 					.chat-toggle-btn:hover {
 						transform: translateY(-3px) scale(1.05);
-						box-shadow: 0 8px 24px rgba(0, 132, 255, 0.6), 0 0 20px rgba(0, 198, 251, 0.4);
+					}
+					.chat-toggle-btn:hover::after {
+						filter: blur(12px);
+						opacity: 1;
 					}
 					.chat-toggle-btn:active {
 						transform: translateY(0) scale(0.95);
-						box-shadow: 0 2px 10px rgba(0, 132, 255, 0.5);
 					}
 					.chat-unread-badge {
-						position: fixed;
-						${badgePositionCSS}
-						min-width: 22px;
-						height: 22px;
+						position: absolute;
+						top: -6px;
+						right: -6px;
+						min-width: 18px;
+						height: 18px;
 						background: linear-gradient(145deg, #ff5146, #e53a30);
 						color: white;
-						border-radius: 12px;
-						font-size: 12px;
+						border-radius: 10px;
+						font-size: 10px;
 						font-weight: bold;
 						display: flex;
 						align-items: center;
 						justify-content: center;
-						padding: 0 5px;
+						padding: 0 4px;
 						box-sizing: border-box;
 						border: 2px solid white;
-						z-index: 2147483647;
+						z-index: 10;
 						box-shadow: 0 2px 8px rgba(255,65,54,0.3);
-						pointer-events: none; /* Evitar que el badge interfiera con el botón */
+						pointer-events: none;
 						transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 					}
 					.chat-unread-badge.hidden {
@@ -243,11 +298,11 @@ export class ChatToggleButtonUI {
 		} else {
 			document.body.appendChild(this.button);
 			
-			// Crear el badge para los mensajes no leídos
+			// Crear el badge para los mensajes no leídos (dentro del botón)
 			this.badgeElement = document.createElement('div');
 			this.badgeElement.className = 'chat-unread-badge';
 			this.badgeElement.setAttribute('id', 'chat-unread-badge');
-			document.body.appendChild(this.badgeElement);
+			this.button.appendChild(this.badgeElement);
 			
 			// Ocultar el badge inicialmente (sin mensajes no leídos)
 			this.hideBadge();
@@ -275,13 +330,11 @@ export class ChatToggleButtonUI {
 						this.button.removeChild(child);
 					}
 				});
-				
-				// Aplicar estilos adicionales si es necesario
-				const baseColor = this.options.backgroundColor || '#0084ff';
-				this.button.style.background = `linear-gradient(135deg, #0062cc 0%, #0084ff 20%, #00a8ff 40%, #00c6fb 60%, #0084ff 80%, #0062cc 100%)`;
-				this.button.style.backgroundSize = '300% 300%';
-				this.button.style.animation = 'gradientRotate 4s ease-in-out infinite';
-				this.button.style.color = this.options.textColor || '#ffffff';
+
+				// Aplicar estilos para el nuevo diseño limpio
+				this.button.style.background = 'transparent';
+				this.button.style.color = '#111827';
+				this.button.style.borderRadius = '16px';
 	}
 
 	/**
@@ -377,11 +430,9 @@ export class ChatToggleButtonUI {
 			position: 'fixed',
 			width: '56px',
 			height: '56px',
-			borderRadius: '50%',
-			background: 'linear-gradient(135deg, #0062cc 0%, #0084ff 20%, #00a8ff 40%, #00c6fb 60%, #0084ff 80%, #0062cc 100%)',
-			backgroundSize: '300% 300%',
-			animation: 'gradientRotate 4s ease-in-out infinite',
-			color: this.options.textColor || '#ffffff',
+			borderRadius: '16px',
+			background: 'transparent',
+			color: '#111827',
 			border: 'none',
 			cursor: 'pointer',
 			zIndex: '2147483647',
@@ -389,9 +440,8 @@ export class ChatToggleButtonUI {
 			alignItems: 'center',
 			justifyContent: 'center',
 			fontWeight: 'bold',
-			boxShadow: '0 4px 16px rgba(0, 132, 255, 0.5)',
-			transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease',
-			overflow: 'hidden'
+			boxShadow: 'none',
+			transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
 		};
 
 		// Aplicar posicionamiento dinámico
@@ -405,38 +455,27 @@ export class ChatToggleButtonUI {
 		// Si existe el badge, aplicar estilos inline
 		if (this.badgeElement) {
 			const badgeStyles: any = {
-				position: 'fixed',
-				minWidth: '22px',
-				height: '22px',
+				position: 'absolute',
+				top: '-6px',
+				right: '-6px',
+				minWidth: '18px',
+				height: '18px',
 				background: 'linear-gradient(145deg, #ff5146, #e53a30)',
 				color: 'white',
-				borderRadius: '12px',
-				fontSize: '12px',
+				borderRadius: '10px',
+				fontSize: '10px',
 				fontWeight: 'bold',
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'center',
-				padding: '0 5px',
+				padding: '0 4px',
 				boxSizing: 'border-box',
 				border: '2px solid white',
-				zIndex: '2147483647',
+				zIndex: '10',
 				boxShadow: '0 2px 8px rgba(255,65,54,0.3)',
 				pointerEvents: 'none',
 				transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
 			};
-
-			// Calcular posición del badge basado en la posición del botón
-			if (pos.bottom) {
-				badgeStyles.bottom = `calc(${pos.bottom} + 43px)`;
-			} else if (pos.top) {
-				badgeStyles.top = `calc(${pos.top} + 13px)`;
-			}
-
-			if (pos.right) {
-				badgeStyles.right = `calc(${pos.right} + 13px)`;
-			} else if (pos.left) {
-				badgeStyles.left = `calc(${pos.left} + 43px)`;
-			}
 
 			Object.assign(this.badgeElement.style, badgeStyles);
 		}
