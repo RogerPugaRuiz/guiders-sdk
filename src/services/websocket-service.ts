@@ -41,6 +41,12 @@ export class WebSocketService {
 	private currentRooms: Set<string> = new Set();
 	private currentVisitorId: string | null = null;
 
+	// User activity tracking
+	private lastActivityEmit: number = 0;
+	private readonly ACTIVITY_THROTTLE_MS = 30000; // 30 segundos
+	private activityHandler: (() => void) | null = null;
+	private visibilityHandler: (() => void) | null = null;
+
 	private constructor() {
 		debugLog('📡 [WebSocketService] Instancia creada');
 	}
@@ -50,6 +56,101 @@ export class WebSocketService {
 			WebSocketService.instance = new WebSocketService();
 		}
 		return WebSocketService.instance;
+	}
+
+	/**
+	 * Configura los listeners de actividad del usuario
+	 * Emite 'user:activity' al backend via WebSocket (throttled a 30s)
+	 */
+	private setupActivityListeners(): void {
+		if (typeof document === 'undefined') return;
+
+		// Crear handler con throttle
+		this.activityHandler = () => {
+			const now = Date.now();
+			if (now - this.lastActivityEmit < this.ACTIVITY_THROTTLE_MS) {
+				return; // Throttled
+			}
+
+			if (this.socket?.connected) {
+				this.lastActivityEmit = now;
+				this.socket.emit('user:activity');
+				debugLog('📡 [WebSocketService] 🎯 user:activity emitido');
+			}
+		};
+
+		// Añadir listeners para interacciones del usuario
+		const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+		events.forEach(event => {
+			document.addEventListener(event, this.activityHandler!, { passive: true });
+		});
+
+		debugLog('📡 [WebSocketService] 👂 Activity listeners configurados');
+	}
+
+	/**
+	 * Limpia los listeners de actividad del usuario
+	 */
+	private cleanupActivityListeners(): void {
+		if (typeof document === 'undefined' || !this.activityHandler) return;
+
+		const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+		events.forEach(event => {
+			document.removeEventListener(event, this.activityHandler!);
+		});
+
+		this.activityHandler = null;
+		debugLog('📡 [WebSocketService] 🧹 Activity listeners eliminados');
+	}
+
+	/**
+	 * Configura el listener de visibilidad y foco para reconectar al volver a la página
+	 */
+	private setupVisibilityHandler(): void {
+		if (typeof document === 'undefined' || typeof window === 'undefined') return;
+
+		this.visibilityHandler = () => {
+			debugLog('📡 [WebSocketService] 👁️ Foco/visibilidad detectado - verificando conexión');
+
+			if (!this.socket?.connected) {
+				// Reconectar si está desconectado
+				debugLog('📡 [WebSocketService] 🔄 Reconectando WebSocket...');
+				if (this.config && this.callbacks) {
+					this.socket?.connect();
+				}
+			} else {
+				// Emitir actividad inmediatamente al volver
+				this.lastActivityEmit = Date.now();
+				this.socket.emit('user:activity');
+				debugLog('📡 [WebSocketService] 🎯 user:activity emitido (focus/visibility)');
+			}
+		};
+
+		// Listener para visibilidad (cambio de pestaña)
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'visible') {
+				this.visibilityHandler!();
+			}
+		});
+
+		// Listener para foco (click en ventana, alt-tab)
+		window.addEventListener('focus', this.visibilityHandler);
+
+		debugLog('📡 [WebSocketService] 👁️ Visibility + focus handlers configurados');
+	}
+
+	/**
+	 * Limpia los listeners de visibilidad y foco
+	 */
+	private cleanupVisibilityHandler(): void {
+		if (!this.visibilityHandler) return;
+
+		if (typeof window !== 'undefined') {
+			window.removeEventListener('focus', this.visibilityHandler);
+		}
+
+		this.visibilityHandler = null;
+		debugLog('📡 [WebSocketService] 🧹 Visibility + focus handlers eliminados');
 	}
 
 	/**
@@ -114,12 +215,25 @@ export class WebSocketService {
 			reconnectionDelay: this.config.reconnectionDelay
 		};
 
-		// Añadir autenticación si está disponible
+		// Añadir autenticación - visitorId y tenantId son requeridos
+		const visitorId = localStorage.getItem('visitorId');
+		const tenantId = localStorage.getItem('tenantId') || config.tenantId;
+
+		socketOptions.auth = {
+			visitorId: visitorId || '',
+			tenantId: tenantId || ''
+		};
+
+		// Añadir token si está disponible (legacy)
 		if (this.config.authToken) {
-			socketOptions.auth = {
-				token: this.config.authToken
-			};
+			socketOptions.auth.token = this.config.authToken;
 		}
+
+		debugLog('📡 [WebSocketService] 🔐 Auth configurado:', {
+			visitorId: visitorId ? `${visitorId.substring(0, 8)}...` : 'null',
+			tenantId: tenantId ? `${tenantId.substring(0, 8)}...` : 'null',
+			hasToken: !!this.config.authToken
+		});
 
 		this.socket = io(this.config.url, socketOptions);
 
@@ -158,6 +272,15 @@ export class WebSocketService {
 					this.joinChatRoom(chatId);
 				});
 			}
+
+			// Configurar tracking de actividad del usuario
+			this.setupActivityListeners();
+			this.setupVisibilityHandler();
+
+			// Emitir actividad inmediatamente para marcar ONLINE
+			this.lastActivityEmit = Date.now();
+			this.socket?.emit('user:activity');
+			debugLog('📡 [WebSocketService] 🎯 user:activity emitido (conexión inicial)');
 
 			if (this.callbacks.onConnect) {
 				this.callbacks.onConnect();
@@ -458,6 +581,9 @@ export class WebSocketService {
 	public disconnect(): void {
 		if (this.socket) {
 			debugLog('📡 [WebSocketService] 🔌 Desconectando...');
+
+			// Limpiar listeners de actividad
+			this.cleanupActivityListeners();
 
 			// Salir de sala de visitante si estaba conectado
 			if (this.currentVisitorId) {

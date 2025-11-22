@@ -64,6 +64,8 @@ export interface WebSocketConfig {
 	authToken?: string;
 	/** Cookie de sesión (visitantes) */
 	sessionId?: string;
+	/** ID del tenant para autenticación */
+	tenantId?: string;
 	/** Transports a usar */
 	transports?: ('websocket' | 'polling')[];
 	/** Enviar credenciales (cookies) */

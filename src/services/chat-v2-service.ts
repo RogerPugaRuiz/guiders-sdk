@@ -8,13 +8,9 @@ import { ChatV2, ChatListV2 } from '../types';
  */
 export class ChatV2Service {
 	private static instance: ChatV2Service;
-	private keepaliveInterval: ReturnType<typeof setInterval> | null = null;
-	private readonly KEEPALIVE_INTERVAL_MS = 4 * 60 * 1000; // 4 minutos (antes del timeout de 5 min)
 
 	private constructor() {
-		console.log('[ChatV2Service] 🚀 Constructor llamado - inicializando keepalive y visibility handler');
-		this.startSessionKeepalive();
-		this.setupVisibilityHandler();
+		debugLog('[ChatV2Service] 🚀 Constructor llamado');
 	}
 
 	public static getInstance(): ChatV2Service {
@@ -22,128 +18,6 @@ export class ChatV2Service {
 			ChatV2Service.instance = new ChatV2Service();
 		}
 		return ChatV2Service.instance;
-	}
-
-	/**
-	 * Inicia el keepalive de sesión para mantener la autenticación activa
-	 */
-	private startSessionKeepalive(): void {
-		// Limpiar intervalo existente si hay uno
-		if (this.keepaliveInterval) {
-			clearInterval(this.keepaliveInterval);
-		}
-
-		// Configurar nuevo intervalo
-		this.keepaliveInterval = setInterval(async () => {
-			const sessionId = sessionStorage.getItem('guiders_backend_session_id');
-			if (!sessionId) return;
-
-			try {
-				debugLog('[ChatV2Service] 🔄 Ejecutando keepalive de sesión...');
-				await this.sendHeartbeat(sessionId);
-			} catch (error) {
-				console.warn('[ChatV2Service] ⚠️ Error en keepalive:', error);
-			}
-		}, this.KEEPALIVE_INTERVAL_MS);
-
-		debugLog('[ChatV2Service] ✅ Session keepalive iniciado (cada 4 min)');
-	}
-
-	/**
-	 * Detiene el keepalive de sesión
-	 */
-	public stopSessionKeepalive(): void {
-		if (this.keepaliveInterval) {
-			clearInterval(this.keepaliveInterval);
-			this.keepaliveInterval = null;
-			debugLog('[ChatV2Service] ⏹️ Session keepalive detenido');
-		}
-	}
-
-	/**
-	 * Configura el handler de visibilidad para reconectar al volver a la pestaña
-	 */
-	private setupVisibilityHandler(): void {
-		if (typeof document === 'undefined') return;
-
-		document.addEventListener('visibilitychange', async () => {
-			console.log('[ChatV2Service] 🔔 visibilitychange event - state:', document.visibilityState);
-
-			if (document.visibilityState === 'visible') {
-				const visitorId = localStorage.getItem('visitorId');
-				const fingerprint = localStorage.getItem('fingerprint');
-				const apiKey = localStorage.getItem('apiKey');
-				const currentSessionId = sessionStorage.getItem('guiders_backend_session_id');
-
-				console.log('[ChatV2Service] 👁️ Ventana visible - Estado actual:');
-				console.log('  - visitorId:', visitorId);
-				console.log('  - fingerprint:', fingerprint ? '✅ presente' : '❌ ausente');
-				console.log('  - apiKey:', apiKey ? '✅ presente' : '❌ ausente');
-				console.log('  - sessionId:', currentSessionId);
-
-				if (!visitorId) {
-					console.log('[ChatV2Service] ⚠️ No hay visitorId, saltando reconexión');
-					return;
-				}
-
-				console.log('[ChatV2Service] 🔄 Iniciando reconexión de sesión...');
-				try {
-					// 1. Re-autenticar para obtener nueva cookie de sesión
-					const success = await this.reAuthenticate();
-
-					if (success) {
-						const newSessionId = sessionStorage.getItem('guiders_backend_session_id');
-						console.log('[ChatV2Service] ✅ Nueva sesión establecida - nuevo sessionId:', newSessionId);
-
-						// 2. Enviar heartbeat inmediato para actualizar lastActivityAt
-						if (newSessionId) {
-							await this.sendHeartbeat(newSessionId);
-							console.log('[ChatV2Service] ✅ Heartbeat enviado tras reconexión');
-						}
-					} else {
-						console.log('[ChatV2Service] ⚠️ No se pudo re-establecer sesión');
-					}
-				} catch (error) {
-					console.error('[ChatV2Service] ❌ Error al reconectar:', error);
-				}
-			}
-		});
-
-		debugLog('[ChatV2Service] 👂 Visibility handler configurado');
-	}
-
-	/**
-	 * Envía un heartbeat para mantener la sesión activa
-	 */
-	private async sendHeartbeat(sessionId: string): Promise<void> {
-		try {
-			const endpoints = EndpointManager.getInstance();
-			const baseEndpoint = (localStorage.getItem('pixelEndpoint') || endpoints.getEndpoint());
-			const apiRoot = baseEndpoint.endsWith('/api') ? baseEndpoint : `${baseEndpoint}/api`;
-			const heartbeatUrl = `${apiRoot}/visitors/session/heartbeat`;
-
-			const response = await fetch(heartbeatUrl, {
-				method: 'POST',
-				headers: this.getAuthHeaders(),
-				credentials: 'include',
-				body: JSON.stringify({
-					sessionId,
-					activityType: 'heartbeat'
-				})
-			});
-
-			if (response.ok) {
-				debugLog('[ChatV2Service] ✅ Heartbeat enviado correctamente');
-			} else {
-				debugLog('[ChatV2Service] ⚠️ Error en heartbeat:', response.status);
-				// Si falla el heartbeat, intentar re-autenticar
-				if (response.status === 401 || response.status === 404) {
-					await this.reAuthenticate();
-				}
-			}
-		} catch (error) {
-			console.warn('[ChatV2Service] ⚠️ Error en heartbeat:', error);
-		}
 	}
 
 	/**
@@ -283,6 +157,11 @@ export class ChatV2Service {
 
 				if (data.visitorId) {
 					localStorage.setItem('visitorId', data.visitorId);
+				}
+
+				if (data.tenantId || data.tenant_id) {
+					localStorage.setItem('tenantId', data.tenantId || data.tenant_id);
+					console.log('[ChatV2Service] ✅ TenantId guardado:', data.tenantId || data.tenant_id);
 				}
 
 				console.log('[ChatV2Service] ✅ Re-identificación completada');

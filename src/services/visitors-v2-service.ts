@@ -3,6 +3,7 @@ import { EndpointManager } from '../core/tracking-pixel-SDK';
 export interface IdentifyVisitorResponse {
   visitorId: string;
   sessionId?: string | null;
+  tenantId?: string | null;
   name?: string | null;
   email?: string | null;
   tel?: string | null;
@@ -32,6 +33,28 @@ export class VisitorsV2Service {
   }
 
   /**
+   * Intenta reutilizar la sesión existente sin validación de heartbeat
+   * La validación se hará cuando se use la sesión (401 → re-auth)
+   */
+  private tryReuseExistingSession(): IdentifyVisitorResponse | null {
+    const existingSessionId = sessionStorage.getItem('guiders_backend_session_id');
+    const existingVisitorId = localStorage.getItem('visitorId');
+    const existingTenantId = localStorage.getItem('tenantId');
+
+    if (!existingSessionId || !existingVisitorId) {
+      return null;
+    }
+
+    console.log('[VisitorsV2Service] ✅ Reutilizando sesión existente:', existingSessionId);
+    return {
+      visitorId: existingVisitorId,
+      sessionId: existingSessionId,
+      tenantId: existingTenantId,
+      consentStatus: 'granted'
+    };
+  }
+
+  /**
    * Identifica (o crea/actualiza) al visitante y arranca nueva sesión backend.
    * Según docs V2: usa dominio y API Key para identificación.
    * Devuelve visitorId y opcionalmente sessionId.
@@ -45,6 +68,12 @@ export class VisitorsV2Service {
     }
   ): Promise<IdentifyVisitorResponse | null> {
     try {
+      // Primero intentar reutilizar sesión existente
+      const existingSession = this.tryReuseExistingSession();
+      if (existingSession) {
+        return existingSession;
+      }
+
       const url = `${this.getBaseUrl()}/identify`;
       const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
@@ -97,6 +126,7 @@ export class VisitorsV2Service {
         const response: IdentifyVisitorResponse = {
           visitorId: data.visitorId || data.id,
           sessionId: data.sessionId || data.session_id,
+          tenantId: data.tenantId || data.tenant_id,
           name: data.name ?? null,
           email: data.email ?? null,
           tel: data.tel ?? null,
@@ -108,8 +138,9 @@ export class VisitorsV2Service {
 
         if (response.visitorId) localStorage.setItem('visitorId', response.visitorId);
         if (response.sessionId) sessionStorage.setItem('guiders_backend_session_id', response.sessionId);
+        if (response.tenantId) localStorage.setItem('tenantId', response.tenantId);
 
-        console.log('[VisitorsV2Service] ✅ identify OK (consentimiento aceptado):', response.visitorId, 'session:', response.sessionId);
+        console.log('[VisitorsV2Service] ✅ identify OK (consentimiento aceptado):', response.visitorId, 'session:', response.sessionId, 'tenant:', response.tenantId);
         return response;
       }
 

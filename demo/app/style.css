@@ -397,7 +397,6 @@ input:focus, textarea:focus, select:focus {
 .chat-input-container {
   display: flex;
   align-items: center;
-  padding: 10px;
   background: #f8f9fa;
   position: sticky;
   bottom: 0;
