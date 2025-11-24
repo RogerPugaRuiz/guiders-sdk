@@ -176,10 +176,11 @@ export class ChatUI {
 		mainContainer.style.gap = '12px';
 		mainContainer.style.flex = '1';
 
-		// Avatar del comercial
+		// Avatar del comercial (oculto por defecto hasta que haya comercial asignado)
 		const avatarContainer = document.createElement('div');
 		avatarContainer.className = 'chat-header-avatar-container';
 		avatarContainer.style.position = 'relative';
+		avatarContainer.style.display = 'none';
 
 		const avatar = document.createElement('div');
 		avatar.className = 'chat-header-avatar';
