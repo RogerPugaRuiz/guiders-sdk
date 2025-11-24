@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.2.0
+Stable tag: 2.2.1
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,11 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.2.1 =
+* **🐛 Bug Fixes**: Corrección en detección de plugins de cookies
+  * Corregida la detección de "Beautiful and Responsive Cookie Consent" - ahora se identifica correctamente como plugin incompatible con WP Consent API
+  * El panel de administración ahora muestra el mensaje apropiado con enlace a la documentación de integración personalizada
 
 = 2.2.0 =
 * **✨ Nueva Funcionalidad: Panel de Administración de Cookies**:
