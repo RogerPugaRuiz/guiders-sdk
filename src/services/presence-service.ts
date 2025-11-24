@@ -35,8 +35,7 @@ import {
   PresenceConfig,
   PresenceChangeCallback,
   TypingChangeCallback,
-  ChatParticipant,
-  ActivityType
+  ChatParticipant
 } from '../types/presence-types';
 
 export class PresenceService {
@@ -55,20 +54,6 @@ export class PresenceService {
   private typingTimeouts: Map<string, NodeJS.Timeout> = new Map();
   private currentlyTypingIn: Set<string> = new Set();
 
-  // Activity tracking para user-interaction (🆕 2025)
-  private lastUserInteractionTime: number = 0; // Timestamp de última interacción real del usuario
-  private userInteractionThrottleMs: number = 10000; // Throttle de 10 segundos para user-interaction (incrementado desde 5s)
-  private isThrottlingActive: boolean = false; // Flag para evitar llamadas redundantes durante throttling
-
-  // Event listeners para detectar actividad del usuario (🆕 2025 - según guía oficial)
-  private boundUserInteractionHandler: EventListener | null = null;
-  private boundHighFrequencyHandler: EventListener | null = null;
-  private boundVisibilityChangeHandler: EventListener | null = null;
-
-  // Throttling para eventos de alta frecuencia (mousemove, scroll)
-  private highFrequencyThrottleMs: number = 30000; // 30 segundos para eventos de alta frecuencia
-  private lastHighFrequencyTime: number = 0;
-
   constructor(
     webSocketService: WebSocketService,
     visitorId: string,
@@ -85,18 +70,8 @@ export class PresenceService {
       showTypingIndicator: config.showTypingIndicator ?? true,
       typingTimeout: config.typingTimeout ?? 2000,
       typingDebounce: config.typingDebounce ?? 300,
-      heartbeatInterval: config.heartbeatInterval ?? 30000, // 30 segundos según guía oficial
-      userInteractionThrottle: config.userInteractionThrottle ?? 10000, // Incrementado de 5s a 10s
-      highFrequencyThrottle: config.highFrequencyThrottle ?? 30000 // 30s para eventos de alta frecuencia
+      heartbeatInterval: config.heartbeatInterval ?? 30000
     };
-
-    // Aplicar configuración de throttling (🆕 2025)
-    if (this.config.userInteractionThrottle) {
-      this.userInteractionThrottleMs = this.config.userInteractionThrottle;
-    }
-    if (this.config.highFrequencyThrottle) {
-      this.highFrequencyThrottleMs = this.config.highFrequencyThrottle;
-    }
 
     debugLog('[PresenceService] 🟢 Inicializado', {
       visitorId: this.visitorId.substring(0, 8) + '...',
@@ -105,9 +80,6 @@ export class PresenceService {
 
     // Registrar listeners de WebSocket
     this.setupWebSocketListeners();
-
-    // 🆕 2025: Configurar listeners de actividad del usuario (según guía oficial de presencia)
-    this.setupUserActivityListeners();
   }
 
   /**
@@ -174,68 +146,6 @@ export class PresenceService {
     });
 
     debugLog('[PresenceService] 📡 Listeners de WebSocket configurados');
-  }
-
-  /**
-   * Configura listeners de eventos de usuario para detectar actividad
-   * Según guía oficial de presencia 2025:
-   * - Escucha: click, keydown, touchstart (throttle 10s)
-   * - Escucha: scroll, mousemove (throttle 30s - eventos de alta frecuencia)
-   * - Envía heartbeat tipo 'user-interaction' para reactivar desde AWAY
-   *
-   * 🆕 2025: Sistema automático de detección de actividad con throttling diferenciado
-   */
-  private setupUserActivityListeners(): void {
-    if (!this.config.enabled) {
-      debugLog('[PresenceService] ⚠️ Presencia deshabilitada, no se configuran listeners de actividad');
-      return;
-    }
-
-    // Handler para eventos de baja frecuencia (click, keydown, touchstart) - throttle 10s
-    this.boundUserInteractionHandler = (_event: Event) => {
-      this.recordUserInteraction();
-    };
-
-    // Handler para eventos de alta frecuencia (mousemove, scroll) - throttle 30s
-    this.boundHighFrequencyHandler = (_event: Event) => {
-      this.recordHighFrequencyInteraction();
-    };
-
-    // Eventos de baja frecuencia (throttle 10s)
-    const lowFrequencyEvents = ['click', 'keydown', 'touchstart'];
-
-    // Eventos de alta frecuencia (throttle 30s)
-    const highFrequencyEvents = ['mousemove', 'scroll'];
-
-    // Registrar listeners de baja frecuencia con { passive: true } para mejor performance
-    if (this.boundUserInteractionHandler) {
-      lowFrequencyEvents.forEach(eventType => {
-        document.addEventListener(eventType, this.boundUserInteractionHandler!, { passive: true });
-      });
-      debugLog('[PresenceService] 👂 Listeners de baja frecuencia configurados:', lowFrequencyEvents);
-    }
-
-    // Registrar listeners de alta frecuencia con { passive: true } para mejor performance
-    if (this.boundHighFrequencyHandler) {
-      highFrequencyEvents.forEach(eventType => {
-        document.addEventListener(eventType, this.boundHighFrequencyHandler!, { passive: true });
-      });
-      debugLog('[PresenceService] 👂 Listeners de alta frecuencia configurados:', highFrequencyEvents);
-    }
-
-    // 🆕 2025: Listener de visibilitychange para detectar cuando el usuario vuelve a la pestaña
-    this.boundVisibilityChangeHandler = (_event: Event) => {
-      if (document.visibilityState === 'visible') {
-        debugLog('[PresenceService] 👁️ Usuario volvió a la pestaña (visibilitychange)');
-        // Enviar heartbeat inmediato al volver a la pestaña
-        this.recordTabFocus();
-      }
-    };
-
-    if (this.boundVisibilityChangeHandler) {
-      document.addEventListener('visibilitychange', this.boundVisibilityChangeHandler);
-      debugLog('[PresenceService] 👂 Listener de visibilitychange configurado');
-    }
   }
 
   /**
@@ -444,27 +354,6 @@ export class PresenceService {
   }
 
   /**
-   * @deprecated La actividad del usuario ahora se maneja via WebSocket user:activity en WebSocketService
-   */
-  public async recordUserInteraction(): Promise<void> {
-    // No-op: actividad manejada por WebSocketService
-  }
-
-  /**
-   * @deprecated La actividad del usuario ahora se maneja via WebSocket user:activity en WebSocketService
-   */
-  public async recordHighFrequencyInteraction(): Promise<void> {
-    // No-op: actividad manejada por WebSocketService
-  }
-
-  /**
-   * @deprecated La actividad del usuario ahora se maneja via WebSocket user:activity en WebSocketService
-   */
-  public async recordTabFocus(): Promise<void> {
-    // No-op: actividad manejada por WebSocketService
-  }
-
-  /**
    * Suscribe a cambios de presencia
    */
   public onPresenceChanged(callback: PresenceChangeCallback): () => void {
@@ -599,33 +488,6 @@ export class PresenceService {
    */
   public cleanup(): void {
     debugLog('[PresenceService] 🧹 Limpiando recursos...');
-
-    // 🆕 2025: Remover listeners de actividad de usuario (según guía oficial)
-    if (this.boundUserInteractionHandler) {
-      const lowFrequencyEvents = ['click', 'keydown', 'touchstart'];
-      lowFrequencyEvents.forEach(eventType => {
-        document.removeEventListener(eventType, this.boundUserInteractionHandler!);
-      });
-      this.boundUserInteractionHandler = null;
-      debugLog('[PresenceService] ✅ Listeners de baja frecuencia removidos');
-    }
-
-    // Remover listeners de alta frecuencia
-    if (this.boundHighFrequencyHandler) {
-      const highFrequencyEvents = ['mousemove', 'scroll'];
-      highFrequencyEvents.forEach(eventType => {
-        document.removeEventListener(eventType, this.boundHighFrequencyHandler!);
-      });
-      this.boundHighFrequencyHandler = null;
-      debugLog('[PresenceService] ✅ Listeners de alta frecuencia removidos');
-    }
-
-    // 🆕 2025: Remover listener de visibilitychange
-    if (this.boundVisibilityChangeHandler) {
-      document.removeEventListener('visibilitychange', this.boundVisibilityChangeHandler);
-      this.boundVisibilityChangeHandler = null;
-      debugLog('[PresenceService] ✅ Listener de visibilitychange removido');
-    }
 
     // Detener todos los typing activos
     this.currentlyTypingIn.forEach(chatId => {

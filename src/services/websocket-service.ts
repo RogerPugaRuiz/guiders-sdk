@@ -63,25 +63,32 @@ export class WebSocketService {
 	}
 
 	/**
+	 * Emite 'user:activity' al backend (con throttle opcional)
+	 * Centraliza toda la lógica de emisión de actividad
+	 * @param force - Si true, ignora el throttle
+	 */
+	public emitUserActivity(force: boolean = false): void {
+		if (!this.socket?.connected) return;
+
+		const now = Date.now();
+		if (!force && now - this.lastActivityEmit < this.ACTIVITY_THROTTLE_MS) {
+			return; // Throttled
+		}
+
+		this.lastActivityEmit = now;
+		this.socket.emit('user:activity');
+		debugLog('📡 [WebSocketService] 🎯 user:activity emitido' + (force ? ' (forzado)' : ''));
+	}
+
+	/**
 	 * Configura los listeners de actividad del usuario
 	 * Emite 'user:activity' al backend via WebSocket (throttled a 30s)
 	 */
 	private setupActivityListeners(): void {
 		if (typeof document === 'undefined') return;
 
-		// Crear handler con throttle
-		this.activityHandler = () => {
-			const now = Date.now();
-			if (now - this.lastActivityEmit < this.ACTIVITY_THROTTLE_MS) {
-				return; // Throttled
-			}
-
-			if (this.socket?.connected) {
-				this.lastActivityEmit = now;
-				this.socket.emit('user:activity');
-				debugLog('📡 [WebSocketService] 🎯 user:activity emitido');
-			}
-		};
+		// Crear handler que usa el método centralizado
+		this.activityHandler = () => this.emitUserActivity();
 
 		// Añadir listeners para interacciones del usuario
 		const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
@@ -114,31 +121,21 @@ export class WebSocketService {
 		if (typeof document === 'undefined' || typeof window === 'undefined') return;
 
 		this.visibilityHandler = () => {
-			console.log('📡 [WebSocketService] 👁️ Foco/visibilidad detectado');
+			debugLog('📡 [WebSocketService] 👁️ Visibilidad/foco detectado');
 
-			if (!this.socket || !this.config || !this.callbacks) {
-				console.log('📡 [WebSocketService] ⚠️ Socket no configurado, ignorando evento de visibilidad');
+			if (!this.socket || !this.config) {
 				return;
 			}
 
-			console.log('📡 [WebSocketService] 🔍 Estado del socket:', {
-				connected: this.socket.connected,
-				disconnected: this.socket.disconnected,
-				id: this.socket.id
-			});
-
-			// Si ya está conectado, solo emitir actividad para reactivar de AWAY a ONLINE
+			// Si está conectado, emitir actividad (forzado para reactivar de AWAY)
 			if (this.socket.connected) {
-				this.lastActivityEmit = Date.now();
-				this.socket.emit('user:activity');
-				console.log('📡 [WebSocketService] 🎯 user:activity EMITIDO (foco/visibilidad)');
+				this.emitUserActivity(true);
 				return;
 			}
 
-			// Si no está conectado, intentar reconectar
-			console.log('📡 [WebSocketService] 🔄 Socket desconectado, reconectando...');
+			// Si no está conectado, reconectar
+			debugLog('📡 [WebSocketService] 🔄 Reconectando...');
 			this.socket.connect();
-			// user:activity se emitirá automáticamente en el evento 'connect'
 		};
 
 		// Listener para visibilidad (cambio de pestaña)
@@ -151,7 +148,7 @@ export class WebSocketService {
 		// Listener para foco (click en ventana, alt-tab)
 		window.addEventListener('focus', this.visibilityHandler);
 
-		debugLog('📡 [WebSocketService] 👁️ Visibility + focus handlers configurados');
+		debugLog('📡 [WebSocketService] 👁️ Visibility handlers configurados');
 	}
 
 	/**
@@ -300,9 +297,7 @@ export class WebSocketService {
 			this.setupVisibilityHandler();
 
 			// Emitir actividad inmediatamente para marcar ONLINE
-			this.lastActivityEmit = Date.now();
-			this.socket?.emit('user:activity');
-			debugLog('📡 [WebSocketService] 🎯 user:activity emitido (conexión)');
+			this.emitUserActivity(true);
 
 			if (this.callbacks.onConnect) {
 				this.callbacks.onConnect();
