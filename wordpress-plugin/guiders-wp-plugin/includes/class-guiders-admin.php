@@ -2429,11 +2429,9 @@ class GuidersAdmin {
             echo '<div class="notice notice-success inline" style="margin: 15px 0; padding: 10px;">';
             echo '<p><strong>✅ ' . __('Plugin de cookies detectado:', 'guiders-wp-plugin') . '</strong> ' . esc_html($detected_plugin['name']) . '</p>';
             if ($detected_plugin['wp_consent_api']) {
-                echo '<p style="margin: 5px 0 0 0;">' . __('Soporta <strong>WP Consent API</strong>. Sincronización automática habilitada.', 'guiders-wp-plugin') . '</p>';
-            } elseif ($detected_plugin['guiders_adapter']) {
-                echo '<p style="margin: 5px 0 0 0;">' . __('Soporta <strong>adaptador de Guiders</strong>. Sincronización automática habilitada.', 'guiders-wp-plugin') . ' ✨</p>';
+                echo '<p style="margin: 5px 0 0 0;">' . __('Este plugin soporta WP Consent API. La sincronización automática está disponible.', 'guiders-wp-plugin') . '</p>';
             } else {
-                echo '<p style="margin: 5px 0 0 0; color: #dc3232;">' . __('⚠️ Este plugin NO soporta sincronización automática. Requiere integración personalizada.', 'guiders-wp-plugin') . ' <a href="https://github.com/RogerPugaRuiz/guiders-sdk/blob/main/wordpress-plugin/CUSTOM_COOKIE_INTEGRATION.md" target="_blank">' . __('Ver guía', 'guiders-wp-plugin') . '</a></p>';
+                echo '<p style="margin: 5px 0 0 0;">' . __('Este plugin no soporta WP Consent API. Usa el sistema personalizado.', 'guiders-wp-plugin') . ' <a href="' . admin_url('admin.php?page=guiders-settings#cookie-integration-guide') . '">' . __('Ver guía', 'guiders-wp-plugin') . '</a></p>';
             }
             echo '</div>';
         } else {
@@ -2513,17 +2511,14 @@ class GuidersAdmin {
         ?>
         <label>
             <input type="checkbox" name="guiders_wp_plugin_settings[wp_consent_api_sync_enabled]" value="1" <?php checked($enabled, true); ?>>
-            <?php _e('Activar sincronización automática de cookies', 'guiders-wp-plugin'); ?>
+            <?php _e('Activar sincronización con WP Consent API', 'guiders-wp-plugin'); ?>
         </label>
         <p class="description">
             <?php _e('Sincroniza automáticamente las preferencias de cookies del usuario con Guiders.', 'guiders-wp-plugin'); ?>
-            <?php if ($detected_plugin && ($detected_plugin['wp_consent_api'] || $detected_plugin['guiders_adapter'])): ?>
+            <?php if ($detected_plugin && $detected_plugin['wp_consent_api']): ?>
                 <br><strong style="color: #46b450;">✅ <?php _e('Plugin compatible detectado:', 'guiders-wp-plugin'); ?> <?php echo esc_html($detected_plugin['name']); ?></strong>
-                <?php if ($detected_plugin['guiders_adapter']): ?>
-                    <span style="font-size: 11px;">(<?php _e('Adaptador de Guiders', 'guiders-wp-plugin'); ?> ✨)</span>
-                <?php endif; ?>
-            <?php elseif ($detected_plugin): ?>
-                <br><strong style="color: #dc3232;">⚠️ <?php echo sprintf(__('Tu plugin "%s" no soporta sincronización automática.', 'guiders-wp-plugin'), esc_html($detected_plugin['name'])); ?></strong>
+            <?php elseif ($detected_plugin && !$detected_plugin['wp_consent_api']): ?>
+                <br><strong style="color: #dc3232;">⚠️ <?php echo sprintf(__('Tu plugin "%s" no soporta WP Consent API.', 'guiders-wp-plugin'), esc_html($detected_plugin['name'])); ?></strong>
                 <a href="https://github.com/RogerPugaRuiz/guiders-sdk/blob/main/wordpress-plugin/CUSTOM_COOKIE_INTEGRATION.md" target="_blank"><?php _e('Ver cómo integrarlo', 'guiders-wp-plugin'); ?></a>
             <?php else: ?>
                 <br><?php _e('No se detectó ningún plugin de cookies. Instala uno compatible o usa el sistema interno.', 'guiders-wp-plugin'); ?>
@@ -2532,7 +2527,7 @@ class GuidersAdmin {
         <?php
 
         // Mostrar mapeo de categorías
-        if ($enabled && $detected_plugin && ($detected_plugin['wp_consent_api'] || $detected_plugin['guiders_adapter'])): ?>
+        if ($enabled && $detected_plugin && $detected_plugin['wp_consent_api']): ?>
             <div style="margin-top: 10px; padding: 10px; background: #f0f0f1; border-left: 4px solid #72aee6;">
                 <strong><?php _e('Mapeo de categorías:', 'guiders-wp-plugin'); ?></strong>
                 <ul style="margin: 5px 0 0 20px;">
@@ -2574,22 +2569,20 @@ class GuidersAdmin {
     private function detectCookieConsentPlugin() {
         $detected = null;
 
-        // Plugins con WP Consent API (sincronización automática)
+        // Lista de plugins compatibles con WP Consent API
         $wp_consent_plugins = array(
             'cookiefirst-cookie-consent/cookiefirst.php' => 'CookieFirst',
             'cookie-law-info/cookie-law-info.php' => 'CookieYes',
             'complianz-gdpr/complianz-gpdr.php' => 'Complianz GDPR',
+            'cookiebot/cookiebot.php' => 'Cookiebot',
             'gdpr-cookie-consent/gdpr-cookie-consent.php' => 'WP Cookie Consent'
         );
 
-        // Plugins con adaptador específico de Guiders (sincronización automática)
-        $guiders_adapter_plugins = array(
-            'gdpr-cookie-compliance/moove-gdpr.php' => 'Moove GDPR',
-            'cookiebot/cookiebot.php' => 'Cookiebot'
-        );
-
-        // Plugins que NO soportan WP Consent API ni tienen adaptador
+        // Plugins que NO soportan WP Consent API (pero son populares)
+        // Estos plugins requieren integración manual personalizada
         $other_plugins = array(
+            'gdpr-cookie-compliance/moove-gdpr.php' => 'GDPR Cookie Compliance (Moove)',
+            'beautiful-cookie-banner/beautiful-cookie-banner.php' => 'Beautiful Cookie Banner',
             'beautiful-and-responsive-cookie-consent/beautiful-and-responsive-cookie-consent.php' => 'Beautiful Cookie Consent',
             'beautiful-and-responsive-cookie-consent/index.php' => 'Beautiful Cookie Consent',
             'beautiful-and-responsive-cookie-consent/main.php' => 'Beautiful Cookie Consent',
@@ -2605,25 +2598,9 @@ class GuidersAdmin {
                 $detected = array(
                     'name' => $plugin_name,
                     'file' => $plugin_file,
-                    'wp_consent_api' => true,
-                    'guiders_adapter' => false
+                    'wp_consent_api' => true
                 );
                 break;
-            }
-        }
-
-        // Si no se encontró, verificar plugins con adaptador de Guiders
-        if (!$detected) {
-            foreach ($guiders_adapter_plugins as $plugin_file => $plugin_name) {
-                if (is_plugin_active($plugin_file)) {
-                    $detected = array(
-                        'name' => $plugin_name,
-                        'file' => $plugin_file,
-                        'wp_consent_api' => false,
-                        'guiders_adapter' => true
-                    );
-                    break;
-                }
             }
         }
 
@@ -2634,8 +2611,7 @@ class GuidersAdmin {
                     $detected = array(
                         'name' => $plugin_name,
                         'file' => $plugin_file,
-                        'wp_consent_api' => false,
-                        'guiders_adapter' => false
+                        'wp_consent_api' => false
                     );
                     break;
                 }

@@ -2,7 +2,73 @@
 
 Esta guía explica cómo integrar Guiders SDK con un sistema de gestión de cookies personalizado que no usa WP Consent API.
 
-## Escenarios
+## ✅ Integraciones Automáticas Disponibles
+
+El plugin Guiders SDK incluye integraciones **automáticas** con los siguientes plugins populares:
+
+### 🔹 Moove GDPR (GDPR Cookie Compliance)
+
+**Plugin**: [GDPR Cookie Compliance](https://wordpress.org/plugins/gdpr-cookie-compliance/)
+
+**Configuración**:
+```
+WordPress Admin → Guiders SDK → Gestión de Consentimiento de Cookies
+→ Sistema de Cookies: Automático
+→ Sincronización WP Consent API: ✅ Activar
+→ Logs de Debug: ✅ Activar (opcional, para verificar)
+```
+
+**Funcionamiento Automático**:
+- Guiders detecta automáticamente el plugin Moove GDPR
+- Lee las preferencias de localStorage:
+  - `moove_gdpr_popup` / `moove_gdpr_strict` → `functional`
+  - `moove_gdpr_performance` → `analytics`
+  - `moove_gdpr_targeting` / `moove_gdpr_marketing` → `personalization`
+- Sincroniza cuando el usuario cierra el modal (evento `moove_gdpr_modal_closed`)
+- Actualiza Guiders automáticamente sin código adicional
+
+**Verificar Integración** (consola del navegador F12):
+```javascript
+// Deberías ver estos logs:
+// [Guiders WP] Moove GDPR detectado - configurando sincronización
+// [Guiders WP] Moove GDPR - Consentimiento leído: {functional: true, analytics: true, personalization: false}
+// [Guiders WP] Consentimiento de Moove GDPR sincronizado con Guiders
+```
+
+---
+
+### 🔹 Beautiful Cookie Banner
+
+**Plugin**: [Beautiful Cookie Banner](https://beautiful-cookie-banner.com/)
+
+**Configuración**:
+```
+WordPress Admin → Guiders SDK → Gestión de Consentimiento de Cookies
+→ Sistema de Cookies: Automático
+→ Sincronización WP Consent API: ✅ Activar
+→ Logs de Debug: ✅ Activar (opcional, para verificar)
+```
+
+**Funcionamiento Automático**:
+- Guiders detecta automáticamente Beautiful Cookie Banner
+- Lee las preferencias de cookie `bcb_consent` o localStorage
+- Mapea categorías:
+  - `necessary` / `functional` → `functional`
+  - `analytics` / `statistics` → `analytics`
+  - `marketing` / `personalization` → `personalization`
+- Escucha evento `bcb_consent_changed` para actualizaciones en tiempo real
+
+**Verificar Integración** (consola del navegador F12):
+```javascript
+// Deberías ver estos logs:
+// [Guiders WP] Beautiful Cookie Banner detectado - configurando sincronización
+// [Guiders WP] Beautiful Cookie Banner - Consentimiento leído: {functional: true, analytics: false, personalization: true}
+// [Guiders WP] Consentimiento de Beautiful Cookie Banner sincronizado con Guiders
+```
+
+---
+
+## 📋 Escenarios
 
 ### Escenario 1: Sistema de Cookies Personalizado Existente
 
@@ -12,7 +78,7 @@ Tu web ya tiene un sistema de cookies propio (JavaScript personalizado, librerí
 
 Estás usando una librería de cookies específica que no soporta WP Consent API (ej: Osano, OneTrust, Termly, etc.)
 
-## Métodos de Integración
+## 🛠️ Métodos de Integración Manual
 
 ### Método 1: Sincronización Manual con JavaScript
 
