@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.0.7
+Stable tag: 2.0.8
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,11 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.0.8 =
+* **🐛 Corrección de sesión expirada**:
+  * Re-autenticación automática en PresenceService cuando la sesión expira (error 401)
+  * Soluciona errores al volver a la página después de un tiempo de inactividad
 
 = 2.0.7 =
 * **🔧 Optimización del sistema de presencia**:
