@@ -1,5 +1,6 @@
 import { EndpointManager } from '../core/tracking-pixel-SDK';
 import { MessageV2, MessageListResponse } from '../types';
+import { ChatV2Service } from './chat-v2-service';
 
 /**
  * Servicio para cargar mensajes con paginación cursor-based
@@ -52,6 +53,35 @@ export class MessagePaginationService {
     }
 
     /**
+     * Ejecuta una petición fetch con manejo automático de errores 401
+     * Si recibe 401, intenta re-autenticar y reintentar la petición
+     */
+    private async fetchWithReauth(url: string, options: RequestInit): Promise<Response> {
+        let response = await fetch(url, options);
+
+        if (response.status === 401) {
+            console.log('[MessagePaginationService] ⚠️ Error 401 - Intentando re-autenticación...');
+
+            // Intentar re-autenticar usando ChatV2Service
+            const chatService = ChatV2Service.getInstance();
+            const reauthed = await chatService.reAuthenticate();
+
+            if (reauthed) {
+                console.log('[MessagePaginationService] ✅ Re-autenticación exitosa, reintentando petición...');
+                // Reintentar la petición con las nuevas credenciales
+                response = await fetch(url, {
+                    ...options,
+                    headers: this.getAuthHeaders()
+                });
+            } else {
+                console.log('[MessagePaginationService] ❌ Re-autenticación fallida');
+            }
+        }
+
+        return response;
+    }
+
+    /**
      * Construye la URL base para mensajes
      */
     private getMessagesEndpoint(): string {
@@ -69,11 +99,11 @@ export class MessagePaginationService {
      */
     async loadInitialMessages(chatId: string, limit: number = 20): Promise<MessageListResponse> {
         console.log(`📋 [MessagePagination] Cargando mensajes iniciales del chat: ${chatId}`);
-        
+
         const url = `${this.getMessagesEndpoint()}/chat/${chatId}?limit=${limit}`;
-        
+
         try {
-            const response = await fetch(url, this.getFetchOptions());
+            const response = await this.fetchWithReauth(url, this.getFetchOptions());
             
             if (!response.ok) {
                 const errorText = await response.text();
@@ -116,8 +146,8 @@ export class MessagePaginationService {
         const url = `${this.getMessagesEndpoint()}/chat/${chatId}?limit=${limit}&cursor=${encodedCursor}`;
         
         try {
-            const response = await fetch(url, this.getFetchOptions());
-            
+            const response = await this.fetchWithReauth(url, this.getFetchOptions());
+
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('❌ [MessagePagination] Error al cargar mensajes antiguos:', errorText);
