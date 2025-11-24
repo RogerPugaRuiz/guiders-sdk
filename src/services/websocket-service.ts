@@ -47,6 +47,10 @@ export class WebSocketService {
 	private activityHandler: (() => void) | null = null;
 	private visibilityHandler: (() => void) | null = null;
 
+	// Manual reconnection tracking
+	private manualReconnectAttempt: number = 0;
+	private manualReconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+
 	private constructor() {
 		debugLog('📡 [WebSocketService] Instancia creada');
 	}
@@ -195,7 +199,7 @@ export class WebSocketService {
 			transports: config.transports || ['websocket', 'polling'],
 			withCredentials: config.withCredentials !== undefined ? config.withCredentials : true,
 			reconnection: config.reconnection !== undefined ? config.reconnection : true,
-			reconnectionAttempts: config.reconnectionAttempts || 5,
+			reconnectionAttempts: config.reconnectionAttempts || Infinity, // Reconexión infinita
 			reconnectionDelay: config.reconnectionDelay || 1000,
 			authToken: config.authToken,
 			sessionId: config.sessionId
@@ -270,6 +274,9 @@ export class WebSocketService {
 			debugLog('📡 [WebSocketService] 📍 Path:', this.config?.path);
 			debugLog('📡 [WebSocketService] 🚀 Transporte usado:', this.socket?.io?.engine?.transport?.name);
 
+			// Cancelar reconexión manual si estaba en progreso
+			this.cancelManualReconnection();
+
 			// Re-unirse a sala de visitante si estaba conectado
 			if (this.currentVisitorId) {
 				debugLog('📡 [WebSocketService] 🔄 Re-uniéndose a sala de visitante:', this.currentVisitorId);
@@ -340,6 +347,19 @@ export class WebSocketService {
 		this.socket.io.on('reconnect', (attemptNumber: number) => {
 			this.state = WebSocketState.CONNECTED;
 			debugLog('📡 [WebSocketService] ✅ Reconectado después de', attemptNumber, 'intentos');
+		});
+
+		this.socket.io.on('reconnect_failed', () => {
+			this.state = WebSocketState.ERROR;
+			console.error('📡 [WebSocketService] ❌❌❌ RECONEXIÓN FALLIDA - todos los intentos agotados');
+			console.error('📡 [WebSocketService] 🔄 Iniciando reconexión manual con backoff exponencial...');
+
+			// Reiniciar reconexión manual con backoff exponencial
+			this.startManualReconnection();
+		});
+
+		this.socket.io.on('reconnect_error', (error: Error) => {
+			console.error('📡 [WebSocketService] ⚠️ Error en intento de reconexión:', error.message);
 		});
 
 		// Eventos del chat
@@ -591,11 +611,66 @@ export class WebSocketService {
 	}
 
 	/**
+	 * Inicia reconexión manual con backoff exponencial
+	 * Se usa cuando Socket.IO agota sus intentos de reconexión automática
+	 */
+	private startManualReconnection(): void {
+		if (!this.socket || !this.config) {
+			console.error('📡 [WebSocketService] ⚠️ No hay socket o config para reconexión manual');
+			return;
+		}
+
+		this.manualReconnectAttempt++;
+
+		// Backoff exponencial: 1s, 2s, 4s, 8s, 16s, max 30s
+		const baseDelay = 1000;
+		const maxDelay = 30000;
+		const delay = Math.min(baseDelay * Math.pow(2, this.manualReconnectAttempt - 1), maxDelay);
+
+		// Añadir jitter (±20%) para evitar thundering herd
+		const jitter = delay * 0.2 * (Math.random() * 2 - 1);
+		const finalDelay = Math.round(delay + jitter);
+
+		console.log(`📡 [WebSocketService] 🔄 Reconexión manual #${this.manualReconnectAttempt} en ${finalDelay}ms`);
+
+		this.manualReconnectTimeout = setTimeout(() => {
+			if (this.socket && !this.socket.connected) {
+				console.log('📡 [WebSocketService] 🔄 Intentando reconexión manual...');
+				this.socket.connect();
+
+				// Si después de 10s no se conectó, reintentar
+				setTimeout(() => {
+					if (this.socket && !this.socket.connected) {
+						this.startManualReconnection();
+					} else {
+						// Éxito - resetear contador
+						this.manualReconnectAttempt = 0;
+					}
+				}, 10000);
+			}
+		}, finalDelay);
+	}
+
+	/**
+	 * Cancela la reconexión manual pendiente
+	 */
+	private cancelManualReconnection(): void {
+		if (this.manualReconnectTimeout) {
+			clearTimeout(this.manualReconnectTimeout);
+			this.manualReconnectTimeout = null;
+		}
+		this.manualReconnectAttempt = 0;
+	}
+
+	/**
 	 * Desconecta el WebSocket
 	 */
 	public disconnect(): void {
 		if (this.socket) {
 			debugLog('📡 [WebSocketService] 🔌 Desconectando...');
+
+			// Cancelar reconexión manual pendiente
+			this.cancelManualReconnection();
 
 			// Limpiar listeners de actividad
 			this.cleanupActivityListeners();
