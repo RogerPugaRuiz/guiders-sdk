@@ -25,6 +25,7 @@
  */
 
 import { WebSocketService } from './websocket-service';
+import { ChatV2Service } from './chat-v2-service';
 import { EndpointManager } from '../core/tracking-pixel-SDK';
 import { debugLog } from '../utils/debug-logger';
 import {
@@ -150,8 +151,9 @@ export class PresenceService {
 
   /**
    * Obtiene el estado de presencia actual de un chat via REST API
+   * Incluye manejo automático de re-autenticación en caso de error 401
    */
-  public async getChatPresence(chatId: string): Promise<ChatPresence | null> {
+  public async getChatPresence(chatId: string, isRetry: boolean = false): Promise<ChatPresence | null> {
     try {
       const endpoint = this.endpointManager.getEndpoint();
       const url = `${endpoint}/presence/chat/${chatId}`;
@@ -178,6 +180,20 @@ export class PresenceService {
         credentials: 'include', // ✅ Enviar cookies de sesión automáticamente
         headers
       });
+
+      // Manejar 401 con retry usando ChatV2Service para re-autenticar
+      if (response.status === 401 && !isRetry) {
+        console.log('[PresenceService] ⚠️ Error 401 - Intentando re-autenticación...');
+        const chatService = ChatV2Service.getInstance();
+        const reauthed = await chatService.reAuthenticate();
+        if (reauthed) {
+          console.log('[PresenceService] ✅ Re-autenticación exitosa, reintentando...');
+          return this.getChatPresence(chatId, true);
+        } else {
+          console.log('[PresenceService] ❌ Re-autenticación fallida');
+          return null;
+        }
+      }
 
       if (!response.ok) {
         console.error('[PresenceService] ❌ Error al obtener presencia:', response.status);

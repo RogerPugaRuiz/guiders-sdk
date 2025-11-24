@@ -86,7 +86,7 @@ export class ChatV2Service {
 	/**
 	 * Intenta re-autenticar al visitante
 	 */
-	private async reAuthenticate(): Promise<boolean> {
+	public async reAuthenticate(): Promise<boolean> {
 		try {
 			const visitorId = localStorage.getItem('visitorId');
 			const fingerprint = localStorage.getItem('fingerprint');
