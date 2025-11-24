@@ -229,16 +229,54 @@ class GuidersPublic {
         ?>
     <script type="text/javascript">
     (function() {
+            // Configuración del sistema de cookies desde WordPress
+            var cookieConfig = <?php echo json_encode(array(
+                'system' => isset($this->settings['cookie_consent_system']) ? $this->settings['cookie_consent_system'] : 'auto',
+                'wp_consent_api_enabled' => isset($this->settings['wp_consent_api_sync_enabled']) ? $this->settings['wp_consent_api_sync_enabled'] : true,
+                'debug' => isset($this->settings['cookie_consent_debug']) ? $this->settings['cookie_consent_debug'] : false
+            )); ?>;
+
             // WP Consent API Integration
             // Sincroniza el consentimiento del plugin de cookies con Guiders SDK
             function setupConsentSync() {
-                // Verificar si WP Consent API está disponible
-                if (typeof wp_has_consent === 'undefined' || typeof wp_set_consent === 'undefined') {
-                    console.log('[Guiders WP] WP Consent API no detectada - usando consentimiento interno de Guiders');
+                // Verificar si la sincronización está habilitada
+                if (!cookieConfig.wp_consent_api_enabled) {
+                    if (cookieConfig.debug) {
+                        console.log('[Guiders WP] Sincronización WP Consent API desactivada en configuración');
+                    }
                     return;
                 }
 
-                console.log('[Guiders WP] WP Consent API detectada - sincronizando consentimiento');
+                // Verificar si se debe forzar el sistema interno
+                if (cookieConfig.system === 'internal') {
+                    if (cookieConfig.debug) {
+                        console.log('[Guiders WP] Sistema configurado como "interno" - saltando WP Consent API');
+                    }
+                    return;
+                }
+
+                // Verificar si WP Consent API está disponible
+                var hasWPConsentAPI = typeof wp_has_consent !== 'undefined' && typeof wp_set_consent !== 'undefined';
+
+                if (!hasWPConsentAPI) {
+                    if (cookieConfig.debug || cookieConfig.system === 'wp_consent_api') {
+                        console.log('[Guiders WP] WP Consent API no detectada - usando consentimiento interno de Guiders');
+                    }
+                    return;
+                }
+
+                // Si el sistema es 'custom', no hacer nada (el usuario debe implementar su lógica)
+                if (cookieConfig.system === 'custom') {
+                    if (cookieConfig.debug) {
+                        console.log('[Guiders WP] Sistema configurado como "personalizado" - saltando sincronización automática');
+                    }
+                    return;
+                }
+
+                if (cookieConfig.debug) {
+                    console.log('[Guiders WP] WP Consent API detectada - sincronizando consentimiento');
+                    console.log('[Guiders WP] Configuración:', cookieConfig);
+                }
 
                 // Mapeo de categorías: WP Consent API → Guiders SDK
                 var categoryMap = {
@@ -250,7 +288,9 @@ class GuidersPublic {
                 // Función para sincronizar consentimiento inicial desde WP Consent API a Guiders
                 function syncInitialConsent() {
                     if (!window.guiders || !window.guiders.updateConsent) {
-                        console.log('[Guiders WP] SDK no listo para sincronizar consentimiento');
+                        if (cookieConfig.debug) {
+                            console.log('[Guiders WP] SDK no listo para sincronizar consentimiento');
+                        }
                         return;
                     }
 
@@ -263,13 +303,17 @@ class GuidersPublic {
                         var hasConsent = wp_has_consent(wpCategory);
                         guidersConsent[guidersCategory] = hasConsent;
                         if (hasConsent) hasAnyConsent = true;
-                        console.log('[Guiders WP] Consentimiento sincronizado: ' + wpCategory + ' → ' + guidersCategory + ' = ' + hasConsent);
+                        if (cookieConfig.debug) {
+                            console.log('[Guiders WP] Consentimiento sincronizado: ' + wpCategory + ' → ' + guidersCategory + ' = ' + hasConsent);
+                        }
                     });
 
                     // Actualizar consentimiento en Guiders SDK
                     if (hasAnyConsent) {
                         window.guiders.updateConsent(guidersConsent);
-                        console.log('[Guiders WP] Consentimiento inicial sincronizado con Guiders SDK');
+                        if (cookieConfig.debug) {
+                            console.log('[Guiders WP] Consentimiento inicial sincronizado con Guiders SDK');
+                        }
                     }
                 }
 
@@ -290,11 +334,15 @@ class GuidersPublic {
                             update[guidersCategory] = newConsent;
                             window.guiders.updateConsent(update);
 
-                            console.log('[Guiders WP] Consentimiento actualizado: ' + wpCategory + ' → ' + guidersCategory + ' = ' + newConsent);
+                            if (cookieConfig.debug) {
+                                console.log('[Guiders WP] Consentimiento actualizado: ' + wpCategory + ' → ' + guidersCategory + ' = ' + newConsent);
+                            }
                         });
                     });
 
-                    console.log('[Guiders WP] Listener de cambios de consentimiento activado');
+                    if (cookieConfig.debug) {
+                        console.log('[Guiders WP] Listener de cambios de consentimiento activado');
+                    }
                 }
 
                 // Ejecutar sincronización inicial y configurar listener

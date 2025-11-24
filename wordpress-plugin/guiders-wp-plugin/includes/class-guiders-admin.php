@@ -524,6 +524,41 @@ class GuidersAdmin {
             'guiders-settings',
             'guiders_gdpr_section'
         );
+
+        // Cookie Consent System Management section
+        add_settings_section(
+            'guiders_cookie_management_section',
+            __('🍪 Gestión de Consentimiento de Cookies', 'guiders-wp-plugin'),
+            array($this, 'cookieManagementSectionCallback'),
+            'guiders-settings'
+        );
+
+        // Cookie consent system
+        add_settings_field(
+            'cookie_consent_system',
+            __('Sistema de Cookies', 'guiders-wp-plugin'),
+            array($this, 'cookieConsentSystemFieldCallback'),
+            'guiders-settings',
+            'guiders_cookie_management_section'
+        );
+
+        // WP Consent API sync enabled
+        add_settings_field(
+            'wp_consent_api_sync_enabled',
+            __('Sincronización WP Consent API', 'guiders-wp-plugin'),
+            array($this, 'wpConsentApiSyncEnabledFieldCallback'),
+            'guiders-settings',
+            'guiders_cookie_management_section'
+        );
+
+        // Cookie consent debug logs
+        add_settings_field(
+            'cookie_consent_debug',
+            __('Logs de Debug en Consola', 'guiders-wp-plugin'),
+            array($this, 'cookieConsentDebugFieldCallback'),
+            'guiders-settings',
+            'guiders_cookie_management_section'
+        );
     }
     
     /**
@@ -841,6 +876,20 @@ class GuidersAdmin {
 
         // Validate chat consent show once
         $validated['chat_consent_show_once'] = isset($input['chat_consent_show_once']) ? true : false;
+
+        // Validate cookie consent system
+        $valid_cookie_systems = array('auto', 'internal', 'wp_consent_api', 'custom');
+        if (isset($input['cookie_consent_system']) && in_array($input['cookie_consent_system'], $valid_cookie_systems)) {
+            $validated['cookie_consent_system'] = sanitize_text_field($input['cookie_consent_system']);
+        } else {
+            $validated['cookie_consent_system'] = 'auto';
+        }
+
+        // Validate WP Consent API sync enabled
+        $validated['wp_consent_api_sync_enabled'] = isset($input['wp_consent_api_sync_enabled']) ? true : false;
+
+        // Validate cookie consent debug
+        $validated['cookie_consent_debug'] = isset($input['cookie_consent_debug']) ? true : false;
 
         return $validated;
     }
@@ -2367,7 +2416,205 @@ class GuidersAdmin {
 
         wp_add_inline_script('wp-color-picker', $inline_js);
     }
-    
+
+    /**
+     * Cookie Management section callback
+     */
+    public function cookieManagementSectionCallback() {
+        $detected_plugin = $this->detectCookieConsentPlugin();
+
+        echo '<p>' . __('Gestiona cómo Guiders se integra con tu sistema de gestión de cookies.', 'guiders-wp-plugin') . '</p>';
+
+        if ($detected_plugin) {
+            echo '<div class="notice notice-success inline" style="margin: 15px 0; padding: 10px;">';
+            echo '<p><strong>✅ ' . __('Plugin de cookies detectado:', 'guiders-wp-plugin') . '</strong> ' . esc_html($detected_plugin['name']) . '</p>';
+            if ($detected_plugin['wp_consent_api']) {
+                echo '<p style="margin: 5px 0 0 0;">' . __('Este plugin soporta WP Consent API. La sincronización automática está disponible.', 'guiders-wp-plugin') . '</p>';
+            } else {
+                echo '<p style="margin: 5px 0 0 0;">' . __('Este plugin no soporta WP Consent API. Usa el sistema personalizado.', 'guiders-wp-plugin') . ' <a href="' . admin_url('admin.php?page=guiders-settings#cookie-integration-guide') . '">' . __('Ver guía', 'guiders-wp-plugin') . '</a></p>';
+            }
+            echo '</div>';
+        } else {
+            echo '<div class="notice notice-info inline" style="margin: 15px 0; padding: 10px;">';
+            echo '<p>' . __('No se detectó ningún plugin de gestión de cookies. Puedes usar el sistema interno de Guiders o instalar uno.', 'guiders-wp-plugin') . '</p>';
+            echo '</div>';
+        }
+
+        // Agregar enlaces a documentación
+        echo '<p style="margin-top: 15px;">';
+        echo '<a href="https://github.com/RogerPugaRuiz/guiders-sdk/blob/main/wordpress-plugin/WP_CONSENT_API_INTEGRATION.md" target="_blank" class="button button-secondary">' . __('📚 Guía WP Consent API', 'guiders-wp-plugin') . '</a> ';
+        echo '<a href="https://github.com/RogerPugaRuiz/guiders-sdk/blob/main/wordpress-plugin/CUSTOM_COOKIE_INTEGRATION.md" target="_blank" class="button button-secondary">' . __('🛠️ Guía Sistema Personalizado', 'guiders-wp-plugin') . '</a>';
+        echo '</p>';
+    }
+
+    /**
+     * Cookie consent system field callback
+     */
+    public function cookieConsentSystemFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $cookie_consent_system = isset($settings['cookie_consent_system']) ? $settings['cookie_consent_system'] : 'auto';
+        $detected_plugin = $this->detectCookieConsentPlugin();
+
+        ?>
+        <fieldset>
+            <label>
+                <input type="radio" name="guiders_wp_plugin_settings[cookie_consent_system]" value="auto" <?php checked($cookie_consent_system, 'auto'); ?>>
+                <strong><?php _e('Automático (recomendado)', 'guiders-wp-plugin'); ?></strong>
+            </label>
+            <p class="description" style="margin: 5px 0 15px 25px;">
+                <?php
+                if ($detected_plugin && $detected_plugin['wp_consent_api']) {
+                    echo '✅ ' . __('Detectará y usará WP Consent API si está disponible', 'guiders-wp-plugin');
+                } else {
+                    _e('Usará el sistema interno de Guiders si no hay WP Consent API', 'guiders-wp-plugin');
+                }
+                ?>
+            </p>
+
+            <label>
+                <input type="radio" name="guiders_wp_plugin_settings[cookie_consent_system]" value="internal" <?php checked($cookie_consent_system, 'internal'); ?>>
+                <strong><?php _e('Sistema interno de Guiders', 'guiders-wp-plugin'); ?></strong>
+            </label>
+            <p class="description" style="margin: 5px 0 15px 25px;">
+                <?php _e('Usará el banner de consentimiento propio de Guiders (configurado arriba en "GDPR & Banner de Consentimiento")', 'guiders-wp-plugin'); ?>
+            </p>
+
+            <label>
+                <input type="radio" name="guiders_wp_plugin_settings[cookie_consent_system]" value="wp_consent_api" <?php checked($cookie_consent_system, 'wp_consent_api'); ?>>
+                <strong><?php _e('WP Consent API (forzado)', 'guiders-wp-plugin'); ?></strong>
+            </label>
+            <p class="description" style="margin: 5px 0 15px 25px;">
+                <?php _e('Forzará el uso de WP Consent API incluso si el plugin interno está habilitado', 'guiders-wp-plugin'); ?>
+            </p>
+
+            <label>
+                <input type="radio" name="guiders_wp_plugin_settings[cookie_consent_system]" value="custom" <?php checked($cookie_consent_system, 'custom'); ?>>
+                <strong><?php _e('Sistema personalizado', 'guiders-wp-plugin'); ?></strong>
+            </label>
+            <p class="description" style="margin: 5px 0 0 25px;">
+                <?php _e('Requiere código personalizado. Ver guía de integración.', 'guiders-wp-plugin'); ?>
+                <a href="https://github.com/RogerPugaRuiz/guiders-sdk/blob/main/wordpress-plugin/CUSTOM_COOKIE_INTEGRATION.md" target="_blank"><?php _e('Ver ejemplos', 'guiders-wp-plugin'); ?></a>
+            </p>
+        </fieldset>
+        <?php
+    }
+
+    /**
+     * WP Consent API sync enabled field callback
+     */
+    public function wpConsentApiSyncEnabledFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $enabled = isset($settings['wp_consent_api_sync_enabled']) ? $settings['wp_consent_api_sync_enabled'] : true;
+        $cookie_consent_system = isset($settings['cookie_consent_system']) ? $settings['cookie_consent_system'] : 'auto';
+        $detected_plugin = $this->detectCookieConsentPlugin();
+
+        ?>
+        <label>
+            <input type="checkbox" name="guiders_wp_plugin_settings[wp_consent_api_sync_enabled]" value="1" <?php checked($enabled, true); ?>>
+            <?php _e('Activar sincronización con WP Consent API', 'guiders-wp-plugin'); ?>
+        </label>
+        <p class="description">
+            <?php _e('Sincroniza automáticamente las preferencias de cookies del usuario con Guiders.', 'guiders-wp-plugin'); ?>
+            <?php if ($detected_plugin && $detected_plugin['wp_consent_api']): ?>
+                <br><strong style="color: #46b450;">✅ <?php _e('Plugin compatible detectado:', 'guiders-wp-plugin'); ?> <?php echo esc_html($detected_plugin['name']); ?></strong>
+            <?php elseif ($detected_plugin && !$detected_plugin['wp_consent_api']): ?>
+                <br><strong style="color: #dc3232;">⚠️ <?php echo sprintf(__('Tu plugin "%s" no soporta WP Consent API.', 'guiders-wp-plugin'), esc_html($detected_plugin['name'])); ?></strong>
+                <a href="https://github.com/RogerPugaRuiz/guiders-sdk/blob/main/wordpress-plugin/CUSTOM_COOKIE_INTEGRATION.md" target="_blank"><?php _e('Ver cómo integrarlo', 'guiders-wp-plugin'); ?></a>
+            <?php else: ?>
+                <br><?php _e('No se detectó ningún plugin de cookies. Instala uno compatible o usa el sistema interno.', 'guiders-wp-plugin'); ?>
+            <?php endif; ?>
+        </p>
+        <?php
+
+        // Mostrar mapeo de categorías
+        if ($enabled && $detected_plugin && $detected_plugin['wp_consent_api']): ?>
+            <div style="margin-top: 10px; padding: 10px; background: #f0f0f1; border-left: 4px solid #72aee6;">
+                <strong><?php _e('Mapeo de categorías:', 'guiders-wp-plugin'); ?></strong>
+                <ul style="margin: 5px 0 0 20px;">
+                    <li><code>functional</code> (WP) → <code>functional</code> (Guiders)</li>
+                    <li><code>statistics</code> (WP) → <code>analytics</code> (Guiders)</li>
+                    <li><code>marketing</code> (WP) → <code>personalization</code> (Guiders)</li>
+                </ul>
+            </div>
+        <?php endif;
+    }
+
+    /**
+     * Cookie consent debug field callback
+     */
+    public function cookieConsentDebugFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $debug = isset($settings['cookie_consent_debug']) ? $settings['cookie_consent_debug'] : false;
+
+        ?>
+        <label>
+            <input type="checkbox" name="guiders_wp_plugin_settings[cookie_consent_debug]" value="1" <?php checked($debug, true); ?>>
+            <?php _e('Mostrar logs de sincronización en consola del navegador', 'guiders-wp-plugin'); ?>
+        </label>
+        <p class="description">
+            <?php _e('Útil para debugging. Los mensajes aparecerán con el prefijo "[Guiders WP]" en la consola del navegador (F12).', 'guiders-wp-plugin'); ?>
+        </p>
+        <p class="description">
+            <strong><?php _e('Ejemplo de logs:', 'guiders-wp-plugin'); ?></strong><br>
+            <code style="background: #f0f0f1; padding: 2px 6px; display: inline-block; margin-top: 5px;">[Guiders WP] WP Consent API detectada - sincronizando consentimiento</code><br>
+            <code style="background: #f0f0f1; padding: 2px 6px; display: inline-block; margin-top: 2px;">[Guiders WP] Consentimiento sincronizado: functional → functional = true</code>
+        </p>
+        <?php
+    }
+
+    /**
+     * Detect installed cookie consent plugins
+     * @return array|null Plugin information or null if none detected
+     */
+    private function detectCookieConsentPlugin() {
+        $detected = null;
+
+        // Lista de plugins compatibles con WP Consent API
+        $wp_consent_plugins = array(
+            'beautiful-and-responsive-cookie-consent/includes/main.php' => 'Beautiful Cookie Consent',
+            'cookiefirst-cookie-consent/cookiefirst.php' => 'CookieFirst',
+            'cookie-law-info/cookie-law-info.php' => 'CookieYes',
+            'complianz-gdpr/complianz-gpdr.php' => 'Complianz GDPR',
+            'cookiebot/cookiebot.php' => 'Cookiebot',
+            'gdpr-cookie-consent/gdpr-cookie-consent.php' => 'WP Cookie Consent'
+        );
+
+        // Plugins que NO soportan WP Consent API (pero son populares)
+        $other_plugins = array(
+            'cookie-notice/cookie-notice.php' => 'Cookie Notice',
+            'gdpr/gdpr.php' => 'GDPR',
+            'termly-cookie-consent/termly-cookie-consent.php' => 'Termly'
+        );
+
+        // Verificar plugins con WP Consent API
+        foreach ($wp_consent_plugins as $plugin_file => $plugin_name) {
+            if (is_plugin_active($plugin_file)) {
+                $detected = array(
+                    'name' => $plugin_name,
+                    'file' => $plugin_file,
+                    'wp_consent_api' => true
+                );
+                break;
+            }
+        }
+
+        // Si no se encontró, verificar otros plugins populares
+        if (!$detected) {
+            foreach ($other_plugins as $plugin_file => $plugin_name) {
+                if (is_plugin_active($plugin_file)) {
+                    $detected = array(
+                        'name' => $plugin_name,
+                        'file' => $plugin_file,
+                        'wp_consent_api' => false
+                    );
+                    break;
+                }
+            }
+        }
+
+        return $detected;
+    }
+
     /**
      * Show admin notices
      */
