@@ -49,6 +49,7 @@ export class ChatUI {
 	private lastMessageDate: string | null = null;
 	private avatarElement: HTMLElement | null = null;
 	private avatarStatusDot: HTMLElement | null = null;
+	private avatarContainer: HTMLElement | null = null;
 
 	// Componentes de presencia
 	private offlineBanner: HTMLElement | null = null;
@@ -198,6 +199,7 @@ export class ChatUI {
 		// Guardar referencias para actualizarlas después
 		this.avatarElement = avatar;
 		this.avatarStatusDot = statusDot;
+		this.avatarContainer = avatarContainer;
 
 		// Contenedor de título (simplificado - solo nombre)
 		const titleContainer = document.createElement('div');
@@ -1507,9 +1509,19 @@ export class ChatUI {
 			const advisor = commercialParticipants[0];
 			this.titleElement.textContent = advisor.name || 'Asesor';
 			debugLog('✅ [ChatUI] Título del header actualizado:', advisor.name);
+
+			// Mostrar avatar y estado de conexión
+			if (this.avatarContainer) {
+				this.avatarContainer.style.display = 'block';
+			}
 		} else {
 			this.titleElement.textContent = 'Chat';
-			debugLog('⚠️ [ChatUI] No hay comerciales asignados, usando título genérico');
+			debugLog('⚠️ [ChatUI] No hay comerciales asignados, ocultando avatar y estado');
+
+			// Ocultar avatar y estado de conexión cuando no hay comercial
+			if (this.avatarContainer) {
+				this.avatarContainer.style.display = 'none';
+			}
 		}
 
 		// Actualizar avatar si hay avatarUrl disponible
