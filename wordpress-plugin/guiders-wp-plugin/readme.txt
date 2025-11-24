@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.2.1
+Stable tag: 2.3.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,43 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.3.0 =
+* **✨ Nueva Funcionalidad: Soporte Multi-Plugin de Cookies**:
+  * **Adaptador para Moove GDPR (GDPR Cookie Compliance)**: Sincronización directa con el plugin más popular (~30% market share) que NO soporta WP Consent API
+    - Lee consentimiento desde localStorage (`moove_gdpr_popup*`)
+    - Sincroniza en tiempo real con eventos `moove_gdpr_modal_closed` y cambios en `storage`
+    - Mapeo automático: strictly_necessary → functional, analytics → analytics, marketing → personalization
+  * **Adaptador para Cookiebot**: Integración nativa con la API de Cookiebot
+    - Usa `Cookiebot.consent` API oficial
+    - Listeners para eventos `CookiebotOnAccept` y `CookiebotOnDecline`
+    - Mapeo: preferences → functional, statistics → analytics, marketing → personalization
+  * **Adaptador para OneTrust**: Soporte para el estándar empresarial IAB TCF v2.0
+    - Lee grupos desde `OnetrustActiveGroups`
+    - Listener con `OneTrust.OnConsentChanged()`
+    - Mapeo IAB: C0003/2 → functional, C0002/3 → analytics, C0004/4 → personalization
+  * **Sistema de detección con prioridad**: Intenta plugins en orden (WP Consent API → Moove GDPR → Cookiebot → OneTrust)
+  * **Detección automática en admin**: Categoriza plugins en 3 grupos:
+    - ✅ Plugins con WP Consent API (sincronización estándar)
+    - ✨ Plugins con adaptador de Guiders (sincronización directa)
+    - ⚠️ Plugins no soportados (requieren integración manual)
+  * **UI mejorada en admin**: Indicadores visuales distintos para cada tipo de plugin con sparkle emoji (✨) para adaptadores de Guiders
+* **🔒 Mejora GDPR: Privacy by Default (GDPR Article 25)**:
+  * **Consentimiento requerido por defecto**: Nuevas instalaciones ahora requieren consentimiento explícito del usuario antes de tracking
+  * **Banner activado por defecto**: El banner de consentimiento de Guiders se muestra por defecto en nuevas instalaciones
+  * **Sincronización automática activada**: WP Consent API sync habilitado por defecto
+  * **Cumplimiento legal**: Plugin ahora cumple con GDPR Article 25 desde la instalación
+  * **Nota**: Instalaciones existentes mantienen su configuración (no se modifica retroactivamente)
+* **📚 Documentación Actualizada**:
+  * **WP_CONSENT_API_INTEGRATION.md renovado**: Ahora documenta todos los sistemas soportados (WP Consent API + adaptadores personalizados)
+  * **Guías específicas por adaptador**: Instrucciones detalladas para Moove GDPR, Cookiebot y OneTrust
+  * **Ejemplos de logs de consola**: Para cada sistema soportado
+  * **Casos de uso actualizados**: 3 escenarios prácticos con configuraciones recomendadas
+* **🔧 Mejoras Técnicas**:
+  * Sistema modular de adaptadores con funciones autocontenidas que retornan true/false
+  * Cada adaptador incluye su propia lógica de detección, sincronización inicial y listeners
+  * Compatibilidad retroactiva total con configuraciones existentes
+  * Logs de debug más claros con prefijos específicos por adaptador
 
 = 2.2.1 =
 * **🐛 Bug Fixes**: Corrección en detección de plugins de cookies
