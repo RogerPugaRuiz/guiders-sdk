@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.1.0
+Stable tag: 2.2.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,29 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.2.0 =
+* **✨ Nueva Funcionalidad: Panel de Administración de Cookies**:
+  * **Sección completa "🍪 Gestión de Consentimiento de Cookies"** en el panel de administración
+  * **Detección automática de plugins de cookies**: Identifica Beautiful Cookie Consent, CookieFirst, CookieYes, Complianz, Cookiebot y otros instalados
+  * **4 sistemas de cookies configurables**:
+    - Automático (recomendado): Detecta y usa WP Consent API si está disponible
+    - Sistema interno: Usa el banner de consentimiento propio de Guiders
+    - WP Consent API (forzado): Siempre usa WP Consent API
+    - Sistema personalizado: Permite integración manual con código custom
+  * **Control de sincronización WP Consent API**: Toggle para activar/desactivar la sincronización automática
+  * **Logs de debug configurables**: Opción para mostrar/ocultar logs de sincronización en consola del navegador (útil para testing)
+  * **Indicadores visuales inteligentes**:
+    - ✅ Plugin compatible detectado (con WP Consent API)
+    - ⚠️ Plugin sin WP Consent API (con enlace a guía de integración)
+    - ℹ️ Sin plugin detectado
+  * **Mapeo de categorías visible**: Muestra cómo se mapean las categorías (functional → functional, statistics → analytics, marketing → personalization)
+  * **Enlaces directos a documentación**: Botones a guías de WP Consent API y sistemas personalizados
+* **🔧 Mejoras Técnicas**:
+  * Lógica de sincronización actualizada para respetar configuración del admin
+  * Logs solo se muestran si debug está activado
+  * Sincronización se salta automáticamente si sistema es 'internal' o 'custom'
+  * Detección automática con fallback inteligente
 
 = 2.1.0 =
 * **✨ Nueva Funcionalidad: Integración con WP Consent API**:
