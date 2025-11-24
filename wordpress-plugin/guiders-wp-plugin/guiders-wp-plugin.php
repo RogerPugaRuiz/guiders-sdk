@@ -3,7 +3,7 @@
  * Plugin Name: Guiders SDK
  * Plugin URI: https://github.com/RogerPugaRuiz/guiders-sdk
  * Description: Integra el SDK de Guiders para tracking inteligente, chat en vivo y notificaciones en tu sitio WordPress. Con detección heurística automática de elementos sin necesidad de modificar el HTML. Incluye banner de consentimiento GDPR integrado.
- * Version: 2.3.0
+ * Version: 2.4.0
  * Author: Guiders
  * Author URI: https://guiders.ancoradual.com
  * License: ISC
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('GUIDERS_WP_PLUGIN_VERSION', '2.3.0');
+define('GUIDERS_WP_PLUGIN_VERSION', '2.4.0');
 define('GUIDERS_WP_PLUGIN_PLUGIN_FILE', __FILE__);
 define('GUIDERS_WP_PLUGIN_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('GUIDERS_WP_PLUGIN_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -157,10 +157,6 @@ class GuidersWPPlugin {
                 'active_hours_timezone' => '',
                 'active_hours_ranges' => '[{"start":"09:00","end":"18:00"}]',
                 'active_hours_fallback_message' => 'El chat no está disponible en este momento. Por favor, inténtalo más tarde durante nuestros horarios de atención.',
-                // GDPR settings (Privacy by Default - GDPR Art. 25)
-                'require_consent' => true,
-                'consent_banner_enabled' => true,
-                'wp_consent_api_sync_enabled' => true,
                 // Tracking V2 settings
                 'tracking_v2_enabled' => true,
                 'tracking_v2_batch_size' => 500,
