@@ -194,7 +194,6 @@ export class TrackingPixelSDK {
 	private domTrackingManager: DomTrackingManager | EnhancedDomTrackingManager;
 	private sessionTrackingManager: SessionTrackingManager | null = null;
 	private heuristicEnabled: boolean;
-	private visitorHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	private authMode: 'jwt' | 'session';
 	private identitySignal: IdentitySignal;
 	private chatConsentMessageConfig?: Partial<import('../presentation/types/chat-types').ChatConsentMessageConfig>;
@@ -957,9 +956,11 @@ export class TrackingPixelSDK {
 	 * Ejecuta la identificación del visitante y carga sus chats.
 	 */
 	private async executeIdentify(): Promise<void> {
+		console.log('[TrackingPixelSDK] 🔍 executeIdentify() LLAMADO');
+
 		// Prevenir múltiples ejecuciones
 		if (this.identifyExecuted) {
-			debugLog('[TrackingPixelSDK] ⚠️ identify() ya ejecutado - ignorando llamada duplicada');
+			console.log('[TrackingPixelSDK] ⚠️ identify() ya ejecutado - ignorando llamada duplicada');
 			return;
 		}
 
@@ -967,7 +968,7 @@ export class TrackingPixelSDK {
 		this.identifyExecuted = true;
 
 		try {
-			debugLog('[TrackingPixelSDK] 🔍 Ejecutando identify...');
+			console.log('[TrackingPixelSDK] 🔍 Ejecutando identify...');
 
 			// Obtener versión actual del ConsentManager para enviar al backend
 			const consentVersion = this.consentManager.getState().version;
@@ -1067,12 +1068,6 @@ export class TrackingPixelSDK {
 						console.warn('[TrackingPixelSDK] ⚠️ No se pudo sincronizar con backend, continuando con estado local:', error);
 					}
 				}
-
-				// Iniciar heartbeat backend (cada 30s) sin fallback
-				if (this.visitorHeartbeatTimer) clearInterval(this.visitorHeartbeatTimer);
-				this.visitorHeartbeatTimer = setInterval(() => {
-					VisitorsV2Service.getInstance().heartbeat();
-				}, 30000);
 
 				// Los chats ya se cargan automáticamente en identitySignal.identify()
 				const hasExistingChats = result.chats?.chats && result.chats.chats.length > 0;
@@ -1617,11 +1612,6 @@ export class TrackingPixelSDK {
 	 * Cleanup all resources and event listeners
 	 */
 	public cleanup(): void {
-		// Cleanup session tracking
-		if (this.visitorHeartbeatTimer) {
-			clearInterval(this.visitorHeartbeatTimer);
-			this.visitorHeartbeatTimer = null;
-		}
 		// Intentar cerrar sesión backend explícitamente (sin beacon, llamada normal)
 		VisitorsV2Service.getInstance().endSession().catch(() => {
 			/* silencio: ya logueado en servicio */
@@ -2519,6 +2509,8 @@ export class TrackingPixelSDK {
 	 * Debe llamarse después de identify() cuando tengamos visitorId
 	 */
 	private setupPresenceService(): void {
+		console.log('🟢 [TrackingPixelSDK] setupPresenceService() LLAMADO');
+
 		const visitorId = this.getVisitorId();
 
 		if (!visitorId) {
@@ -2528,16 +2520,16 @@ export class TrackingPixelSDK {
 
 		// Verificar si el sistema de presencia está habilitado
 		if (!this.presenceConfig.enabled) {
-			debugLog('🟢 [TrackingPixelSDK] ⚠️ Sistema de presencia deshabilitado en configuración');
+			console.log('🟢 [TrackingPixelSDK] ⚠️ Sistema de presencia deshabilitado en configuración');
 			return;
 		}
 
 		if (this.presenceService) {
-			debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService ya configurado');
+			console.log('🟢 [TrackingPixelSDK] ✅ PresenceService ya configurado');
 			return;
 		}
 
-		debugLog('🟢 [TrackingPixelSDK] 🚀 Configurando PresenceService...', this.presenceConfig);
+		console.log('🟢 [TrackingPixelSDK] 🚀 Configurando PresenceService...', this.presenceConfig);
 
 		try {
 			// Inicializar PresenceService con configuración personalizada
@@ -2556,12 +2548,6 @@ export class TrackingPixelSDK {
 			);
 
 			debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService inicializado');
-
-			// 💓 Iniciar heartbeat automático para mantener sesión viva
-			// Heartbeat tipo 'heartbeat' se envía cada 30s automáticamente (según guía oficial)
-			// Esto previene que la sesión expire por inactividad
-			this.presenceService.startHeartbeat();
-			debugLog('🟢 [TrackingPixelSDK] 💓 Heartbeat automático iniciado (cada 30s)');
 
 			// 👂 Configurar detección de actividad del usuario (🆕 2025)
 			// Envía heartbeat tipo 'user-interaction' cuando el usuario interactúa
@@ -2593,6 +2579,31 @@ export class TrackingPixelSDK {
 				// ChatMessagesUI ya maneja typing indicators via callbacks del PresenceService
 				// configurados en ChatUI, no necesita configuración adicional
 				debugLog('🟢 [TrackingPixelSDK] ✅ ChatMessagesUI usa typing indicators via ChatUI');
+			}
+
+			// 📡 Conectar WebSocket automáticamente para habilitar user:activity
+			// Esto permite que el sistema de presencia funcione (AWAY → ONLINE) sin necesidad de abrir el chat
+			if (!this.wsService.isConnected()) {
+				console.log('📡 [TrackingPixelSDK] 🚀 Conectando WebSocket automáticamente para presencia...');
+				const sessionId = sessionStorage.getItem('guiders_backend_session_id');
+				this.wsService.connect(
+					{
+						sessionId: sessionId || undefined,
+					},
+					{
+						onConnect: () => {
+							debugLog('📡 [TrackingPixelSDK] ✅ WebSocket conectado automáticamente (presencia)');
+							// Unirse a sala de visitante para notificaciones
+							this.wsService.joinVisitorRoom(visitorId);
+						},
+						onDisconnect: (reason) => {
+							debugLog('📡 [TrackingPixelSDK] ⚠️ WebSocket desconectado (presencia):', reason);
+						},
+						onError: (error) => {
+							console.error('📡 [TrackingPixelSDK] ❌ Error WebSocket (presencia):', error.message);
+						}
+					}
+				);
 			}
 
 			debugLog('🟢 [TrackingPixelSDK] ✅ Sistema de presencia configurado exitosamente');
@@ -2871,13 +2882,6 @@ export class TrackingPixelSDK {
 		if (this.sessionTrackingManager) {
 			// El session manager se detendrá automáticamente al no procesar nuevos eventos
 			debugLog('[TrackingPixelSDK] 🛑 Session tracking detenido');
-		}
-
-		// Detener heartbeat de visitante
-		if (this.visitorHeartbeatTimer) {
-			clearInterval(this.visitorHeartbeatTimer);
-			this.visitorHeartbeatTimer = null;
-			debugLog('[TrackingPixelSDK] 🛑 Visitor heartbeat detenido');
 		}
 
 		// Detener auto flush

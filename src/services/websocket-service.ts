@@ -110,20 +110,31 @@ export class WebSocketService {
 		if (typeof document === 'undefined' || typeof window === 'undefined') return;
 
 		this.visibilityHandler = () => {
-			debugLog('📡 [WebSocketService] 👁️ Foco/visibilidad detectado - verificando conexión');
+			console.log('📡 [WebSocketService] 👁️ Foco/visibilidad detectado');
 
-			if (!this.socket?.connected) {
-				// Reconectar si está desconectado
-				debugLog('📡 [WebSocketService] 🔄 Reconectando WebSocket...');
-				if (this.config && this.callbacks) {
-					this.socket?.connect();
-				}
-			} else {
-				// Emitir actividad inmediatamente al volver
+			if (!this.socket || !this.config || !this.callbacks) {
+				console.log('📡 [WebSocketService] ⚠️ Socket no configurado, ignorando evento de visibilidad');
+				return;
+			}
+
+			console.log('📡 [WebSocketService] 🔍 Estado del socket:', {
+				connected: this.socket.connected,
+				disconnected: this.socket.disconnected,
+				id: this.socket.id
+			});
+
+			// Si ya está conectado, solo emitir actividad para reactivar de AWAY a ONLINE
+			if (this.socket.connected) {
 				this.lastActivityEmit = Date.now();
 				this.socket.emit('user:activity');
-				debugLog('📡 [WebSocketService] 🎯 user:activity emitido (focus/visibility)');
+				console.log('📡 [WebSocketService] 🎯 user:activity EMITIDO (foco/visibilidad)');
+				return;
 			}
+
+			// Si no está conectado, intentar reconectar
+			console.log('📡 [WebSocketService] 🔄 Socket desconectado, reconectando...');
+			this.socket.connect();
+			// user:activity se emitirá automáticamente en el evento 'connect'
 		};
 
 		// Listener para visibilidad (cambio de pestaña)
@@ -273,6 +284,10 @@ export class WebSocketService {
 				});
 			}
 
+			// Limpiar handlers anteriores antes de configurar nuevos (evita duplicados)
+			this.cleanupActivityListeners();
+			this.cleanupVisibilityHandler();
+
 			// Configurar tracking de actividad del usuario
 			this.setupActivityListeners();
 			this.setupVisibilityHandler();
@@ -280,7 +295,7 @@ export class WebSocketService {
 			// Emitir actividad inmediatamente para marcar ONLINE
 			this.lastActivityEmit = Date.now();
 			this.socket?.emit('user:activity');
-			debugLog('📡 [WebSocketService] 🎯 user:activity emitido (conexión inicial)');
+			debugLog('📡 [WebSocketService] 🎯 user:activity emitido (conexión)');
 
 			if (this.callbacks.onConnect) {
 				this.callbacks.onConnect();

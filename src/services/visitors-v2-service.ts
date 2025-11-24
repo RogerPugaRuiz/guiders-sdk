@@ -33,31 +33,12 @@ export class VisitorsV2Service {
   }
 
   /**
-   * Intenta reutilizar la sesión existente sin validación de heartbeat
-   * La validación se hará cuando se use la sesión (401 → re-auth)
-   */
-  private tryReuseExistingSession(): IdentifyVisitorResponse | null {
-    const existingSessionId = sessionStorage.getItem('guiders_backend_session_id');
-    const existingVisitorId = localStorage.getItem('visitorId');
-    const existingTenantId = localStorage.getItem('tenantId');
-
-    if (!existingSessionId || !existingVisitorId) {
-      return null;
-    }
-
-    console.log('[VisitorsV2Service] ✅ Reutilizando sesión existente:', existingSessionId);
-    return {
-      visitorId: existingVisitorId,
-      sessionId: existingSessionId,
-      tenantId: existingTenantId,
-      consentStatus: 'granted'
-    };
-  }
-
-  /**
    * Identifica (o crea/actualiza) al visitante y arranca nueva sesión backend.
    * Según docs V2: usa dominio y API Key para identificación.
    * Devuelve visitorId y opcionalmente sessionId.
+   *
+   * NOTA: Siempre llama al backend para refrescar cookies y sesión.
+   * El backend maneja la reutilización de sesión por fingerprint.
    */
   public async identify(
     fingerprint: string,
@@ -68,11 +49,6 @@ export class VisitorsV2Service {
     }
   ): Promise<IdentifyVisitorResponse | null> {
     try {
-      // Primero intentar reutilizar sesión existente
-      const existingSession = this.tryReuseExistingSession();
-      if (existingSession) {
-        return existingSession;
-      }
 
       const url = `${this.getBaseUrl()}/identify`;
       const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';

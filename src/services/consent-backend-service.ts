@@ -120,11 +120,12 @@ export class ConsentBackendService {
   }
 
   /**
-   * Realiza una petición HTTP con autenticación
+   * Realiza una petición HTTP con autenticación y retry en 401
    */
   private async makeRequest<T>(
     path: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    isRetry: boolean = false
   ): Promise<T> {
     const url = `${this.getBaseUrl()}${path}`;
 
@@ -136,10 +137,10 @@ export class ConsentBackendService {
     // Obtener sessionId de sessionStorage o del atributo de instancia
     const sessionId = this.sessionId || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('guiders_backend_session_id') : null);
 
-    // Añadir header x-guiders-sid si hay sessionId
+    // Añadir header X-Guiders-Sid si hay sessionId
     if (sessionId) {
-      headers['x-guiders-sid'] = sessionId;
-      console.log('[ConsentBackendService] 🔐 Enviando x-guiders-sid:', sessionId);
+      headers['X-Guiders-Sid'] = sessionId;
+      console.log('[ConsentBackendService] 🔐 Enviando X-Guiders-Sid:', sessionId);
     }
 
     try {
@@ -148,6 +149,16 @@ export class ConsentBackendService {
         headers,
         credentials: 'include' // Incluir cookies para session-based auth
       });
+
+      // Manejar 401 con retry
+      if (response.status === 401 && !isRetry) {
+        console.log('[ConsentBackendService] ⚠️ Error 401 - Intentando re-autenticación...');
+        const reauthed = await this.reAuthenticate();
+        if (reauthed) {
+          console.log('[ConsentBackendService] ✅ Re-autenticación exitosa, reintentando...');
+          return this.makeRequest<T>(path, options, true);
+        }
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -160,6 +171,80 @@ export class ConsentBackendService {
     } catch (error) {
       console.error('[ConsentBackendService] ❌ Error en petición:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Re-autentica al visitante llamando a identify
+   */
+  private async reAuthenticate(): Promise<boolean> {
+    try {
+      const fingerprint = localStorage.getItem('fingerprint');
+      const apiKey = localStorage.getItem('guidersApiKey') || localStorage.getItem('apiKey');
+      const domain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+      const currentUrl = typeof window !== 'undefined' ? window.location.href : undefined;
+
+      // Obtener consentVersion del localStorage
+      let consentVersion = 'v1.0';
+      const consentStateStr = localStorage.getItem('guiders_consent_state');
+      if (consentStateStr) {
+        try {
+          const consentState = JSON.parse(consentStateStr);
+          consentVersion = consentState.version || 'v1.0';
+        } catch (e) {
+          // Ignorar error de parseo
+        }
+      }
+
+      if (!fingerprint) {
+        console.log('[ConsentBackendService] ❌ No hay fingerprint para re-autenticar');
+        return false;
+      }
+
+      const endpoint = EndpointManager.getInstance().getEndpoint();
+      const identifyUrl = `${endpoint}/visitors/identify`;
+
+      console.log('[ConsentBackendService] 🔐 Re-autenticando...');
+
+      const response = await fetch(identifyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          fingerprint,
+          domain,
+          apiKey: apiKey || '',
+          hasAcceptedPrivacyPolicy: true,
+          consentVersion,
+          currentUrl
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        if (data.sessionId) {
+          sessionStorage.setItem('guiders_backend_session_id', data.sessionId);
+          this.sessionId = data.sessionId;
+          console.log('[ConsentBackendService] ✅ SessionId actualizado:', data.sessionId);
+        }
+
+        if (data.visitorId) {
+          localStorage.setItem('visitorId', data.visitorId);
+        }
+
+        if (data.tenantId || data.tenant_id) {
+          localStorage.setItem('tenantId', data.tenantId || data.tenant_id);
+        }
+
+        return true;
+      }
+
+      console.log('[ConsentBackendService] ❌ Error en re-autenticación:', response.status);
+      return false;
+    } catch (error) {
+      console.error('[ConsentBackendService] ❌ Error en re-autenticación:', error);
+      return false;
     }
   }
 

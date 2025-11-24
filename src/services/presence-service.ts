@@ -55,13 +55,6 @@ export class PresenceService {
   private typingTimeouts: Map<string, NodeJS.Timeout> = new Map();
   private currentlyTypingIn: Set<string> = new Set();
 
-  // Heartbeat para mantener estado activo
-  private heartbeatInterval: NodeJS.Timeout | null = null;
-  private heartbeatIntervalMs: number = 30000; // 30 segundos (según guía oficial de presencia)
-  private heartbeatCount: number = 0; // Contador de heartbeats enviados
-  private lastHeartbeatTime: number = 0; // Timestamp del último heartbeat enviado
-  private minHeartbeatInterval: number = 5000; // Mínimo 5 segundos entre heartbeats (throttling)
-
   // Activity tracking para user-interaction (🆕 2025)
   private lastUserInteractionTime: number = 0; // Timestamp de última interacción real del usuario
   private userInteractionThrottleMs: number = 10000; // Throttle de 10 segundos para user-interaction (incrementado desde 5s)
@@ -97,10 +90,7 @@ export class PresenceService {
       highFrequencyThrottle: config.highFrequencyThrottle ?? 30000 // 30s para eventos de alta frecuencia
     };
 
-    // Aplicar configuración de heartbeat (🆕 2025)
-    if (this.config.heartbeatInterval) {
-      this.heartbeatIntervalMs = this.config.heartbeatInterval;
-    }
+    // Aplicar configuración de throttling (🆕 2025)
     if (this.config.userInteractionThrottle) {
       this.userInteractionThrottleMs = this.config.userInteractionThrottle;
     }
@@ -454,105 +444,24 @@ export class PresenceService {
   }
 
   /**
-   * @deprecated Heartbeat HTTP endpoint eliminado. Presencia se maneja via WebSocket user:activity
-   */
-  public startHeartbeat(): void {
-    debugLog('[PresenceService] ⚠️ startHeartbeat() deprecado - presencia via WebSocket');
-  }
-
-  /**
-   * @deprecated Heartbeat HTTP endpoint eliminado. Presencia se maneja via WebSocket user:activity
-   */
-  public stopHeartbeat(): void {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-    }
-  }
-
-  /**
-   * @deprecated Heartbeat HTTP endpoint eliminado. Presencia se maneja via WebSocket user:activity
-   */
-  public async sendHeartbeat(
-    activityType: ActivityType = 'heartbeat',
-    immediate: boolean = false
-  ): Promise<void> {
-    // No-op: endpoint eliminado, presencia via WebSocket
-  }
-
-  /**
-   * Registra una interacción del usuario de baja frecuencia (click, keydown, touchstart)
-   * y envía heartbeat de tipo 'user-interaction'
-   *
-   * El throttling de 10 segundos previene enviar demasiados heartbeats
-   *
-   * 🆕 2025: Mejorado con flag de throttling para evitar ejecuciones redundantes
+   * @deprecated La actividad del usuario ahora se maneja via WebSocket user:activity en WebSocketService
    */
   public async recordUserInteraction(): Promise<void> {
-    // Early return si el throttling está activo (sin verificar timestamps)
-    if (this.isThrottlingActive) {
-      return;
-    }
-
-    const now = Date.now();
-    const timeSinceLastInteraction = now - this.lastUserInteractionTime;
-
-    // Throttling: máximo 1 interacción cada 10 segundos
-    if (timeSinceLastInteraction < this.userInteractionThrottleMs) {
-      debugLog(
-        `[PresenceService] ⏳ User interaction omitida por throttling (${Math.round(timeSinceLastInteraction / 1000)}s < ${this.userInteractionThrottleMs / 1000}s)`
-      );
-      return;
-    }
-
-    // Activar flag de throttling para evitar múltiples llamadas simultáneas
-    this.isThrottlingActive = true;
-
-    debugLog('[PresenceService] 👆 Interacción de usuario detectada (baja frecuencia), enviando heartbeat...');
-
-    try {
-      await this.sendHeartbeat('user-interaction', false);
-    } finally {
-      // Desactivar flag después del throttle configurado
-      setTimeout(() => {
-        this.isThrottlingActive = false;
-      }, this.userInteractionThrottleMs);
-    }
+    // No-op: actividad manejada por WebSocketService
   }
 
   /**
-   * Registra una interacción del usuario de alta frecuencia (mousemove, scroll)
-   * y envía heartbeat de tipo 'user-interaction' con throttling más agresivo
-   *
-   * El throttling de 30 segundos previene spam de eventos de alta frecuencia
-   *
-   * 🆕 2025: Nuevo método para eventos que se disparan múltiples veces por segundo
+   * @deprecated La actividad del usuario ahora se maneja via WebSocket user:activity en WebSocketService
    */
   public async recordHighFrequencyInteraction(): Promise<void> {
-    const now = Date.now();
-    const timeSinceLastHighFrequency = now - this.lastHighFrequencyTime;
-
-    // Throttling: máximo 1 interacción cada 30 segundos para eventos de alta frecuencia
-    if (timeSinceLastHighFrequency < this.highFrequencyThrottleMs) {
-      // No log para eventos de alta frecuencia (demasiado verbose)
-      return;
-    }
-
-    this.lastHighFrequencyTime = now;
-
-    debugLog('[PresenceService] 🔄 Interacción de usuario detectada (alta frecuencia), enviando heartbeat...');
-    await this.sendHeartbeat('user-interaction', false);
+    // No-op: actividad manejada por WebSocketService
   }
 
   /**
-   * Registra que el usuario volvió a la pestaña y envía heartbeat inmediato
-   * Este método se llama cuando visibilitychange detecta que la página volvió a estar visible
-   *
-   * 🆕 2025: Nuevo método para gestión de inactividad del visitante
+   * @deprecated La actividad del usuario ahora se maneja via WebSocket user:activity en WebSocketService
    */
   public async recordTabFocus(): Promise<void> {
-    debugLog('[PresenceService] 👁️ Usuario volvió a la pestaña, enviando heartbeat inmediato...');
-    await this.sendHeartbeat('user-interaction', true); // immediate = true para bypass throttling
+    // No-op: actividad manejada por WebSocketService
   }
 
   /**
@@ -690,9 +599,6 @@ export class PresenceService {
    */
   public cleanup(): void {
     debugLog('[PresenceService] 🧹 Limpiando recursos...');
-
-    // Detener heartbeat
-    this.stopHeartbeat();
 
     // 🆕 2025: Remover listeners de actividad de usuario (según guía oficial)
     if (this.boundUserInteractionHandler) {
