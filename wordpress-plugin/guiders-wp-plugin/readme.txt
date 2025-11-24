@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.0.10
+Stable tag: 2.1.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,19 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.1.0 =
+* **✨ Nueva Funcionalidad: Integración con WP Consent API**:
+  * **Sincronización automática con plugins de cookies**: Guiders ahora se sincroniza automáticamente con plugins de gestión de cookies compatibles con WP Consent API
+  * **Compatible con "Beautiful and responsive cookie consent"** y otros plugins populares: CookieFirst, CookieYes, Complianz, Cookiebot
+  * **Sincronización bidireccional en tiempo real**: Los cambios en las preferencias de cookies se reflejan inmediatamente en Guiders
+  * **Mapeo automático de categorías**: functional → functional, statistics → analytics, marketing → personalization
+  * **Detección automática**: Si no hay WP Consent API disponible, usa el sistema interno de Guiders como fallback
+  * **Logs detallados**: Mensajes en consola para debugging y verificación de sincronización
+* **📚 Documentación**:
+  * **Guía completa de integración con WP Consent API**: Instrucciones paso a paso para configurar la sincronización (`WP_CONSENT_API_INTEGRATION.md`)
+  * **Guía de integración con sistemas personalizados**: Ejemplos de código para Osano, OneTrust, Cookiebot y sistemas custom (`CUSTOM_COOKIE_INTEGRATION.md`)
+  * **Tests de verificación**: Cómo comprobar que la sincronización funciona correctamente
 
 = 2.0.10 =
 * **🐛 Bug Fixes**:
