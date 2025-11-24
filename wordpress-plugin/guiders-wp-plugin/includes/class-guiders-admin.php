@@ -2571,7 +2571,6 @@ class GuidersAdmin {
 
         // Lista de plugins compatibles con WP Consent API
         $wp_consent_plugins = array(
-            'beautiful-and-responsive-cookie-consent/includes/main.php' => 'Beautiful Cookie Consent',
             'cookiefirst-cookie-consent/cookiefirst.php' => 'CookieFirst',
             'cookie-law-info/cookie-law-info.php' => 'CookieYes',
             'complianz-gdpr/complianz-gpdr.php' => 'Complianz GDPR',
@@ -2581,6 +2580,10 @@ class GuidersAdmin {
 
         // Plugins que NO soportan WP Consent API (pero son populares)
         $other_plugins = array(
+            'beautiful-and-responsive-cookie-consent/beautiful-and-responsive-cookie-consent.php' => 'Beautiful Cookie Consent',
+            'beautiful-and-responsive-cookie-consent/index.php' => 'Beautiful Cookie Consent',
+            'beautiful-and-responsive-cookie-consent/main.php' => 'Beautiful Cookie Consent',
+            'beautiful-and-responsive-cookie-consent/includes/main.php' => 'Beautiful Cookie Consent',
             'cookie-notice/cookie-notice.php' => 'Cookie Notice',
             'gdpr/gdpr.php' => 'GDPR',
             'termly-cookie-consent/termly-cookie-consent.php' => 'Termly'
