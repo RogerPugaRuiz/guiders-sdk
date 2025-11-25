@@ -8,9 +8,23 @@
 **Por defecto, el SDK NO requiere consentimiento GDPR** (`requireConsent: false`). Esta guía es solo para sitios que:
 - Están dirigidos a usuarios de la Unión Europea
 - Necesitan cumplir con GDPR, LOPDGDD o LSSI
-- Requieren control explícito de cookies y tracking
+- Requieren control explícito de **procesamiento de datos personales** (localStorage, cookies, tracking)
 
 Si tu sitio **NO está en la UE**, el SDK funciona automáticamente sin configuración adicional.
+
+### 🔍 Tecnologías de Almacenamiento Utilizadas
+
+**IMPORTANTE**: El SDK utiliza **localStorage** (no cookies de terceros) para almacenar datos en el navegador:
+
+| Tecnología | Datos Almacenados |
+|------------|-------------------|
+| **localStorage** | `fingerprint`, `visitorId`, `consent_preferences`, `guiders_event_queue`, `chat_history`, `session_data` |
+| **Cookies HttpOnly** (servidor) | Cookie de sesión para autenticación (no accesible por JavaScript) |
+
+**Por qué esto requiere consentimiento**:
+- localStorage es una **"tecnología similar"** a las cookies bajo la Directiva ePrivacy
+- Almacena **datos personales** que requieren consentimiento explícito (Art. 22 LSSI)
+- GDPR aplica a **todo procesamiento de datos personales**, sin importar el método de almacenamiento
 
 ## 📋 Índice
 
@@ -34,12 +48,14 @@ Si tu sitio **NO está en la UE**, el SDK funciona automáticamente sin configur
 - Tu sitio está dirigido a usuarios en España, UE o EEA
 - Tienes usuarios que acceden desde la Unión Europea
 - Necesitas cumplir con GDPR/LOPDGDD/LSSI
+- Almacenas datos personales en el navegador (localStorage, cookies)
 - Tu política de privacidad requiere consentimiento explícito
 
 ### ❌ NO necesitas GDPR si:
 - Tu sitio solo opera fuera de la UE
-- Tus términos de servicio cubren el uso de tracking
+- Tus términos de servicio cubren el uso de tracking y almacenamiento local
 - No tienes usuarios europeos
+- **Nota**: Incluso fuera de la UE, es buena práctica informar sobre el uso de localStorage
 
 ---
 
@@ -73,9 +89,9 @@ function guiders_activate_gdpr_mode() {
     <script>
     // Configurar SDK con control GDPR antes de que se inicialice
     window.GUIDERS_CONFIG = window.GUIDERS_CONFIG || {};
-    window.GUIDERS_CONFIG.requireConsent = true;  // ⚠️ Activar GDPR
+    window.GUIDERS_CONFIG.requireConsent = true;  // ⚠️ Activar control de datos personales
     window.GUIDERS_CONFIG.consent = {
-        waitForConsent: true,    // Esperar consentimiento antes de tracking
+        waitForConsent: true,    // Esperar consentimiento antes de usar localStorage/tracking
         defaultStatus: 'pending'  // Estado inicial
     };
     </script>
@@ -107,18 +123,20 @@ if (window.guiders) {
 
 ```javascript
 // Comportamiento por defecto del SDK:
-// - requireConsent: false (NO requiere consentimiento)
-// - authMode: 'session' (cookies HttpOnly seguras)
+// - requireConsent: false (NO requiere consentimiento previo)
+// - authMode: 'session' (cookies HttpOnly seguras del servidor)
 // - Chat y tracking funcionan inmediatamente
+// - ⚠️ localStorage se usa desde el inicio
 ```
 
 Si activaste el modo GDPR en la sección anterior, entonces sí esperará consentimiento:
 
 ```javascript
 // Con modo GDPR activado (requireConsent: true):
-// - waitForConsent: true (espera consentimiento)
+// - waitForConsent: true (espera consentimiento antes de usar localStorage)
 // - defaultStatus: 'pending' (estado pendiente)
 // - Chat y tracking pausados hasta obtener consentimiento
+// - NO se escribe en localStorage hasta consentimiento otorgado
 ```
 
 ### Otorgar Consentimiento
@@ -380,7 +398,7 @@ function guiders_consent_banner_shortcode() {
     <div id="guiders-consent-banner" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #2c3e50; color: white; padding: 20px; z-index: 999999; box-shadow: 0 -2px 10px rgba(0,0,0,0.2);">
         <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
             <p style="margin: 0; flex: 1; min-width: 300px;">
-                🍪 Usamos cookies para mejorar tu experiencia. Puedes aceptar todas o personalizar tus preferencias.
+                🔒 Este sitio procesa datos personales (incluido almacenamiento local en tu navegador) para mejorar tu experiencia. Puedes aceptar todas o personalizar tus preferencias.
             </p>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button id="guiders-accept-all" style="background: #27ae60; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; font-weight: bold;">
@@ -463,9 +481,9 @@ function guiders_preferences_modal() {
                 <label style="display: flex; align-items: center; margin-bottom: 15px; cursor: pointer;">
                     <input type="checkbox" id="guiders-pref-analytics" style="margin-right: 10px; width: 20px; height: 20px;">
                     <div>
-                        <strong>Cookies Analíticas</strong>
+                        <strong>Analíticas</strong>
                         <p style="margin: 5px 0 0 0; color: #7f8c8d; font-size: 14px;">
-                            Nos ayudan a entender cómo usas el sitio web
+                            Tracking de eventos almacenado en localStorage para entender cómo usas el sitio
                         </p>
                     </div>
                 </label>
@@ -473,9 +491,9 @@ function guiders_preferences_modal() {
                 <label style="display: flex; align-items: center; margin-bottom: 15px; cursor: pointer;">
                     <input type="checkbox" id="guiders-pref-functional" style="margin-right: 10px; width: 20px; height: 20px;" checked>
                     <div>
-                        <strong>Cookies Funcionales</strong>
+                        <strong>Funcionales</strong>
                         <p style="margin: 5px 0 0 0; color: #7f8c8d; font-size: 14px;">
-                            Necesarias para el chat en vivo y funcionalidad básica
+                            Necesarias para el chat en vivo (localStorage + cookies HttpOnly del servidor)
                         </p>
                     </div>
                 </label>
@@ -483,9 +501,9 @@ function guiders_preferences_modal() {
                 <label style="display: flex; align-items: center; margin-bottom: 15px; cursor: pointer;">
                     <input type="checkbox" id="guiders-pref-personalization" style="margin-right: 10px; width: 20px; height: 20px;">
                     <div>
-                        <strong>Cookies de Personalización</strong>
+                        <strong>Personalización</strong>
                         <p style="margin: 5px 0 0 0; color: #7f8c8d; font-size: 14px;">
-                            Personalizan tu experiencia en el chat
+                            Preferencias almacenadas en localStorage para personalizar tu experiencia en el chat
                         </p>
                     </div>
                 </label>
@@ -795,45 +813,57 @@ add_action('wp_footer', 'my_custom_consent_tracking', 100);
 Añade esta sección a tu Política de Privacidad:
 
 ```
-### Cookies y Tracking
+### Procesamiento de Datos Personales y Tecnologías de Almacenamiento
 
 Este sitio utiliza el servicio Guiders para:
 - Chat en vivo con nuestro equipo de soporte
 - Análisis de uso del sitio web
 - Mejora de la experiencia del usuario
 
-**Categorías de Cookies:**
+**Tecnologías Utilizadas:**
 
-1. **Cookies Funcionales** (necesarias):
-   - Identificación de visitante
-   - Estado de sesión
-   - Chat ID
+- **localStorage** (almacenamiento local en tu navegador)
+- **Cookies HttpOnly** (establecidas por el servidor para autenticación)
 
-2. **Cookies Analíticas** (opcionales):
-   - Eventos de tracking
-   - Métricas de uso
-   - Comportamiento del usuario
+**Datos Almacenados en tu Navegador (localStorage):**
 
-3. **Cookies de Personalización** (opcionales):
+1. **Datos Funcionales** (necesarios para el funcionamiento):
+   - `fingerprint`: Identificador único del navegador
+   - `visitorId`: Identificador de visitante (UUID)
+   - `session_data`: Datos de sesión activa
+   - `chat_history`: Historial de conversaciones
+
+2. **Datos Analíticos** (opcionales, requieren consentimiento):
+   - `guiders_event_queue`: Cola de eventos de tracking
+   - Métricas de uso y comportamiento
+
+3. **Datos de Personalización** (opcionales, requieren consentimiento):
    - Preferencias del usuario
-   - Configuración del chat
-   - Mensajes de bienvenida personalizados
+   - Configuración del chat personalizado
 
-**Tus Derechos:**
+**Cookies del Servidor:**
+- Cookie de sesión HttpOnly (segura, no accesible por JavaScript)
 
-Puedes gestionar tus preferencias de cookies en cualquier momento visitando nuestra
-[página de gestión de cookies](/gestion-cookies/).
+**Tus Derechos (GDPR):**
+
+Puedes gestionar tus preferencias en cualquier momento visitando nuestra
+[página de gestión de privacidad](/gestion-cookies/).
 
 Tienes derecho a:
-- Acceder a tus datos
-- Solicitar la eliminación de tus datos
+- Acceder a tus datos (exportar todos los datos almacenados)
+- Solicitar la eliminación completa de tus datos (localStorage + servidor)
 - Revocar el consentimiento en cualquier momento
+- Oponerte al procesamiento de datos
 
 **Proveedor del Servicio:**
 Guiders (https://guiders.ancoradual.com)
 
+**Base Legal:**
+Consentimiento explícito (Art. 6.1.a GDPR)
+
 **Período de Retención:**
-Los datos se conservan durante [especificar período] o hasta que solicites su eliminación.
+- localStorage: Hasta que borres los datos del navegador o solicites eliminación
+- Servidor: [especificar período] o hasta que solicites su eliminación
 ```
 
 ---
@@ -888,11 +918,21 @@ No. El SDK simplemente espera el consentimiento antes de iniciar el tracking. No
 ### ¿Necesito un plugin de cookies si activo GDPR?
 No es obligatorio. Puedes usar los banners personalizados incluidos en esta guía. Los plugins de cookies son opcionales pero recomendados para gestión centralizada.
 
-### ¿Qué datos guarda el SDK?
-- **Fingerprint del navegador**: Para identificar visitantes
-- **Historial de chat**: Mensajes entre visitante y comerciales
-- **Eventos de tracking**: Interacciones del usuario (clics, vistas, etc.)
-- **Estado de consentimiento**: Preferencias del usuario
+### ¿Qué datos guarda el SDK y dónde?
+
+**En localStorage (navegador del usuario)**:
+- `fingerprint`: Hash único del navegador para identificación
+- `visitorId`: UUID del visitante
+- `consent_preferences`: Preferencias de consentimiento
+- `guiders_event_queue`: Cola de eventos de tracking
+- `chat_history`: Historial de mensajes locales
+- `session_data`: Datos de sesión activa
+
+**En cookies del servidor (HttpOnly)**:
+- Cookie de sesión para autenticación (no accesible por JavaScript)
+
+**En el servidor (backend de Guiders)**:
+- Datos de visitantes, sesiones, mensajes de chat, eventos
 
 Ver la política de privacidad para más detalles.
 

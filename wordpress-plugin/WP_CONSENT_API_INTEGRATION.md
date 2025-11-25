@@ -1,55 +1,44 @@
-# Integración con Plugins de Cookies
+# Integración con WP Consent API
 
-Esta guía explica cómo configurar el plugin Guiders SDK para sincronizarse automáticamente con plugins de gestión de cookies, tanto los que usan **WP Consent API** como otros populares.
+Esta guía explica cómo configurar el plugin Guiders SDK para sincronizarse automáticamente con plugins de gestión de cookies que usan **WP Consent API**.
 
-## Sistemas Soportados
+## ¿Qué es WP Consent API?
 
-Guiders SDK soporta **dos tipos de integración**:
+[WP Consent API](https://wordpress.org/plugins/wp-consent-api/) es un estándar de WordPress que permite la comunicación entre plugins de gestión de consentimiento y plugins que procesan datos personales.
 
-### 1. WP Consent API (Estándar)
+### 🔍 Aclaración Técnica Importante
 
-[WP Consent API](https://wordpress.org/plugins/wp-consent-api/) es un estándar de WordPress que permite la comunicación entre plugins de gestión de consentimiento de cookies y plugins que rastrean usuarios.
+**El SDK de Guiders utiliza principalmente localStorage** (no cookies de terceros) para almacenar datos en el navegador. Sin embargo:
 
-### 2. Adaptadores Específicos de Guiders
+- La **WP Consent API** se diseñó originalmente para cookies pero aplica a **cualquier tecnología de almacenamiento** bajo GDPR/ePrivacy
+- localStorage requiere el **mismo nivel de consentimiento** que las cookies según la Directiva ePrivacy
+- Por eso la integración con plugins de cookies es **perfectamente válida** para controlar el uso de localStorage
 
-Para plugins populares que **no** soportan WP Consent API, Guiders incluye adaptadores personalizados que sincronizan directamente con cada sistema.
+**Tecnologías que controla esta integración**:
+- ✅ localStorage (fingerprint, visitorId, events, chat)
+- ✅ Cookies HttpOnly del servidor (autenticación)
+- ✅ Tracking y procesamiento de datos personales
 
 ## Plugins de Cookies Compatibles
 
-### Con WP Consent API (sincronización estándar):
+Los siguientes plugins de gestión de cookies son compatibles con WP Consent API:
 
+- ✅ **Beautiful and responsive cookie consent**
 - ✅ **CookieFirst**
 - ✅ **CookieYes**
 - ✅ **WP Cookie Consent (GDPR Cookie Consent)**
 - ✅ **Complianz**
+- ✅ **Cookiebot**
 - ✅ Y otros plugins que soporten WP Consent API
-
-### Con Adaptador de Guiders (sincronización directa):
-
-- ✨ **Moove GDPR / GDPR Cookie Compliance** - Adaptador personalizado que lee desde localStorage
-- ✨ **Cookiebot** - Adaptador que usa la API nativa de Cookiebot
-- ✨ **OneTrust** - Adaptador que usa la API nativa de OneTrust
-
-### No soportados (requieren integración manual):
-
-- ⚠️ **Beautiful and responsive cookie consent** - No tiene API de sincronización
-- ⚠️ **Cookie Notice** - API limitada
-- ⚠️ **Termly** - Requiere configuración personalizada
 
 ## Configuración Paso a Paso
 
 ### 1. Instalar el Plugin de Cookies
 
-Instala uno de los plugins compatibles. Ejemplos recomendados:
+Instala uno de los plugins compatibles, por ejemplo **Beautiful and responsive cookie consent**:
 
-**Con WP Consent API:**
 ```
-WordPress Admin → Plugins → Add New → Buscar "CookieYes" → Instalar → Activar
-```
-
-**Con Adaptador de Guiders:**
-```
-WordPress Admin → Plugins → Add New → Buscar "Moove GDPR" → Instalar → Activar
+WordPress Admin → Plugins → Add New → Buscar "Beautiful and responsive cookie consent" → Instalar → Activar
 ```
 
 ### 2. Configurar el Plugin de Cookies
@@ -57,22 +46,22 @@ WordPress Admin → Plugins → Add New → Buscar "Moove GDPR" → Instalar →
 Configura las categorías de cookies según tus necesidades:
 
 - **Functional** (Funcionales): Cookies necesarias para el funcionamiento básico
-- **Statistics/Analytics** (Estadísticas): Analytics y métricas de uso
-- **Marketing/Personalization** (Marketing): Personalización y remarketing
+- **Statistics** (Estadísticas): Analytics y métricas de uso
+- **Marketing** (Marketing): Personalización y remarketing
 
-### 3. Instalar WP Consent API (solo si es necesario)
+### 3. Instalar WP Consent API (si no está incluido)
 
-**Solo para plugins con WP Consent API:** Algunos plugins ya incluyen WP Consent API. Si no está incluido, instálalo:
+Algunos plugins ya incluyen WP Consent API. Si no está incluido, instálalo:
 
 ```
 WordPress Admin → Plugins → Add New → Buscar "WP Consent API" → Instalar → Activar
 ```
 
-**Plugins con Adaptador de Guiders:** NO necesitas instalar WP Consent API, la sincronización funciona directamente.
-
 ### 4. Configurar Guiders SDK
 
 En la configuración del plugin Guiders:
+
+**Opción A: Con banner de Guiders desactivado (recomendado)**
 
 ```
 WordPress Admin → Guiders SDK → Configuración
@@ -81,20 +70,24 @@ WordPress Admin → Guiders SDK → Configuración
 ✅ API Key: [tu-api-key]
 
 GDPR y Consentimiento:
-✅ Requerir Consentimiento: Sí (por defecto desde v2.3.0)
-❌ Banner de Consentimiento: No (usar el plugin de cookies externo)
-✅ Sincronización Automática de Cookies: Sí
+❌ Requerir Consentimiento: No (el plugin de cookies se encarga)
+❌ Banner de Consentimiento: No (usar el plugin de cookies)
 ```
 
-**Nota importante**: Desde la versión 2.3.0, el plugin requiere consentimiento por defecto (GDPR Article 25: Privacy by Default). Si usas un plugin de cookies externo, desactiva el banner interno de Guiders para evitar duplicados.
+**Opción B: Con banner de Guiders como fallback**
+
+```
+GDPR y Consentimiento:
+✅ Requerir Consentimiento: Sí
+✅ Banner de Consentimiento: Sí (se mostrará si no hay otro plugin)
+```
 
 ### 5. Verificar Sincronización
 
 Una vez configurado, abre la consola del navegador (F12) y busca estos mensajes:
 
-**Para plugins con WP Consent API:**
 ```
-[Guiders WP] ✅ WP Consent API detectada - sincronizando consentimiento
+[Guiders WP] WP Consent API detectada - sincronizando consentimiento
 [Guiders WP] Consentimiento sincronizado: functional → functional = true
 [Guiders WP] Consentimiento sincronizado: statistics → analytics = true
 [Guiders WP] Consentimiento sincronizado: marketing → personalization = true
@@ -102,28 +95,9 @@ Una vez configurado, abre la consola del navegador (F12) y busca estos mensajes:
 [Guiders WP] Listener de cambios de consentimiento activado
 ```
 
-**Para Moove GDPR:**
-```
-[Guiders WP] ✅ Moove GDPR detectado - sincronizando
-[Guiders WP] Moove GDPR: functional=true, analytics=true, personalization=false
-```
-
-**Para Cookiebot:**
-```
-[Guiders WP] ✅ Cookiebot detectado - sincronizando
-[Guiders WP] Cookiebot: functional=true, analytics=true, personalization=true
-```
-
-**Para OneTrust:**
-```
-[Guiders WP] ✅ OneTrust detectado - sincronizando
-[Guiders WP] OneTrust: functional=true, analytics=true, personalization=false
-```
-
-Si ves `[Guiders WP] No se detectó ningún plugin de cookies compatible`, verifica que:
+Si ves `[Guiders WP] WP Consent API no detectada`, verifica que:
 - El plugin de cookies está activado
-- Es uno de los plugins soportados (ver lista arriba)
-- Si usa WP Consent API: verifica que WP Consent API está instalado
+- WP Consent API está instalado (algunos plugins lo incluyen automáticamente)
 
 ## Mapeo de Categorías
 
@@ -152,95 +126,50 @@ Si el usuario cambia las preferencias:
 3. Guiders SDK detecta el cambio y actualiza inmediatamente
 4. El tracking se activa/desactiva según las nuevas preferencias
 
-## Adaptadores Específicos
-
-### Moove GDPR (GDPR Cookie Compliance)
-
-**Cómo funciona:**
-- Lee el consentimiento desde `localStorage` (cookies `moove_gdpr_popup*`)
-- Sincroniza en tiempo real con eventos `moove_gdpr_modal_closed` y `storage`
-- NO requiere WP Consent API
-
-**Mapeo de categorías:**
-```
-localStorage['moove_gdpr_popup'] === '1'           → functional: true
-localStorage['moove_gdpr_popup_analytics'] === '1' → analytics: true
-localStorage['moove_gdpr_popup_marketing'] === '1' → personalization: true
-```
-
-**Plugin URL:** https://wordpress.org/plugins/gdpr-cookie-compliance/
-
-### Cookiebot
-
-**Cómo funciona:**
-- Usa la API JavaScript nativa de Cookiebot (`window.Cookiebot.consent`)
-- Sincroniza con eventos `CookiebotOnAccept` y `CookiebotOnDecline`
-- NO requiere WP Consent API
-
-**Mapeo de categorías:**
-```
-Cookiebot.consent.preferences → functional: true/false
-Cookiebot.consent.statistics  → analytics: true/false
-Cookiebot.consent.marketing   → personalization: true/false
-```
-
-**Plugin URL:** https://wordpress.org/plugins/cookiebot/
-
-### OneTrust
-
-**Cómo funciona:**
-- Lee los grupos de consentimiento desde `OnetrustActiveGroups`
-- Sincroniza con evento `OneTrust.OnConsentChanged()`
-- NO requiere WP Consent API
-
-**Mapeo de categorías (IAB TCF v2.0):**
-```
-Group 'C0003' o '2' en OnetrustActiveGroups → functional: true
-Group 'C0002' o '3' en OnetrustActiveGroups → analytics: true
-Group 'C0004' o '4' en OnetrustActiveGroups → personalization: true
-```
-
-**Sitio oficial:** https://www.onetrust.com/
-
 ## Casos de Uso
 
-### Caso 1: Sitio con GDPR estricto (Europa)
+### Caso 1: Sitio con GDPR estricto
 
 ```
-Plugin de cookies: "Moove GDPR"
+Plugin de cookies: "Beautiful and responsive cookie consent"
 Configuración: Opt-in (usuario debe aceptar explícitamente)
 
 Guiders SDK:
-- Requerir Consentimiento: Sí (por defecto desde v2.3.0)
-- Banner de Consentimiento: No (lo maneja Moove GDPR)
-- Sincronización Automática: Sí
+- Requerir Consentimiento: No (lo maneja el plugin de cookies)
+- Banner de Consentimiento: No
 
-Resultado: Solo el banner de Moove GDPR, sincronización automática con Guiders
+Resultado:
+- Solo el banner del plugin de cookies
+- Sincronización automática con Guiders
+- Control de localStorage según preferencias del usuario
 ```
 
-### Caso 2: Sitio global sin cookies externas
+### Caso 2: Sitio global con consentimiento opcional
 
 ```
 Plugin de cookies: Ninguno
 
 Guiders SDK:
-- Requerir Consentimiento: No
+- Requerir Consentimiento: No (consentimiento automático)
 - Banner de Consentimiento: No
 
-Resultado: Guiders funciona inmediatamente sin barreras de consentimiento
+Resultado:
+- Guiders funciona inmediatamente sin barreras de consentimiento
+- ⚠️ localStorage se usa desde el inicio (sin pedir permiso)
+- Adecuado solo para sitios fuera de la UE
 ```
 
-### Caso 3: Sitio con WP Consent API
+### Caso 3: Sitio con doble capa de consentimiento
 
 ```
-Plugin de cookies: "CookieYes" (soporta WP Consent API)
+Plugin de cookies: "Beautiful and responsive cookie consent"
+Configuración: Opt-out (preseleccionado, usuario puede rechazar)
 
 Guiders SDK:
 - Requerir Consentimiento: Sí
-- Banner de Consentimiento: No (lo maneja CookieYes)
-- Sincronización Automática: Sí
+- Banner de Consentimiento: Sí (fallback si falla el plugin de cookies)
 
-Resultado: Banner de CookieYes, sincronización vía WP Consent API
+Resultado: Banner del plugin de cookies primero, banner de Guiders como backup
 ```
 
 ## Verificación de Integración
@@ -316,6 +245,8 @@ WordPress Admin → Guiders SDK → GDPR y Consentimiento
 → Banner de Consentimiento: No
 ```
 
+**Nota**: Ambos banners controlan el mismo tipo de consentimiento (procesamiento de datos personales), por lo que solo debes mostrar uno.
+
 ### Problema: Tracking no se activa después de aceptar cookies
 
 **Solución:**
@@ -327,28 +258,19 @@ WordPress Admin → Guiders SDK → GDPR y Consentimiento
    ```
 3. Recarga la página completamente (Ctrl+Shift+R)
 
-## Desactivar Sincronización Automática
+## Desactivar Integración con WP Consent API
 
 Si quieres usar solo el sistema de consentimiento interno de Guiders:
 
-**Opción 1: Desactivar sincronización (mantener plugin de cookies)**
-```
-WordPress Admin → Guiders SDK → GDPR y Consentimiento
-→ Sincronización Automática de Cookies: No
-→ Banner de Consentimiento: Sí (usar banner interno de Guiders)
-```
-
-**Opción 2: Desinstalar plugins de cookies**
 1. Desactiva el plugin de cookies
-2. Desactiva WP Consent API (si está instalado)
+2. Desactiva WP Consent API
 3. Configura Guiders SDK:
    ```
    Requerir Consentimiento: Sí
    Banner de Consentimiento: Sí
-   Sincronización Automática: No
    ```
 
-El plugin detectará automáticamente que no hay plugins de cookies y usará su sistema interno.
+El plugin detectará automáticamente que WP Consent API no está disponible y usará su propio sistema.
 
 ## Soporte
 
@@ -364,7 +286,17 @@ Para más información:
 La integración usa:
 - **JavaScript**: Eventos `wp_listen_for_consent_change` y funciones `wp_has_consent()`, `wp_set_consent()`
 - **PHP**: Filtro `wp_consent_api_registered_{$plugin}` para registrar compatibilidad
-- **Sincronización bidireccional**: Cambios en cookies → Guiders (automático), Guiders → cookies (manual si es necesario)
+- **Sincronización bidireccional**: Cambios en consentimiento → Guiders (automático), Guiders → sistema de consentimiento (manual si es necesario)
+
+### ¿Por qué WP Consent API controla localStorage?
+
+Aunque se llama "Consent API" y muchos plugins hablan de "cookies", la realidad legal es que:
+
+1. **Directiva ePrivacy (Cookie Law)**: Aplica a cookies y **tecnologías similares** (localStorage, sessionStorage)
+2. **GDPR**: Aplica a **cualquier procesamiento de datos personales**, sin importar dónde se almacenen
+3. **Conclusión**: El consentimiento de "cookies" en realidad es consentimiento para **procesamiento de datos personales**
+
+Por eso, cuando un usuario acepta/rechaza "cookies funcionales" en el banner, esto también controla el uso de localStorage por parte de Guiders SDK.
 
 ### Prioridad de Carga
 
@@ -385,10 +317,4 @@ Para ver todos los logs de sincronización, abre la consola y filtra por `[Guide
 ---
 
 **Última actualización**: 2025-01-24
-**Versión del plugin**: 2.3.0+
-**Nuevas características**:
-- ✨ Soporte para Moove GDPR (adaptador personalizado)
-- ✨ Soporte para Cookiebot (adaptador personalizado)
-- ✨ Soporte para OneTrust (adaptador personalizado)
-- 🔒 Consentimiento requerido por defecto (GDPR Article 25: Privacy by Default)
-- 🔍 Detección automática multi-plugin con prioridad
+**Versión del plugin**: 2.0.11+

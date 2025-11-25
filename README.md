@@ -181,6 +181,20 @@ O bien, pasando la API key como parámetro:
 
 El SDK incluye un **sistema completo de control de consentimiento** para cumplir con GDPR, LOPDGDD y LSSI.
 
+### 🔍 Tecnologías de Almacenamiento
+
+**IMPORTANTE**: El SDK utiliza **localStorage** (no cookies de terceros) para almacenar datos en el navegador:
+
+| Tecnología | Datos Almacenados |
+|------------|-------------------|
+| **localStorage** | `fingerprint`, `visitorId`, `consent_preferences`, `guiders_event_queue`, `chat_history`, `session_data` |
+| **Cookies HttpOnly** (servidor) | Cookie de sesión para autenticación (establecida por el backend) |
+
+**Por qué requiere consentimiento GDPR**:
+- localStorage es una **"tecnología similar"** a las cookies bajo la Directiva ePrivacy
+- Almacena **datos personales** que requieren consentimiento explícito
+- GDPR aplica a **todo procesamiento de datos personales**, sin importar el método de almacenamiento
+
 ### ⚠️ Importante: Sistema Opcional por Defecto
 
 **Por defecto, el SDK NO requiere consentimiento** (`requireConsent: false`). Esto permite que funcione globalmente sin barreras. Si tu sitio está dirigido a usuarios de la UE o necesitas cumplimiento GDPR, debes activar explícitamente el sistema de consentimiento.

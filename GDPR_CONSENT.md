@@ -15,6 +15,22 @@
 
 Guiders SDK proporciona APIs completas para control de consentimiento que permiten cumplir con GDPR, LOPDGDD y LSSI en España y la UE.
 
+### 🔍 Tecnologías de Almacenamiento Utilizadas
+
+**IMPORTANTE**: El SDK utiliza **localStorage** (no cookies de terceros) para almacenar datos en el navegador:
+
+| Tecnología | Uso | Datos Almacenados |
+|------------|-----|-------------------|
+| **localStorage** | Almacenamiento persistente en el navegador | `fingerprint`, `visitorId`, `consent_preferences`, `guiders_event_queue`, `chat_history`, `session_data` |
+| **sessionStorage** | Almacenamiento temporal de sesión | Datos de sesión temporal |
+| **Cookies HttpOnly** (servidor) | Autenticación segura (modo `authMode: 'session'`) | Cookie de sesión establecida por el backend (no accesible por JavaScript) |
+
+**Por qué esto requiere consentimiento GDPR**:
+- localStorage y sessionStorage son **"tecnologías similares"** bajo la Directiva ePrivacy
+- Almacenan **datos personales** (identificadores únicos, comportamiento del usuario)
+- Requieren **consentimiento explícito** igual que las cookies (Art. 22 LSSI)
+- GDPR aplica a **cualquier procesamiento de datos personales**, sin importar el método de almacenamiento
+
 ### ⚖️ Responsabilidad del Consentimiento
 
 **IMPORTANTE**: El **propietario del sitio web** es el responsable de:
@@ -38,16 +54,18 @@ Guiders SDK proporciona APIs completas para control de consentimiento que permit
    - Usar soluciones como Cookiebot, OneTrust, o custom
    - Obtener consentimiento ANTES de iniciar tracking
    - Documentar preferencias del usuario
+   - **Mencionar localStorage** en el banner (no solo "cookies")
 
 2. **Gestionar el Consentimiento**
    - Permitir al usuario modificar preferencias
-   - Respetar la decisión de rechazar cookies
+   - Respetar la decisión de rechazar almacenamiento local
    - Renovar consentimiento cuando sea necesario
 
 3. **Política de Privacidad**
-   - Documentar qué datos se recopilan
+   - Documentar qué datos se recopilan y dónde se almacenan (localStorage, servidor)
    - Explicar para qué se usan
    - Incluir información de contacto del DPO (si aplica)
+   - **Especificar que se usa localStorage y cookies HttpOnly**
 
 ### Guiders SDK proporciona:
 
@@ -55,15 +73,16 @@ Guiders SDK proporciona APIs completas para control de consentimiento que permit
    - Pausar tracking hasta obtener consentimiento
    - Reanudar tracking cuando se otorga consentimiento
    - Detener tracking si se deniega consentimiento
+   - **Limpiar localStorage** cuando se deniega consentimiento
 
 2. **Categorías de Consentimiento**
-   - `analytics`: Tracking de eventos y análisis
-   - `functional`: Chat y funcionalidad básica
-   - `personalization`: Personalización del chat
+   - `analytics`: Tracking de eventos y análisis (almacenado en localStorage)
+   - `functional`: Chat y funcionalidad básica (localStorage + cookies HttpOnly)
+   - `personalization`: Personalización del chat (localStorage)
 
 3. **Derechos del Usuario**
-   - Eliminar todos los datos almacenados
-   - Exportar datos personales
+   - Eliminar todos los datos almacenados (localStorage + servidor)
+   - Exportar datos personales (incluye datos de localStorage)
    - Revocar consentimiento en cualquier momento
 
 ---
@@ -183,7 +202,7 @@ unsubscribe();
 <body>
   <!-- Banner de consentimiento -->
   <div id="consent-banner" style="display: none; position: fixed; bottom: 0; width: 100%; background: #333; color: white; padding: 20px;">
-    <p>Usamos cookies para mejorar tu experiencia. ¿Aceptas?</p>
+    <p>Este sitio procesa datos personales (incluido almacenamiento local en tu navegador) para mejorar tu experiencia. ¿Aceptas?</p>
     <button id="accept-all">Aceptar Todo</button>
     <button id="accept-functional">Solo Funcionales</button>
     <button id="reject-all">Rechazar</button>
@@ -238,21 +257,21 @@ unsubscribe();
 
 ```html
 <div id="preferences-modal">
-  <h2>Preferencias de Cookies</h2>
+  <h2>Preferencias de Privacidad</h2>
 
   <label>
     <input type="checkbox" id="analytics" checked>
-    Cookies Analíticas (tracking de eventos)
+    Analíticas (tracking de eventos en localStorage)
   </label>
 
   <label>
     <input type="checkbox" id="functional" checked>
-    Cookies Funcionales (chat en vivo)
+    Funcionales (chat en vivo, almacenamiento local + cookies HttpOnly)
   </label>
 
   <label>
     <input type="checkbox" id="personalization" checked>
-    Cookies de Personalización
+    Personalización (preferencias en localStorage)
   </label>
 
   <button id="save-preferences">Guardar Preferencias</button>
@@ -455,22 +474,39 @@ a.click();
 ## Categorías de Datos Recopilados
 
 ### Analytics (Analíticas)
+**Almacenamiento**: localStorage (`guiders_event_queue`)
 - Eventos de tracking personalizados
 - Eventos de sesión (inicio, fin, duración)
 - Eventos DOM (clicks en botones, formularios, etc.)
 - Métricas de interacción con el chat
 
 ### Functional (Funcionales)
-- Fingerprint del navegador (para identificación)
-- Session ID
-- Chat ID
-- Mensajes del chat
+**Almacenamiento**: localStorage (`fingerprint`, `visitorId`, `session_data`) + cookies HttpOnly (servidor)
+- Fingerprint del navegador (para identificación única)
+- Session ID (identificador de sesión)
+- Chat ID (identificador de conversación)
+- Mensajes del chat (historial local)
 - Estado de disponibilidad de comerciales
+- Cookie de autenticación (HttpOnly, establecida por el servidor)
 
 ### Personalization (Personalización)
+**Almacenamiento**: localStorage (`chat_history`, preferencias)
 - Preferencias del usuario
-- Historial de chats
-- Configuración de mensajes de bienvenida
+- Historial de chats (mensajes previos)
+- Configuración de mensajes de bienvenida personalizados
+
+### Detalles Técnicos de Almacenamiento
+
+| Clave localStorage | Contenido | Categoría GDPR |
+|-------------------|-----------|----------------|
+| `fingerprint` | Hash único del navegador | Funcional |
+| `visitorId` | UUID del visitante | Funcional |
+| `consent_preferences` | Preferencias de consentimiento | Necesario (excepto) |
+| `guiders_event_queue` | Cola de eventos pendientes | Analytics |
+| `chat_history` | Mensajes de chat locales | Funcional/Personalización |
+| `session_data` | Datos de sesión activa | Funcional |
+
+**Nota**: La clave `consent_preferences` se considera **estrictamente necesaria** y se almacena incluso si el usuario rechaza todo, ya que registra su decisión de consentimiento.
 
 ---
 
@@ -486,13 +522,14 @@ Sí, puedes configurar `waitForConsent: false` para que el SDK funcione sin espe
 - Tu sitio no está dirigido a usuarios de la UE/EEA, O
 - Solo usas cookies estrictamente necesarias
 
-### ¿Qué pasa si el usuario rechaza las cookies?
+### ¿Qué pasa si el usuario rechaza el procesamiento de datos?
 
 El SDK:
 - Detendrá todo tracking de eventos
-- NO generará ni almacenará fingerprints
-- Permitirá el chat solo si el usuario acepta cookies funcionales
-- Respetará la decisión del usuario en visitas futuras
+- NO generará ni almacenará fingerprints en localStorage
+- Limpiará los datos existentes de localStorage (excepto `consent_preferences`)
+- Permitirá el chat solo si el usuario acepta procesamiento funcional
+- Respetará la decisión del usuario en visitas futuras (persistida en localStorage)
 
 ### ¿Se puede revocar el consentimiento?
 
