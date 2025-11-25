@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.5.0-beta.1
+Stable tag: 2.5.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,33 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.5.0 =
+* **✨ Integración Mejorada con Moove GDPR Cookie Compliance**:
+  * **Soporte flexible**: Compatible con configuraciones de 3 y 5 categorías
+  * **Lectura directa de cookies**: Lee cookie `moove_gdpr_popup` con decodificación URL automática
+  * **Mapeo automático**: Detecta y mapea categorías correctamente (strict, performance, thirdparty, advanced, preference)
+  * **Lógica de reintentos**: 20 intentos × 500ms para garantizar sincronización con SDK
+  * **Polling de cambios**: Detecta cambios en cookies cada 1000ms
+  * **Fallback inteligente**: Usa localStorage si la cookie no está disponible
+  * **Logs mejorados**: Mensajes de debugging claros con emojis
+  * **Fix**: Chat ahora aparece correctamente después de aceptar cookies en Moove GDPR
+
+* **✨ Panel de Administración Reorganizado con Interfaz Profesional**:
+  * **Navegación por pestañas**: 50+ configuraciones organizadas en 4 pestañas lógicas (General, Chat, Tracking, Cookies & GDPR)
+  * **Interfaz moderna**: Header con gradiente, iconos dashicons, transiciones suaves
+  * **Sidebar contextual**: Ayuda y documentación que cambia según la pestaña activa
+  * **Diseño responsive**: Optimizado para dispositivos móviles
+  * **Mejor experiencia**: Validación de formularios mejorada, indicadores visuales para campos requeridos
+  * **Fix**: Eliminados mensajes confusos sobre detección de plugins de cookies
+
+* **🐛 Corrección de Integración con Beautiful Cookie Banner**:
+  * **Sincronización corregida**: Usa método `grantConsentWithPreferences()` en lugar de `updateConsent()`
+  * **Ejecución inmediata**: Sincronización ejecutada antes del delay de inicialización del SDK
+  * **requireConsent automático**: Se activa automáticamente cuando se detecta gestor externo
+  * **Limpieza de localStorage**: Elimina datos antiguos del SDK cuando hay gestor externo
+  * **Reintentos automáticos**: Hasta 20 intentos para garantizar sincronización
+  * **Fix**: Chat respeta consentimiento del gestor externo correctamente
 
 = 2.5.0-beta.1 =
 * **[BETA] ✨ Integración Mejorada con Moove GDPR Cookie Compliance**:
