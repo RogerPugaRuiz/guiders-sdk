@@ -144,6 +144,38 @@ Publicación en un entorno con acceso al sistema de archivos (sin ZIP):
 
 Nota: Cuando uses el plugin NO necesitas añadir manualmente el `<script>`; sólo asegúrate de que el plugin esté activo y configurado.
 
+### Opción 4: Entorno de Desarrollo con Docker
+
+Para desarrollo y pruebas, incluimos un entorno WordPress completo con Docker:
+
+```bash
+# Iniciar WordPress + MySQL + phpMyAdmin
+./wp-docker.sh start
+
+# Acceder a:
+# - WordPress: http://localhost:8080
+# - phpMyAdmin: http://localhost:8081
+
+# Activar plugin Guiders
+./wp-docker.sh plugin:activate
+
+# Instalar plugins de cookies para pruebas
+./wp-docker.sh cookies:install
+
+# Ver todos los comandos disponibles
+./wp-docker.sh help
+```
+
+**Documentación completa**: Ver [DOCKER_WORDPRESS.md](DOCKER_WORDPRESS.md) para instrucciones detalladas, comandos útiles y troubleshooting.
+
+**Características**:
+- ✅ WordPress + MySQL + phpMyAdmin listos para usar
+- ✅ Plugin Guiders montado en tiempo real (cambios instantáneos)
+- ✅ WP-CLI incluido para comandos de WordPress
+- ✅ Scripts helper para operaciones comunes
+- ✅ Datos persistentes en volúmenes Docker
+- ✅ Ideal para probar integraciones con plugins de cookies
+
 ## Uso básico
 
 ### Instalación más simple (funciona inmediatamente)
