@@ -65,56 +65,58 @@ class GuidersAdmin {
             array($this, 'validateSettings')
         );
         
+        // ==================== GENERAL TAB ====================
         // General settings section
         add_settings_section(
             'guiders_general_section',
             __('Configuración General', 'guiders-wp-plugin'),
             array($this, 'generalSectionCallback'),
-            'guiders-settings'
+            'guiders-settings-general'
         );
-        
+
         // API Key field
         add_settings_field(
             'api_key',
             __('API Key', 'guiders-wp-plugin'),
             array($this, 'apiKeyFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-general',
             'guiders_general_section'
         );
-        
+
         // Enabled field
         add_settings_field(
             'enabled',
             __('Habilitar Guiders SDK', 'guiders-wp-plugin'),
             array($this, 'enabledFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-general',
             'guiders_general_section'
         );
-        
+
         // Environment field
         add_settings_field(
             'environment',
             __('Entorno', 'guiders-wp-plugin'),
             array($this, 'environmentFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-general',
             'guiders_general_section'
         );
         
-        // Features section
+        // ==================== CHAT TAB ====================
+        // Chat Features section
         add_settings_section(
-            'guiders_features_section',
-            __('Características', 'guiders-wp-plugin'),
-            array($this, 'featuresSectionCallback'),
-            'guiders-settings'
+            'guiders_chat_features_section',
+            __('Funciones del Chat', 'guiders-wp-plugin'),
+            array($this, 'chatFeaturesSectionCallback'),
+            'guiders-settings-chat'
         );
-        
+
         // Chat enabled field
         add_settings_field(
             'chat_enabled',
             __('Habilitar Chat en Vivo', 'guiders-wp-plugin'),
             array($this, 'chatEnabledFieldCallback'),
-            'guiders-settings',
-            'guiders_features_section'
+            'guiders-settings-chat',
+            'guiders_chat_features_section'
         );
 
         // Auto-open chat on message field
@@ -122,8 +124,17 @@ class GuidersAdmin {
             'auto_open_chat_on_message',
             __('Auto-abrir Chat al Recibir Mensaje', 'guiders-wp-plugin'),
             array($this, 'autoOpenChatOnMessageFieldCallback'),
-            'guiders-settings',
-            'guiders_features_section'
+            'guiders-settings-chat',
+            'guiders_chat_features_section'
+        );
+
+        // ==================== TRACKING TAB ====================
+        // Tracking Features section
+        add_settings_section(
+            'guiders_tracking_features_section',
+            __('Funciones de Tracking', 'guiders-wp-plugin'),
+            array($this, 'trackingFeaturesSectionCallback'),
+            'guiders-settings-tracking'
         );
 
         // Tracking enabled field
@@ -131,26 +142,26 @@ class GuidersAdmin {
             'tracking_enabled',
             __('Habilitar Tracking de Eventos', 'guiders-wp-plugin'),
             array($this, 'trackingEnabledFieldCallback'),
-            'guiders-settings',
-            'guiders_features_section'
+            'guiders-settings-tracking',
+            'guiders_tracking_features_section'
         );
-        
+
         // Heuristic detection field
         add_settings_field(
             'heuristic_detection',
             __('Detección Heurística Inteligente', 'guiders-wp-plugin'),
             array($this, 'heuristicDetectionFieldCallback'),
-            'guiders-settings',
-            'guiders_features_section'
+            'guiders-settings-tracking',
+            'guiders_tracking_features_section'
         );
-        
+
         // Confidence threshold field
         add_settings_field(
             'confidence_threshold',
             __('Umbral de Confianza', 'guiders-wp-plugin'),
             array($this, 'confidenceThresholdFieldCallback'),
-            'guiders-settings',
-            'guiders_features_section'
+            'guiders-settings-tracking',
+            'guiders_tracking_features_section'
         );
 
         // Auto-init mode
@@ -158,7 +169,7 @@ class GuidersAdmin {
             'auto_init_mode',
             __('Modo de Auto-Init', 'guiders-wp-plugin'),
             array($this, 'autoInitModeFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-general',
             'guiders_general_section'
         );
 
@@ -167,7 +178,7 @@ class GuidersAdmin {
             'auto_init_delay',
             __('Delay Auto-Init (ms)', 'guiders-wp-plugin'),
             array($this, 'autoInitDelayFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-general',
             'guiders_general_section'
         );
 
@@ -176,7 +187,7 @@ class GuidersAdmin {
             'guiders_chat_consent_message_section',
             __('Mensaje de Consentimiento del Chat', 'guiders-wp-plugin'),
             array($this, 'chatConsentMessageSectionCallback'),
-            'guiders-settings'
+            'guiders-settings-chat'
         );
 
         // Chat consent message enabled field
@@ -184,7 +195,7 @@ class GuidersAdmin {
             'chat_consent_message_enabled',
             __('Habilitar Mensaje de Consentimiento', 'guiders-wp-plugin'),
             array($this, 'chatConsentMessageEnabledFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_chat_consent_message_section'
         );
 
@@ -193,7 +204,7 @@ class GuidersAdmin {
             'chat_consent_message_text',
             __('Texto del Mensaje', 'guiders-wp-plugin'),
             array($this, 'chatConsentMessageTextFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_chat_consent_message_section'
         );
 
@@ -202,7 +213,7 @@ class GuidersAdmin {
             'chat_consent_privacy_url',
             __('URL Política de Privacidad', 'guiders-wp-plugin'),
             array($this, 'chatConsentPrivacyUrlFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_chat_consent_message_section'
         );
 
@@ -211,7 +222,7 @@ class GuidersAdmin {
             'chat_consent_privacy_text',
             __('Texto Enlace Privacidad', 'guiders-wp-plugin'),
             array($this, 'chatConsentPrivacyTextFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_chat_consent_message_section'
         );
 
@@ -220,7 +231,7 @@ class GuidersAdmin {
             'chat_consent_cookies_url',
             __('URL Política de Cookies', 'guiders-wp-plugin'),
             array($this, 'chatConsentCookiesUrlFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_chat_consent_message_section'
         );
 
@@ -229,7 +240,7 @@ class GuidersAdmin {
             'chat_consent_cookies_text',
             __('Texto Enlace Cookies', 'guiders-wp-plugin'),
             array($this, 'chatConsentCookiesTextFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_chat_consent_message_section'
         );
 
@@ -238,7 +249,7 @@ class GuidersAdmin {
             'chat_consent_show_once',
             __('Mostrar Solo Una Vez', 'guiders-wp-plugin'),
             array($this, 'chatConsentShowOnceFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_chat_consent_message_section'
         );
 
@@ -247,7 +258,7 @@ class GuidersAdmin {
             'guiders_active_hours_section',
             __('Horarios de Activación del Chat', 'guiders-wp-plugin'),
             array($this, 'activeHoursSectionCallback'),
-            'guiders-settings'
+            'guiders-settings-chat'
         );
 
         // Active hours enabled field
@@ -255,7 +266,7 @@ class GuidersAdmin {
             'active_hours_enabled',
             __('Habilitar Horarios de Activación', 'guiders-wp-plugin'),
             array($this, 'activeHoursEnabledFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_active_hours_section'
         );
 
@@ -264,7 +275,7 @@ class GuidersAdmin {
             'active_hours_timezone',
             __('Zona Horaria', 'guiders-wp-plugin'),
             array($this, 'activeHoursTimezoneFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_active_hours_section'
         );
 
@@ -273,7 +284,7 @@ class GuidersAdmin {
             'active_hours_ranges',
             __('Rangos de Horarios', 'guiders-wp-plugin'),
             array($this, 'activeHoursRangesFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_active_hours_section'
         );
 
@@ -282,7 +293,7 @@ class GuidersAdmin {
             'active_hours_fallback_message',
             __('Mensaje cuando Chat no está Disponible', 'guiders-wp-plugin'),
             array($this, 'activeHoursFallbackMessageFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_active_hours_section'
         );
 
@@ -291,7 +302,7 @@ class GuidersAdmin {
             'active_hours_exclude_weekends',
             __('Excluir Fines de Semana', 'guiders-wp-plugin'),
             array($this, 'activeHoursExcludeWeekendsFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_active_hours_section'
         );
 
@@ -300,7 +311,7 @@ class GuidersAdmin {
             'active_hours_active_days',
             __('Días Activos (Avanzado)', 'guiders-wp-plugin'),
             array($this, 'activeHoursActiveDaysFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_active_hours_section'
         );
 
@@ -309,7 +320,7 @@ class GuidersAdmin {
             'guiders_commercial_availability_section',
             __('Disponibilidad de Comerciales', 'guiders-wp-plugin'),
             array($this, 'commercialAvailabilitySectionCallback'),
-            'guiders-settings'
+            'guiders-settings-chat'
         );
 
         // Commercial availability enabled field
@@ -317,7 +328,7 @@ class GuidersAdmin {
             'commercial_availability_enabled',
             __('Habilitar Verificación', 'guiders-wp-plugin'),
             array($this, 'commercialAvailabilityEnabledFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_commercial_availability_section'
         );
 
@@ -326,7 +337,7 @@ class GuidersAdmin {
             'commercial_availability_polling',
             __('Intervalo de Consulta (segundos)', 'guiders-wp-plugin'),
             array($this, 'commercialAvailabilityPollingFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_commercial_availability_section'
         );
 
@@ -335,7 +346,7 @@ class GuidersAdmin {
             'commercial_availability_show_badge',
             __('Mostrar Contador', 'guiders-wp-plugin'),
             array($this, 'commercialAvailabilityShowBadgeFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_commercial_availability_section'
         );
 
@@ -344,7 +355,7 @@ class GuidersAdmin {
             'guiders_tracking_v2_section',
             __('Tracking V2 - Sistema de Eventos Avanzado', 'guiders-wp-plugin'),
             array($this, 'trackingV2SectionCallback'),
-            'guiders-settings'
+            'guiders-settings-tracking'
         );
 
         // Tracking V2 enabled field
@@ -352,7 +363,7 @@ class GuidersAdmin {
             'tracking_v2_enabled',
             __('Habilitar Tracking V2', 'guiders-wp-plugin'),
             array($this, 'trackingV2EnabledFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-tracking',
             'guiders_tracking_v2_section'
         );
 
@@ -361,7 +372,7 @@ class GuidersAdmin {
             'tracking_v2_batch_size',
             __('Tamaño de Lote', 'guiders-wp-plugin'),
             array($this, 'trackingV2BatchSizeFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-tracking',
             'guiders_tracking_v2_section'
         );
 
@@ -370,7 +381,7 @@ class GuidersAdmin {
             'tracking_v2_flush_interval',
             __('Intervalo de Envío (ms)', 'guiders-wp-plugin'),
             array($this, 'trackingV2FlushIntervalFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-tracking',
             'guiders_tracking_v2_section'
         );
 
@@ -379,7 +390,7 @@ class GuidersAdmin {
             'tracking_v2_max_queue_size',
             __('Tamaño Máximo de Cola', 'guiders-wp-plugin'),
             array($this, 'trackingV2MaxQueueSizeFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-tracking',
             'guiders_tracking_v2_section'
         );
 
@@ -388,7 +399,7 @@ class GuidersAdmin {
             'tracking_v2_persist_queue',
             __('Persistir Cola en localStorage', 'guiders-wp-plugin'),
             array($this, 'trackingV2PersistQueueFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-tracking',
             'guiders_tracking_v2_section'
         );
 
@@ -397,7 +408,7 @@ class GuidersAdmin {
             'tracking_v2_bypass_consent',
             __('⚠️ Bypass Consent (Solo Desarrollo)', 'guiders-wp-plugin'),
             array($this, 'trackingV2BypassConsentFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-tracking',
             'guiders_tracking_v2_section'
         );
 
@@ -406,7 +417,7 @@ class GuidersAdmin {
             'guiders_chat_position_section',
             __('Posición del Widget de Chat', 'guiders-wp-plugin'),
             array($this, 'chatPositionSectionCallback'),
-            'guiders-settings'
+            'guiders-settings-chat'
         );
 
         // Chat position field (main UI)
@@ -414,7 +425,7 @@ class GuidersAdmin {
             'chat_position',
             __('Configuración de Posición', 'guiders-wp-plugin'),
             array($this, 'chatPositionFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_chat_position_section'
         );
 
@@ -423,7 +434,7 @@ class GuidersAdmin {
             'mobile_breakpoint',
             __('Breakpoint Móvil', 'guiders-wp-plugin'),
             array($this, 'mobileBreakpointFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_chat_position_section'
         );
 
@@ -432,7 +443,7 @@ class GuidersAdmin {
             'mobile_detection_mode',
             __('Modo de Detección', 'guiders-wp-plugin'),
             array($this, 'mobileDetectionModeFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_chat_position_section'
         );
 
@@ -441,16 +452,17 @@ class GuidersAdmin {
             'mobile_detection_debug',
             __('Debug de Detección', 'guiders-wp-plugin'),
             array($this, 'mobileDetectionDebugFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-chat',
             'guiders_chat_position_section'
         );
 
+        // ==================== COOKIES & GDPR TAB ====================
         // GDPR & Consent Banner section
         add_settings_section(
             'guiders_gdpr_section',
             __('GDPR & Banner de Consentimiento', 'guiders-wp-plugin'),
             array($this, 'gdprSectionCallback'),
-            'guiders-settings'
+            'guiders-settings-cookies'
         );
 
         // Consent banner enabled
@@ -458,7 +470,7 @@ class GuidersAdmin {
             'consent_banner_enabled',
             __('Habilitar Banner de Consentimiento', 'guiders-wp-plugin'),
             array($this, 'consentBannerEnabledFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-cookies',
             'guiders_gdpr_section'
         );
 
@@ -467,7 +479,7 @@ class GuidersAdmin {
             'require_consent',
             __('Requerir Consentimiento GDPR', 'guiders-wp-plugin'),
             array($this, 'requireConsentFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-cookies',
             'guiders_gdpr_section'
         );
 
@@ -476,7 +488,7 @@ class GuidersAdmin {
             'consent_banner_style',
             __('Estilo del Banner', 'guiders-wp-plugin'),
             array($this, 'consentBannerStyleFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-cookies',
             'guiders_gdpr_section'
         );
 
@@ -485,7 +497,7 @@ class GuidersAdmin {
             'consent_banner_text',
             __('Texto del Banner', 'guiders-wp-plugin'),
             array($this, 'consentBannerTextFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-cookies',
             'guiders_gdpr_section'
         );
 
@@ -494,7 +506,7 @@ class GuidersAdmin {
             'consent_accept_text',
             __('Texto Botón Aceptar', 'guiders-wp-plugin'),
             array($this, 'consentAcceptTextFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-cookies',
             'guiders_gdpr_section'
         );
 
@@ -503,7 +515,7 @@ class GuidersAdmin {
             'consent_deny_text',
             __('Texto Botón Rechazar', 'guiders-wp-plugin'),
             array($this, 'consentDenyTextFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-cookies',
             'guiders_gdpr_section'
         );
 
@@ -512,7 +524,7 @@ class GuidersAdmin {
             'consent_show_preferences',
             __('Mostrar Botón Preferencias', 'guiders-wp-plugin'),
             array($this, 'consentShowPreferencesFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-cookies',
             'guiders_gdpr_section'
         );
 
@@ -521,7 +533,7 @@ class GuidersAdmin {
             'consent_banner_colors',
             __('Colores del Banner', 'guiders-wp-plugin'),
             array($this, 'consentBannerColorsFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-cookies',
             'guiders_gdpr_section'
         );
 
@@ -530,7 +542,7 @@ class GuidersAdmin {
             'guiders_cookie_management_section',
             __('🍪 Gestión de Consentimiento de Cookies', 'guiders-wp-plugin'),
             array($this, 'cookieManagementSectionCallback'),
-            'guiders-settings'
+            'guiders-settings-cookies'
         );
 
         // Cookie consent system
@@ -538,7 +550,7 @@ class GuidersAdmin {
             'cookie_consent_system',
             __('Sistema de Cookies', 'guiders-wp-plugin'),
             array($this, 'cookieConsentSystemFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-cookies',
             'guiders_cookie_management_section'
         );
 
@@ -547,7 +559,7 @@ class GuidersAdmin {
             'wp_consent_api_sync_enabled',
             __('Sincronización WP Consent API', 'guiders-wp-plugin'),
             array($this, 'wpConsentApiSyncEnabledFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-cookies',
             'guiders_cookie_management_section'
         );
 
@@ -556,7 +568,7 @@ class GuidersAdmin {
             'cookie_consent_debug',
             __('Logs de Debug en Consola', 'guiders-wp-plugin'),
             array($this, 'cookieConsentDebugFieldCallback'),
-            'guiders-settings',
+            'guiders-settings-cookies',
             'guiders_cookie_management_section'
         );
     }
@@ -952,6 +964,20 @@ class GuidersAdmin {
      */
     public function featuresSectionCallback() {
         echo '<p>' . __('Configura las características específicas del SDK.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat features section callback
+     */
+    public function chatFeaturesSectionCallback() {
+        echo '<p>' . __('Configura las opciones del chat en vivo.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Tracking features section callback
+     */
+    public function trackingFeaturesSectionCallback() {
+        echo '<p>' . __('Configura las opciones de tracking y análisis de eventos.', 'guiders-wp-plugin') . '</p>';
     }
     
     /**
@@ -2421,24 +2447,8 @@ class GuidersAdmin {
      * Cookie Management section callback
      */
     public function cookieManagementSectionCallback() {
-        $detected_plugin = $this->detectCookieConsentPlugin();
-
         echo '<p>' . __('Gestiona cómo Guiders se integra con tu sistema de gestión de cookies.', 'guiders-wp-plugin') . '</p>';
-
-        if ($detected_plugin) {
-            echo '<div class="notice notice-success inline" style="margin: 15px 0; padding: 10px;">';
-            echo '<p><strong>✅ ' . __('Plugin de cookies detectado:', 'guiders-wp-plugin') . '</strong> ' . esc_html($detected_plugin['name']) . '</p>';
-            if ($detected_plugin['wp_consent_api']) {
-                echo '<p style="margin: 5px 0 0 0;">' . __('Este plugin soporta WP Consent API. La sincronización automática está disponible.', 'guiders-wp-plugin') . '</p>';
-            } else {
-                echo '<p style="margin: 5px 0 0 0;">' . __('Este plugin no soporta WP Consent API. Usa el sistema personalizado.', 'guiders-wp-plugin') . ' <a href="' . admin_url('admin.php?page=guiders-settings#cookie-integration-guide') . '">' . __('Ver guía', 'guiders-wp-plugin') . '</a></p>';
-            }
-            echo '</div>';
-        } else {
-            echo '<div class="notice notice-info inline" style="margin: 15px 0; padding: 10px;">';
-            echo '<p>' . __('No se detectó ningún plugin de gestión de cookies. Puedes usar el sistema interno de Guiders o instalar uno.', 'guiders-wp-plugin') . '</p>';
-            echo '</div>';
-        }
+        echo '<p>' . __('El SDK detecta automáticamente plugins de cookies populares como Beautiful Cookie Banner, Moove GDPR y otros compatibles con WP Consent API.', 'guiders-wp-plugin') . '</p>';
 
         // Agregar enlaces a documentación
         echo '<p style="margin-top: 15px;">';
@@ -2598,7 +2608,8 @@ class GuidersAdmin {
                 $detected = array(
                     'name' => $plugin_name,
                     'file' => $plugin_file,
-                    'wp_consent_api' => true
+                    'wp_consent_api' => true,
+                    'detection_method' => 'plugin_active'
                 );
                 break;
             }
@@ -2611,10 +2622,43 @@ class GuidersAdmin {
                     $detected = array(
                         'name' => $plugin_name,
                         'file' => $plugin_file,
-                        'wp_consent_api' => false
+                        'wp_consent_api' => false,
+                        'detection_method' => 'plugin_active'
                     );
                     break;
                 }
+            }
+        }
+
+        // MÉTODO ALTERNATIVO: Detectar mediante constantes y funciones
+        // Algunos plugins se instalan con nombres de carpeta diferentes
+        if (!$detected) {
+            // Beautiful Cookie Banner detection via constants/functions
+            if (defined('BEAUTIFUL_COOKIE_BANNER_VERSION') || function_exists('beautiful_cookie_banner_init')) {
+                $detected = array(
+                    'name' => 'Beautiful Cookie Banner',
+                    'file' => 'detected_via_constant',
+                    'wp_consent_api' => false,
+                    'detection_method' => 'constant'
+                );
+            }
+            // Moove GDPR detection via constants
+            elseif (defined('MOOVE_GDPR_VERSION') || class_exists('Moove_GDPR_Controller')) {
+                $detected = array(
+                    'name' => 'GDPR Cookie Compliance (Moove)',
+                    'file' => 'detected_via_constant',
+                    'wp_consent_api' => false,
+                    'detection_method' => 'constant'
+                );
+            }
+            // Cookie Notice detection
+            elseif (defined('COOKIE_NOTICE_VERSION') || class_exists('Cookie_Notice')) {
+                $detected = array(
+                    'name' => 'Cookie Notice',
+                    'file' => 'detected_via_constant',
+                    'wp_consent_api' => false,
+                    'detection_method' => 'constant'
+                );
             }
         }
 
