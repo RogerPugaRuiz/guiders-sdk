@@ -673,18 +673,17 @@ class GuidersPublic {
                     
                     function doInit() {
                         if (window.guiders) return; // safeguard
+
+                        // ⚠️ IMPORTANTE: Sincronizar consentimiento ANTES de init()
+                        // Si requireConsent=true, el SDK espera consentimiento para inicializarse
+                        // Las funciones de sincronización deben ejecutarse primero para obtener el consentimiento
+                        setupConsentSync();
+                        setupMooveGDPRSync();
+                        setupBeautifulCookieBannerSync();
+
                         window.guiders = new window.TrackingPixelSDK(sdkOptions);
                         window.guiders.init().then(function() {
                             console.log('Guiders SDK initialized successfully');
-
-                            // Sincronizar consentimiento con plugins de cookies
-                            // Se ejecutan en orden de prioridad:
-                            // 1. WP Consent API (estándar de WordPress)
-                            // 2. Moove GDPR (GDPR Cookie Compliance)
-                            // 3. Beautiful Cookie Banner
-                            setupConsentSync();
-                            setupMooveGDPRSync();
-                            setupBeautifulCookieBannerSync();
 
                             if (config.features.tracking) {
                                 window.guiders.enableAutomaticTracking();
