@@ -1,6 +1,7 @@
 import { EndpointManager } from '../core/tracking-pixel-SDK';
 import { debugLog } from '../utils/debug-logger';
 import { ChatV2, ChatListV2 } from '../types';
+import { getCommonHeaders, getCommonFetchOptions } from '../utils/http-headers';
 
 /**
  * Servicio para interactuar con la API V2 de chats
@@ -24,36 +25,18 @@ export class ChatV2Service {
 	 * Obtiene los headers de autorización para las peticiones
 	 */
 	private getAuthHeaders(): Record<string, string> {
-		const baseHeaders: Record<string, string> = {
-			'Content-Type': 'application/json'
-		};
-
-		// Agregar sessionId como header X-Guiders-Sid para todas las peticiones de chat
-		const sessionId = sessionStorage.getItem('guiders_backend_session_id');
-		if (sessionId) {
-			baseHeaders['X-Guiders-Sid'] = sessionId;
-		}
-
-		// Solo agregar Authorization en modo JWT
-		// En modo session, la autenticación se maneja automáticamente por cookies
-		const accessToken = localStorage.getItem('accessToken');
-		if (accessToken) {
-			baseHeaders['Authorization'] = `Bearer ${accessToken}`;
-		}
-
-		return baseHeaders;
+		return getCommonHeaders();
 	}
 
 	/**
 	 * Obtiene las opciones de fetch con autenticación adecuada
 	 */
 	private getFetchOptions(method: string = 'GET', body?: string): RequestInit {
-		return {
-			method,
-			headers: this.getAuthHeaders(),
-			credentials: 'include', // Incluir cookies para autenticación session-based
-			...(body && { body })
-		};
+		const options = getCommonFetchOptions(method);
+		if (body) {
+			options.body = body;
+		}
+		return options;
 	}
 
 	/**

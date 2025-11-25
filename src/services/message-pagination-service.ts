@@ -1,6 +1,7 @@
 import { EndpointManager } from '../core/tracking-pixel-SDK';
 import { MessageV2, MessageListResponse } from '../types';
 import { ChatV2Service } from './chat-v2-service';
+import { getCommonHeaders, getCommonFetchOptions } from '../utils/http-headers';
 
 /**
  * Servicio para cargar mensajes con paginación cursor-based
@@ -22,34 +23,14 @@ export class MessagePaginationService {
      * Obtiene los headers de autorización para las peticiones
      */
     private getAuthHeaders(): Record<string, string> {
-        const baseHeaders: Record<string, string> = {
-            'Content-Type': 'application/json'
-        };
-
-        // Agregar sessionId como header X-Guiders-Sid
-        const sessionId = sessionStorage.getItem('guiders_backend_session_id');
-        if (sessionId) {
-            baseHeaders['X-Guiders-Sid'] = sessionId;
-        }
-
-        // Agregar Authorization en modo JWT
-        const accessToken = localStorage.getItem('accessToken');
-        if (accessToken) {
-            baseHeaders['Authorization'] = `Bearer ${accessToken}`;
-        }
-
-        return baseHeaders;
+        return getCommonHeaders();
     }
 
     /**
      * Obtiene las opciones de fetch con autenticación
      */
     private getFetchOptions(): RequestInit {
-        return {
-            method: 'GET',
-            headers: this.getAuthHeaders(),
-            credentials: 'include'
-        };
+        return getCommonFetchOptions('GET');
     }
 
     /**

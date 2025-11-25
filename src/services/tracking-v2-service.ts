@@ -6,6 +6,7 @@ import {
 } from '../types';
 import { EndpointManager } from '../core/tracking-pixel-SDK';
 import { debugLog } from '../utils/debug-logger';
+import { getCommonFetchOptions } from '../utils/http-headers';
 
 /**
  * TrackingV2Service
@@ -255,12 +256,8 @@ export class TrackingV2Service {
 
     try {
       const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload),
-        credentials: 'include' // Para cookies de sesión
+        ...getCommonFetchOptions('POST'),
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -312,12 +309,7 @@ export class TrackingV2Service {
     const url = `${endpoint}/pixel/metadata?apiKey=${encodeURIComponent(apiKey)}`;
 
     try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await fetch(url, getCommonFetchOptions('GET'));
 
       if (!response.ok) {
         debugLog(
