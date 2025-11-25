@@ -473,18 +473,8 @@ class GuidersPublic {
                     return null;
                 }
 
-                // Verificar si Beautiful Cookie Banner está presente (cookie cookieconsent_status)
-                var hasBeautifulCookieBanner = getCookie('cookieconsent_status') !== null;
-
-                if (!hasBeautifulCookieBanner) {
-                    if (cookieConfig.debug && cookieConfig.system === 'custom') {
-                        console.log('[Guiders WP] Beautiful Cookie Banner no detectado (cookie cookieconsent_status no encontrada)');
-                    }
-                    return;
-                }
-
                 if (cookieConfig.debug) {
-                    console.log('[Guiders WP] Beautiful Cookie Banner detectado - configurando sincronización');
+                    console.log('[Guiders WP] Configurando sincronización con Beautiful Cookie Banner...');
                 }
 
                 // Función para leer consentimiento de Beautiful Cookie Banner
@@ -493,13 +483,13 @@ class GuidersPublic {
 
                     if (!cookieValue) {
                         if (cookieConfig.debug) {
-                            console.log('[Guiders WP] Cookie cookieconsent_status no encontrada');
+                            console.log('[Guiders WP] 🔍 Cookie cookieconsent_status no encontrada - Beautiful Cookie Banner no instalado o usuario aún no ha interactuado');
                         }
                         return null;
                     }
 
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Cookie cookieconsent_status valor:', cookieValue);
+                        console.log('[Guiders WP] ✅ Beautiful Cookie Banner detectado - Cookie cookieconsent_status:', cookieValue);
                     }
 
                     // Intentar parsear como JSON (modo diferenciado)
