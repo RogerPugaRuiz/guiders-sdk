@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.4.0
+Stable tag: 2.5.0-alpha.1
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,20 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.5.0-alpha.1 =
+[ALPHA] Versión experimental con herramientas de desarrollo
+* **✨ Entorno de Desarrollo**: Nuevo entorno WordPress completo con Docker
+  * Docker Compose con WordPress, MySQL, phpMyAdmin y WP-CLI
+  * Script helper `wp-docker.sh` con más de 20 comandos útiles
+  * Documentación completa en `DOCKER_WORDPRESS.md`
+  * Puertos configurables para evitar conflictos (8090/8091)
+* **🐛 Correcciones**:
+  * Endpoint de desarrollo ahora usa `/api` correctamente (http://localhost:3000/api)
+  * Soluciona problemas de CORS con el backend en modo desarrollo
+* **📚 Documentación**:
+  * Clarificación sobre uso de localStorage y requisitos de consentimiento GDPR
+  * Actualización de todas las guías con información de almacenamiento local
 
 = 2.4.0 =
 * **✨ Nueva Funcionalidad: Integración Automática con Plugins de Cookies sin WP Consent API**:
