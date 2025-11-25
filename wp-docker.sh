@@ -57,8 +57,8 @@ case "$1" in
         check_docker
         docker-compose up -d
         print_success "Servicios iniciados"
-        print_info "WordPress: http://localhost:8080"
-        print_info "phpMyAdmin: http://localhost:8081"
+        print_info "WordPress: http://localhost:8090"
+        print_info "phpMyAdmin: http://localhost:8091"
         ;;
 
     stop)
@@ -195,11 +195,11 @@ case "$1" in
     open)
         print_header "Abriendo WordPress en el navegador"
         if command -v open &> /dev/null; then
-            open "http://localhost:8080"
+            open "http://localhost:8090"
         elif command -v xdg-open &> /dev/null; then
-            xdg-open "http://localhost:8080"
+            xdg-open "http://localhost:8090"
         else
-            print_info "Abre manualmente: http://localhost:8080"
+            print_info "Abre manualmente: http://localhost:8090"
         fi
         ;;
 

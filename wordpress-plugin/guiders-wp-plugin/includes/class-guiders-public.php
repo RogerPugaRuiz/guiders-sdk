@@ -151,7 +151,7 @@ class GuidersPublic {
 
         // Add environment-specific endpoints
         if ($config['environment'] === 'development') {
-            $config['endpoint'] = 'http://localhost:3000';
+            $config['endpoint'] = 'http://localhost:3000/api';
             $config['webSocketEndpoint'] = 'ws://localhost:3000';
         } else {
             // Endpoints producción actualizados a dominio (evita mixed-content y facilita TLS)

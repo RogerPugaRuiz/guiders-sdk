@@ -16,14 +16,14 @@ docker-compose logs -f wordpress
 
 ### 2. Acceder a WordPress
 
-- **WordPress**: http://localhost:8080
-- **phpMyAdmin**: http://localhost:8081
+- **WordPress**: http://localhost:8090
+- **phpMyAdmin**: http://localhost:8091
 - **Usuario DB**: `wordpress` / `wordpress`
 - **Usuario Root DB**: `root` / `rootpassword`
 
 ### 3. Configurar WordPress (Primera vez)
 
-1. Abre http://localhost:8080
+1. Abre http://localhost:8090
 2. Sigue el asistente de instalación:
    - **Idioma**: Español
    - **Título del sitio**: Guiders Test
@@ -112,7 +112,7 @@ docker-compose exec wpcli wp db export /var/www/html/backup.sql --allow-root
 docker-compose exec wpcli wp db import /var/www/html/backup.sql --allow-root
 
 # Buscar y reemplazar URLs (útil para migraciones)
-docker-compose exec wpcli wp search-replace 'http://oldsite.com' 'http://localhost:8080' --allow-root
+docker-compose exec wpcli wp search-replace 'http://oldsite.com' 'http://localhost:8090' --allow-root
 ```
 
 ### Instalar Plugins de Cookies para Pruebas
@@ -226,7 +226,7 @@ docker-compose exec wpcli bash
 # Instalar Moove GDPR
 docker-compose exec wpcli wp plugin install gdpr-cookie-compliance --activate --allow-root
 
-# Accede a: http://localhost:8080/wp-admin
+# Accede a: http://localhost:8090/wp-admin
 # Ve a: GDPR Cookie Compliance → Settings
 # Activa las categorías: Necessary, Performance, Targeting
 # Guarda configuración
@@ -374,7 +374,7 @@ docker inspect guiders-wp-db | grep -A 10 Health
 ## 🎯 Próximos Pasos
 
 1. ✅ Iniciar el entorno: `docker-compose up -d`
-2. ✅ Configurar WordPress: http://localhost:8080
+2. ✅ Configurar WordPress: http://localhost:8090
 3. ✅ Activar plugin Guiders
 4. ✅ Configurar API Key en: Settings → Guiders SDK
 5. ✅ Instalar un plugin de cookies para probar integración

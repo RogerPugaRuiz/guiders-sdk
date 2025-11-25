@@ -153,8 +153,8 @@ Para desarrollo y pruebas, incluimos un entorno WordPress completo con Docker:
 ./wp-docker.sh start
 
 # Acceder a:
-# - WordPress: http://localhost:8080
-# - phpMyAdmin: http://localhost:8081
+# - WordPress: http://localhost:8090
+# - phpMyAdmin: http://localhost:8091
 
 # Activar plugin Guiders
 ./wp-docker.sh plugin:activate
