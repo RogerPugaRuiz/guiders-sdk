@@ -473,8 +473,20 @@ class GuidersPublic {
                     return null;
                 }
 
+                // Detectar Beautiful Cookie Banner (cookie O elementos DOM)
+                var hasBeautifulCookieBanner = document.cookie.indexOf('cookieconsent_status') !== -1 ||
+                                              document.querySelector('.cc-window') !== null ||
+                                              document.querySelector('.cc-banner') !== null;
+
+                if (!hasBeautifulCookieBanner) {
+                    if (cookieConfig.debug) {
+                        console.log('[Guiders WP] Beautiful Cookie Banner no detectado (ni cookie ni elementos DOM .cc-window/.cc-banner)');
+                    }
+                    return;
+                }
+
                 if (cookieConfig.debug) {
-                    console.log('[Guiders WP] Configurando sincronización con Beautiful Cookie Banner...');
+                    console.log('[Guiders WP] ✅ Beautiful Cookie Banner detectado - configurando sincronización');
                 }
 
                 // Función para leer consentimiento de Beautiful Cookie Banner
