@@ -689,28 +689,22 @@ class GuidersPublic {
                         // Si requireConsent=true, el SDK espera consentimiento para inicializarse
                         // Las funciones de sincronización deben ejecutarse primero para obtener el consentimiento
 
-                        if (cookieConfig.debug) {
-                            console.log('[Guiders WP] 🔍 Detectando gestores de cookies...');
-                        }
-
                         var hasWPConsent = setupConsentSync();
                         var hasMooveGDPR = setupMooveGDPRSync();
                         var hasBeautifulCookie = setupBeautifulCookieBannerSync();
 
-                        // Resumen de detección
-                        if (cookieConfig.debug) {
-                            var detected = [];
-                            if (hasWPConsent) detected.push('WP Consent API');
-                            if (hasMooveGDPR) detected.push('Moove GDPR');
-                            if (hasBeautifulCookie) detected.push('Beautiful Cookie Banner');
+                        // Resumen de detección (SIEMPRE mostrar, no requiere debug)
+                        var detected = [];
+                        if (hasWPConsent) detected.push('WP Consent API');
+                        if (hasMooveGDPR) detected.push('Moove GDPR');
+                        if (hasBeautifulCookie) detected.push('Beautiful Cookie Banner');
 
-                            if (detected.length > 0) {
-                                console.log('[Guiders WP] ✅ Gestores detectados: ' + detected.join(', '));
-                            } else {
-                                console.log('[Guiders WP] ⚠️ No se detectó ningún gestor de cookies');
-                                console.log('[Guiders WP] ℹ️ El SDK usará su sistema de consentimiento interno');
-                                console.log('[Guiders WP] ℹ️ Gestores soportados: WP Consent API, Moove GDPR, Beautiful Cookie Banner');
-                            }
+                        if (detected.length > 0) {
+                            console.log('[Guiders WP] ✅ Gestores de cookies detectados: ' + detected.join(', '));
+                        } else {
+                            console.log('[Guiders WP] ⚠️ No se detectó ningún gestor de cookies externo');
+                            console.log('[Guiders WP] ℹ️ El SDK usará su sistema de consentimiento interno');
+                            console.log('[Guiders WP] 💡 Gestores soportados: WP Consent API, Moove GDPR, Beautiful Cookie Banner');
                         }
 
                         window.guiders = new window.TrackingPixelSDK(sdkOptions);
