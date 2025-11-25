@@ -238,13 +238,14 @@ class GuidersPublic {
 
             // WP Consent API Integration
             // Sincroniza el consentimiento del plugin de cookies con Guiders SDK
+            // Retorna: true si detectó WP Consent API, false si no
             function setupConsentSync() {
                 // Verificar si la sincronización está habilitada
                 if (!cookieConfig.wp_consent_api_enabled) {
                     if (cookieConfig.debug) {
                         console.log('[Guiders WP] Sincronización WP Consent API desactivada en configuración');
                     }
-                    return;
+                    return false;
                 }
 
                 // Verificar si se debe forzar el sistema interno
@@ -252,7 +253,7 @@ class GuidersPublic {
                     if (cookieConfig.debug) {
                         console.log('[Guiders WP] Sistema configurado como "interno" - saltando WP Consent API');
                     }
-                    return;
+                    return false;
                 }
 
                 // Verificar si WP Consent API está disponible
@@ -260,9 +261,9 @@ class GuidersPublic {
 
                 if (!hasWPConsentAPI) {
                     if (cookieConfig.debug || cookieConfig.system === 'wp_consent_api') {
-                        console.log('[Guiders WP] WP Consent API no detectada - usando consentimiento interno de Guiders');
+                        console.log('[Guiders WP] WP Consent API no detectada');
                     }
-                    return;
+                    return false;
                 }
 
                 // Si el sistema es 'custom', no hacer nada (el usuario debe implementar su lógica)
@@ -270,7 +271,7 @@ class GuidersPublic {
                     if (cookieConfig.debug) {
                         console.log('[Guiders WP] Sistema configurado como "personalizado" - saltando sincronización automática');
                     }
-                    return;
+                    return false;
                 }
 
                 if (cookieConfig.debug) {
@@ -348,17 +349,20 @@ class GuidersPublic {
                 // Ejecutar sincronización inicial y configurar listener
                 syncInitialConsent();
                 setupConsentChangeListener();
+
+                return true; // WP Consent API detectada y configurada
             }
 
             // Moove GDPR Integration (GDPR Cookie Compliance)
             // Integración con el plugin "GDPR Cookie Compliance" de Moove
+            // Retorna: true si detectó Moove GDPR, false si no
             function setupMooveGDPRSync() {
                 // Verificar si debe sincronizarse
                 if (!cookieConfig.wp_consent_api_enabled) {
                     if (cookieConfig.debug) {
                         console.log('[Guiders WP] Sincronización de cookies desactivada');
                     }
-                    return;
+                    return false;
                 }
 
                 // Verificar si se debe forzar el sistema interno
@@ -366,7 +370,7 @@ class GuidersPublic {
                     if (cookieConfig.debug) {
                         console.log('[Guiders WP] Sistema configurado como "interno" - saltando Moove GDPR');
                     }
-                    return;
+                    return false;
                 }
 
                 // Verificar si Moove GDPR está presente
@@ -376,7 +380,7 @@ class GuidersPublic {
                     if (cookieConfig.debug && cookieConfig.system === 'custom') {
                         console.log('[Guiders WP] Moove GDPR no detectado');
                     }
-                    return;
+                    return false;
                 }
 
                 if (cookieConfig.debug) {
@@ -442,17 +446,20 @@ class GuidersPublic {
                 if (cookieConfig.debug) {
                     console.log('[Guiders WP] Integración con Moove GDPR completada');
                 }
+
+                return true; // Moove GDPR detectado y configurado
             }
 
             // Beautiful Cookie Banner Integration
             // Integración con el plugin "Beautiful Cookie Banner" (basado en Osano Cookie Consent 3.1.0)
+            // Retorna: true si detectó Beautiful Cookie Banner, false si no
             function setupBeautifulCookieBannerSync() {
                 // Verificar si debe sincronizarse
                 if (!cookieConfig.wp_consent_api_enabled) {
                     if (cookieConfig.debug) {
                         console.log('[Guiders WP] Sincronización de cookies desactivada');
                     }
-                    return;
+                    return false;
                 }
 
                 // Verificar si se debe forzar el sistema interno
@@ -460,7 +467,7 @@ class GuidersPublic {
                     if (cookieConfig.debug) {
                         console.log('[Guiders WP] Sistema configurado como "interno" - saltando Beautiful Cookie Banner');
                     }
-                    return;
+                    return false;
                 }
 
                 // Helper: Leer cookie por nombre
@@ -482,7 +489,7 @@ class GuidersPublic {
                     if (cookieConfig.debug) {
                         console.log('[Guiders WP] Beautiful Cookie Banner no detectado (ni cookie ni elementos DOM .cc-window/.cc-banner)');
                     }
-                    return;
+                    return false;
                 }
 
                 if (cookieConfig.debug) {
@@ -607,6 +614,8 @@ class GuidersPublic {
                 if (cookieConfig.debug) {
                     console.log('[Guiders WP] Integración con Beautiful Cookie Banner completada');
                 }
+
+                return true; // Beautiful Cookie Banner detectado y configurado
             }
 
             // Wait for DOM to be ready
@@ -679,9 +688,30 @@ class GuidersPublic {
                         // ⚠️ IMPORTANTE: Sincronizar consentimiento ANTES de init()
                         // Si requireConsent=true, el SDK espera consentimiento para inicializarse
                         // Las funciones de sincronización deben ejecutarse primero para obtener el consentimiento
-                        setupConsentSync();
-                        setupMooveGDPRSync();
-                        setupBeautifulCookieBannerSync();
+
+                        if (cookieConfig.debug) {
+                            console.log('[Guiders WP] 🔍 Detectando gestores de cookies...');
+                        }
+
+                        var hasWPConsent = setupConsentSync();
+                        var hasMooveGDPR = setupMooveGDPRSync();
+                        var hasBeautifulCookie = setupBeautifulCookieBannerSync();
+
+                        // Resumen de detección
+                        if (cookieConfig.debug) {
+                            var detected = [];
+                            if (hasWPConsent) detected.push('WP Consent API');
+                            if (hasMooveGDPR) detected.push('Moove GDPR');
+                            if (hasBeautifulCookie) detected.push('Beautiful Cookie Banner');
+
+                            if (detected.length > 0) {
+                                console.log('[Guiders WP] ✅ Gestores detectados: ' + detected.join(', '));
+                            } else {
+                                console.log('[Guiders WP] ⚠️ No se detectó ningún gestor de cookies');
+                                console.log('[Guiders WP] ℹ️ El SDK usará su sistema de consentimiento interno');
+                                console.log('[Guiders WP] ℹ️ Gestores soportados: WP Consent API, Moove GDPR, Beautiful Cookie Banner');
+                            }
+                        }
 
                         window.guiders = new window.TrackingPixelSDK(sdkOptions);
                         window.guiders.init().then(function() {
