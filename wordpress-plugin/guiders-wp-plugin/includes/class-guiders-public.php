@@ -393,20 +393,104 @@ class GuidersPublic {
                     console.log('[Guiders WP] Moove GDPR detectado - configurando sincronización');
                 }
 
-                // Función para leer el consentimiento de localStorage de Moove
+                // Función helper para leer cookies
+                function getCookie(name) {
+                    var nameEQ = name + "=";
+                    var ca = document.cookie.split(';');
+                    for(var i = 0; i < ca.length; i++) {
+                        var c = ca[i];
+                        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                        if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+                    }
+                    return null;
+                }
+
+                // Función para leer el consentimiento de Moove GDPR
                 function readMooveConsent() {
-                    // Moove GDPR usa localStorage con estas keys:
-                    // moove_gdpr_popup = strictly necessary (funcional)
-                    // moove_gdpr_strict = strictly necessary (funcional) - backup key
+                    // MÉTODO 1: Leer cookie moove_gdpr_popup (formato JSON)
+                    // Configuración de 3 categorías: {"strict":"1","performance":"1","targeting":"1"}
+                    // Configuración de 5 categorías: {"strict":"1","thirdparty":"1","advanced":"1","performance":"1","preference":"1"}
+                    var cookieValue = getCookie('moove_gdpr_popup');
+
+                    if (!cookieValue) {
+                        if (cookieConfig.debug) {
+                            console.log('[Guiders WP] 🔍 Cookie moove_gdpr_popup no encontrada - Moove GDPR no instalado o usuario aún no ha interactuado');
+                        }
+                        return null;
+                    }
+
+                    try {
+                        // Decodificar URL encoding
+                        var decoded = decodeURIComponent(cookieValue);
+                        var cookieData = JSON.parse(decoded);
+
+                        if (cookieConfig.debug) {
+                            console.log('[Guiders WP] ✅ Moove GDPR detectado - Cookie moove_gdpr_popup:', cookieData);
+                        }
+
+                        // MAPEO FLEXIBLE: Detecta automáticamente si usa 3 o 5 categorías
+                        //
+                        // CATEGORÍAS COMUNES (3 categorías):
+                        // - strict (strictly necessary) -> functional
+                        // - performance (analytics) -> analytics
+                        // - targeting/marketing -> personalization
+                        //
+                        // CATEGORÍAS EXTENDIDAS (5 categorías):
+                        // - strict (strictly necessary) -> functional
+                        // - performance (analytics) -> analytics
+                        // - thirdparty (third party cookies) -> analytics
+                        // - advanced (advanced/marketing) -> personalization
+                        // - preference (user preferences) -> personalization
+
+                        var consent = {
+                            functional: cookieData.strict === '1',
+                            analytics: false,
+                            personalization: false
+                        };
+
+                        // Analytics: performance, thirdparty
+                        if (cookieData.performance === '1') consent.analytics = true;
+                        if (cookieData.thirdparty === '1') consent.analytics = true;
+
+                        // Personalization: targeting, marketing, advanced, preference
+                        if (cookieData.targeting === '1') consent.personalization = true;
+                        if (cookieData.marketing === '1') consent.personalization = true;
+                        if (cookieData.advanced === '1') consent.personalization = true;
+                        if (cookieData.preference === '1') consent.personalization = true;
+
+                        console.log('[Guiders WP] 📋 Moove GDPR - Categorías detectadas y mapeadas:', {
+                            'raw_cookie': cookieData,
+                            'mapped': {
+                                'functional (strict)': consent.functional,
+                                'analytics (performance/thirdparty)': consent.analytics,
+                                'personalization (targeting/marketing/advanced/preference)': consent.personalization
+                            }
+                        });
+
+                        return consent;
+                    } catch (e) {
+                        if (cookieConfig.debug) {
+                            console.log('[Guiders WP] Error parsing Moove cookie:', e);
+                        }
+                    }
+
+                    // MÉTODO 2 (FALLBACK): Leer localStorage (método antiguo)
                     var functional = localStorage.getItem('moove_gdpr_popup') === '1' ||
                                    localStorage.getItem('moove_gdpr_strict') === '1';
-
-                    // moove_gdpr_performance = analytics
-                    var analytics = localStorage.getItem('moove_gdpr_performance') === '1';
-
-                    // moove_gdpr_targeting o moove_gdpr_marketing = personalization
+                    var analytics = localStorage.getItem('moove_gdpr_performance') === '1' ||
+                                  localStorage.getItem('moove_gdpr_thirdparty') === '1';
                     var personalization = localStorage.getItem('moove_gdpr_targeting') === '1' ||
-                                        localStorage.getItem('moove_gdpr_marketing') === '1';
+                                        localStorage.getItem('moove_gdpr_marketing') === '1' ||
+                                        localStorage.getItem('moove_gdpr_advanced') === '1' ||
+                                        localStorage.getItem('moove_gdpr_preference') === '1';
+
+                    if (cookieConfig.debug) {
+                        console.log('[Guiders WP] Moove localStorage fallback:', {
+                            functional: functional,
+                            analytics: analytics,
+                            personalization: personalization
+                        });
+                    }
 
                     return {
                         functional: functional,
@@ -415,36 +499,60 @@ class GuidersPublic {
                     };
                 }
 
-                // Función para sincronizar con Guiders
+                // Función para sincronizar con Guiders SDK (con reintentos automáticos)
+                var syncRetries = 0;
+                var maxSyncRetries = 20; // 20 reintentos x 500ms = 10 segundos máximo
+
                 function syncMooveToGuiders() {
                     if (!window.guiders || !window.guiders.grantConsentWithPreferences) {
-                        if (cookieConfig.debug) {
-                            console.log('[Guiders WP] SDK no listo para sincronizar Moove GDPR');
+                        if (syncRetries < maxSyncRetries) {
+                            syncRetries++;
+                            if (cookieConfig.debug) {
+                                console.log('[Guiders WP] SDK no listo, reintentando en 500ms... (intento ' + syncRetries + '/' + maxSyncRetries + ')');
+                            }
+                            setTimeout(syncMooveToGuiders, 500);
+                        } else {
+                            console.log('[Guiders WP] ❌ SDK no disponible después de ' + maxSyncRetries + ' reintentos');
                         }
                         return;
                     }
 
                     var consent = readMooveConsent();
 
-                    if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Moove GDPR - Consentimiento leído:', consent);
+                    if (!consent) {
+                        if (cookieConfig.debug) {
+                            console.log('[Guiders WP] No se pudo leer consentimiento de Moove GDPR');
+                        }
+                        return;
                     }
 
-                    // Actualizar Guiders con el consentimiento
+                    console.log('[Guiders WP] 🍪 Moove GDPR - Consentimiento leído:', consent);
+
+                    // Actualizar Guiders con el consentimiento usando el método correcto
                     window.guiders.grantConsentWithPreferences(consent);
 
-                    if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Consentimiento de Moove GDPR sincronizado con Guiders');
-                    }
+                    console.log('[Guiders WP] ✅ Consentimiento sincronizado con Guiders SDK');
+
+                    // Resetear contador de reintentos para futuras sincronizaciones
+                    syncRetries = 0;
                 }
 
                 // Escuchar el evento de cierre del modal de Moove
                 document.addEventListener('moove_gdpr_modal_closed', function() {
-                    if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Evento de cierre de Moove GDPR detectado');
-                    }
-                    setTimeout(syncMooveToGuiders, 100); // Pequeño delay para asegurar que localStorage esté actualizado
+                    console.log('[Guiders WP] 💾 Evento de cierre de Moove GDPR detectado');
+                    setTimeout(syncMooveToGuiders, 100); // Pequeño delay para asegurar que la cookie esté actualizada
                 });
+
+                // Polling de cambios en cookie (fallback si no hay evento)
+                var lastMooveConsent = getCookie('moove_gdpr_popup');
+                setInterval(function() {
+                    var currentConsent = getCookie('moove_gdpr_popup');
+                    if (currentConsent !== lastMooveConsent) {
+                        console.log('[Guiders WP] 💾 Cambio en cookie Moove GDPR detectado:', currentConsent);
+                        lastMooveConsent = currentConsent;
+                        syncMooveToGuiders();
+                    }
+                }, 1000); // Verificar cada segundo
 
                 // Sincronizar estado inicial
                 syncMooveToGuiders();
