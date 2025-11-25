@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.5.0-alpha.1
+Stable tag: 2.5.0-alpha.2
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,24 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.5.0-alpha.2 =
+[ALPHA] Mejoras en integración con gestores de cookies externos
+* **✨ Nuevas Funcionalidades**:
+  * **Resumen de gestores de cookies detectados**: Ahora el plugin muestra en consola qué gestores de cookies externos fueron detectados (WP Consent API, Moove GDPR, Beautiful Cookie Banner)
+  * **Logs siempre visibles**: Los logs de detección de gestores ahora se muestran sin necesidad de activar el modo debug
+* **🐛 Correcciones - Beautiful Cookie Banner**:
+  * Corregida integración completa siguiendo la guía oficial de Osano Cookie Consent 3.1.0
+  * Corregido nombre de cookie: `cookieconsent_status` (antes usaba `bcb_consent` incorrecto)
+  * Corregidos eventos: `beautiful_cookie_consent_updated/initialized` (antes `bcb_consent_changed`)
+  * Añadida detección por elementos DOM (`.cc-window`, `.cc-banner`)
+  * Mejorado soporte para modo simple (allow/deny/dismiss) y diferenciado (JSON con categorías)
+  * **Timing de sincronización**: Las funciones de sincronización ahora se ejecutan ANTES de `init()` para evitar deadlock donde el SDK esperaba consentimiento
+  * **Detección temprana**: Los gestores de cookies ahora se detectan incluso antes de que el usuario interactúe con el banner
+* **🔧 Mejoras Técnicas - SDK**:
+  * **Estandarización de headers HTTP**: Todos los servicios ahora usan `X-Guiders-Sid` de forma consistente mediante helper centralizado
+  * Reducción de ~50 líneas de código duplicado en lógica de autenticación
+  * Servicios actualizados: `chat-v2-service`, `tracking-v2-service`, `message-pagination-service`, `unread-messages-service`
 
 = 2.5.0-alpha.1 =
 [ALPHA] Versión experimental con herramientas de desarrollo
