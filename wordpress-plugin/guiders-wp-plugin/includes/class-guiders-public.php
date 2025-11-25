@@ -445,7 +445,7 @@ class GuidersPublic {
             }
 
             // Beautiful Cookie Banner Integration
-            // Integración con el plugin "Beautiful Cookie Banner"
+            // Integración con el plugin "Beautiful Cookie Banner" (basado en Osano Cookie Consent 3.1.0)
             function setupBeautifulCookieBannerSync() {
                 // Verificar si debe sincronizarse
                 if (!cookieConfig.wp_consent_api_enabled) {
@@ -463,14 +463,22 @@ class GuidersPublic {
                     return;
                 }
 
-                // Verificar si Beautiful Cookie Banner está presente
-                var hasBeautifulCookieBanner = typeof beautifulCookieBanner !== 'undefined' ||
-                                              document.querySelector('[data-bcb]') !== null ||
-                                              document.querySelector('.bcb-cookie-banner') !== null;
+                // Helper: Leer cookie por nombre
+                function getCookie(name) {
+                    var value = '; ' + document.cookie;
+                    var parts = value.split('; ' + name + '=');
+                    if (parts.length === 2) {
+                        return parts.pop().split(';').shift();
+                    }
+                    return null;
+                }
+
+                // Verificar si Beautiful Cookie Banner está presente (cookie cookieconsent_status)
+                var hasBeautifulCookieBanner = getCookie('cookieconsent_status') !== null;
 
                 if (!hasBeautifulCookieBanner) {
                     if (cookieConfig.debug && cookieConfig.system === 'custom') {
-                        console.log('[Guiders WP] Beautiful Cookie Banner no detectado');
+                        console.log('[Guiders WP] Beautiful Cookie Banner no detectado (cookie cookieconsent_status no encontrada)');
                     }
                     return;
                 }
@@ -479,51 +487,53 @@ class GuidersPublic {
                     console.log('[Guiders WP] Beautiful Cookie Banner detectado - configurando sincronización');
                 }
 
-                // Función para leer el consentimiento de Beautiful Cookie Banner
+                // Función para leer consentimiento de Beautiful Cookie Banner
                 function readBeautifulCookieBannerConsent() {
-                    // Beautiful Cookie Banner usa cookies o localStorage
-                    // Intentar múltiples métodos de lectura
-                    var cookieData = null;
+                    var cookieValue = getCookie('cookieconsent_status');
 
-                    // Método 1: Leer de cookie 'bcb_consent'
-                    var cookieMatch = document.cookie.match(/bcb_consent=([^;]+)/);
-                    if (cookieMatch) {
-                        try {
-                            cookieData = JSON.parse(decodeURIComponent(cookieMatch[1]));
-                        } catch (e) {
-                            if (cookieConfig.debug) {
-                                console.log('[Guiders WP] Error parseando cookie de Beautiful Cookie Banner:', e);
-                            }
+                    if (!cookieValue) {
+                        if (cookieConfig.debug) {
+                            console.log('[Guiders WP] Cookie cookieconsent_status no encontrada');
                         }
+                        return null;
                     }
 
-                    // Método 2: Leer de localStorage
-                    if (!cookieData) {
-                        try {
-                            cookieData = JSON.parse(localStorage.getItem('bcb_consent'));
-                        } catch (e) {
-                            // Silenciosamente ignorar
+                    if (cookieConfig.debug) {
+                        console.log('[Guiders WP] Cookie cookieconsent_status valor:', cookieValue);
+                    }
+
+                    // Intentar parsear como JSON (modo diferenciado)
+                    try {
+                        var parsed = JSON.parse(decodeURIComponent(cookieValue));
+
+                        // Modo diferenciado: {"tech":"true","analytics":"false","marketing":"true"}
+                        if (typeof parsed === 'object' && parsed !== null) {
+                            return {
+                                functional: parsed.tech === 'true' || parsed.tech === true,
+                                analytics: parsed.analytics === 'true' || parsed.analytics === true,
+                                personalization: parsed.marketing === 'true' || parsed.marketing === true
+                            };
                         }
+                    } catch (e) {
+                        // No es JSON, es modo simple
                     }
 
-                    // Mapear categorías (ajustar según la estructura real del plugin)
-                    if (cookieData) {
-                        return {
-                            functional: cookieData.necessary === true || cookieData.functional === true,
-                            analytics: cookieData.analytics === true || cookieData.statistics === true,
-                            personalization: cookieData.marketing === true || cookieData.personalization === true
-                        };
+                    // Modo simple: "allow", "deny", "dismiss"
+                    // Usar modo ESTRICTO (solo 'allow' = consentimiento)
+                    var hasConsent = cookieValue === 'allow';
+
+                    if (cookieConfig.debug) {
+                        console.log('[Guiders WP] Modo simple detectado. Valor:', cookieValue, '- Consent:', hasConsent);
                     }
 
-                    // Si no hay datos, asumir todo denegado
                     return {
-                        functional: false,
-                        analytics: false,
-                        personalization: false
+                        functional: hasConsent,
+                        analytics: hasConsent,
+                        personalization: hasConsent
                     };
                 }
 
-                // Función para sincronizar con Guiders
+                // Función para sincronizar con Guiders SDK
                 function syncBeautifulCookieBannerToGuiders() {
                     if (!window.guiders || !window.guiders.updateConsent) {
                         if (cookieConfig.debug) {
@@ -533,6 +543,13 @@ class GuidersPublic {
                     }
 
                     var consent = readBeautifulCookieBannerConsent();
+
+                    if (!consent) {
+                        if (cookieConfig.debug) {
+                            console.log('[Guiders WP] No se pudo leer consentimiento de Beautiful Cookie Banner');
+                        }
+                        return;
+                    }
 
                     if (cookieConfig.debug) {
                         console.log('[Guiders WP] Beautiful Cookie Banner - Consentimiento leído:', consent);
@@ -546,21 +563,44 @@ class GuidersPublic {
                     }
                 }
 
-                // Escuchar eventos del banner (el nombre del evento puede variar)
-                document.addEventListener('bcb_consent_changed', function() {
-                    if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Evento de cambio de Beautiful Cookie Banner detectado');
-                    }
-                    setTimeout(syncBeautifulCookieBannerToGuiders, 100);
-                });
+                // Método 1: Escuchar eventos dataLayer (recomendado)
+                if (typeof window.dataLayer !== 'undefined') {
+                    var originalPush = window.dataLayer.push;
+                    window.dataLayer.push = function() {
+                        var args = Array.prototype.slice.call(arguments);
+                        var data = args[0];
 
-                // Observador de mutaciones para detectar cambios en el DOM (fallback)
-                var observer = new MutationObserver(function() {
-                    syncBeautifulCookieBannerToGuiders();
-                });
+                        if (data && (data.event === 'beautiful_cookie_consent_updated' ||
+                                    data.event === 'beautiful_cookie_consent_initialized')) {
+                            if (cookieConfig.debug) {
+                                console.log('[Guiders WP] Evento dataLayer detectado:', data.event);
+                            }
+                            setTimeout(syncBeautifulCookieBannerToGuiders, 100);
+                        }
+
+                        return originalPush.apply(window.dataLayer, args);
+                    };
+
+                    if (cookieConfig.debug) {
+                        console.log('[Guiders WP] Listener dataLayer configurado para Beautiful Cookie Banner');
+                    }
+                }
+
+                // Método 2: Polling de cambios en cookie (fallback)
+                var lastConsent = getCookie('cookieconsent_status');
+                setInterval(function() {
+                    var currentConsent = getCookie('cookieconsent_status');
+                    if (currentConsent !== lastConsent) {
+                        lastConsent = currentConsent;
+                        if (cookieConfig.debug) {
+                            console.log('[Guiders WP] Cambio en cookie cookieconsent_status detectado:', currentConsent);
+                        }
+                        syncBeautifulCookieBannerToGuiders();
+                    }
+                }, 1000);
 
                 // Sincronizar estado inicial
-                setTimeout(syncBeautifulCookieBannerToGuiders, 500); // Delay para permitir que el banner se cargue
+                setTimeout(syncBeautifulCookieBannerToGuiders, 500);
 
                 if (cookieConfig.debug) {
                     console.log('[Guiders WP] Integración con Beautiful Cookie Banner completada');
