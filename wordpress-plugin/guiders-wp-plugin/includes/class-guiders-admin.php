@@ -62,7 +62,9 @@ class GuidersAdmin {
         register_setting(
             'guiders_wp_plugin_settings_group',
             'guiders_wp_plugin_settings',
-            array($this, 'validateSettings')
+            array(
+                'sanitize_callback' => array($this, 'validateSettings')
+            )
         );
         
         // ==================== GENERAL TAB ====================
