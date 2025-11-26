@@ -40,6 +40,7 @@ export class WebSocketService {
 	private callbacks: WebSocketCallbacks = {};
 	private currentRooms: Set<string> = new Set();
 	private currentVisitorId: string | null = null;
+	private userType: 'visitor' | 'commercial' = 'visitor'; // User type from config
 
 	// User activity tracking
 	private lastActivityEmit: number = 0;
@@ -230,10 +231,15 @@ export class WebSocketService {
 		// Añadir autenticación - visitorId y tenantId son requeridos
 		const visitorId = localStorage.getItem('visitorId');
 		const tenantId = localStorage.getItem('tenantId') || config.tenantId;
+		const userType = config.userType || 'visitor'; // Default to visitor if not specified
+
+		// Store userType for use in typing indicators
+		this.userType = userType;
 
 		socketOptions.auth = {
 			visitorId: visitorId || '',
-			tenantId: tenantId || ''
+			tenantId: tenantId || '',
+			userType: userType // Add userType to auth payload
 		};
 
 		// Añadir token si está disponible (legacy)
@@ -244,6 +250,7 @@ export class WebSocketService {
 		debugLog('📡 [WebSocketService] 🔐 Auth configurado:', {
 			visitorId: visitorId ? `${visitorId.substring(0, 8)}...` : 'null',
 			tenantId: tenantId ? `${tenantId.substring(0, 8)}...` : 'null',
+			userType: userType,
 			hasToken: !!this.config.authToken
 		});
 
@@ -531,15 +538,14 @@ export class WebSocketService {
 	 * Emite evento typing:start (visitante comenzó a escribir)
 	 * @param chatId ID del chat
 	 * @param userId ID del usuario (visitante)
-	 * @param userType Tipo de usuario (siempre 'visitor' en el SDK)
 	 */
-	public emitTypingStart(chatId: string, userId: string, userType: 'visitor' | 'commercial' = 'visitor'): void {
+	public emitTypingStart(chatId: string, userId: string): void {
 		if (!this.socket || !this.socket.connected) {
 			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede emitir typing:start');
 			return;
 		}
 
-		const payload = { chatId, userId, userType };
+		const payload = { chatId, userId, userType: this.userType };
 		debugLog('📡 [WebSocketService] ✍️ Emitiendo typing:start:', payload);
 		this.socket.emit('typing:start', payload);
 	}
@@ -548,15 +554,14 @@ export class WebSocketService {
 	 * Emite evento typing:stop (visitante dejó de escribir)
 	 * @param chatId ID del chat
 	 * @param userId ID del usuario (visitante)
-	 * @param userType Tipo de usuario (siempre 'visitor' en el SDK)
 	 */
-	public emitTypingStop(chatId: string, userId: string, userType: 'visitor' | 'commercial' = 'visitor'): void {
+	public emitTypingStop(chatId: string, userId: string): void {
 		if (!this.socket || !this.socket.connected) {
 			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede emitir typing:stop');
 			return;
 		}
 
-		const payload = { chatId, userId, userType };
+		const payload = { chatId, userId, userType: this.userType };
 		debugLog('📡 [WebSocketService] ✍️ Emitiendo typing:stop:', payload);
 		this.socket.emit('typing:stop', payload);
 	}

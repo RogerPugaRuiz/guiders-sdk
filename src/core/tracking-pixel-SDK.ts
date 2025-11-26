@@ -42,6 +42,7 @@ import { debugLog } from "../utils/debug-logger";
 import { CommercialAvailabilityService } from "../services/commercial-availability-service";
 import { CommercialAvailabilityConfig } from "../types";
 import { PresenceService } from "../services/presence-service";
+import { getUserTypeFromCookie } from "../utils/cookie-utils";
 
 
 interface SDKOptions {
@@ -220,6 +221,7 @@ export class TrackingPixelSDK {
 		userInteractionThrottle?: number;
 	};
 	private autoOpenChatOnMessage: boolean = true;
+	private userType: 'visitor' | 'commercial' = 'visitor'; // User type detected from cookie
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -510,6 +512,10 @@ export class TrackingPixelSDK {
 		const client = new ClientJS();
 		this.fingerprint = localStorage.getItem("fingerprint") || client.getFingerprint().toString();
 		localStorage.setItem("fingerprint", this.fingerprint);
+
+		// Detect user type from cookie (commercial or visitor)
+		this.userType = getUserTypeFromCookie();
+		debugLog(`[TrackingPixelSDK] 👤 User type detected: ${this.userType}`);
 
 		if (this.authMode === 'jwt') {
 			TokenManager.loadTokensFromStorage();
@@ -1387,6 +1393,14 @@ export class TrackingPixelSDK {
 	 */
 	public getActiveHoursConfig(): ActiveHoursConfig | null {
 		return this.activeHoursValidator?.getConfig() || null;
+	}
+
+	/**
+	 * Get current user type (commercial or visitor)
+	 * Detected automatically from guiders_user_type cookie
+	 */
+	public getUserType(): 'visitor' | 'commercial' {
+		return this.userType;
 	}
 
 	/**
@@ -2433,6 +2447,7 @@ export class TrackingPixelSDK {
 			this.wsService.connect(
 				{
 					sessionId: sessionId || undefined,
+					userType: this.userType, // Pass user type (commercial or visitor)
 					// La URL se resuelve automáticamente en WebSocketService usando EndpointManager
 				},
 				{
@@ -2596,6 +2611,7 @@ export class TrackingPixelSDK {
 				this.wsService.connect(
 					{
 						sessionId: sessionId || undefined,
+						userType: this.userType, // Pass user type (commercial or visitor)
 					},
 					{
 						onConnect: () => {
