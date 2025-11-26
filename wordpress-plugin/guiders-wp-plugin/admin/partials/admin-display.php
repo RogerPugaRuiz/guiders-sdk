@@ -502,6 +502,74 @@ jQuery(document).ready(function($) {
     // This prevents losing settings from other tabs
     var existingSettings = <?php echo json_encode(get_option('guiders_wp_plugin_settings', array())); ?>;
 
+    // Preserve temporary changes when switching tabs (without saving)
+    var TEMP_STORAGE_KEY = 'guiders_temp_settings';
+
+    // Restore temporary changes from sessionStorage when page loads
+    function restoreTempChanges() {
+        try {
+            var tempData = sessionStorage.getItem(TEMP_STORAGE_KEY);
+            if (tempData) {
+                var tempSettings = JSON.parse(tempData);
+
+                $.each(tempSettings, function(fieldName, value) {
+                    var $field = $('[name="guiders_wp_plugin_settings[' + fieldName + ']"]');
+
+                    if ($field.length) {
+                        if ($field.attr('type') === 'checkbox') {
+                            $field.prop('checked', value === true || value === '1' || value === 'true');
+                        } else if ($field.attr('type') === 'radio') {
+                            $field.filter('[value="' + value + '"]').prop('checked', true);
+                        } else {
+                            $field.val(value);
+                        }
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Error restoring temp settings:', e);
+        }
+    }
+
+    // Save field changes to sessionStorage as user types/clicks
+    function saveTempChange(fieldName, value) {
+        try {
+            var tempData = sessionStorage.getItem(TEMP_STORAGE_KEY);
+            var tempSettings = tempData ? JSON.parse(tempData) : {};
+
+            tempSettings[fieldName] = value;
+            sessionStorage.setItem(TEMP_STORAGE_KEY, JSON.stringify(tempSettings));
+        } catch (e) {
+            console.error('Error saving temp settings:', e);
+        }
+    }
+
+    // Listen to all form field changes
+    $('form').on('change', 'input, select, textarea', function() {
+        var $field = $(this);
+        var fieldName = $field.attr('name');
+
+        if (fieldName && fieldName.indexOf('guiders_wp_plugin_settings[') === 0) {
+            // Extract field name without the wrapper
+            var cleanName = fieldName.replace('guiders_wp_plugin_settings[', '').replace(']', '');
+            var value;
+
+            if ($field.attr('type') === 'checkbox') {
+                value = $field.is(':checked');
+            } else if ($field.attr('type') === 'radio') {
+                value = $field.filter(':checked').val();
+            } else {
+                value = $field.val();
+            }
+
+            saveTempChange(cleanName, value);
+        }
+    });
+
+    // Restore temp changes on page load
+    restoreTempChanges();
+
+    // Clear temp storage on successful form submit
     $('form').on('submit', function() {
         var form = $(this);
         var formData = form.serializeArray();
@@ -526,6 +594,9 @@ jQuery(document).ready(function($) {
                 form.append(hiddenInput);
             }
         });
+
+        // Clear temp storage after submit (settings will be saved to DB)
+        sessionStorage.removeItem(TEMP_STORAGE_KEY);
     });
 
     // Show/hide confidence threshold based on heuristic detection
