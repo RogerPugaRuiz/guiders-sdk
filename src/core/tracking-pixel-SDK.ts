@@ -503,6 +503,20 @@ export class TrackingPixelSDK {
 
 		debugLog('[TrackingPixelSDK] 🚀 Inicializando SDK con consentimiento otorgado...');
 
+		// Detect user type from cookie FIRST (commercial or visitor)
+		this.userType = getUserTypeFromCookie();
+		debugLog(`[TrackingPixelSDK] 👤 User type detected: ${this.userType}`);
+
+		// ⛔ ABORT: Comerciales no deben usar el SDK del visitante
+		// Los comerciales se comunican desde el dashboard de Guiders
+		if (this.userType === 'commercial') {
+			console.warn('⛔ [Guiders SDK] SDK no se inicializa para usuarios comerciales.');
+			console.warn('💡 Los comerciales deben usar el dashboard de Guiders para chatear.');
+			console.warn('🔧 Si eres un visitante, elimina la cookie "guiders_user_type".');
+			debugLog('[TrackingPixelSDK] ⛔ Inicialización abortada: userType=commercial');
+			return; // Exit early - no initialization
+		}
+
 		// ✅ GDPR COMPLIANT: Solo escribir en localStorage después de verificar consentimiento
 		debugLog('[TrackingPixelSDK] 🔐 Consentimiento verificado - guardando configuración en localStorage');
 		localStorage.setItem("pixelEndpoint", this.endpoint);
@@ -512,10 +526,6 @@ export class TrackingPixelSDK {
 		const client = new ClientJS();
 		this.fingerprint = localStorage.getItem("fingerprint") || client.getFingerprint().toString();
 		localStorage.setItem("fingerprint", this.fingerprint);
-
-		// Detect user type from cookie (commercial or visitor)
-		this.userType = getUserTypeFromCookie();
-		debugLog(`[TrackingPixelSDK] 👤 User type detected: ${this.userType}`);
 
 		if (this.authMode === 'jwt') {
 			TokenManager.loadTokensFromStorage();
