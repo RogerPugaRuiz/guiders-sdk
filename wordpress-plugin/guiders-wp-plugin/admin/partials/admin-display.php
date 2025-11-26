@@ -498,6 +498,36 @@ $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'general
 
 <script>
 jQuery(document).ready(function($) {
+    // Preserve all settings when submitting from a specific tab
+    // This prevents losing settings from other tabs
+    var existingSettings = <?php echo json_encode(get_option('guiders_wp_plugin_settings', array())); ?>;
+
+    $('form').on('submit', function() {
+        var form = $(this);
+        var formData = form.serializeArray();
+        var submittedFields = {};
+
+        // Get all fields being submitted
+        $.each(formData, function(i, field) {
+            var name = field.name.replace('guiders_wp_plugin_settings[', '').replace(']', '');
+            submittedFields[name] = true;
+        });
+
+        // Add hidden fields for settings that aren't in the current tab
+        $.each(existingSettings, function(key, value) {
+            if (!submittedFields[key] && key !== 'active_tab') {
+                // Add hidden field to preserve this setting
+                var fieldName = 'guiders_wp_plugin_settings[' + key + ']';
+                var hiddenInput = $('<input>').attr({
+                    type: 'hidden',
+                    name: fieldName,
+                    value: value
+                });
+                form.append(hiddenInput);
+            }
+        });
+    });
+
     // Show/hide confidence threshold based on heuristic detection
     function toggleConfidenceThreshold() {
         var isEnabled = $('#heuristic_detection').is(':checked');
