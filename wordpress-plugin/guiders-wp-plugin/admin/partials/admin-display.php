@@ -603,22 +603,13 @@ jQuery(document).ready(function($) {
             console.error('Error reading temp settings:', e);
         }
 
-        // DEBUG: Log what we're working with
-        console.group('🔍 Form Submit Debug');
-        console.log('📋 Current Tab Fields:', Object.keys(currentTabFields));
-        console.log('💾 Temp Settings:', tempSettings);
-        console.log('🗄️ DB Settings:', existingSettings);
-
         // Add hidden fields ONLY for settings that aren't in the current tab
         // Priority: tempSettings > existingSettings (temp changes override DB values)
-        var hiddenFieldsAdded = {};
         $.each(existingSettings, function(key, value) {
             // Skip if: already submitted, in current tab, or is active_tab field
             if (!submittedFields[key] && !currentTabFields[key] && key !== 'active_tab') {
                 // Use temp value if exists, otherwise use DB value
-                var source = tempSettings.hasOwnProperty(key) ? 'sessionStorage' : 'DB';
                 var finalValue = tempSettings.hasOwnProperty(key) ? tempSettings[key] : value;
-                var originalType = typeof finalValue;
 
                 // Convert boolean to string for proper PHP handling
                 // PHP receives strings from POST, so false → '0', true → '1'
@@ -634,22 +625,11 @@ jQuery(document).ready(function($) {
                     value: finalValue
                 });
                 form.append(hiddenInput);
-
-                // Track for debugging
-                hiddenFieldsAdded[key] = {
-                    source: source,
-                    originalValue: tempSettings.hasOwnProperty(key) ? tempSettings[key] : value,
-                    originalType: originalType,
-                    finalValue: finalValue
-                };
             }
         });
 
-        console.log('➕ Hidden Fields Added (other tabs):', hiddenFieldsAdded);
-
         // For checkboxes in current tab that are unchecked, explicitly set to empty/false
         // This ensures unchecked checkboxes are properly saved as false
-        var uncheckedCheckboxes = [];
         $.each(currentTabFields, function(fieldName) {
             if (!submittedFields[fieldName]) {
                 var $field = form.find('[name="guiders_wp_plugin_settings[' + fieldName + ']"]');
@@ -661,13 +641,9 @@ jQuery(document).ready(function($) {
                         value: '0'
                     });
                     form.append(hiddenInput);
-                    uncheckedCheckboxes.push(fieldName);
                 }
             }
         });
-
-        console.log('☑️ Unchecked Checkboxes (current tab):', uncheckedCheckboxes);
-        console.groupEnd();
 
         // Clear temp storage after submit (settings will be saved to DB)
         sessionStorage.removeItem(TEMP_STORAGE_KEY);

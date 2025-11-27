@@ -3,6 +3,7 @@ import { TrackingPixelSDK } from "./core/tracking-pixel-SDK";
 import { BotDetector } from "./core/bot-detector";
 import { resolveDefaultEndpoints } from "./core/endpoint-resolver";
 import { ActiveHoursConfig } from './types';
+import { debugLog, debugWarn, debugError } from "./utils/debug-logger";
 
 // Importar mensajes aleatorios para dev (se auto-inicializa solo en modo dev)
 import "./core/dev-random-messages";
@@ -23,7 +24,7 @@ export * from "./services/consent-backend-service";
 export * from "./core/consent-manager";
 export * from "./types";
 // Debug utilities
-export { debugLog, debugWarn, debugError, enableDebug, disableDebug } from "./utils/debug-logger";
+export { debugLog, debugInit, debugWarn, debugError, enableDebug, disableDebug } from "./utils/debug-logger";
 // Se pueden exportar más etapas o servicios según se vayan implementando.
 
 declare global {
@@ -60,7 +61,7 @@ const resolveEndpoints = resolveDefaultEndpoints;
 function initializeGuidersSDK() {
 	// Guard contra inicializaciones múltiples (race de timeouts / eventos)
 	if (window.guiders || window.__GUIDERS_INITIALIZING__) {
-		console.warn('[Guiders SDK] ❌ Inicialización ignorada: instancia existente o en progreso');
+		debugWarn('[Guiders SDK] ❌ Inicialización ignorada: instancia existente o en progreso');
 		return;
 	}
 	window.__GUIDERS_INITIALIZING__ = true;
@@ -70,7 +71,7 @@ function initializeGuidersSDK() {
 		window.TrackingPixelSDK = TrackingPixelSDK;
 
 		const { endpoint, webSocketEndpoint, isProd } = resolveEndpoints();
-		console.log('[Guiders SDK] 🌐 Endpoints resueltos:', { endpoint, webSocketEndpoint, isProd });
+		debugLog('[Guiders SDK] 🌐 Endpoints resueltos:', { endpoint, webSocketEndpoint, isProd });
 
 		const sdkOptions: any = {
 			apiKey,
@@ -111,8 +112,8 @@ function initializeGuidersSDK() {
 		const detector = new BotDetector();
 		detector.detect().then(result => {
 			if (result.isBot) {
-				console.log("Bot detectado. Probabilidad:", result.probability);
-				console.log("Detalles:", result.details);
+				debugLog("Bot detectado. Probabilidad:", result.probability);
+				debugLog("Detalles:", result.details);
 				window.__GUIDERS_INITIALIZING__ = false;
 				return; // No inicializar el SDK
 			}
@@ -131,7 +132,7 @@ function initializeGuidersSDK() {
 						isEnabled: () => devRandomMessages.isEnabled(),
 						isGenerating: () => devRandomMessages.isGenerating()
 					};
-					console.log('🎲 [DevRandomMessages] 🌐 Interfaz global configurada en window.guidersDevRandomMessages');
+					debugLog('🎲 [DevRandomMessages] 🌐 Interfaz global configurada en window.guidersDevRandomMessages');
 				});
 			}
 
@@ -143,11 +144,11 @@ function initializeGuidersSDK() {
 			//
 			// init() se llamará automáticamente cuando el usuario acepte las cookies
 			// desde el callback onConsentChange en el constructor del SDK
-			console.log('[Guiders SDK] ✅ SDK instanciado - esperando consentimiento del usuario');
+			debugLog('[Guiders SDK] ✅ SDK instanciado - esperando consentimiento del usuario');
 			window.__GUIDERS_INITIALIZING__ = false;
 		});
 	} catch (error) {
-		console.error("Error inicializando Guiders SDK:", error);
+		debugError("Error inicializando Guiders SDK:", error);
 		window.__GUIDERS_INITIALIZING__ = false;
 	}
 }
@@ -157,7 +158,7 @@ if (typeof window !== "undefined") {
 	// Permitir que integraciones (ej. plugin WP) desactiven el auto-init estableciendo GUIDERS_CONFIG.preventAutoInit = true
 	const preventAutoInit = (window as any).GUIDERS_CONFIG && (window as any).GUIDERS_CONFIG.preventAutoInit;
 	if (preventAutoInit) {
-		console.log('[Guiders SDK] ⏸️ Auto-init desactivado por configuración (preventAutoInit)');
+		debugLog('[Guiders SDK] ⏸️ Auto-init desactivado por configuración (preventAutoInit)');
 	} else {
 		// Añadir delay inicial para WP Rocket - esto permite que WP Rocket procese el script correctamente
 		setTimeout(() => {

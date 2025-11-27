@@ -9,9 +9,10 @@ const packageJson = require('./package.json');
 module.exports = {
 	plugins: [
 		new Dotenv(),
-		// Inyectar versión del SDK en tiempo de compilación
+		// Inyectar versión del SDK y modo de producción en tiempo de compilación
 		new webpack.DefinePlugin({
 			__SDK_VERSION__: JSON.stringify(packageJson.version),
+			__PRODUCTION__: JSON.stringify(process.env.NODE_ENV === 'production'),
 		}),
 	],
 	entry: './src/index.ts', // Archivo principal del SDK

@@ -6,6 +6,8 @@
  * pero nosotros proporcionamos las herramientas para controlarlo.
  */
 
+import { debugLog, debugWarn, debugError } from '../utils/debug-logger';
+
 export type ConsentStatus = 'pending' | 'granted' | 'denied';
 
 export interface ConsentState {
@@ -60,11 +62,11 @@ export class ConsentManager {
           personalization: true
         };
         this.saveState();
-        console.log('[ConsentManager] ✅ Estado inicial con consentimiento otorgado guardado');
+        debugLog('[ConsentManager] ✅ Estado inicial con consentimiento otorgado guardado');
       }
     }
 
-    console.log('[ConsentManager] 🔐 Inicializado con estado:', this.state);
+    debugLog('[ConsentManager] 🔐 Inicializado con estado:', this.state);
   }
 
   /**
@@ -115,10 +117,10 @@ export class ConsentManager {
       }
 
       const state = JSON.parse(stored) as ConsentState;
-      console.log('[ConsentManager] 💾 Estado cargado desde localStorage:', state);
+      debugLog('[ConsentManager] 💾 Estado cargado desde localStorage:', state);
       return state;
     } catch (error) {
-      console.error('[ConsentManager] ❌ Error cargando estado:', error);
+      debugError('[ConsentManager] ❌ Error cargando estado:', error);
       return null;
     }
   }
@@ -129,14 +131,14 @@ export class ConsentManager {
   private saveState(): void {
     try {
       if (typeof localStorage === 'undefined') {
-        console.warn('[ConsentManager] ⚠️ localStorage no disponible');
+        debugWarn('[ConsentManager] ⚠️ localStorage no disponible');
         return;
       }
 
       localStorage.setItem(this.config.storageKey, JSON.stringify(this.state));
-      console.log('[ConsentManager] 💾 Estado guardado:', this.state);
+      debugLog('[ConsentManager] 💾 Estado guardado:', this.state);
     } catch (error) {
-      console.error('[ConsentManager] ❌ Error guardando estado:', error);
+      debugError('[ConsentManager] ❌ Error guardando estado:', error);
     }
   }
 
@@ -148,7 +150,7 @@ export class ConsentManager {
       try {
         listener(this.state);
       } catch (error) {
-        console.error('[ConsentManager] ❌ Error en listener:', error);
+        debugError('[ConsentManager] ❌ Error en listener:', error);
       }
     });
 
@@ -157,7 +159,7 @@ export class ConsentManager {
       try {
         this.config.onConsentChange(this.state);
       } catch (error) {
-        console.error('[ConsentManager] ❌ Error en onConsentChange callback:', error);
+        debugError('[ConsentManager] ❌ Error en onConsentChange callback:', error);
       }
     }
   }
@@ -232,7 +234,7 @@ export class ConsentManager {
    * Otorga consentimiento completo
    */
   public grantConsent(): void {
-    console.log('[ConsentManager] ✅ Consentimiento otorgado');
+    debugLog('[ConsentManager] ✅ Consentimiento otorgado');
 
     this.state = {
       status: 'granted',
@@ -257,7 +259,7 @@ export class ConsentManager {
     functional?: boolean;
     personalization?: boolean;
   }): void {
-    console.log('[ConsentManager] ✅ Consentimiento otorgado con preferencias:', preferences);
+    debugLog('[ConsentManager] ✅ Consentimiento otorgado con preferencias:', preferences);
 
     this.state = {
       status: 'granted',
@@ -278,7 +280,7 @@ export class ConsentManager {
    * Deniega el consentimiento
    */
   public denyConsent(): void {
-    console.log('[ConsentManager] ❌ Consentimiento denegado');
+    debugLog('[ConsentManager] ❌ Consentimiento denegado');
 
     this.state = {
       status: 'denied',
@@ -299,7 +301,7 @@ export class ConsentManager {
    * Revoca el consentimiento previamente otorgado
    */
   public revokeConsent(): void {
-    console.log('[ConsentManager] 🔄 Consentimiento revocado');
+    debugLog('[ConsentManager] 🔄 Consentimiento revocado');
     this.denyConsent();
   }
 
@@ -307,7 +309,7 @@ export class ConsentManager {
    * Resetea el estado de consentimiento a pending
    */
   public resetConsent(): void {
-    console.log('[ConsentManager] 🔄 Consentimiento reseteado a pending');
+    debugLog('[ConsentManager] 🔄 Consentimiento reseteado a pending');
 
     this.state = this.createInitialState();
     this.saveState();
@@ -337,10 +339,10 @@ export class ConsentManager {
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem(this.config.storageKey);
-        console.log('[ConsentManager] 🗑️ Datos de consentimiento eliminados');
+        debugLog('[ConsentManager] 🗑️ Datos de consentimiento eliminados');
       }
     } catch (error) {
-      console.error('[ConsentManager] ❌ Error eliminando datos de consentimiento:', error);
+      debugError('[ConsentManager] ❌ Error eliminando datos de consentimiento:', error);
     }
   }
 
@@ -350,7 +352,7 @@ export class ConsentManager {
   public updateVersion(version: string): void {
     this.state.version = version;
     this.saveState();
-    console.log('[ConsentManager] 📦 Versión actualizada a:', version);
+    debugLog('[ConsentManager] 📦 Versión actualizada a:', version);
   }
 
   /**

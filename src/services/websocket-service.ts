@@ -30,7 +30,7 @@ import {
 	ChatCreatedEvent
 } from '../types/websocket-types';
 import { EndpointManager } from '../core/tracking-pixel-SDK';
-import { debugLog } from '../utils/debug-logger';
+import { debugLog, debugWarn, debugError } from '../utils/debug-logger';
 
 export class WebSocketService {
 	private static instance: WebSocketService;
@@ -317,12 +317,12 @@ export class WebSocketService {
 
 		this.socket.on('connect_error', (error: Error) => {
 			this.state = WebSocketState.ERROR;
-			console.error('📡 [WebSocketService] ❌❌❌ ERROR DE CONEXIÓN ❌❌❌');
-			console.error('📡 [WebSocketService] 🌐 URL intentada:', this.config?.url);
-			console.error('📡 [WebSocketService] 📍 Path:', this.config?.path);
-			console.error('📡 [WebSocketService] 🚨 Mensaje de error:', error.message);
-			console.error('📡 [WebSocketService] 📊 Error completo:', error);
-			console.error('📡 [WebSocketService] 🔍 Stack trace:', error.stack);
+			debugError('📡 [WebSocketService] ❌❌❌ ERROR DE CONEXIÓN ❌❌❌');
+			debugError('📡 [WebSocketService] 🌐 URL intentada:', this.config?.url);
+			debugError('📡 [WebSocketService] 📍 Path:', this.config?.path);
+			debugError('📡 [WebSocketService] 🚨 Mensaje de error:', error.message);
+			debugError('📡 [WebSocketService] 📊 Error completo:', error);
+			debugError('📡 [WebSocketService] 🔍 Stack trace:', error.stack);
 
 			if (this.callbacks.onError) {
 				this.callbacks.onError(error);
@@ -330,7 +330,7 @@ export class WebSocketService {
 		});
 
 		this.socket.on('error', (error: any) => {
-			console.error('📡 [WebSocketService] ❌ ERROR GENÉRICO del socket:', error);
+			debugError('📡 [WebSocketService] ❌ ERROR GENÉRICO del socket:', error);
 		});
 
 		this.socket.io.on('reconnect_attempt', (attemptNumber: number) => {
@@ -346,15 +346,15 @@ export class WebSocketService {
 
 		this.socket.io.on('reconnect_failed', () => {
 			this.state = WebSocketState.ERROR;
-			console.error('📡 [WebSocketService] ❌❌❌ RECONEXIÓN FALLIDA - todos los intentos agotados');
-			console.error('📡 [WebSocketService] 🔄 Iniciando reconexión manual con backoff exponencial...');
+			debugError('📡 [WebSocketService] ❌❌❌ RECONEXIÓN FALLIDA - todos los intentos agotados');
+			debugError('📡 [WebSocketService] 🔄 Iniciando reconexión manual con backoff exponencial...');
 
 			// Reiniciar reconexión manual con backoff exponencial
 			this.startManualReconnection();
 		});
 
 		this.socket.io.on('reconnect_error', (error: Error) => {
-			console.error('📡 [WebSocketService] ⚠️ Error en intento de reconexión:', error.message);
+			debugError('📡 [WebSocketService] ⚠️ Error en intento de reconexión:', error.message);
 		});
 
 		// Eventos del chat
@@ -451,13 +451,13 @@ export class WebSocketService {
 
 			// Log especial para auto-join automático
 			if (event.automatic) {
-				console.log('═══════════════════════════════════════════════════════');
-				console.log('✅ AUTO-JOIN AUTOMÁTICO CONFIRMADO');
-				console.log(`📍 Sala personal: ${event.roomName}`);
-				console.log(`👤 Usuario: ${event.userId.substring(0, 8)}...`);
-				console.log(`🎯 Tipo: ${event.userType}`);
-				console.log('🔔 Ahora recibirás eventos de presencia filtrados (solo chats activos)');
-				console.log('═══════════════════════════════════════════════════════');
+				debugLog('═══════════════════════════════════════════════════════');
+				debugLog('✅ AUTO-JOIN AUTOMÁTICO CONFIRMADO');
+				debugLog(`📍 Sala personal: ${event.roomName}`);
+				debugLog(`👤 Usuario: ${event.userId.substring(0, 8)}...`);
+				debugLog(`🎯 Tipo: ${event.userType}`);
+				debugLog('🔔 Ahora recibirás eventos de presencia filtrados (solo chats activos)');
+				debugLog('═══════════════════════════════════════════════════════');
 			}
 
 			if (this.callbacks.onPresenceJoined) {
@@ -481,7 +481,7 @@ export class WebSocketService {
 	 */
 	public joinChatRoom(chatId: string): void {
 		if (!this.socket || !this.socket.connected) {
-			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede unir a sala:', chatId);
+			debugWarn('📡 [WebSocketService] ⚠️ No conectado, no se puede unir a sala:', chatId);
 			return;
 		}
 
@@ -499,7 +499,7 @@ export class WebSocketService {
 	 */
 	public leaveChatRoom(chatId: string): void {
 		if (!this.socket || !this.socket.connected) {
-			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede salir de sala:', chatId);
+			debugWarn('📡 [WebSocketService] ⚠️ No conectado, no se puede salir de sala:', chatId);
 			return;
 		}
 
@@ -519,7 +519,7 @@ export class WebSocketService {
 	 */
 	public emitTyping(chatId: string, isTyping: boolean): void {
 		if (!this.socket || !this.socket.connected) {
-			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede emitir typing');
+			debugWarn('📡 [WebSocketService] ⚠️ No conectado, no se puede emitir typing');
 			return;
 		}
 
@@ -535,7 +535,7 @@ export class WebSocketService {
 	 */
 	public emitTypingStart(chatId: string, userId: string, userType: 'visitor' | 'commercial' = 'visitor'): void {
 		if (!this.socket || !this.socket.connected) {
-			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede emitir typing:start');
+			debugWarn('📡 [WebSocketService] ⚠️ No conectado, no se puede emitir typing:start');
 			return;
 		}
 
@@ -552,7 +552,7 @@ export class WebSocketService {
 	 */
 	public emitTypingStop(chatId: string, userId: string, userType: 'visitor' | 'commercial' = 'visitor'): void {
 		if (!this.socket || !this.socket.connected) {
-			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede emitir typing:stop');
+			debugWarn('📡 [WebSocketService] ⚠️ No conectado, no se puede emitir typing:stop');
 			return;
 		}
 
@@ -567,7 +567,7 @@ export class WebSocketService {
 	 */
 	public joinVisitorRoom(visitorId: string): void {
 		if (!this.socket || !this.socket.connected) {
-			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede unir a sala de visitante:', visitorId);
+			debugWarn('📡 [WebSocketService] ⚠️ No conectado, no se puede unir a sala de visitante:', visitorId);
 			return;
 		}
 
@@ -579,7 +579,7 @@ export class WebSocketService {
 				debugLog('📡 [WebSocketService] ✅ Unido a sala de visitante:', response.roomName);
 				this.currentVisitorId = visitorId;
 			} else {
-				console.error('📡 [WebSocketService] ❌ Error al unirse a sala de visitante:', response?.message);
+				debugError('📡 [WebSocketService] ❌ Error al unirse a sala de visitante:', response?.message);
 			}
 		});
 	}
@@ -590,7 +590,7 @@ export class WebSocketService {
 	 */
 	public leaveVisitorRoom(visitorId: string): void {
 		if (!this.socket || !this.socket.connected) {
-			console.warn('📡 [WebSocketService] ⚠️ No conectado, no se puede salir de sala de visitante:', visitorId);
+			debugWarn('📡 [WebSocketService] ⚠️ No conectado, no se puede salir de sala de visitante:', visitorId);
 			return;
 		}
 
@@ -611,7 +611,7 @@ export class WebSocketService {
 	 */
 	private startManualReconnection(): void {
 		if (!this.socket || !this.config) {
-			console.error('📡 [WebSocketService] ⚠️ No hay socket o config para reconexión manual');
+			debugError('📡 [WebSocketService] ⚠️ No hay socket o config para reconexión manual');
 			return;
 		}
 
@@ -626,11 +626,11 @@ export class WebSocketService {
 		const jitter = delay * 0.2 * (Math.random() * 2 - 1);
 		const finalDelay = Math.round(delay + jitter);
 
-		console.log(`📡 [WebSocketService] 🔄 Reconexión manual #${this.manualReconnectAttempt} en ${finalDelay}ms`);
+		debugLog(`📡 [WebSocketService] 🔄 Reconexión manual #${this.manualReconnectAttempt} en ${finalDelay}ms`);
 
 		this.manualReconnectTimeout = setTimeout(() => {
 			if (this.socket && !this.socket.connected) {
-				console.log('📡 [WebSocketService] 🔄 Intentando reconexión manual...');
+				debugLog('📡 [WebSocketService] 🔄 Intentando reconexión manual...');
 				this.socket.connect();
 
 				// Si después de 10s no se conectó, reintentar

@@ -1,5 +1,5 @@
 import { EndpointManager } from '../core/tracking-pixel-SDK';
-import { debugLog } from '../utils/debug-logger';
+import { debugLog, debugWarn, debugError } from '../utils/debug-logger';
 import { ChatV2, ChatListV2 } from '../types';
 import { getCommonHeaders, getCommonFetchOptions } from '../utils/http-headers';
 
@@ -89,14 +89,14 @@ export class ChatV2Service {
 				}
 			}
 
-			console.log('[ChatV2Service] 🔐 reAuthenticate() llamado');
-			console.log('  - visitorId:', visitorId);
-			console.log('  - fingerprint:', fingerprint ? fingerprint.substring(0, 20) + '...' : 'null');
-			console.log('  - apiKey:', apiKey);
-			console.log('  - domain:', domain);
+			debugLog('[ChatV2Service] 🔐 reAuthenticate() llamado');
+			debugLog('  - visitorId:', visitorId);
+			debugLog('  - fingerprint:', fingerprint ? fingerprint.substring(0, 20) + '...' : 'null');
+			debugLog('  - apiKey:', apiKey);
+			debugLog('  - domain:', domain);
 
 			if (!visitorId || !fingerprint) {
-				console.log('[ChatV2Service] ❌ No hay visitorId o fingerprint para re-autenticar');
+				debugLog('[ChatV2Service] ❌ No hay visitorId o fingerprint para re-autenticar');
 				return false;
 			}
 
@@ -105,7 +105,7 @@ export class ChatV2Service {
 			const apiRoot = baseEndpoint.endsWith('/api') ? baseEndpoint : `${baseEndpoint}/api`;
 			const identifyUrl = `${apiRoot}/visitors/identify`;
 
-			console.log('[ChatV2Service] 📤 POST', identifyUrl);
+			debugLog('[ChatV2Service] 📤 POST', identifyUrl);
 
 			const response = await fetch(identifyUrl, {
 				method: 'POST',
@@ -124,18 +124,18 @@ export class ChatV2Service {
 				})
 			});
 
-			console.log('[ChatV2Service] 📥 Response status:', response.status);
+			debugLog('[ChatV2Service] 📥 Response status:', response.status);
 
 			if (response.ok) {
 				const data = await response.json();
-				console.log('[ChatV2Service] 📦 Respuesta identify:', JSON.stringify(data, null, 2));
+				debugLog('[ChatV2Service] 📦 Respuesta identify:', JSON.stringify(data, null, 2));
 
 				if (data.sessionId) {
 					const oldSessionId = sessionStorage.getItem('guiders_backend_session_id');
 					sessionStorage.setItem('guiders_backend_session_id', data.sessionId);
-					console.log('[ChatV2Service] ✅ SessionId actualizado:', oldSessionId, '→', data.sessionId);
+					debugLog('[ChatV2Service] ✅ SessionId actualizado:', oldSessionId, '→', data.sessionId);
 				} else {
-					console.log('[ChatV2Service] ⚠️ No hay sessionId en la respuesta');
+					debugWarn('[ChatV2Service] ⚠️ No hay sessionId en la respuesta');
 				}
 
 				if (data.visitorId) {
@@ -144,18 +144,18 @@ export class ChatV2Service {
 
 				if (data.tenantId || data.tenant_id) {
 					localStorage.setItem('tenantId', data.tenantId || data.tenant_id);
-					console.log('[ChatV2Service] ✅ TenantId guardado:', data.tenantId || data.tenant_id);
+					debugLog('[ChatV2Service] ✅ TenantId guardado:', data.tenantId || data.tenant_id);
 				}
 
-				console.log('[ChatV2Service] ✅ Re-identificación completada');
+				debugLog('[ChatV2Service] ✅ Re-identificación completada');
 				return true;
 			}
 
 			const errorText = await response.text();
-			console.log('[ChatV2Service] ❌ Error en re-identificación:', response.status, errorText);
+			debugError('[ChatV2Service] ❌ Error en re-identificación:', response.status, errorText);
 			return false;
 		} catch (error) {
-			console.error('[ChatV2Service] ❌ Error en re-autenticación:', error);
+			debugError('[ChatV2Service] ❌ Error en re-autenticación:', error);
 			return false;
 		}
 	}
@@ -192,7 +192,7 @@ export class ChatV2Service {
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error(`[ChatV2Service] ❌ Error al obtener chats del visitante ${visitorId}:`, errorText);
+			debugError(`[ChatV2Service] ❌ Error al obtener chats del visitante ${visitorId}:`, errorText);
 			throw new Error(`Error al obtener chats del visitante (${response.status}): ${errorText}`);
 		}
 
@@ -217,7 +217,7 @@ export class ChatV2Service {
 			if (list.chats && list.chats.length > 0) return list.chats[0];
 			return null;
 		} catch (e) {
-			console.warn('[ChatV2Service] ❌ Error obteniendo último chat del visitante:', e);
+			debugWarn('[ChatV2Service] ❌ Error obteniendo último chat del visitante:', e);
 			return null;
 		}
 	}
@@ -257,7 +257,7 @@ export class ChatV2Service {
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error(`[ChatV2Service] ❌ Error al obtener chats del comercial ${commercialId}:`, errorText);
+			debugError(`[ChatV2Service] ❌ Error al obtener chats del comercial ${commercialId}:`, errorText);
 			throw new Error(`Error al obtener chats del comercial (${response.status}): ${errorText}`);
 		}
 
@@ -290,7 +290,7 @@ export class ChatV2Service {
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error(`[ChatV2Service] ❌ Error al obtener cola pendiente:`, errorText);
+			debugError(`[ChatV2Service] ❌ Error al obtener cola pendiente:`, errorText);
 			throw new Error(`Error al obtener cola pendiente (${response.status}): ${errorText}`);
 		}
 
@@ -315,7 +315,7 @@ export class ChatV2Service {
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error(`[ChatV2Service] ❌ Error al asignar chat:`, errorText);
+			debugError(`[ChatV2Service] ❌ Error al asignar chat:`, errorText);
 			throw new Error(`Error al asignar chat (${response.status}): ${errorText}`);
 		}
 
@@ -342,13 +342,13 @@ export class ChatV2Service {
 
 			// Si el endpoint no existe (404) o no está implementado (501), es opcional
 			if (response.status === 404 || response.status === 501) {
-				console.warn(`[ChatV2Service] ⚠️ Endpoint /open no disponible (${response.status}) - continuando sin sincronizar estado`);
+				debugWarn(`[ChatV2Service] ⚠️ Endpoint /open no disponible (${response.status}) - continuando sin sincronizar estado`);
 				return null;
 			}
 
 			if (!response.ok) {
 				const errorText = await response.text();
-				console.error(`[ChatV2Service] ❌ Error al abrir chat:`, errorText);
+				debugError(`[ChatV2Service] ❌ Error al abrir chat:`, errorText);
 				throw new Error(`Error al abrir chat (${response.status}): ${errorText}`);
 			}
 
@@ -359,7 +359,7 @@ export class ChatV2Service {
 		} catch (error) {
 			// Si es error de red o endpoint no existe, no es crítico
 			if (error instanceof TypeError) {
-				console.warn(`[ChatV2Service] ⚠️ No se pudo conectar al endpoint /open - continuando sin sincronizar estado`);
+				debugWarn(`[ChatV2Service] ⚠️ No se pudo conectar al endpoint /open - continuando sin sincronizar estado`);
 				return null;
 			}
 			// Re-lanzar otros errores
@@ -384,13 +384,13 @@ export class ChatV2Service {
 
 			// Si el endpoint no existe (404) o no está implementado (501), es opcional
 			if (response.status === 404 || response.status === 501) {
-				console.warn(`[ChatV2Service] ⚠️ Endpoint /close no disponible (${response.status}) - continuando sin sincronizar estado`);
+				debugWarn(`[ChatV2Service] ⚠️ Endpoint /close no disponible (${response.status}) - continuando sin sincronizar estado`);
 				return null;
 			}
 
 			if (!response.ok) {
 				const errorText = await response.text();
-				console.error(`[ChatV2Service] ❌ Error al cerrar chat:`, errorText);
+				debugError(`[ChatV2Service] ❌ Error al cerrar chat:`, errorText);
 				throw new Error(`Error al cerrar chat (${response.status}): ${errorText}`);
 			}
 
@@ -401,7 +401,7 @@ export class ChatV2Service {
 		} catch (error) {
 			// Si es error de red o endpoint no existe, no es crítico
 			if (error instanceof TypeError) {
-				console.warn(`[ChatV2Service] ⚠️ No se pudo conectar al endpoint /close - continuando sin sincronizar estado`);
+				debugWarn(`[ChatV2Service] ⚠️ No se pudo conectar al endpoint /close - continuando sin sincronizar estado`);
 				return null;
 			}
 			// Re-lanzar otros errores
@@ -433,7 +433,7 @@ export class ChatV2Service {
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error(`[ChatV2Service] ❌ Error al obtener métricas:`, errorText);
+			debugError(`[ChatV2Service] ❌ Error al obtener métricas:`, errorText);
 			throw new Error(`Error al obtener métricas (${response.status}): ${errorText}`);
 		}
 
@@ -468,7 +468,7 @@ export class ChatV2Service {
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error(`[ChatV2Service] ❌ Error al obtener estadísticas:`, errorText);
+			debugError(`[ChatV2Service] ❌ Error al obtener estadísticas:`, errorText);
 			throw new Error(`Error al obtener estadísticas (${response.status}): ${errorText}`);
 		}
 
@@ -488,7 +488,7 @@ export class ChatV2Service {
 		const response = await this.fetchWithReauth(`${this.getBaseUrl()}`, this.getFetchOptions('POST', JSON.stringify(payload)));
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error('[ChatV2Service] ❌ Error al crear chat V2 (POST):', errorText);
+			debugError('[ChatV2Service] ❌ Error al crear chat V2 (POST):', errorText);
 			throw new Error(`Error al crear chat V2 (POST) (${response.status}): ${errorText}`);
 		}
 		const chat = await response.json() as ChatV2;
@@ -518,7 +518,7 @@ export class ChatV2Service {
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error('[ChatV2Service] ❌ Error al crear chat V2 con mensaje:', errorText);
+			debugError('[ChatV2Service] ❌ Error al crear chat V2 con mensaje:', errorText);
 			throw new Error(`Error al crear chat V2 con mensaje (${response.status}): ${errorText}`);
 		}
 
@@ -554,7 +554,7 @@ export class ChatV2Service {
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error('[ChatV2Service] ❌ Error al enviar mensaje:', errorText);
+			debugError('[ChatV2Service] ❌ Error al enviar mensaje:', errorText);
 			throw new Error(`Error al enviar mensaje (${response.status}): ${errorText}`);
 		}
 
@@ -610,7 +610,7 @@ export class ChatV2Service {
 				};
 			}
 		} catch (error) {
-			console.error('[ChatV2Service] ❌ Error en sendMessageSmart:', error);
+			debugError('[ChatV2Service] ❌ Error en sendMessageSmart:', error);
 			throw error;
 		}
 	}
@@ -643,7 +643,7 @@ export class ChatV2Service {
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error('[ChatV2Service] ❌ Error al obtener mensajes del chat:', errorText);
+			debugError('[ChatV2Service] ❌ Error al obtener mensajes del chat:', errorText);
 			throw new Error(`Error al obtener mensajes del chat (${response.status}): ${errorText}`);
 		}
 

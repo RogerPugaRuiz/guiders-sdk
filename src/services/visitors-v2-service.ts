@@ -1,4 +1,5 @@
 import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { debugLog, debugWarn, debugError } from '../utils/debug-logger';
 
 export interface IdentifyVisitorResponse {
   visitorId: string;
@@ -69,7 +70,7 @@ export class VisitorsV2Service {
             hasAcceptedPrivacyPolicy = consentState.status === 'granted';
             consentVersion = consentState.version || 'v1.0';
           } catch (e) {
-            console.warn('[VisitorsV2Service] ⚠️ No se pudo parsear estado de consentimiento');
+            debugWarn('[VisitorsV2Service] ⚠️ No se pudo parsear estado de consentimiento');
           }
         }
       }
@@ -83,7 +84,7 @@ export class VisitorsV2Service {
         currentUrl: typeof window !== 'undefined' ? window.location.href : undefined
       };
 
-      console.log('[VisitorsV2Service] 🔐 Enviando identify con consentimiento:', {
+      debugLog('[VisitorsV2Service] 🔐 Enviando identify con consentimiento:', {
         hasAcceptedPrivacyPolicy,
         consentVersion,
         currentUrl: payload.currentUrl
@@ -116,7 +117,7 @@ export class VisitorsV2Service {
         if (response.sessionId) sessionStorage.setItem('guiders_backend_session_id', response.sessionId);
         if (response.tenantId) localStorage.setItem('tenantId', response.tenantId);
 
-        console.log('[VisitorsV2Service] ✅ identify OK (consentimiento aceptado):', response.visitorId, 'session:', response.sessionId, 'tenant:', response.tenantId);
+        debugLog('[VisitorsV2Service] ✅ identify OK (consentimiento aceptado):', response.visitorId, 'session:', response.sessionId, 'tenant:', response.tenantId);
         return response;
       }
 
@@ -139,23 +140,23 @@ export class VisitorsV2Service {
             // Guardar visitorId incluso en caso de rechazo (para audit)
             if (response.visitorId) localStorage.setItem('visitorId', response.visitorId);
 
-            console.warn('[VisitorsV2Service] ⚠️ identify: consentimiento rechazado (modo limitado):', response.visitorId);
-            console.log('[VisitorsV2Service] 📋 Acciones permitidas:', response.allowedActions);
+            debugWarn('[VisitorsV2Service] ⚠️ identify: consentimiento rechazado (modo limitado):', response.visitorId);
+            debugLog('[VisitorsV2Service] 📋 Acciones permitidas:', response.allowedActions);
 
             return response;
           }
         } catch (parseError) {
           // Si no se puede parsear el JSON, tratar como error real
-          console.error('[VisitorsV2Service] ❌ Error parseando respuesta 400:', parseError);
+          debugError('[VisitorsV2Service] ❌ Error parseando respuesta 400:', parseError);
         }
       }
 
       // ❌ Otros errores HTTP
       const txt = await res.text();
-      console.warn('[VisitorsV2Service] ❌ Error al identificar visitante:', res.status, txt);
+      debugWarn('[VisitorsV2Service] ❌ Error al identificar visitante:', res.status, txt);
       return null;
     } catch (e) {
-      console.warn('[VisitorsV2Service] ❌ Excepción en identify:', e);
+      debugWarn('[VisitorsV2Service] ❌ Excepción en identify:', e);
       return null;
     }
   }
@@ -171,7 +172,7 @@ export class VisitorsV2Service {
     try {
       const sessionId = sessionStorage.getItem('guiders_backend_session_id');
       if (!sessionId) {
-        console.warn('[VisitorsV2Service] ❌ No sessionId disponible para heartbeat');
+        debugWarn('[VisitorsV2Service] ❌ No sessionId disponible para heartbeat');
         return false;
       }
 
@@ -195,13 +196,13 @@ export class VisitorsV2Service {
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.warn('[VisitorsV2Service] ❌ Heartbeat fallido:', res.status, errorText);
+        debugWarn('[VisitorsV2Service] ❌ Heartbeat fallido:', res.status, errorText);
         return false;
       }
-      console.log('[VisitorsV2Service] ✅ Heartbeat exitoso' + (activityType ? ` (${activityType})` : ''));
+      debugLog('[VisitorsV2Service] ✅ Heartbeat exitoso' + (activityType ? ` (${activityType})` : ''));
       return true;
     } catch (e) {
-      console.warn('[VisitorsV2Service] ❌ Excepción heartbeat:', e);
+      debugWarn('[VisitorsV2Service] ❌ Excepción heartbeat:', e);
       return false;
     }
   }
@@ -214,14 +215,14 @@ export class VisitorsV2Service {
   public async endSession(options: { useBeacon?: boolean; reason?: string } = {}): Promise<boolean> {
     const sessionId = sessionStorage.getItem('guiders_backend_session_id');
     if (!sessionId) {
-      console.warn('[VisitorsV2Service] ❌ No sessionId disponible para endSession');
+      debugWarn('[VisitorsV2Service] ❌ No sessionId disponible para endSession');
       return false;
     }
 
     // Verificar si es un refresh rápido - NO enviar endSession si es así
     const isRefresh = sessionStorage.getItem('guiders_is_refresh') === 'true';
     if (isRefresh && options.useBeacon) {
-      console.log('[VisitorsV2Service] 🔄 Refresh detectado - manteniendo sesión activa');
+      debugLog('[VisitorsV2Service] 🔄 Refresh detectado - manteniendo sesión activa');
       // NO limpiar sessionStorage para que la nueva página pueda reanudar
       sessionStorage.removeItem('guiders_is_refresh');
       return true; // Simular éxito sin enviar beacon
@@ -240,14 +241,14 @@ export class VisitorsV2Service {
         const success = (navigator as any).sendBeacon(url, blob);
 
         if (success) {
-          console.log('[VisitorsV2Service] ✅ endSession enviado via beacon');
+          debugLog('[VisitorsV2Service] ✅ endSession enviado via beacon');
           sessionStorage.removeItem('guiders_backend_session_id');
           return true;
         } else {
-          console.warn('[VisitorsV2Service] ⚠️ sendBeacon falló, intentando fetch...');
+          debugWarn('[VisitorsV2Service] ⚠️ sendBeacon falló, intentando fetch...');
         }
       } catch (e) {
-        console.warn('[VisitorsV2Service] ❌ Error con sendBeacon, fallback a fetch:', e);
+        debugWarn('[VisitorsV2Service] ❌ Error con sendBeacon, fallback a fetch:', e);
       }
     }
 
@@ -267,21 +268,21 @@ export class VisitorsV2Service {
 
         if (!res.ok) {
           const errorText = await res.text();
-          console.warn('[VisitorsV2Service] ❌ endSession fallido:', res.status, errorText);
+          debugWarn('[VisitorsV2Service] ❌ endSession fallido:', res.status, errorText);
           return false;
         }
 
-        console.log('[VisitorsV2Service] ✅ endSession exitoso via fetch');
+        debugLog('[VisitorsV2Service] ✅ endSession exitoso via fetch');
         sessionStorage.removeItem('guiders_backend_session_id');
         return true;
       } catch (e) {
-        console.warn('[VisitorsV2Service] ❌ Excepción endSession:', e);
+        debugWarn('[VisitorsV2Service] ❌ Excepción endSession:', e);
         return false;
       }
     }
 
     // Si llegamos aquí, beacon falló y no podemos usar fetch
-    console.warn('[VisitorsV2Service] ❌ No se pudo enviar endSession');
+    debugWarn('[VisitorsV2Service] ❌ No se pudo enviar endSession');
     return false;
   }
 }
