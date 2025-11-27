@@ -16,7 +16,7 @@
     "test:headed": "playwright test --headed",
     "test:report": "playwright show-report",
     "build": "webpack --mode=production",
-    "start": "webpack serve --mode=development",
+    "start": "bash -c './wp-docker.sh start & webpack serve --mode=development'",
     "release:wp": "bash wordpress-plugin/build-plugin.sh",
     "release:wp:skip": "bash wordpress-plugin/build-plugin.sh --skip-build",
     "release:wp:publish": "bash wordpress-plugin/release-wp-publish.sh"
