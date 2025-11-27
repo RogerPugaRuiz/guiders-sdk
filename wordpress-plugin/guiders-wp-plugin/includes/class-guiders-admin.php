@@ -903,6 +903,9 @@ class GuidersAdmin {
         // Validate chat consent show once
         $validated['chat_consent_show_once'] = isset($input['chat_consent_show_once']) ? $validateCheckbox($input['chat_consent_show_once']) : false;
 
+        // Validate auto-open chat on message (default: true)
+        $validated['auto_open_chat_on_message'] = isset($input['auto_open_chat_on_message']) ? $validateCheckbox($input['auto_open_chat_on_message']) : true;
+
         // Validate cookie consent system
         $valid_cookie_systems = array('auto', 'internal', 'wp_consent_api', 'custom');
         if (isset($input['cookie_consent_system']) && in_array($input['cookie_consent_system'], $valid_cookie_systems)) {
@@ -1042,7 +1045,7 @@ class GuidersAdmin {
      */
     public function autoOpenChatOnMessageFieldCallback() {
         $settings = get_option('guiders_wp_plugin_settings', array());
-        $auto_open = isset($settings['auto_open_chat_on_message']) ? $settings['auto_open_chat_on_message'] : false;
+        $auto_open = isset($settings['auto_open_chat_on_message']) ? $settings['auto_open_chat_on_message'] : true;
         echo '<input type="checkbox" id="auto_open_chat_on_message" name="guiders_wp_plugin_settings[auto_open_chat_on_message]" value="1" ' . checked(1, $auto_open, false) . ' />';
         echo '<label for="auto_open_chat_on_message">' . __('Abrir automáticamente el chat cuando llega un mensaje nuevo', 'guiders-wp-plugin') . '</label>';
         echo '<p class="description">' . __('Si está habilitado, el chat se abrirá automáticamente cuando el visitante reciba un mensaje nuevo (solo si el chat está cerrado).', 'guiders-wp-plugin') . '</p>';
