@@ -611,6 +611,12 @@ jQuery(document).ready(function($) {
                 // Use temp value if exists, otherwise use DB value
                 var finalValue = tempSettings.hasOwnProperty(key) ? tempSettings[key] : value;
 
+                // Convert boolean to string for proper PHP handling
+                // PHP receives strings from POST, so false → '0', true → '1'
+                if (typeof finalValue === 'boolean') {
+                    finalValue = finalValue ? '1' : '0';
+                }
+
                 // Add hidden field to preserve this setting from other tabs
                 var fieldName = 'guiders_wp_plugin_settings[' + key + ']';
                 var hiddenInput = $('<input>').attr({
