@@ -366,10 +366,13 @@ export class TrackingPixelSDK {
 					debugLog('[TrackingPixelSDK] ✅ Consentimiento otorgado - habilitando tracking');
 					debugLog('[TrackingPixelSDK] 📝 El backend registrará automáticamente el consentimiento en identify()');
 
-					// Inicializar el SDK completo
-					this.init().catch(error => {
-						console.error('[TrackingPixelSDK] ❌ Error inicializando SDK después de consentimiento:', error);
-					});
+					// Agregar un pequeño delay para asegurar que la UI del banner se cierre correctamente
+					// antes de inicializar el chat (evita race conditions visuales)
+					setTimeout(() => {
+						this.init().catch(error => {
+							console.error('[TrackingPixelSDK] ❌ Error inicializando SDK después de consentimiento:', error);
+						});
+					}, 300);
 				}
 
 				// Si se deniega o revoca, detener tracking
@@ -482,11 +485,22 @@ export class TrackingPixelSDK {
 			debugLog('[TrackingPixelSDK] 🔐 Estado inicial: pending - SDK pausado');
 			debugLog('[TrackingPixelSDK] ⏸️ SDK pausado hasta que se otorgue consentimiento');
 		} else if (initialState.status === 'granted') {
-			// Inicializar inmediatamente
-			debugLog('[TrackingPixelSDK] 🔐 Estado inicial: granted - Inicializando SDK');
-			this.init().catch(error => {
-				console.error('[TrackingPixelSDK] ❌ Error inicializando SDK:', error);
-			});
+			// Si el banner de consentimiento está habilitado, agregar un delay
+			// para dar tiempo a que se muestre antes de inicializar el chat
+			const hasConsentBanner = requireConsent && options.consentBanner && options.consentBanner.enabled !== false;
+			const initDelay = hasConsentBanner ? 1000 : 0;
+
+			if (hasConsentBanner) {
+				debugLog('[TrackingPixelSDK] 🔐 Estado inicial: granted - Inicializando SDK con delay de ' + initDelay + 'ms para mostrar banner');
+			} else {
+				debugLog('[TrackingPixelSDK] 🔐 Estado inicial: granted - Inicializando SDK');
+			}
+
+			setTimeout(() => {
+				this.init().catch(error => {
+					console.error('[TrackingPixelSDK] ❌ Error inicializando SDK:', error);
+				});
+			}, initDelay);
 		} else {
 			// Estado denied - no hacer nada
 			debugLog('[TrackingPixelSDK] 🔐 Estado inicial: denied - SDK no se inicializará');
