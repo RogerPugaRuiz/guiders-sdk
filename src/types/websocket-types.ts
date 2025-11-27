@@ -66,8 +66,6 @@ export interface WebSocketConfig {
 	sessionId?: string;
 	/** ID del tenant para autenticación */
 	tenantId?: string;
-	/** Tipo de usuario (visitor o commercial) */
-	userType?: 'visitor' | 'commercial';
 	/** Transports a usar */
 	transports?: ('websocket' | 'polling')[];
 	/** Enviar credenciales (cookies) */
