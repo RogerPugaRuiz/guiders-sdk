@@ -366,13 +366,10 @@ export class TrackingPixelSDK {
 					debugLog('[TrackingPixelSDK] ✅ Consentimiento otorgado - habilitando tracking');
 					debugLog('[TrackingPixelSDK] 📝 El backend registrará automáticamente el consentimiento en identify()');
 
-					// Agregar un pequeño delay para asegurar que la UI del banner se cierre correctamente
-					// antes de inicializar el chat (evita race conditions visuales)
-					setTimeout(() => {
-						this.init().catch(error => {
-							console.error('[TrackingPixelSDK] ❌ Error inicializando SDK después de consentimiento:', error);
-						});
-					}, 300);
+					// Inicializar el SDK completo
+					this.init().catch(error => {
+						console.error('[TrackingPixelSDK] ❌ Error inicializando SDK después de consentimiento:', error);
+					});
 				}
 
 				// Si se deniega o revoca, detener tracking
@@ -485,22 +482,11 @@ export class TrackingPixelSDK {
 			debugLog('[TrackingPixelSDK] 🔐 Estado inicial: pending - SDK pausado');
 			debugLog('[TrackingPixelSDK] ⏸️ SDK pausado hasta que se otorgue consentimiento');
 		} else if (initialState.status === 'granted') {
-			// Si el banner de consentimiento está habilitado, agregar un delay
-			// para dar tiempo a que se muestre antes de inicializar el chat
-			const hasConsentBanner = requireConsent && options.consentBanner && options.consentBanner.enabled !== false;
-			const initDelay = hasConsentBanner ? 1000 : 0;
-
-			if (hasConsentBanner) {
-				debugLog('[TrackingPixelSDK] 🔐 Estado inicial: granted - Inicializando SDK con delay de ' + initDelay + 'ms para mostrar banner');
-			} else {
-				debugLog('[TrackingPixelSDK] 🔐 Estado inicial: granted - Inicializando SDK');
-			}
-
-			setTimeout(() => {
-				this.init().catch(error => {
-					console.error('[TrackingPixelSDK] ❌ Error inicializando SDK:', error);
-				});
-			}, initDelay);
+			// Inicializar inmediatamente
+			debugLog('[TrackingPixelSDK] 🔐 Estado inicial: granted - Inicializando SDK');
+			this.init().catch(error => {
+				console.error('[TrackingPixelSDK] ❌ Error inicializando SDK:', error);
+			});
 		} else {
 			// Estado denied - no hacer nada
 			debugLog('[TrackingPixelSDK] 🔐 Estado inicial: denied - SDK no se inicializará');
@@ -512,6 +498,13 @@ export class TrackingPixelSDK {
 		// Solo debe llamarse cuando el consentimiento está 'granted'
 		// La verificación se hace en el constructor y en onConsentChange
 		// Para registrar rechazos de consentimiento, usar identitySignal.identify() directamente
+
+		// ✅ VALIDAR CONSENTIMIENTO antes de inicializar
+		const consentState = this.consentManager.getState();
+		if (consentState.status !== 'granted') {
+			debugLog('[TrackingPixelSDK] 🔒 init() bloqueado: consentimiento no otorgado (status: ' + consentState.status + ')');
+			return; // No inicializar si no hay consentimiento
+		}
 
 		debugLog('[TrackingPixelSDK] 🚀 Inicializando SDK con consentimiento otorgado...');
 
@@ -647,8 +640,14 @@ export class TrackingPixelSDK {
 			// Mostrar el botón solo si la verificación de disponibilidad NO está habilitada
 			// Si está habilitada, el servicio se encargará de mostrarlo cuando haya comerciales disponibles
 			if (!this.commercialAvailabilityConfig?.enabled) {
-				chatToggleButton.show();
-				debugLog("🔘 Botón de chat mostrado inmediatamente (disponibilidad deshabilitada)");
+				// Validar consentimiento antes de mostrar el chat
+				const consentState = this.consentManager.getState();
+				if (consentState.status === 'granted' && consentState.preferences?.functional) {
+					chatToggleButton.show();
+					debugLog("🔘 Botón de chat mostrado (consentimiento otorgado)");
+				} else {
+					debugLog("🔒 Chat oculto: consentimiento no otorgado o funcional deshabilitado");
+				}
 			} else {
 				debugLog("🔘 Botón de chat oculto inicialmente (esperando verificación de disponibilidad)");
 			}
