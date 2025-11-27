@@ -12,7 +12,7 @@ module.exports = {
 		// Inyectar versión del SDK y modo de producción en tiempo de compilación
 		new webpack.DefinePlugin({
 			__SDK_VERSION__: JSON.stringify(packageJson.version),
-			__PRODUCTION__: JSON.stringify(process.env.NODE_ENV === 'production'),
+			__PRODUCTION__: process.env.NODE_ENV === 'production',
 		}),
 	],
 	entry: './src/index.ts', // Archivo principal del SDK
