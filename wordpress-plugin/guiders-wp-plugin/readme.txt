@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.6.4
+Stable tag: 2.7.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,22 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.7.0 =
+* **✨ Sistema de Logging Optimizado**: Control inteligente de logs por entorno
+  * **Consola limpia en producción**: Solo logs esenciales (init, warnings, errores)
+  * **Debug automático en desarrollo**: Logs completos para debugging sin configuración
+  * **Control manual**: Los usuarios pueden activar logs en producción con `window.GUIDERS_DEBUG = true`
+  * **Mejoras técnicas**:
+    - Detección automática de entorno (production/development) via `__PRODUCTION__` flag
+    - Nueva función `debugInit()` para logs de inicialización siempre visibles
+    - Refactorización de 100+ console.log a sistema de debug helpers
+    - Eliminación de código obsoleto (src/logger.ts)
+  * **Beneficios**:
+    - Mejor experiencia de usuario: consola del navegador más limpia
+    - Debugging más fácil durante desarrollo
+    - Menor ruido en herramientas de monitoreo de errores
+    - Cumplimiento con mejores prácticas de logging en producción
 
 = 2.6.4 =
 * **🔒 GDPR Fix Crítico**: Validación de consentimiento antes de mostrar chat
