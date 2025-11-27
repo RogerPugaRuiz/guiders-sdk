@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.6.2
+Stable tag: 2.6.3
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,13 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.6.3 =
+* **🐛 Bug Fixes Críticos**: Corrección completa del sistema de guardado multi-pestaña en admin
+  * **Prioridad de sessionStorage**: Ahora se preservan correctamente los cambios temporales de otras pestañas al guardar
+  * **Conversión de booleanos**: Los checkboxes desmarcados ahora se convierten correctamente a '0' en lugar de string "false"
+  * **Escenario corregido**: Desmarcar checkbox en pestaña A → cambiar a pestaña B → guardar → el checkbox permanece desmarcado
+  * **Impacto**: Resuelto problema donde cambios en checkboxes se perdían al cambiar de pestaña antes de guardar
 
 = 2.6.2 =
 * **🐛 Bug Fixes**: Corrección adicional del sistema de guardado en panel de administración
