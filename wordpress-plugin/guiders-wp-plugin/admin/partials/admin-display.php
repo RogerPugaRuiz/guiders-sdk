@@ -592,16 +592,31 @@ jQuery(document).ready(function($) {
             }
         });
 
+        // Get temporary changes from sessionStorage (if any)
+        var tempSettings = {};
+        try {
+            var tempData = sessionStorage.getItem(TEMP_STORAGE_KEY);
+            if (tempData) {
+                tempSettings = JSON.parse(tempData);
+            }
+        } catch (e) {
+            console.error('Error reading temp settings:', e);
+        }
+
         // Add hidden fields ONLY for settings that aren't in the current tab
+        // Priority: tempSettings > existingSettings (temp changes override DB values)
         $.each(existingSettings, function(key, value) {
             // Skip if: already submitted, in current tab, or is active_tab field
             if (!submittedFields[key] && !currentTabFields[key] && key !== 'active_tab') {
+                // Use temp value if exists, otherwise use DB value
+                var finalValue = tempSettings.hasOwnProperty(key) ? tempSettings[key] : value;
+
                 // Add hidden field to preserve this setting from other tabs
                 var fieldName = 'guiders_wp_plugin_settings[' + key + ']';
                 var hiddenInput = $('<input>').attr({
                     type: 'hidden',
                     name: fieldName,
-                    value: value
+                    value: finalValue
                 });
                 form.append(hiddenInput);
             }
