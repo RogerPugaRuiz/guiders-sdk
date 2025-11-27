@@ -579,31 +579,43 @@ class GuidersAdmin {
      * Validate settings
      */
     public function validateSettings($input) {
-        $validated = array();
+        // IMPORTANTE: Obtener settings existentes primero para preservar valores de otras pestañas
+        $existing = get_option('guiders_wp_plugin_settings', array());
+
+        // Combinar con valores existentes (los nuevos valores sobrescriben los antiguos)
+        $validated = is_array($existing) ? $existing : array();
         
         // Validate API key
         if (isset($input['api_key'])) {
             $validated['api_key'] = sanitize_text_field($input['api_key']);
         }
         
+        // Helper function to validate checkbox values
+        // Handles: true, 1, '1' = true | false, 0, '0', empty, null = false
+        $validateCheckbox = function($value) {
+            if (!isset($value)) return false;
+            if ($value === '0' || $value === 0 || $value === false || $value === '') return false;
+            return true;
+        };
+
         // Validate enabled
-        $validated['enabled'] = isset($input['enabled']) ? true : false;
-        
+        $validated['enabled'] = isset($input['enabled']) ? $validateCheckbox($input['enabled']) : false;
+
         // Validate environment
         if (isset($input['environment']) && in_array($input['environment'], array('production', 'development'))) {
             $validated['environment'] = sanitize_text_field($input['environment']);
         } else {
             $validated['environment'] = 'production';
         }
-        
+
         // Validate chat enabled
-        $validated['chat_enabled'] = isset($input['chat_enabled']) ? true : false;
-        
+        $validated['chat_enabled'] = isset($input['chat_enabled']) ? $validateCheckbox($input['chat_enabled']) : false;
+
         // Validate tracking enabled
-        $validated['tracking_enabled'] = isset($input['tracking_enabled']) ? true : false;
-        
+        $validated['tracking_enabled'] = isset($input['tracking_enabled']) ? $validateCheckbox($input['tracking_enabled']) : false;
+
         // Validate heuristic detection
-        $validated['heuristic_detection'] = isset($input['heuristic_detection']) ? true : false;
+        $validated['heuristic_detection'] = isset($input['heuristic_detection']) ? $validateCheckbox($input['heuristic_detection']) : false;
         
         // Validate confidence threshold
         if (isset($input['confidence_threshold'])) {
@@ -637,7 +649,7 @@ class GuidersAdmin {
         }
 
         // Validate active hours settings
-        $validated['active_hours_enabled'] = isset($input['active_hours_enabled']) ? true : false;
+        $validated['active_hours_enabled'] = isset($input['active_hours_enabled']) ? $validateCheckbox($input['active_hours_enabled']) : false;
         
         // Validate timezone
         if (isset($input['active_hours_timezone'])) {
@@ -680,7 +692,7 @@ class GuidersAdmin {
         }
 
         // Validate exclude weekends setting
-        $validated['active_hours_exclude_weekends'] = isset($input['active_hours_exclude_weekends']) ? true : false;
+        $validated['active_hours_exclude_weekends'] = isset($input['active_hours_exclude_weekends']) ? $validateCheckbox($input['active_hours_exclude_weekends']) : false;
 
         // Validate active days (JSON format)
         if (isset($input['active_hours_active_days'])) {
@@ -707,7 +719,7 @@ class GuidersAdmin {
         }
 
         // Validate commercial availability settings
-        $validated['commercial_availability_enabled'] = isset($input['commercial_availability_enabled']) ? true : false;
+        $validated['commercial_availability_enabled'] = isset($input['commercial_availability_enabled']) ? $validateCheckbox($input['commercial_availability_enabled']) : false;
 
         // Validate polling interval
         if (isset($input['commercial_availability_polling'])) {
@@ -719,10 +731,10 @@ class GuidersAdmin {
         }
 
         // Validate show badge setting
-        $validated['commercial_availability_show_badge'] = isset($input['commercial_availability_show_badge']) ? true : false;
+        $validated['commercial_availability_show_badge'] = isset($input['commercial_availability_show_badge']) ? $validateCheckbox($input['commercial_availability_show_badge']) : false;
 
         // Validate Tracking V2 settings
-        $validated['tracking_v2_enabled'] = isset($input['tracking_v2_enabled']) ? true : false;
+        $validated['tracking_v2_enabled'] = isset($input['tracking_v2_enabled']) ? $validateCheckbox($input['tracking_v2_enabled']) : false;
 
         // Validate batch size (100-1000 events)
         if (isset($input['tracking_v2_batch_size'])) {
@@ -749,10 +761,10 @@ class GuidersAdmin {
         }
 
         // Validate persist queue setting
-        $validated['tracking_v2_persist_queue'] = isset($input['tracking_v2_persist_queue']) ? true : false;
+        $validated['tracking_v2_persist_queue'] = isset($input['tracking_v2_persist_queue']) ? $validateCheckbox($input['tracking_v2_persist_queue']) : false;
 
         // Validate bypass consent setting (with security check)
-        $validated['tracking_v2_bypass_consent'] = isset($input['tracking_v2_bypass_consent']) ? true : false;
+        $validated['tracking_v2_bypass_consent'] = isset($input['tracking_v2_bypass_consent']) ? $validateCheckbox($input['tracking_v2_bypass_consent']) : false;
 
         // Add warning if bypass consent is enabled in production
         if ($validated['tracking_v2_bypass_consent'] && (!isset($validated['environment']) || $validated['environment'] !== 'development')) {
@@ -793,11 +805,11 @@ class GuidersAdmin {
             $validated['mobile_detection_mode'] = 'auto'; // Default
         }
 
-        $validated['mobile_detection_debug'] = isset($input['mobile_detection_debug']) ? true : false;
+        $validated['mobile_detection_debug'] = isset($input['mobile_detection_debug']) ? $validateCheckbox($input['mobile_detection_debug']) : false;
 
         // Validate GDPR & Consent Banner settings
-        $validated['consent_banner_enabled'] = isset($input['consent_banner_enabled']) ? true : false;
-        $validated['require_consent'] = isset($input['require_consent']) ? true : false;
+        $validated['consent_banner_enabled'] = isset($input['consent_banner_enabled']) ? $validateCheckbox($input['consent_banner_enabled']) : false;
+        $validated['require_consent'] = isset($input['require_consent']) ? $validateCheckbox($input['require_consent']) : false;
 
         // Add warning if banner is enabled but requireConsent is not
         if ($validated['consent_banner_enabled'] && !$validated['require_consent']) {
@@ -830,7 +842,7 @@ class GuidersAdmin {
         $validated['consent_preferences_text'] = isset($input['consent_preferences_text']) ? sanitize_text_field($input['consent_preferences_text']) : 'Preferencias';
 
         // Validate show preferences
-        $validated['consent_show_preferences'] = isset($input['consent_show_preferences']) ? true : false;
+        $validated['consent_show_preferences'] = isset($input['consent_show_preferences']) ? $validateCheckbox($input['consent_show_preferences']) : false;
 
         // Validate colors
         $validated['consent_banner_bg_color'] = isset($input['consent_banner_bg_color']) ? sanitize_hex_color($input['consent_banner_bg_color']) : '#2c3e50';
@@ -848,10 +860,10 @@ class GuidersAdmin {
         }
 
         // Validate auto show
-        $validated['consent_auto_show'] = isset($input['consent_auto_show']) ? true : false;
+        $validated['consent_auto_show'] = isset($input['consent_auto_show']) ? $validateCheckbox($input['consent_auto_show']) : false;
 
         // Validate chat consent message settings
-        $validated['chat_consent_message_enabled'] = isset($input['chat_consent_message_enabled']) ? true : false;
+        $validated['chat_consent_message_enabled'] = isset($input['chat_consent_message_enabled']) ? $validateCheckbox($input['chat_consent_message_enabled']) : false;
 
         // Validate chat consent message text
         if (isset($input['chat_consent_message_text'])) {
@@ -889,7 +901,7 @@ class GuidersAdmin {
         }
 
         // Validate chat consent show once
-        $validated['chat_consent_show_once'] = isset($input['chat_consent_show_once']) ? true : false;
+        $validated['chat_consent_show_once'] = isset($input['chat_consent_show_once']) ? $validateCheckbox($input['chat_consent_show_once']) : false;
 
         // Validate cookie consent system
         $valid_cookie_systems = array('auto', 'internal', 'wp_consent_api', 'custom');
@@ -900,10 +912,10 @@ class GuidersAdmin {
         }
 
         // Validate WP Consent API sync enabled
-        $validated['wp_consent_api_sync_enabled'] = isset($input['wp_consent_api_sync_enabled']) ? true : false;
+        $validated['wp_consent_api_sync_enabled'] = isset($input['wp_consent_api_sync_enabled']) ? $validateCheckbox($input['wp_consent_api_sync_enabled']) : false;
 
         // Validate cookie consent debug
-        $validated['cookie_consent_debug'] = isset($input['cookie_consent_debug']) ? true : false;
+        $validated['cookie_consent_debug'] = isset($input['cookie_consent_debug']) ? $validateCheckbox($input['cookie_consent_debug']) : false;
 
         return $validated;
     }

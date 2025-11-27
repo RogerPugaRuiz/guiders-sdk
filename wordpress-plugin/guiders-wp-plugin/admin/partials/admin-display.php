@@ -581,10 +581,22 @@ jQuery(document).ready(function($) {
             submittedFields[name] = true;
         });
 
-        // Add hidden fields for settings that aren't in the current tab
+        // Get all field names from the current visible form (including unchecked checkboxes)
+        var currentTabFields = {};
+        form.find('input, select, textarea').each(function() {
+            var $field = $(this);
+            var fieldName = $field.attr('name');
+            if (fieldName && fieldName.indexOf('guiders_wp_plugin_settings[') === 0) {
+                var cleanName = fieldName.replace('guiders_wp_plugin_settings[', '').replace(']', '');
+                currentTabFields[cleanName] = true;
+            }
+        });
+
+        // Add hidden fields ONLY for settings that aren't in the current tab
         $.each(existingSettings, function(key, value) {
-            if (!submittedFields[key] && key !== 'active_tab') {
-                // Add hidden field to preserve this setting
+            // Skip if: already submitted, in current tab, or is active_tab field
+            if (!submittedFields[key] && !currentTabFields[key] && key !== 'active_tab') {
+                // Add hidden field to preserve this setting from other tabs
                 var fieldName = 'guiders_wp_plugin_settings[' + key + ']';
                 var hiddenInput = $('<input>').attr({
                     type: 'hidden',
@@ -592,6 +604,23 @@ jQuery(document).ready(function($) {
                     value: value
                 });
                 form.append(hiddenInput);
+            }
+        });
+
+        // For checkboxes in current tab that are unchecked, explicitly set to empty/false
+        // This ensures unchecked checkboxes are properly saved as false
+        $.each(currentTabFields, function(fieldName) {
+            if (!submittedFields[fieldName]) {
+                var $field = form.find('[name="guiders_wp_plugin_settings[' + fieldName + ']"]');
+                if ($field.attr('type') === 'checkbox') {
+                    // Add hidden field with value 0 for unchecked checkbox
+                    var hiddenInput = $('<input>').attr({
+                        type: 'hidden',
+                        name: 'guiders_wp_plugin_settings[' + fieldName + ']',
+                        value: '0'
+                    });
+                    form.append(hiddenInput);
+                }
             }
         });
 
