@@ -36,30 +36,44 @@ function isDebugEnabled(): boolean {
 }
 
 /**
- * Log informativo (solo se muestra si GUIDERS_DEBUG=true o en development)
+ * Log informativo (SUPRIMIDO EN PRODUCCIÓN)
  *
  * USO: Para info detallada, debug de flujo interno, sincronización
+ * En producción, estos logs están completamente suprimidos.
  *
  * @example
  * debugLog('[Service] Procesando datos:', data);
  * debugLog('[WebSocket] Conexión establecida');
  */
 export function debugLog(...args: any[]): void {
-  if (isDebugEnabled()) {
-    console.log(...args);
+  // En producción, NO mostrar NADA (completamente silencioso)
+  if (__PRODUCTION__) {
+    return; // Salir inmediatamente sin hacer nada
   }
+
+  // En desarrollo, mostrar siempre (a menos que GUIDERS_DEBUG = false)
+  if (typeof window !== 'undefined' && window.GUIDERS_DEBUG === false) {
+    return;
+  }
+
+  console.log(...args);
 }
 
 /**
- * Log de inicialización (SIEMPRE se muestra, una sola vez)
+ * Log de inicialización (SUPRIMIDO EN PRODUCCIÓN)
  *
  * USO: Para confirmar que el SDK se inicializó correctamente
- * Útil para usuarios que quieren verificar que el SDK está activo
+ * En producción, estos logs están suprimidos para mantener consola limpia.
  *
  * @example
  * debugInit('[Guiders SDK] v1.4.1 - Inicializado correctamente');
  */
 export function debugInit(...args: any[]): void {
+  // En producción, NO mostrar logs de inicialización
+  if (__PRODUCTION__) {
+    return;
+  }
+
   console.log(...args);
 }
 
@@ -108,4 +122,31 @@ export function disableDebug(): void {
     window.GUIDERS_DEBUG = false;
     console.log('[Guiders SDK] 🐛 Modo debug deshabilitado');
   }
+}
+
+/**
+ * Suprimir console.log en producción
+ * Esto asegura que NINGÚN console.log() se muestre en producción,
+ * solo console.warn() y console.error()
+ */
+export function suppressConsoleLogs(): void {
+  if (typeof window !== 'undefined' && __PRODUCTION__) {
+    // Guardar referencia original por si acaso
+    const originalLog = console.log;
+
+    // Sobrescribir console.log para que no haga nada en producción
+    console.log = function() {
+      // No hacer nada - completamente silencioso
+    };
+
+    // Permitir que usuarios activen logs manualmente si necesitan debug
+    if (window.GUIDERS_DEBUG === true) {
+      console.log = originalLog; // Restaurar si usuario quiere debug
+    }
+  }
+}
+
+// Auto-ejecutar supresión en producción
+if (typeof window !== 'undefined') {
+  suppressConsoleLogs();
 }
