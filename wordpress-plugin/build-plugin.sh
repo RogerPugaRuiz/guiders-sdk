@@ -48,6 +48,14 @@ fi
 echo "📋 Copiando SDK al plugin..."
 cp dist/index.js wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js
 
+echo "🔍 Validando JavaScript en archivos PHP..."
+if bash wordpress-plugin/validate-php-javascript.sh; then
+    echo "✅ Validación exitosa"
+else
+    echo "❌ Validación fallida - por favor corrija los errores antes de continuar"
+    exit 1
+fi
+
 DIST_DIR="wordpress-plugin/dist"
 mkdir -p "$DIST_DIR"
 
