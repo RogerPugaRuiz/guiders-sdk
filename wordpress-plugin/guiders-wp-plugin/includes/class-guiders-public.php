@@ -247,15 +247,13 @@ class GuidersPublic {
             function setupConsentSync() {
                 // Verificar si la sincronización está habilitada
                 if (!cookieConfig.wp_consent_api_enabled) {
-                    if (cookieConfig.debug) {
-                    }
+                    
                     return false;
                 }
 
                 // Verificar si se debe forzar el sistema interno
                 if (cookieConfig.system === 'internal') {
-                    if (cookieConfig.debug) {
-                    }
+                    
                     return false;
                 }
 
@@ -270,13 +268,11 @@ class GuidersPublic {
 
                 // Si el sistema es 'custom', no hacer nada (el usuario debe implementar su lógica)
                 if (cookieConfig.system === 'custom') {
-                    if (cookieConfig.debug) {
-                    }
+                    
                     return false;
                 }
 
-                if (cookieConfig.debug) {
-                }
+                
 
                 // Mapeo de categorías: WP Consent API → Guiders SDK
                 var categoryMap = {
@@ -288,8 +284,7 @@ class GuidersPublic {
                 // Función para sincronizar consentimiento inicial desde WP Consent API a Guiders
                 function syncInitialConsent() {
                     if (!window.guiders || !window.guiders.grantConsentWithPreferences) {
-                        if (cookieConfig.debug) {
-                        }
+                        
                         return;
                     }
 
@@ -302,15 +297,13 @@ class GuidersPublic {
                         var hasConsent = wp_has_consent(wpCategory);
                         guidersConsent[guidersCategory] = hasConsent;
                         if (hasConsent) hasAnyConsent = true;
-                        if (cookieConfig.debug) {
-                        }
+                        
                     });
 
                     // Actualizar consentimiento en Guiders SDK
                     if (hasAnyConsent) {
                         window.guiders.grantConsentWithPreferences(guidersConsent);
-                        if (cookieConfig.debug) {
-                        }
+                        
                     }
                 }
 
@@ -331,13 +324,11 @@ class GuidersPublic {
                             update[guidersCategory] = newConsent;
                             window.guiders.grantConsentWithPreferences(update);
 
-                            if (cookieConfig.debug) {
-                            }
+                            
                         });
                     });
 
-                    if (cookieConfig.debug) {
-                    }
+                    
                 }
 
                 // Ejecutar sincronización inicial y configurar listener
@@ -353,15 +344,13 @@ class GuidersPublic {
             function setupMooveGDPRSync() {
                 // Verificar si debe sincronizarse
                 if (!cookieConfig.wp_consent_api_enabled) {
-                    if (cookieConfig.debug) {
-                    }
+                    
                     return false;
                 }
 
                 // Verificar si se debe forzar el sistema interno
                 if (cookieConfig.system === 'internal') {
-                    if (cookieConfig.debug) {
-                    }
+                    
                     return false;
                 }
 
@@ -374,8 +363,7 @@ class GuidersPublic {
                     return false;
                 }
 
-                if (cookieConfig.debug) {
-                }
+                
 
                 // Función helper para leer cookies
                 function getCookie(name) {
@@ -397,8 +385,7 @@ class GuidersPublic {
                     var cookieValue = getCookie('moove_gdpr_popup');
 
                     if (!cookieValue) {
-                        if (cookieConfig.debug) {
-                        }
+                        
                         return null;
                     }
 
@@ -407,8 +394,7 @@ class GuidersPublic {
                         var decoded = decodeURIComponent(cookieValue);
                         var cookieData = JSON.parse(decoded);
 
-                        if (cookieConfig.debug) {
-                        }
+                        
 
                         // MAPEO FLEXIBLE: Detecta automáticamente si usa 3 o 5 categorías
                         //
@@ -450,8 +436,7 @@ class GuidersPublic {
 
                         return consent;
                     } catch (e) {
-                        if (cookieConfig.debug) {
-                        }
+                        
                     }
 
                     // MÉTODO 2 (FALLBACK): Leer localStorage (método antiguo)
@@ -463,13 +448,6 @@ class GuidersPublic {
                                         localStorage.getItem('moove_gdpr_marketing') === '1' ||
                                         localStorage.getItem('moove_gdpr_advanced') === '1' ||
                                         localStorage.getItem('moove_gdpr_preference') === '1';
-
-                    if (cookieConfig.debug) {
-                            functional: functional,
-                            analytics: analytics,
-                            personalization: personalization
-                        });
-                    }
 
                     return {
                         functional: functional,
@@ -486,8 +464,7 @@ class GuidersPublic {
                     if (!window.guiders || !window.guiders.grantConsentWithPreferences) {
                         if (syncRetries < maxSyncRetries) {
                             syncRetries++;
-                            if (cookieConfig.debug) {
-                            }
+                            
                             setTimeout(syncMooveToGuiders, 500);
                         } else {
                         }
@@ -497,8 +474,7 @@ class GuidersPublic {
                     var consent = readMooveConsent();
 
                     if (!consent) {
-                        if (cookieConfig.debug) {
-                        }
+                        
                         return;
                     }
 
@@ -529,8 +505,7 @@ class GuidersPublic {
                 // Sincronizar estado inicial
                 syncMooveToGuiders();
 
-                if (cookieConfig.debug) {
-                }
+                
 
                 return true; // Moove GDPR detectado y configurado
             }
@@ -541,15 +516,13 @@ class GuidersPublic {
             function setupBeautifulCookieBannerSync() {
                 // Verificar si debe sincronizarse
                 if (!cookieConfig.wp_consent_api_enabled) {
-                    if (cookieConfig.debug) {
-                    }
+                    
                     return false;
                 }
 
                 // Verificar si se debe forzar el sistema interno
                 if (cookieConfig.system === 'internal') {
-                    if (cookieConfig.debug) {
-                    }
+                    
                     return false;
                 }
 
@@ -569,26 +542,22 @@ class GuidersPublic {
                                               document.querySelector('.cc-banner') !== null;
 
                 if (!hasBeautifulCookieBanner) {
-                    if (cookieConfig.debug) {
-                    }
+                    
                     return false;
                 }
 
-                if (cookieConfig.debug) {
-                }
+                
 
                 // Función para leer consentimiento de Beautiful Cookie Banner
                 function readBeautifulCookieBannerConsent() {
                     var cookieValue = getCookie('cookieconsent_status');
 
                     if (!cookieValue) {
-                        if (cookieConfig.debug) {
-                        }
+                        
                         return null;
                     }
 
-                    if (cookieConfig.debug) {
-                    }
+                    
 
                     // Intentar parsear como JSON (modo diferenciado)
                     try {
@@ -633,8 +602,7 @@ class GuidersPublic {
                     if (!window.guiders || !window.guiders.grantConsentWithPreferences) {
                         if (syncRetries < maxSyncRetries) {
                             syncRetries++;
-                            if (cookieConfig.debug) {
-                            }
+                            
                             setTimeout(syncBeautifulCookieBannerToGuiders, 500);
                         } else {
                         }
@@ -644,8 +612,7 @@ class GuidersPublic {
                     var consent = readBeautifulCookieBannerConsent();
 
                     if (!consent) {
-                        if (cookieConfig.debug) {
-                        }
+                        
                         return;
                     }
 
@@ -667,16 +634,14 @@ class GuidersPublic {
 
                         if (data && (data.event === 'beautiful_cookie_consent_updated' ||
                                     data.event === 'beautiful_cookie_consent_initialized')) {
-                            if (cookieConfig.debug) {
-                            }
+                            
                             setTimeout(syncBeautifulCookieBannerToGuiders, 100);
                         }
 
                         return originalPush.apply(window.dataLayer, args);
                     };
 
-                    if (cookieConfig.debug) {
-                    }
+                    
                 }
 
                 // Método 2: Polling de cambios en cookie (fallback)
@@ -692,8 +657,7 @@ class GuidersPublic {
                 // Sincronizar estado inicial
                 setTimeout(syncBeautifulCookieBannerToGuiders, 500);
 
-                if (cookieConfig.debug) {
-                }
+                
 
                 return true; // Beautiful Cookie Banner detectado y configurado
             }
