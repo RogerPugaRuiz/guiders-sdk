@@ -36,117 +36,57 @@ function isDebugEnabled(): boolean {
 }
 
 /**
- * Log informativo (SUPRIMIDO EN PRODUCCIÓN)
+ * Log informativo (COMPLETAMENTE DESHABILITADO)
  *
- * USO: Para info detallada, debug de flujo interno, sincronización
- * En producción, estos logs están completamente suprimidos.
- *
- * @example
- * debugLog('[Service] Procesando datos:', data);
- * debugLog('[WebSocket] Conexión establecida');
+ * USO: Esta función no hace nada, todos los logs informativos están suprimidos
  */
 export function debugLog(...args: any[]): void {
-  // En producción, NO mostrar NADA (completamente silencioso)
-  if (__PRODUCTION__) {
-    return; // Salir inmediatamente sin hacer nada
-  }
-
-  // En desarrollo, mostrar siempre (a menos que GUIDERS_DEBUG = false)
-  if (typeof window !== 'undefined' && window.GUIDERS_DEBUG === false) {
-    return;
-  }
-
-  console.log(...args);
+  // Completamente deshabilitado - no hacer nada
+  return;
 }
 
 /**
- * Log de inicialización (SUPRIMIDO EN PRODUCCIÓN)
+ * Log de inicialización (COMPLETAMENTE DESHABILITADO)
  *
- * USO: Para confirmar que el SDK se inicializó correctamente
- * En producción, estos logs están suprimidos para mantener consola limpia.
- *
- * @example
- * debugInit('[Guiders SDK] v1.4.1 - Inicializado correctamente');
+ * USO: Esta función no hace nada, todos los logs de inicialización están suprimidos
  */
 export function debugInit(...args: any[]): void {
-  // En producción, NO mostrar logs de inicialización
-  if (__PRODUCTION__) {
-    return;
-  }
-
-  console.log(...args);
+  // Completamente deshabilitado - no hacer nada
+  return;
 }
 
 /**
- * Log de advertencia (SIEMPRE se muestra)
+ * Log de advertencia (COMPLETAMENTE DESHABILITADO)
  *
- * USO: Para warnings importantes, fallbacks, retries, situaciones anormales
- *
- * @example
- * debugWarn('[Service] API no disponible, usando fallback');
- * debugWarn('[WebSocket] Reconexión en progreso');
+ * USO: Esta función no hace nada, todos los warnings están suprimidos
  */
 export function debugWarn(...args: any[]): void {
-  console.warn(...args);
+  // Completamente deshabilitado - no hacer nada
+  return;
 }
 
 /**
- * Log de error (SIEMPRE se muestra)
+ * Log de error (COMPLETAMENTE DESHABILITADO)
  *
- * USO: Para errores críticos, excepciones, fallos de red
- *
- * @example
- * debugError('[Service] Error crítico:', error);
- * debugError('[API] Request fallida:', response.status);
+ * USO: Esta función no hace nada, todos los errores están suprimidos
  */
 export function debugError(...args: any[]): void {
-  console.error(...args);
+  // Completamente deshabilitado - no hacer nada
+  return;
 }
 
 /**
- * Habilita el modo debug globalmente
- * Útil para debugging en producción
+ * Habilita el modo debug globalmente (DESHABILITADO)
  */
 export function enableDebug(): void {
-  if (typeof window !== 'undefined') {
-    window.GUIDERS_DEBUG = true;
-    console.log('[Guiders SDK] 🐛 Modo debug habilitado');
-  }
+  // No hacer nada - debug completamente deshabilitado
+  return;
 }
 
 /**
- * Deshabilita el modo debug globalmente
+ * Deshabilita el modo debug globalmente (DESHABILITADO)
  */
 export function disableDebug(): void {
-  if (typeof window !== 'undefined') {
-    window.GUIDERS_DEBUG = false;
-    console.log('[Guiders SDK] 🐛 Modo debug deshabilitado');
-  }
-}
-
-/**
- * Suprimir console.log en producción
- * Esto asegura que NINGÚN console.log() se muestre en producción,
- * solo console.warn() y console.error()
- */
-export function suppressConsoleLogs(): void {
-  if (typeof window !== 'undefined' && __PRODUCTION__) {
-    // Guardar referencia original por si acaso
-    const originalLog = console.log;
-
-    // Sobrescribir console.log para que no haga nada en producción
-    console.log = function() {
-      // No hacer nada - completamente silencioso
-    };
-
-    // Permitir que usuarios activen logs manualmente si necesitan debug
-    if (window.GUIDERS_DEBUG === true) {
-      console.log = originalLog; // Restaurar si usuario quiere debug
-    }
-  }
-}
-
-// Auto-ejecutar supresión en producción
-if (typeof window !== 'undefined') {
-  suppressConsoleLogs();
+  // No hacer nada - debug completamente deshabilitado
+  return;
 }

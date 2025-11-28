@@ -1,4 +1,5 @@
 import { PipelineStage } from "./pipeline-stage";
+import { debugLog } from '../utils/debug-logger';
 
 export class PipelineProcessor<I = any, O extends I = I> {
 	private stages: PipelineStage<I, O>[];
@@ -13,16 +14,15 @@ export class PipelineProcessor<I = any, O extends I = I> {
 			try {
 				output = stage.process(input);
 				input = output;
-				console.log(`Procesando evento con ${stage.constructor.name}`);
+				debugLog(`Procesando evento con ${stage.constructor.name}`);
 			} catch (error) {
-				console.error(`Error en el pipeline: ${error}`);
 				break;
 			}
 		}
 		if (!output) {
 			throw new Error('No se pudo procesar el evento');
 		}
-		console.log('Evento procesado:', output);
+		debugLog('Evento procesado:', output);
 		return output;
 		// return this.stages.reduce((acc, stage) => stage.process(acc), input as any);
 	}

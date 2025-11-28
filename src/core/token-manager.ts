@@ -1,6 +1,7 @@
 // src/core/token-manager.ts
 import { PixelEvent } from "../types/index";
 import { ClientJS } from "clientjs";
+import { debugLog } from '../utils/debug-logger';
 
 type TokenChangeSubscriber = (token: string) => void;
 
@@ -78,8 +79,8 @@ export class TokenManager {
 	 */
 	public static async getValidAccessToken(): Promise<string | null> {
 		if (this.isTokenExpiring()) {
-			console.log("Access token expirando, solicitando nuevos tokens...");
-			console.log("❌ No hay servicio de tokens disponible.");
+			debugLog("Access token expirando, solicitando nuevos tokens...");
+			debugLog("❌ No hay servicio de tokens disponible.");
 			return null;
 		}
 		return this.accessToken;
@@ -113,7 +114,6 @@ export class TokenManager {
 
 			return true;
 		} catch (error) {
-			console.error("Error al cargar tokens desde almacenamiento:", error);
 			return false;
 		}
 	}
@@ -134,10 +134,9 @@ export class TokenManager {
 	 */
 	public static attachTokenToEvent<T extends PixelEvent>(event: T): T {
 		if (!this.accessToken) {
-			console.error("No hay access token disponible.");
 			return event;
 		}
-		console.log("🔒 Adjuntando token al evento.");
+		debugLog("🔒 Adjuntando token al evento.");
 		return {
 			...event,
 			token: this.accessToken
@@ -149,24 +148,22 @@ export class TokenManager {
 	 */
 	public static startTokenMonitor(): void {
 		if (this.tokenMonitorInterval) {
-			console.warn("Token monitor ya está corriendo.");
 			return;
 		}
 
 		this.tokenMonitorInterval = setInterval(async () => {
-			console.log("⏳ Verificando el estado del token...");
+			debugLog("⏳ Verificando el estado del token...");
 			if (this.isTokenExpiring()) {
-				console.log("⚠️ Token a punto de expirar, intentando refrescar...");
+				debugLog("⚠️ Token a punto de expirar, intentando refrescar...");
 				const token = await this.getValidAccessToken();
 				if (token) {
 					this.notifyTokenChange(token);
-					console.log("✅ Token refrescado automáticamente.");
+					debugLog("✅ Token refrescado automáticamente.");
 				} else {
-					console.error("❌ No se pudo refrescar el token.");
 				}
 			}
 		}, 10000); // Cada 10 segundos
-		console.log("🟢 Token monitor iniciado.");
+		debugLog("🟢 Token monitor iniciado.");
 	}
 
 	/**
@@ -176,7 +173,7 @@ export class TokenManager {
 		if (this.tokenMonitorInterval) {
 			clearInterval(this.tokenMonitorInterval);
 			this.tokenMonitorInterval = null;
-			console.log("🛑 Token monitor detenido.");
+			debugLog("🛑 Token monitor detenido.");
 		}
 	}
 
@@ -189,7 +186,6 @@ export class TokenManager {
 			this.expirationTime = payload.exp; // Tiempo UNIX en segundos
 			localStorage.setItem("tokenExpiration", payload.exp.toString());
 		} catch (error) {
-			console.error("Error al decodificar el token:", error);
 			this.expirationTime = null;
 		}
 	}

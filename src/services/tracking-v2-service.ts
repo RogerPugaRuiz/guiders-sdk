@@ -153,7 +153,6 @@ export class TrackingV2Service {
     events: TrackingEventDto[]
   ): Promise<IngestEventsResponseDto | null> {
     if (!this.initialized) {
-      console.warn('[TrackingV2Service] ⚠️ Servicio no inicializado, llamar a initialize() primero');
       return null;
     }
 
@@ -167,23 +166,16 @@ export class TrackingV2Service {
     const validEvents = events.filter((event) => this.isValidTrackingEvent(event));
 
     if (validEvents.length < originalCount) {
-      console.warn(
-        `[TrackingV2Service] ⚠️ Se descartaron ${originalCount - validEvents.length} eventos inválidos del batch`
-      );
-      console.warn('[TrackingV2Service] 💡 Limpia localStorage.removeItem("guiders_event_queue") para eliminar eventos antiguos');
+      // Eventos inválidos descartados
     }
 
     if (validEvents.length === 0) {
-      console.warn('[TrackingV2Service] ❌ No hay eventos válidos para enviar después del filtrado');
       return null;
     }
 
     // Validar tamaño del batch
     let finalEvents = validEvents;
     if (validEvents.length > TrackingV2Service.MAX_BATCH_SIZE) {
-      console.warn(
-        `[TrackingV2Service] ⚠️ Batch muy grande (${validEvents.length}), truncando a ${TrackingV2Service.MAX_BATCH_SIZE}`
-      );
       finalEvents = validEvents.slice(0, TrackingV2Service.MAX_BATCH_SIZE);
     }
 
@@ -262,17 +254,10 @@ export class TrackingV2Service {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(
-          `[TrackingV2Service] ❌ Error HTTP ${response.status}:`,
-          errorText
-        );
 
         // Reintentar solo en errores 5xx
         if (response.status >= 500 && retriesLeft > 0) {
           const delay = Math.pow(2, TrackingV2Service.MAX_RETRIES - retriesLeft) * 1000;
-          console.warn(
-            `[TrackingV2Service] 🔄 Reintentando en ${delay}ms (${retriesLeft} intentos restantes)...`
-          );
           await this.sleep(delay);
           return this.sendBatchWithRetry(payload, retriesLeft - 1);
         }
@@ -284,14 +269,10 @@ export class TrackingV2Service {
       debugLog('[TrackingV2Service] ✅ Batch enviado exitosamente:', result);
       return result;
     } catch (error) {
-      console.error('[TrackingV2Service] ❌ Error de red:', error);
 
       // Reintentar en caso de error de red
       if (retriesLeft > 0) {
         const delay = Math.pow(2, TrackingV2Service.MAX_RETRIES - retriesLeft) * 1000;
-        console.warn(
-          `[TrackingV2Service] 🔄 Reintentando en ${delay}ms (${retriesLeft} intentos restantes)...`
-        );
         await this.sleep(delay);
         return this.sendBatchWithRetry(payload, retriesLeft - 1);
       }

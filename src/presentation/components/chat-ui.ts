@@ -1013,7 +1013,6 @@ export class ChatUI {
 		if (this.visitorId) {
 			debugLog('👤 [ChatUI] Usando refreshChatDetailsFromVisitorList con visitorId:', this.visitorId);
 			this.refreshChatDetailsFromVisitorList(this.visitorId).catch(err => {
-				console.warn('⚠️ Error al obtener detalles desde lista, usando fallback:', err);
 				this.refreshChatDetails();
 			});
 		} else {
@@ -1420,7 +1419,6 @@ export class ChatUI {
 				this.loadChatContent();
 			}
 		} catch (err) {
-			console.error("Error iniciando chat:", err);
 			// Mensajes iniciales se manejan automáticamente en checkAndAddInitialMessages()
 		}
 	}
@@ -1445,7 +1443,6 @@ export class ChatUI {
 				this.checkInitialCommercialStatus();
 			}
 		} catch (error) {
-			console.error("Error al cargar el contenido del chat:", error);
 			// Mensajes iniciales se manejan automáticamente en checkAndAddInitialMessages()
 
 			if (this.chatDetail && this.chatDetail.status === 'active') {
@@ -1467,7 +1464,6 @@ export class ChatUI {
 
 			this.updateChatHeader();
 		} catch (error) {
-			console.warn("Error al cargar detalles del chat:", error);
 		}
 	}
 
@@ -1780,7 +1776,6 @@ export class ChatUI {
 			const chat = chatList.chats.find(c => c.id === this.chatId);
 
 			if (!chat) {
-				console.warn('⚠️ [ChatUI] Chat no encontrado en la lista del visitante:', this.chatId);
 				return;
 			}
 
@@ -1826,7 +1821,6 @@ export class ChatUI {
 			// Actualizar header con información del comercial
 			this.updateChatHeader();
 		} catch (error) {
-			console.error('❌ [ChatUI] Error al obtener chats del visitante:', error);
 		}
 	}
 

@@ -1,3 +1,5 @@
+import { debugLog } from '../utils/debug-logger';
+
 /**
  * Consent Placeholder
  *
@@ -18,11 +20,11 @@ export class ConsentPlaceholder {
    */
   public show(): void {
     if (this.container) {
-      console.log('[ConsentPlaceholder] ⚠️ Placeholder ya existe');
+      debugLog('[ConsentPlaceholder] ⚠️ Placeholder ya existe');
       return;
     }
 
-    console.log('[ConsentPlaceholder] 📝 Mostrando placeholder (sin consentimiento)');
+    debugLog('[ConsentPlaceholder] 📝 Mostrando placeholder (sin consentimiento)');
 
     this.container = document.createElement('div');
     this.container.id = 'guiders-consent-placeholder';
@@ -58,7 +60,7 @@ export class ConsentPlaceholder {
   public hide(): void {
     if (!this.container) return;
 
-    console.log('[ConsentPlaceholder] ✅ Ocultando placeholder (consentimiento otorgado)');
+    debugLog('[ConsentPlaceholder] ✅ Ocultando placeholder (consentimiento otorgado)');
 
     // Animación de salida
     this.container.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
@@ -184,7 +186,7 @@ export class ConsentPlaceholder {
     if (!button) return;
 
     button.addEventListener('click', () => {
-      console.log('[ConsentPlaceholder] 🔔 Usuario solicitó gestionar cookies');
+      debugLog('[ConsentPlaceholder] 🔔 Usuario solicitó gestionar cookies');
 
       // Emitir evento personalizado para que el banner GDPR se muestre
       window.dispatchEvent(new CustomEvent('guiders:show-consent-banner'));

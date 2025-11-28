@@ -115,7 +115,6 @@ export class RealtimeMessageManager {
 	 */
 	public async sendMessage(content: string, type: string = 'text'): Promise<void> {
 		if (!this.currentChatId) {
-			console.error('💬 [RealtimeMessageManager] ❌ No hay chat activo');
 			throw new Error('No hay chat activo');
 		}
 
@@ -140,7 +139,6 @@ export class RealtimeMessageManager {
 			// que disparará handleNewMessage() y renderizará en la UI
 			
 		} catch (error) {
-			console.error('💬 [RealtimeMessageManager] ❌ Error enviando mensaje:', error);
 			throw error;
 		}
 	}
@@ -186,12 +184,10 @@ export class RealtimeMessageManager {
 		// Opcional: Mostrar notificación en UI
 		if (this.chatUI && reason !== 'io client disconnect') {
 			// Solo mostrar si no fue desconexión intencional
-			console.warn('⚠️ Conexión perdida, intentando reconectar...');
 		}
 	}
 
 	private handleError(error: Error): void {
-		console.error('💬 [RealtimeMessageManager] ❌ Error WebSocket:', error.message);
 	}
 
 	/**
@@ -232,7 +228,6 @@ export class RealtimeMessageManager {
 
 		// Renderizar en ChatUI
 		if (!this.chatUI) {
-			console.warn('💬 [RealtimeMessageManager] ⚠️ ChatUI no disponible');
 			return;
 		}
 
@@ -253,7 +248,6 @@ export class RealtimeMessageManager {
 
 			debugLog('💬 [RealtimeMessageManager] ✅ Mensaje renderizado en UI');
 		} catch (error) {
-			console.error('💬 [RealtimeMessageManager] ❌ Error renderizando mensaje:', error);
 		}
 	}
 

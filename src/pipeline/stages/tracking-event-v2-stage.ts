@@ -61,7 +61,6 @@ export class TrackingEventV2Stage implements PipelineStage<PixelEvent, PixelEven
       // Limpiar metadata para reducir payload (opcional)
       delete event.metadata;
     } catch (err) {
-      console.warn('[TrackingEventV2Stage] ❌ Falló transformación a esquema v2, se envía original:', err);
     }
     return event;
   }

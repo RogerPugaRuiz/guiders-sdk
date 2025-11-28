@@ -32,7 +32,6 @@ export class ChatSessionStore {
       if (Array.isArray(parsed.open)) parsed.open.forEach(id => id && this.openChats.add(id));
       if (parsed.current) this.currentChatId = parsed.current;
     } catch (e) {
-      console.warn('[ChatSessionStore] ❌ Error al hidratar open chats:', e);
     }
   }
 
@@ -45,7 +44,6 @@ export class ChatSessionStore {
       };
       localStorage.setItem(this.LS_KEY, JSON.stringify(snapshot));
     } catch (e) {
-      console.warn('[ChatSessionStore] ❌ Error al persistir open chats:', e);
     }
   }
 

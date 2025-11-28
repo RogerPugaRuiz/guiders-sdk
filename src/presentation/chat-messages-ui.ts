@@ -213,7 +213,6 @@ export class ChatMessagesUI {
             debugLog(`✅ [ChatMessagesUI] Mensajes iniciales cargados y scroll al bottom realizado`);
             
         } catch (error) {
-            console.error('❌ [ChatMessagesUI] Error cargando mensajes iniciales:', error);
             this.showErrorMessage('Error al cargar mensajes');
         } finally {
             this.isLoading = false;
@@ -281,7 +280,6 @@ export class ChatMessagesUI {
             debugLog(`✅ [ChatMessagesUI] ${response.messages.length} mensajes antiguos cargados`);
             
         } catch (error) {
-            console.error('❌ [ChatMessagesUI] Error cargando mensajes antiguos:', error);
         } finally {
             this.hideTopLoadingIndicator();
             this.isLoading = false;
@@ -547,7 +545,6 @@ export class ChatMessagesUI {
                 return message.senderId === visitorId;
             }
         } catch (error) {
-            console.warn('No se pudo determinar el visitor ID actual:', error);
         }
         
         // Fallback: asumir que NO es del usuario si no podemos determinarlo

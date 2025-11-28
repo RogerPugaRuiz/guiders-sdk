@@ -20,7 +20,6 @@ export class ActiveHoursValidator {
       try {
         return Intl.DateTimeFormat().resolvedOptions().timeZone;
       } catch (error) {
-        console.warn('❌ [ActiveHoursValidator] No se pudo detectar timezone automáticamente, usando UTC:', error);
         return 'UTC';
       }
     }
@@ -29,7 +28,6 @@ export class ActiveHoursValidator {
       try {
         return Intl.DateTimeFormat().resolvedOptions().timeZone;
       } catch (error) {
-        console.warn('❌ [ActiveHoursValidator] No se pudo detectar timezone automáticamente, usando UTC:', error);
         return 'UTC';
       }
     }
@@ -42,7 +40,6 @@ export class ActiveHoursValidator {
 		}
 
 		if (!this.config.ranges || this.config.ranges.length === 0) {
-			console.warn('[ActiveHoursValidator] ❌ No hay rangos de horarios configurados');
 			return true; // Por defecto activo si no hay configuración
 		}
 
@@ -98,7 +95,6 @@ export class ActiveHoursValidator {
 			});
 			return new Date(timeString);
 		} catch (error) {
-			console.warn('[ActiveHoursValidator] ❌ Zona horaria inválida:', effectiveTimezone, error);
 		}
 		
 		return now; // Usar hora local por defecto
@@ -121,7 +117,6 @@ export class ActiveHoursValidator {
 			// Rango normal dentro del mismo día
 			return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 		} catch (error) {
-			console.warn('[ActiveHoursValidator] ❌ Error validando rango:', range, error);
 			return true; // En caso de error, permitir actividad
 		}
 	}
@@ -224,7 +219,6 @@ export class ActiveHoursValidator {
 					nextStart = startMinutes; // Para mañana
 				}
 			} catch (error) {
-				console.warn('[ActiveHoursValidator] ❌ Error procesando rango:', range, error);
 			}
 		}
 

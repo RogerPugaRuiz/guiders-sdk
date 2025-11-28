@@ -1,12 +1,13 @@
 import { PixelEvent } from '../types';
 import { PipelineStage } from './pipeline-stage';
+import { debugLog } from '../utils/debug-logger';
 
 // Archivo desactivado - WebSocket pipeline removido
 export class WebSocketPipeline {
     private stages: PipelineStage[] = [];
 
     constructor() {
-        console.log("💬 WebSocket pipeline desactivado");
+        debugLog("💬 WebSocket pipeline desactivado");
     }
 
     /**
@@ -32,6 +33,6 @@ export class WebSocketPipeline {
      * @param event El evento a enviar
      */
     public sendEvent(event: PixelEvent): void {
-        console.log("💬 Envío WebSocket desactivado:", event.type);
+        debugLog("💬 Envío WebSocket desactivado:", event.type);
     }
 } 

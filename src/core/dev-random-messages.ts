@@ -14,6 +14,7 @@
 
 import { ChatV2Service } from '../services/chat-v2-service';
 import { resolveDefaultEndpoints } from './endpoint-resolver';
+import { debugLog } from '../utils/debug-logger';
 
 export interface RandomMessageConfig {
   enabled: boolean;
@@ -180,12 +181,12 @@ export class DevRandomMessages {
     
     // Solo habilitar en modo dev
     if (endpoints.isProd) {
-      console.log('🎲 [DevRandomMessages] ❌ Deshabilitado en modo producción');
+      debugLog('🎲 [DevRandomMessages] ❌ Deshabilitado en modo producción');
       return;
     }
 
     this.config.enabled = true;
-    console.log('🎲 [DevRandomMessages] ✅ Inicializado en modo desarrollo');
+    debugLog('🎲 [DevRandomMessages] ✅ Inicializado en modo desarrollo');
     
     // Interceptar comandos de desarrollo desde el input del chat
     this.interceptChatInput();
@@ -198,7 +199,7 @@ export class DevRandomMessages {
         this.handleDevCommand(event.detail);
       }) as EventListener);
       
-      console.log('🎲 [DevRandomMessages] 🎯 Interceptor de comandos configurado');
+      debugLog('🎲 [DevRandomMessages] 🎯 Interceptor de comandos configurado');
     }
   }
 
@@ -210,7 +211,7 @@ export class DevRandomMessages {
     const { command, text, count, chatId } = detail;
     
     if (command === 'random') {
-      console.log(`🎲 [DevRandomMessages] 🎯 Comando detectado: ${text}`);
+      debugLog(`🎲 [DevRandomMessages] 🎯 Comando detectado: ${text}`);
       
       if (count !== null) {
         // Validar límites razonables para evitar spam
@@ -218,10 +219,9 @@ export class DevRandomMessages {
         const finalCount = Math.min(count, maxAllowed);
         
         if (count > maxAllowed) {
-          console.warn(`🎲 [DevRandomMessages] ⚠️ Número solicitado (${count}) excede el límite máximo (${maxAllowed}). Usando ${finalCount} mensajes.`);
         }
         
-        console.log(`🎲 [DevRandomMessages] 🎯 Comando #random:${count} detectado, generando ${finalCount} mensajes`);
+        debugLog(`🎲 [DevRandomMessages] 🎯 Comando #random:${count} detectado, generando ${finalCount} mensajes`);
         
         // Guardar configuración temporal
         const originalCount = this.config.messageCount;
@@ -233,7 +233,7 @@ export class DevRandomMessages {
           this.config.messageCount = originalCount;
         });
       } else {
-        console.log('🎲 [DevRandomMessages] 🎯 Comando #random detectado (cantidad por defecto)');
+        debugLog('🎲 [DevRandomMessages] 🎯 Comando #random detectado (cantidad por defecto)');
         this.chatId = chatId;
         this.startRandomMessages();
       }
@@ -246,7 +246,7 @@ export class DevRandomMessages {
     }
 
     this.isActive = true;
-    console.log(`🎲 [DevRandomMessages] 🚀 Iniciando generación de ${this.config.messageCount} mensajes aleatorios`);
+    debugLog(`🎲 [DevRandomMessages] 🚀 Iniciando generación de ${this.config.messageCount} mensajes aleatorios`);
 
     try {
       // Ajustar intervalos según la cantidad de mensajes para optimizar rendimiento
@@ -257,7 +257,7 @@ export class DevRandomMessages {
         // Para muchos mensajes, usar intervalos más cortos
         minInterval = Math.max(300, this.config.minInterval / 2);
         maxInterval = Math.max(800, this.config.maxInterval / 2);
-        console.log(`🎲 [DevRandomMessages] ⚡ Usando intervalos optimizados para ${this.config.messageCount} mensajes: ${minInterval}-${maxInterval}ms`);
+        debugLog(`🎲 [DevRandomMessages] ⚡ Usando intervalos optimizados para ${this.config.messageCount} mensajes: ${minInterval}-${maxInterval}ms`);
       }
 
       for (let i = 0; i < this.config.messageCount; i++) {
@@ -271,13 +271,12 @@ export class DevRandomMessages {
         // Enviar mensaje usando el servicio real
         await this.sendRandomMessage(message);
         
-        console.log(`🎲 [DevRandomMessages] 📤 Mensaje ${i + 1}/${this.config.messageCount}: "${message}"`);
+        debugLog(`🎲 [DevRandomMessages] 📤 Mensaje ${i + 1}/${this.config.messageCount}: "${message}"`);
       }
     } catch (error) {
-      console.error('🎲 [DevRandomMessages] ❌ Error generando mensajes:', error);
     } finally {
       this.isActive = false;
-      console.log('🎲 [DevRandomMessages] ✅ Generación de mensajes completada');
+      debugLog('🎲 [DevRandomMessages] ✅ Generación de mensajes completada');
     }
   }
 
@@ -289,7 +288,6 @@ export class DevRandomMessages {
     try {
       await ChatV2Service.getInstance().sendMessage(this.chatId, message, 'text');
     } catch (error) {
-      console.warn('🎲 [DevRandomMessages] ⚠️ Error enviando mensaje:', error);
       throw error;
     }
   }
@@ -310,7 +308,7 @@ export class DevRandomMessages {
   // Métodos públicos para configuración
   public setConfig(config: Partial<RandomMessageConfig>): void {
     this.config = { ...this.config, ...config };
-    console.log('🎲 [DevRandomMessages] ⚙️ Configuración actualizada:', this.config);
+    debugLog('🎲 [DevRandomMessages] ⚙️ Configuración actualizada:', this.config);
   }
 
   public getConfig(): RandomMessageConfig {
@@ -328,7 +326,6 @@ export class DevRandomMessages {
   // Método para trigger manual (útil para testing)
   public async triggerRandomMessages(chatId: string, count?: number): Promise<void> {
     if (!this.config.enabled) {
-      console.warn('🎲 [DevRandomMessages] ⚠️ No está habilitado en este entorno');
       return;
     }
 
@@ -338,7 +335,6 @@ export class DevRandomMessages {
       const finalCount = Math.min(count, maxAllowed);
       
       if (count > maxAllowed) {
-        console.warn(`🎲 [DevRandomMessages] ⚠️ Número solicitado (${count}) excede el límite máximo (${maxAllowed}). Usando ${finalCount} mensajes.`);
       }
       
       // Usar configuración temporal
@@ -358,7 +354,7 @@ export class DevRandomMessages {
   // Método para agregar mensajes personalizados
   public addCustomMessages(messages: string[]): void {
     this.randomMessages.push(...messages);
-    console.log(`🎲 [DevRandomMessages] ➕ Agregados ${messages.length} mensajes personalizados`);
+    debugLog(`🎲 [DevRandomMessages] ➕ Agregados ${messages.length} mensajes personalizados`);
   }
 }
 

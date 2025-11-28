@@ -128,10 +128,6 @@ export class TrackingV2TransformStage implements PipelineStage<PixelEvent, Pixel
 
       return event;
     } catch (error) {
-      console.error(
-        '[TrackingV2TransformStage] ❌ Error transformando evento:',
-        error
-      );
       return event; // Retornar evento sin transformar
     }
   }

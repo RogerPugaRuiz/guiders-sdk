@@ -1,6 +1,7 @@
 import { ChatUI } from "./chat";
 import { UnreadMessagesService } from "../services/unread-messages-service";
 import { ResolvedPosition } from "../utils/position-resolver";
+import { debugLog } from '../utils/debug-logger';
 
 interface ChatToggleButtonOptions {
 	label?: string;            // Texto o ícono a mostrar en el botón
@@ -28,7 +29,7 @@ export class ChatToggleButtonUI {
 
 		// Obtener la posición resuelta del ChatUI
 		this.resolvedPosition = this.chatUI.getResolvedPosition();
-		console.log('🔘 [ChatToggleButton] Posición resuelta del botón:', this.resolvedPosition.button);
+		debugLog('🔘 [ChatToggleButton] Posición resuelta del botón:', this.resolvedPosition.button);
 
 		const chatWidth = this.chatUI.getOptions().widgetWidth || '300px';
 		const num = parseInt(chatWidth.replace('px', ''));
@@ -122,7 +123,7 @@ export class ChatToggleButtonUI {
 		this.initializeStyles(); // Inicializar estilos inline además de CSS
 
 		// Configurar callback para actualizar badge cuando cambia el contador
-		console.log("💬 Inicializando sistema de notificaciones");
+		debugLog("💬 Inicializando sistema de notificaciones");
 	}
 
 	/**
@@ -171,7 +172,7 @@ export class ChatToggleButtonUI {
 			
 			// Ocultar el badge inicialmente (sin mensajes no leídos)
 			this.hideBadge();
-			console.log("💬 Badge inicializado y oculto (0 mensajes no leídos)");
+			debugLog("💬 Badge inicializado y oculto (0 mensajes no leídos)");
 			
 			// Inyectar estilos específicos del botón si no existen
 			if (!shadowHost.shadowRoot.querySelector('style[data-chat-toggle-btn]')) {
@@ -294,7 +295,7 @@ export class ChatToggleButtonUI {
 				`;
 				shadowHost.shadowRoot.appendChild(style);
 			}
-			console.log("💬 Botón añadido al shadow DOM del chat");
+			debugLog("💬 Botón añadido al shadow DOM del chat");
 		} else {
 			document.body.appendChild(this.button);
 			
@@ -306,7 +307,7 @@ export class ChatToggleButtonUI {
 			
 			// Ocultar el badge inicialmente (sin mensajes no leídos)
 			this.hideBadge();
-			console.log("💬 Botón añadido al body (sin shadow DOM)");
+			debugLog("💬 Botón añadido al body (sin shadow DOM)");
 		}
 	}
 
@@ -345,7 +346,7 @@ export class ChatToggleButtonUI {
 			// Invierte el estado actual
 			this.isVisible = !this.isVisible;
 			
-			console.log("Toggle button clicked, new state:", this.isVisible ? "visible" : "hidden");
+			debugLog("Toggle button clicked, new state:", this.isVisible ? "visible" : "hidden");
 			
 			// Aplicar/quitar clase para animar icono
 			if (this.isVisible) {
@@ -372,7 +373,7 @@ export class ChatToggleButtonUI {
 		this.badgeElement.style.transform = 'scale(0)';
 		this.badgeElement.style.display = 'none';
 		this.badgeElement.textContent = '';
-		console.log("🚫 Badge oculto - sin mensajes no leídos");
+		debugLog("🚫 Badge oculto - sin mensajes no leídos");
 	}
 
 	/**
@@ -381,18 +382,17 @@ export class ChatToggleButtonUI {
 	 */
 	private updateUnreadBadge(count: number): void {
 		if (!this.badgeElement) {
-			console.error("Badge element no encontrado");
 			return;
 		}
 
 		// ✅ NO mostrar el badge si el botón está oculto
 		if (this.button && this.button.style.display === 'none') {
-			console.log('🚫 Badge no se mostrará porque el botón está oculto');
+			debugLog('🚫 Badge no se mostrará porque el botón está oculto');
 			this.hideBadge();
 			return;
 		}
 
-		console.log(`📬 Actualizando badge: ${count} mensajes no leídos`);
+		debugLog(`📬 Actualizando badge: ${count} mensajes no leídos`);
 
 		if (count <= 0) {
 			this.hideBadge();
@@ -400,7 +400,7 @@ export class ChatToggleButtonUI {
 			this.badgeElement.classList.remove('hidden');
 			this.badgeElement.style.opacity = '1';
 			this.badgeElement.textContent = count > 99 ? '99+' : count.toString();
-			console.log(`🔴 Badge visible - ${count} mensajes no leídos`);
+			debugLog(`🔴 Badge visible - ${count} mensajes no leídos`);
 
 			// Asegurar que el badge sea visible con estilo explícito
 			this.badgeElement.style.display = 'flex';
@@ -515,11 +515,11 @@ export class ChatToggleButtonUI {
 	 */
 	public isButtonVisible(): boolean {
 		const isVisible = this.button && this.button.style.display !== 'none';
-		console.log("🔘 isButtonVisible() - Elemento existe:", !!this.button);
+		debugLog("🔘 isButtonVisible() - Elemento existe:", !!this.button);
 		if (this.button) {
-			console.log("🔘 isButtonVisible() - Display style:", this.button.style.display);
+			debugLog("🔘 isButtonVisible() - Display style:", this.button.style.display);
 		}
-		console.log("🔘 isButtonVisible() - Resultado:", isVisible);
+		debugLog("🔘 isButtonVisible() - Resultado:", isVisible);
 		return isVisible;
 	}
 
@@ -552,7 +552,7 @@ export class ChatToggleButtonUI {
 			this.button.classList.remove('open');
 		}
 
-		console.log(`🔘 Estado del toggle button actualizado: ${isOpen ? 'abierto' : 'cerrado'}`);
+		debugLog(`🔘 Estado del toggle button actualizado: ${isOpen ? 'abierto' : 'cerrado'}`);
 	}
 
 	/**
@@ -566,14 +566,14 @@ export class ChatToggleButtonUI {
 		onMessageReceived?: (chatId: string) => void,
 		autoOpenChatOnMessage?: boolean
 	): void {
-		console.log('🔌 Conectando servicio de mensajes no leídos con visitorId:', visitorId);
-		console.log('📬 Auto-apertura de chat:', autoOpenChatOnMessage ? 'habilitada' : 'deshabilitada');
+		debugLog('🔌 Conectando servicio de mensajes no leídos con visitorId:', visitorId);
+		debugLog('📬 Auto-apertura de chat:', autoOpenChatOnMessage ? 'habilitada' : 'deshabilitada');
 
 		// Inicializar el servicio con el callback para actualizar el badge
 		this.unreadService.initialize({
 			visitorId,
 			onCountChange: (count) => {
-				console.log('📬 Contador de mensajes no leídos actualizado:', count);
+				debugLog('📬 Contador de mensajes no leídos actualizado:', count);
 				this.updateUnreadCount(count);
 			},
 			onMessageReceived,
@@ -581,7 +581,7 @@ export class ChatToggleButtonUI {
 			debug: true // Habilitar logs de debug para troubleshooting
 		});
 
-		console.log('✅ Servicio de mensajes no leídos conectado');
+		debugLog('✅ Servicio de mensajes no leídos conectado');
 	}
 
 	/**
@@ -589,7 +589,7 @@ export class ChatToggleButtonUI {
 	 * @param chatId ID del chat
 	 */
 	public setActiveChatForUnread(chatId: string): void {
-		console.log('📌 Estableciendo chat activo para mensajes no leídos:', chatId);
+		debugLog('📌 Estableciendo chat activo para mensajes no leídos:', chatId);
 		this.unreadService.setCurrentChat(chatId);
 	}
 
@@ -597,7 +597,7 @@ export class ChatToggleButtonUI {
 	 * Marca todos los mensajes no leídos como leídos
 	 */
 	public async markAllMessagesAsRead(): Promise<void> {
-		console.log('✅ Marcando todos los mensajes como leídos...');
+		debugLog('✅ Marcando todos los mensajes como leídos...');
 		await this.unreadService.markAllAsRead();
 	}
 
@@ -607,13 +607,13 @@ export class ChatToggleButtonUI {
 	 * @param isOpen true si el chat está abierto, false si está cerrado
 	 */
 	public notifyChatOpenState(isOpen: boolean): void {
-		console.log(`💬 Notificando estado del chat al UnreadMessagesService: ${isOpen ? 'abierto' : 'cerrado'}`);
+		debugLog(`💬 Notificando estado del chat al UnreadMessagesService: ${isOpen ? 'abierto' : 'cerrado'}`);
 		this.unreadService.setChatOpenState(isOpen);
 
 		// Si el chat se abre, ocultar el badge inmediatamente
 		if (isOpen) {
 			this.hideBadge();
-			console.log('🚫 Badge ocultado porque el chat está abierto');
+			debugLog('🚫 Badge ocultado porque el chat está abierto');
 		}
 	}
 

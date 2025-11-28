@@ -274,7 +274,6 @@ export class TrackingPixelSDK {
 			// Validar la configuración antes de crear el validador
 			const configErrors = ActiveHoursValidator.validateConfig(activeHoursConfig);
 			if (configErrors.length > 0) {
-				console.warn('[TrackingPixelSDK] ❌ Errores en configuración de horarios activos:', configErrors);
 			} else {
 				this.activeHoursValidator = new ActiveHoursValidator(activeHoursConfig);
 				debugLog('[TrackingPixelSDK] 🕐 Validador de horarios activos configurado:', activeHoursConfig);
@@ -286,7 +285,6 @@ export class TrackingPixelSDK {
 		this.bypassConsentForTracking = options.trackingV2?.bypassConsent ?? false;
 
 		if (this.bypassConsentForTracking) {
-			console.warn('[TrackingPixelSDK] ⚠️ BYPASS CONSENT MODE ENABLED - Solo para desarrollo');
 		}
 
 		if (this.trackingV2Enabled) {
@@ -368,7 +366,6 @@ export class TrackingPixelSDK {
 
 					// Inicializar el SDK completo
 					this.init().catch(error => {
-						console.error('[TrackingPixelSDK] ❌ Error inicializando SDK después de consentimiento:', error);
 					});
 				}
 
@@ -485,7 +482,6 @@ export class TrackingPixelSDK {
 			// Inicializar inmediatamente
 			debugLog('[TrackingPixelSDK] 🔐 Estado inicial: granted - Inicializando SDK');
 			this.init().catch(error => {
-				console.error('[TrackingPixelSDK] ❌ Error inicializando SDK:', error);
 			});
 		} else {
 			// Estado denied - no hacer nada
@@ -528,7 +524,6 @@ export class TrackingPixelSDK {
 				await this.trackingV2Service.initialize(this.apiKey);
 				debugLog('[TrackingPixelSDK] ✅ TrackingV2Service inicializado');
 			} catch (error) {
-				console.error('[TrackingPixelSDK] ❌ Error inicializando TrackingV2Service:', error);
 			}
 		}
 
@@ -668,7 +663,6 @@ export class TrackingPixelSDK {
 					await ChatV2Service.getInstance().openChat(openingChatId);
 					debugLog("🔓 [TrackingPixelSDK] Chat abierto en backend:", openingChatId);
 				} catch (error) {
-					console.error("[TrackingPixelSDK] ❌ Error al abrir chat en backend:", error);
 				}
 			}
 
@@ -707,7 +701,6 @@ export class TrackingPixelSDK {
 					await ChatV2Service.getInstance().closeChat(closingChatId);
 					debugLog("🔒 [TrackingPixelSDK] Chat cerrado en backend:", closingChatId);
 				} catch (error) {
-					console.error("[TrackingPixelSDK] ❌ Error al cerrar chat en backend:", error);
 				}
 			}
 
@@ -770,19 +763,15 @@ export class TrackingPixelSDK {
 			});
 
 			if (!visitorId) {
-				console.warn('💬 [TrackingPixelSDK] ❌ No hay visitorId disponible para enviar mensaje');
-				console.warn('💬 [TrackingPixelSDK] 🔄 Intentando identificar visitante primero...');
 				
 				try {
 					await this.executeIdentify();
 					const newVisitorId = this.getVisitorId();
 					if (!newVisitorId) {
-						console.error('💬 [TrackingPixelSDK] ❌ No se pudo identificar el visitante');
 						return;
 					}
 					debugLog('💬 [TrackingPixelSDK] ✅ Visitante identificado:', newVisitorId);
 				} catch (error) {
-					console.error('💬 [TrackingPixelSDK] ❌ Error identificando visitante:', error);
 					return;
 				}
 			}
@@ -896,7 +885,6 @@ export class TrackingPixelSDK {
 					}
 				}
 			} catch (error) {
-				console.error('💬 [TrackingPixelSDK] ❌ Error enviando mensaje:', error);
 				// En caso de error, asegurar que se libere el bloqueo
 				chat.setCreatingChat(false);
 			}
@@ -906,7 +894,6 @@ export class TrackingPixelSDK {
 				
 				// Verificar si el mensaje contiene senderId
 				if (!msg.data.senderId) {
-					console.warn("⚠️ Mensaje WebSocket sin senderId:", msg);
 				}
 				
 				chat.renderChatMessage({
@@ -983,11 +970,11 @@ export class TrackingPixelSDK {
 	 * Ejecuta la identificación del visitante y carga sus chats.
 	 */
 	private async executeIdentify(): Promise<void> {
-		console.log('[TrackingPixelSDK] 🔍 executeIdentify() LLAMADO');
+		debugLog('[TrackingPixelSDK] 🔍 executeIdentify() LLAMADO');
 
 		// Prevenir múltiples ejecuciones
 		if (this.identifyExecuted) {
-			console.log('[TrackingPixelSDK] ⚠️ identify() ya ejecutado - ignorando llamada duplicada');
+			debugLog('[TrackingPixelSDK] ⚠️ identify() ya ejecutado - ignorando llamada duplicada');
 			return;
 		}
 
@@ -995,7 +982,7 @@ export class TrackingPixelSDK {
 		this.identifyExecuted = true;
 
 		try {
-			console.log('[TrackingPixelSDK] 🔍 Ejecutando identify...');
+			debugLog('[TrackingPixelSDK] 🔍 Ejecutando identify...');
 
 			// Obtener versión actual del ConsentManager para enviar al backend
 			const consentVersion = this.consentManager.getState().version;
@@ -1038,11 +1025,9 @@ export class TrackingPixelSDK {
 							// Esto es más robusto que GET /chats/{id} para chats recién creados
 							debugLog('📬 [TrackingPixelSDK] 🔄 Obteniendo detalles del chat desde lista del visitante');
 							this.chatUI!.refreshChatDetailsFromVisitorList(result.identity.visitorId).catch(err => {
-								console.warn('⚠️ Error al obtener detalles del chat:', err);
 								// Fallback: intentar con el método tradicional
 								debugLog('📬 [TrackingPixelSDK] 🔄 Fallback: intentando método tradicional');
 								this.chatUI!.refreshChatDetailsForced().catch(err2 => {
-									console.warn('⚠️ Error en fallback al refrescar detalles del chat:', err2);
 								});
 							});
 						},
@@ -1092,7 +1077,6 @@ export class TrackingPixelSDK {
 							debugLog('[TrackingPixelSDK] 📝 El backend ya tiene los consentimientos del identify() actual');
 						}
 					} catch (error) {
-						console.warn('[TrackingPixelSDK] ⚠️ No se pudo sincronizar con backend, continuando con estado local:', error);
 					}
 				}
 
@@ -1130,14 +1114,14 @@ export class TrackingPixelSDK {
 				// 📡 Inicializar WebSocket SIEMPRE para recibir notificaciones proactivas
 				// IMPORTANTE: Esto debe ejecutarse independientemente de si hay chats o no
 				// para poder recibir el evento 'chat:created' cuando un comercial cree un chat proactivamente
-				console.log('📡 [TrackingPixelSDK] 🔍 DEBUG: Verificando condiciones WebSocket:', {
+				debugLog('📡 [TrackingPixelSDK] 🔍 DEBUG: Verificando condiciones WebSocket:', {
 					hasChatUI: !!this.chatUI,
 					isConnected: this.wsService.isConnected(),
 					visitorId: this.getVisitorId()?.substring(0, 8) + '...'
 				});
 
 				if (this.chatUI && !this.wsService.isConnected()) {
-					console.log('📡 [TrackingPixelSDK] 🚀 Inicializando WebSocket para notificaciones en tiempo real');
+					debugLog('📡 [TrackingPixelSDK] 🚀 Inicializando WebSocket para notificaciones en tiempo real');
 					this.initializeWebSocketConnection(this.chatUI);
 
 					// Si hay chat existente, configurarlo en el RealtimeMessageManager
@@ -1153,7 +1137,6 @@ export class TrackingPixelSDK {
 			// No resetear el flag si es una operación cancelada
 			const errorMessage = e instanceof Error ? e.message : String(e);
 			if (!errorMessage.includes('Operation was superseded')) {
-				console.warn('[TrackingPixelSDK] ❌ identify V2 fallido:', e);
 				// Resetear flag para permitir reintento en caso de error real
 				this.identifyExecuted = false;
 			} else {
@@ -1231,7 +1214,6 @@ export class TrackingPixelSDK {
 							(navigator as any).sendBeacon(url, blob);
 							debugLog(`[TrackingPixelSDK] 📤 ${eventsToSend.length} eventos enviados via beacon`);
 						} catch (e) {
-							console.warn('[TrackingPixelSDK] ❌ Error enviando eventos via beacon:', e);
 						}
 					}
 				}
@@ -1241,7 +1223,6 @@ export class TrackingPixelSDK {
 				VisitorsV2Service.getInstance().endSession({ useBeacon: true });
 
 			} catch (e) {
-				console.warn(`[TrackingPixelSDK] ❌ Error en endSession (${reason}):`, e);
 			}
 		};
 
@@ -1334,7 +1315,6 @@ export class TrackingPixelSDK {
 		if (this.domTrackingManager instanceof EnhancedDomTrackingManager) {
 			this.domTrackingManager.enableAutomaticTracking();
 		} else {
-			console.warn('[TrackingPixelSDK] Heuristic detection not available. Use enableDOMTracking() instead.');
 			this.domTrackingManager.enableDOMTracking();
 		}
 	}
@@ -1356,7 +1336,6 @@ export class TrackingPixelSDK {
 		if (this.domTrackingManager instanceof EnhancedDomTrackingManager) {
 			this.domTrackingManager.updateHeuristicConfig(config);
 		} else {
-			console.warn('[TrackingPixelSDK] Heuristic detection not available.');
 		}
 	}
 
@@ -1367,7 +1346,6 @@ export class TrackingPixelSDK {
 		if (this.domTrackingManager instanceof EnhancedDomTrackingManager) {
 			this.domTrackingManager.setHeuristicEnabled(enabled);
 		} else {
-			console.warn('[TrackingPixelSDK] Heuristic detection not available.');
 		}
 	}
 
@@ -1391,7 +1369,6 @@ export class TrackingPixelSDK {
 				// Aquí podrías emitir un evento o actualizar la UI según sea necesario
 			}
 		} catch (error) {
-			console.error('[TrackingPixelSDK] ❌ Error actualizando configuración de horarios activos:', error);
 		}
 	}
 
@@ -1409,14 +1386,12 @@ export class TrackingPixelSDK {
 		if (this.sessionTrackingManager) {
 			debugLog('[TrackingPixelSDK] 🎯 Session tracking already enabled and initialized');
 		} else {
-			console.warn('[TrackingPixelSDK] Session tracking not initialized.');
 		}
 	}
 
 	public setMetadata(event: string, metadata: Record<string, unknown>): void {
 		const eventIndex = this.eventQueue.findIndex((e) => e.type === event);
 		if (eventIndex === -1) {
-			console.warn(`Evento '${event}' no encontrado en la cola.`);
 			return;
 		}
 
@@ -1456,10 +1431,8 @@ export class TrackingPixelSDK {
 					this.eventQueueManager.dequeue(batch.length);
 					debugLog(`[TrackingPixelSDK] ✅ ${result.processed} eventos procesados, ${result.discarded} descartados`);
 				} else {
-					console.warn('[TrackingPixelSDK] ⚠️ Batch no fue procesado exitosamente');
 				}
 			} catch (error) {
-				console.error('[TrackingPixelSDK] ❌ Error enviando batch:', error);
 				// Los eventos permanecen en la cola para reintentar más tarde
 			}
 		} else {
@@ -1493,7 +1466,6 @@ export class TrackingPixelSDK {
 
 			const { event, ...data } = params;
 			if (typeof event !== "string") {
-				console.error("El evento debe tener un tipo.");
 				reject(new Error("El evento debe tener un tipo."));
 				return;
 			}
@@ -1507,7 +1479,6 @@ export class TrackingPixelSDK {
 				});
 				resolve();
 			} catch (error) {
-				console.error("Error al capturar el evento:", error);
 				reject(error);
 			}
 		});
@@ -1518,7 +1489,6 @@ export class TrackingPixelSDK {
 	 * @deprecated Use track() instead. This method exists for WordPress plugin compatibility.
 	 */
 	public async trackEvent(eventType: string, data?: Record<string, unknown>): Promise<void> {
-		console.warn('[TrackingPixelSDK] ⚠️  trackEvent() is deprecated. Please use track() instead.');
 		return this.track({ event: eventType, ...data });
 	}
 
@@ -1574,14 +1544,11 @@ export class TrackingPixelSDK {
 			// Sin WebSocket, usar HTTP como fallback
 			debugLog("📡 Enviando evento via HTTP (sin WebSocket):", event.type);
 		} catch (error) {
-			console.error("❌ Error al enviar evento:", error);
 			if (retriesLeft > 0) {
-				console.warn(`Retrying (${this.maxRetries - retriesLeft + 1})...`);
 				setTimeout(() => {
 					this.trySendEventWithRetry(event, retriesLeft - 1);
 				}, 1000); // 1 segundo entre intentos
 			} else {
-				console.error("❌ No se pudo enviar el evento después de varios intentos:", event);
 			}
 		}
 	}
@@ -1630,7 +1597,6 @@ export class TrackingPixelSDK {
 			try {
 				listener(message);
 			} catch (error) {
-				console.error("Error al ejecutar listener:", error);
 			}
 		});
 	}
@@ -1727,9 +1693,7 @@ export class TrackingPixelSDK {
 			chatToggleButton.show();
 
 		} catch (error) {
-			console.error("❌ Error al verificar y actualizar visibilidad del chat:", error);
 			if (error instanceof Error) {
-				console.error("❌ Stack trace:", error.stack);
 			}
 		}
 	}
@@ -1812,7 +1776,6 @@ export class TrackingPixelSDK {
 			}
 
 		if (!chatId) {
-			console.error("❌ [checkCommercialAvailability] No se pudo obtener el ID del chat después de varios intentos. Abortando para evitar /v2/chats/undefined", { attempts });
 			// Mostrar el botón de todas formas para permitir al usuario intentar abrir el chat
 			debugLog("🔘 Mostrando botón de chat sin verificación de comerciales");
 			chatToggleButton.show();
@@ -1836,7 +1799,6 @@ export class TrackingPixelSDK {
 			// Mostrar siempre el botón del chat, sin importar la disponibilidad de comerciales
 			chatToggleButton.show();
 		} catch (error) {
-			console.error("Error al verificar disponibilidad de comerciales:", error);
 			// Mostrar el botón de todas formas para permitir al usuario acceder al chat
 			debugLog("🔘 Mostrando botón de chat a pesar del error en verificación");
 			chatToggleButton.show();
@@ -1850,7 +1812,6 @@ export class TrackingPixelSDK {
 	 */
 	private async fetchChatDetail(chatId: string): Promise<ChatDetail> {
 		if (!chatId) {
-			console.warn('❌ fetchChatDetail llamado sin chatId. Abortando.');
 			throw new Error('chatId requerido');
 		}
 		debugLog(`🌐 fetchChatDetail - Obteniendo detalles para chat ${chatId} (usando API V2)`);
@@ -1883,7 +1844,6 @@ export class TrackingPixelSDK {
 			
 			return legacyDetail;
 		} catch (error) {
-			console.warn('🌐 fetchChatDetail - Error con API V2, intentando API legacy:', error);
 			
 			// Fallback a la función legacy
 			return await fetchChatDetail(chatId);
@@ -1998,7 +1958,6 @@ export class TrackingPixelSDK {
 			debugLog('[TrackingPixelSDK] ✅ Visitante identificado exitosamente:', result.identity.visitorId);
 			return result;
 		} catch (error) {
-			console.error('[TrackingPixelSDK] ❌ Error identificando visitante:', error);
 			throw error;
 		}
 	}
@@ -2074,7 +2033,6 @@ export class TrackingPixelSDK {
 		if (this.chatUI) {
 			this.chatUI.show();
 		} else {
-			console.warn('[TrackingPixelSDK] ❌ Chat UI no está inicializado');
 		}
 	}
 
@@ -2208,7 +2166,6 @@ export class TrackingPixelSDK {
 			}
 
 		} catch (error) {
-			console.error('[TrackingPixelSDK] ❌ Error cargando mensajes del chat:', error);
 			chat.hideLoadingMessages();
 
 			// En caso de error, también verificar si mostrar mensaje de bienvenida
@@ -2279,7 +2236,6 @@ export class TrackingPixelSDK {
 			}
 
 		} catch (error) {
-			console.error('[TrackingPixelSDK] ❌ Error cargando mensajes iniciales:', error);
 		}
 	}
 
@@ -2329,7 +2285,6 @@ export class TrackingPixelSDK {
 
 			const configErrors = ActiveHoursValidator.validateConfig(activeHoursConfig);
 			if (configErrors.length > 0) {
-				console.warn('[TrackingPixelSDK] ❌ Errores en nueva configuración de horarios activos:', configErrors);
 				return false;
 			}
 
@@ -2341,7 +2296,6 @@ export class TrackingPixelSDK {
 			
 			return true;
 		} catch (error) {
-			console.error('[TrackingPixelSDK] ❌ Error actualizando horarios activos:', error);
 			return false;
 		}
 	}
@@ -2404,21 +2358,20 @@ export class TrackingPixelSDK {
 	 * @param chat Instancia del ChatUI
 	 */
 	private initializeWebSocketConnection(chat: ChatUI): void {
-		console.log('📡 [TrackingPixelSDK] 🔍 DEBUG: initializeWebSocketConnection() LLAMADO');
+		debugLog('📡 [TrackingPixelSDK] 🔍 DEBUG: initializeWebSocketConnection() LLAMADO');
 		const visitorId = this.getVisitorId();
 
-		console.log('📡 [TrackingPixelSDK] 🔍 DEBUG: visitorId =', visitorId?.substring(0, 8) + '...');
+		debugLog('📡 [TrackingPixelSDK] 🔍 DEBUG: visitorId =', visitorId?.substring(0, 8) + '...');
 
 		if (!visitorId) {
-			console.warn('📡 [TrackingPixelSDK] ⚠️ No se puede conectar WebSocket sin visitorId');
 			return;
 		}
 
 		// Verificar si ya está conectado
-		console.log('📡 [TrackingPixelSDK] 🔍 DEBUG: Verificando si ya conectado:', this.wsService.isConnected());
+		debugLog('📡 [TrackingPixelSDK] 🔍 DEBUG: Verificando si ya conectado:', this.wsService.isConnected());
 
 		if (this.wsService.isConnected()) {
-			console.log('📡 [TrackingPixelSDK] ✅ WebSocket ya conectado (skip init)');
+			debugLog('📡 [TrackingPixelSDK] ✅ WebSocket ya conectado (skip init)');
 			// Actualizar chat actual si cambió
 			const currentChatId = chat.getChatId();
 			if (currentChatId && this.realtimeMessageManager.getCurrentChatId() !== currentChatId) {
@@ -2434,15 +2387,15 @@ export class TrackingPixelSDK {
 			return;
 		}
 
-		console.log('📡 [TrackingPixelSDK] 🚀 Inicializando conexión WebSocket...');
+		debugLog('📡 [TrackingPixelSDK] 🚀 Inicializando conexión WebSocket...');
 
 		try {
 			// Obtener sessionId para autenticación
 			const sessionId = sessionStorage.getItem('guiders_backend_session_id');
-			console.log('📡 [TrackingPixelSDK] 🔍 DEBUG: sessionId encontrado:', sessionId ? sessionId.substring(0, 8) + '...' : 'NO');
+			debugLog('📡 [TrackingPixelSDK] 🔍 DEBUG: sessionId encontrado:', sessionId ? sessionId.substring(0, 8) + '...' : 'NO');
 
 			// Configurar y conectar WebSocket
-			console.log('📡 [TrackingPixelSDK] 🔍 DEBUG: Llamando wsService.connect()...');
+			debugLog('📡 [TrackingPixelSDK] 🔍 DEBUG: Llamando wsService.connect()...');
 			this.wsService.connect(
 				{
 					sessionId: sessionId || undefined,
@@ -2469,7 +2422,6 @@ export class TrackingPixelSDK {
 						debugLog('📡 [TrackingPixelSDK] ⚠️ WebSocket desconectado:', reason);
 					},
 					onError: (error) => {
-						console.error('📡 [TrackingPixelSDK] ❌ Error WebSocket:', error.message);
 					},
 					onChatCreated: (event) => {
 						debugLog('📡 [TrackingPixelSDK] 🎉 Chat creado proactivamente por un comercial:', event);
@@ -2527,7 +2479,6 @@ export class TrackingPixelSDK {
 
 			debugLog('📡 [TrackingPixelSDK] ✅ Sistema de mensajería en tiempo real inicializado');
 		} catch (error) {
-			console.error('📡 [TrackingPixelSDK] ❌ Error inicializando WebSocket:', error);
 		}
 	}
 
@@ -2536,27 +2487,26 @@ export class TrackingPixelSDK {
 	 * Debe llamarse después de identify() cuando tengamos visitorId
 	 */
 	private setupPresenceService(): void {
-		console.log('🟢 [TrackingPixelSDK] setupPresenceService() LLAMADO');
+		debugLog('🟢 [TrackingPixelSDK] setupPresenceService() LLAMADO');
 
 		const visitorId = this.getVisitorId();
 
 		if (!visitorId) {
-			console.warn('🟢 [TrackingPixelSDK] ⚠️ No se puede configurar PresenceService sin visitorId');
 			return;
 		}
 
 		// Verificar si el sistema de presencia está habilitado
 		if (!this.presenceConfig.enabled) {
-			console.log('🟢 [TrackingPixelSDK] ⚠️ Sistema de presencia deshabilitado en configuración');
+			debugLog('🟢 [TrackingPixelSDK] ⚠️ Sistema de presencia deshabilitado en configuración');
 			return;
 		}
 
 		if (this.presenceService) {
-			console.log('🟢 [TrackingPixelSDK] ✅ PresenceService ya configurado');
+			debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService ya configurado');
 			return;
 		}
 
-		console.log('🟢 [TrackingPixelSDK] 🚀 Configurando PresenceService...', this.presenceConfig);
+		debugLog('🟢 [TrackingPixelSDK] 🚀 Configurando PresenceService...', this.presenceConfig);
 
 		try {
 			// Inicializar PresenceService con configuración personalizada
@@ -2604,7 +2554,7 @@ export class TrackingPixelSDK {
 			// 📡 Conectar WebSocket automáticamente para habilitar user:activity
 			// Esto permite que el sistema de presencia funcione (AWAY → ONLINE) sin necesidad de abrir el chat
 			if (!this.wsService.isConnected()) {
-				console.log('📡 [TrackingPixelSDK] 🚀 Conectando WebSocket automáticamente para presencia...');
+				debugLog('📡 [TrackingPixelSDK] 🚀 Conectando WebSocket automáticamente para presencia...');
 				const sessionId = sessionStorage.getItem('guiders_backend_session_id');
 				this.wsService.connect(
 					{
@@ -2620,7 +2570,6 @@ export class TrackingPixelSDK {
 							debugLog('📡 [TrackingPixelSDK] ⚠️ WebSocket desconectado (presencia):', reason);
 						},
 						onError: (error) => {
-							console.error('📡 [TrackingPixelSDK] ❌ Error WebSocket (presencia):', error.message);
 						}
 					}
 				);
@@ -2628,7 +2577,6 @@ export class TrackingPixelSDK {
 
 			debugLog('🟢 [TrackingPixelSDK] ✅ Sistema de presencia configurado exitosamente');
 		} catch (error) {
-			console.error('🟢 [TrackingPixelSDK] ❌ Error configurando PresenceService:', error);
 		}
 	}
 
@@ -2641,7 +2589,6 @@ export class TrackingPixelSDK {
 		try {
 			await this.realtimeMessageManager.sendMessage(content, type);
 		} catch (error) {
-			console.error('📡 [TrackingPixelSDK] ❌ Error enviando mensaje en tiempo real:', error);
 			throw error;
 		}
 	}
@@ -2676,7 +2623,6 @@ export class TrackingPixelSDK {
 
 			debugLog('📡 [TrackingPixelSDK] 🔔 Notificación de nuevo chat mostrada');
 		} catch (error) {
-			console.error('📡 [TrackingPixelSDK] ❌ Error mostrando notificación:', error);
 		}
 	}
 
@@ -2701,7 +2647,6 @@ export class TrackingPixelSDK {
 				notification.close();
 			};
 		} catch (error) {
-			console.error('📡 [TrackingPixelSDK] ❌ Error creando notificación del navegador:', error);
 		}
 	}
 
@@ -2792,7 +2737,6 @@ export class TrackingPixelSDK {
 
 				// Verificar si hay consentimiento funcional
 				if (!this.consentManager.isCategoryAllowed('functional')) {
-					console.warn('[TrackingPixelSDK] 🔐 Envío de mensajes bloqueado - se requiere consentimiento funcional');
 					chat.addSystemMessage('Se requiere aceptar cookies funcionales para enviar mensajes.');
 					return;
 				}
@@ -2815,7 +2759,6 @@ export class TrackingPixelSDK {
 						chat.setChatId(result.chatId);
 					}
 				} catch (error) {
-					console.error('[TrackingPixelSDK] ❌ Error enviando mensaje:', error);
 				}
 			});
 		};
@@ -2907,7 +2850,6 @@ export class TrackingPixelSDK {
 		// Reiniciar el SDK con tracking habilitado
 		debugLog('[TrackingPixelSDK] 🔄 Reiniciando SDK con tracking habilitado...');
 		this.init().catch(error => {
-			console.error('[TrackingPixelSDK] ❌ Error reiniciando SDK:', error);
 		});
 	}
 
@@ -2930,7 +2872,6 @@ export class TrackingPixelSDK {
 		// Reiniciar el SDK con tracking habilitado
 		debugLog('[TrackingPixelSDK] 🔄 Reiniciando SDK...');
 		this.init().catch(error => {
-			console.error('[TrackingPixelSDK] ❌ Error reiniciando SDK:', error);
 		});
 	}
 
@@ -2960,7 +2901,6 @@ export class TrackingPixelSDK {
 		const consentVersion = this.consentManager.getState().version;
 
 		this.identitySignal.identify(fingerprint, this.apiKey, consentVersion).catch(error => {
-			console.warn('[TrackingPixelSDK] ⚠️ No se pudo registrar el rechazo en el backend:', error);
 			// No es un error crítico - el usuario ya tiene acceso limitado localmente
 		});
 	}
@@ -2985,7 +2925,6 @@ export class TrackingPixelSDK {
 					debugLog('[TrackingPixelSDK] 🔄 Revocación sincronizada con backend');
 				})
 				.catch(error => {
-					console.error('[TrackingPixelSDK] ❌ Error revocando en backend:', error);
 				});
 		}
 	}
@@ -3057,7 +2996,6 @@ export class TrackingPixelSDK {
 					// await VisitorsV2Service.getInstance().deleteVisitor(visitorId);
 					debugLog('[TrackingPixelSDK] 📡 Solicitud de eliminación enviada al servidor para visitor:', visitorId);
 				} catch (error) {
-					console.error('[TrackingPixelSDK] ❌ Error eliminando datos del servidor:', error);
 					throw new Error('No se pudieron eliminar los datos del servidor');
 				}
 			}
@@ -3068,7 +3006,6 @@ export class TrackingPixelSDK {
 
 			debugLog('[TrackingPixelSDK] ✅ Datos del visitante eliminados exitosamente');
 		} catch (error) {
-			console.error('[TrackingPixelSDK] ❌ Error eliminando datos del visitante:', error);
 			throw error;
 		}
 	}
@@ -3096,7 +3033,6 @@ export class TrackingPixelSDK {
 				localStorage.removeItem(key);
 				debugLog('[TrackingPixelSDK] 🗑️ Eliminado:', key);
 			} catch (error) {
-				console.warn('[TrackingPixelSDK] ⚠️ No se pudo eliminar:', key, error);
 			}
 		});
 
@@ -3128,7 +3064,6 @@ export class TrackingPixelSDK {
 				data.backendConsents = JSON.parse(backendConsentData);
 				debugLog('[TrackingPixelSDK] ✅ Datos de consentimiento del backend incluidos en exportación');
 			} catch (error) {
-				console.warn('[TrackingPixelSDK] ⚠️ No se pudieron obtener datos de consentimiento del backend:', error);
 				data.backendConsents = { error: 'No se pudieron obtener datos del backend' };
 			}
 		}
@@ -3161,7 +3096,6 @@ export class TrackingPixelSDK {
 					data[key] = value;
 				}
 			} catch (error) {
-				console.warn('[TrackingPixelSDK] ⚠️ No se pudo leer:', key);
 			}
 		});
 

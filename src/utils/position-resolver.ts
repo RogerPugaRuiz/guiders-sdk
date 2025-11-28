@@ -9,6 +9,7 @@
  */
 
 import { ChatPositionConfig, ChatPositionPreset, ChatPositionCoordinates, MobileDetectionConfig, MobileDetectionMode } from '../types';
+import { debugLog } from '../utils/debug-logger';
 
 /**
  * Resultado de detección de móvil con detalles
@@ -155,7 +156,7 @@ export function detectMobileDevice(config?: MobileDetectionConfig): MobileDetect
 
 	// Debug logging
 	if (debug && typeof console !== 'undefined') {
-		console.log('[Position Resolver] Mobile detection:', {
+		debugLog('[Position Resolver] Mobile detection:', {
 			mode,
 			result: isMobile ? 'MOBILE' : 'DESKTOP',
 			detectedBy: detectedBy.length > 0 ? detectedBy.join(', ') : 'none',

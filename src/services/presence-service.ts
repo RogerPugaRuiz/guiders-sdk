@@ -109,12 +109,12 @@ export class PresenceService {
 
       onPresenceChanged: (event: PresenceChangedEvent) => {
         // 🆕 2025: Eventos ahora están FILTRADOS - solo recibes cambios de usuarios con chats activos
-        console.log('═══════════════════════════════════════════════════════');
-        console.log('🔔 EVENTO DE PRESENCIA FILTRADO RECIBIDO');
-        console.log(`👤 Usuario: ${event.userId.substring(0, 8)}... (${event.userType})`);
-        console.log(`📊 Estado: ${event.previousStatus} → ${event.status}`);
-        console.log('✅ Este evento fue filtrado por el backend (solo chats activos)');
-        console.log('═══════════════════════════════════════════════════════');
+        debugLog('═══════════════════════════════════════════════════════');
+        debugLog('🔔 EVENTO DE PRESENCIA FILTRADO RECIBIDO');
+        debugLog(`👤 Usuario: ${event.userId.substring(0, 8)}... (${event.userType})`);
+        debugLog(`📊 Estado: ${event.previousStatus} → ${event.status}`);
+        debugLog('✅ Este evento fue filtrado por el backend (solo chats activos)');
+        debugLog('═══════════════════════════════════════════════════════');
 
         debugLog('[PresenceService] 🟢 Presencia cambió:', {
           userId: event.userId,
@@ -137,9 +137,9 @@ export class PresenceService {
 
         // Log adicional para debugging
         if (event.automatic) {
-          console.log('[PresenceService] 🎯 Auto-join automático detectado');
-          console.log('[PresenceService] 📍 Sala personal:', event.roomName);
-          console.log('[PresenceService] 🔔 Eventos de presencia filtrados activos (solo chats activos)');
+          debugLog('[PresenceService] 🎯 Auto-join automático detectado');
+          debugLog('[PresenceService] 📍 Sala personal:', event.roomName);
+          debugLog('[PresenceService] 🔔 Eventos de presencia filtrados activos (solo chats activos)');
         }
 
         this.notifyPresenceJoined(event);
@@ -183,20 +183,19 @@ export class PresenceService {
 
       // Manejar 401 con retry usando ChatV2Service para re-autenticar
       if (response.status === 401 && !isRetry) {
-        console.log('[PresenceService] ⚠️ Error 401 - Intentando re-autenticación...');
+        debugLog('[PresenceService] ⚠️ Error 401 - Intentando re-autenticación...');
         const chatService = ChatV2Service.getInstance();
         const reauthed = await chatService.reAuthenticate();
         if (reauthed) {
-          console.log('[PresenceService] ✅ Re-autenticación exitosa, reintentando...');
+          debugLog('[PresenceService] ✅ Re-autenticación exitosa, reintentando...');
           return this.getChatPresence(chatId, true);
         } else {
-          console.log('[PresenceService] ❌ Re-autenticación fallida');
+          debugLog('[PresenceService] ❌ Re-autenticación fallida');
           return null;
         }
       }
 
       if (!response.ok) {
-        console.error('[PresenceService] ❌ Error al obtener presencia:', response.status);
         return null;
       }
 
@@ -208,7 +207,6 @@ export class PresenceService {
 
       return data;
     } catch (error) {
-      console.error('[PresenceService] ❌ Error en getChatPresence:', error);
       return null;
     }
   }
@@ -267,7 +265,6 @@ export class PresenceService {
     }
 
     if (!this.activeChats.has(chatId)) {
-      console.warn('[PresenceService] ⚠️ No estás en la sala del chat:', chatId);
       return;
     }
 
@@ -337,10 +334,8 @@ export class PresenceService {
       });
 
       if (!response.ok) {
-        console.warn('[PresenceService] ⚠️ Error al enviar typing:start:', response.status);
       }
     } catch (error) {
-      console.error('[PresenceService] ❌ Error en emitTypingStart:', error);
     }
   }
 
@@ -362,10 +357,8 @@ export class PresenceService {
       });
 
       if (!response.ok) {
-        console.warn('[PresenceService] ⚠️ Error al enviar typing:stop:', response.status);
       }
     } catch (error) {
-      console.error('[PresenceService] ❌ Error en emitTypingStop:', error);
     }
   }
 
@@ -422,7 +415,6 @@ export class PresenceService {
       try {
         callback(event);
       } catch (error) {
-        console.error('[PresenceService] ❌ Error en callback de presencia:', error);
       }
     });
   }
@@ -437,7 +429,6 @@ export class PresenceService {
       try {
         callback(event, isTyping);
       } catch (error) {
-        console.error('[PresenceService] ❌ Error en callback de typing:', error);
       }
     });
   }
@@ -452,7 +443,6 @@ export class PresenceService {
       try {
         callback(event);
       } catch (error) {
-        console.error('[PresenceService] ❌ Error en callback de presence:joined:', error);
       }
     });
   }

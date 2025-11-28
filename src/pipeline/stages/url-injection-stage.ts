@@ -1,5 +1,6 @@
 import { PixelEvent } from "../../types";
 import { PipelineStage } from "../pipeline-stage";
+import { debugLog } from '../../utils/debug-logger';
 
 /**
  * URLInjectionStage
@@ -57,16 +58,15 @@ export class URLInjectionStage implements PipelineStage<PixelEvent, PixelEvent> 
 						(event.data as Record<string, any>).pagePath = window.location.pathname;
 					}
 
-					console.log(`[URLInjectionStage] 🌐 URL generada automáticamente para page_view:`, {
+					debugLog(`[URLInjectionStage] 🌐 URL generada automáticamente para page_view:`, {
 						url: pageInfo.url,
 						path: pageInfo.path,
 						search: pageInfo.search
 					});
 				} else {
-					console.warn('[URLInjectionStage] ⚠️ No se puede acceder a window.location - entorno no es navegador');
 				}
 			} else {
-				console.log(`[URLInjectionStage] ✅ URL ya presente en metadata, omitiendo inyección automática`);
+				debugLog(`[URLInjectionStage] ✅ URL ya presente en metadata, omitiendo inyección automática`);
 			}
 		return event;
 	}

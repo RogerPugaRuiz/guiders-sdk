@@ -1,6 +1,7 @@
 import { PixelEvent } from "../../types";
 import { PipelineStage } from "../pipeline-stage";
 import { SessionTrackingManager, SessionData } from "../../core/session-tracking-manager";
+import { debugLog } from '../../utils/debug-logger';
 
 export class SessionInjectionStage implements PipelineStage<PixelEvent, PixelEvent> {
 	private sessionManager: SessionTrackingManager | null;
@@ -14,9 +15,8 @@ export class SessionInjectionStage implements PipelineStage<PixelEvent, PixelEve
 	}
 
 	process(event: PixelEvent): PixelEvent {
-		console.log("SessionInjectionStage: Iniciando inyección de sesión...");
+		debugLog("SessionInjectionStage: Iniciando inyección de sesión...");
 		if (!this.sessionManager) {
-			console.warn("SessionInjectionStage: No session manager set, skipping session injection.");
 			return event;
 		}
 
@@ -45,7 +45,7 @@ export class SessionInjectionStage implements PipelineStage<PixelEvent, PixelEve
 			(event.data as Record<string, unknown>).sessionId = sessionData.sessionId;
 		}
 
-		console.log("SessionInjectionStage: Sesión inyectada en el evento:", event.metadata?.session);
+		debugLog("SessionInjectionStage: Sesión inyectada en el evento:", event.metadata?.session);
 
 		return event;
 	}

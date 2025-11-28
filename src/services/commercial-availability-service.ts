@@ -101,11 +101,9 @@ export class CommercialAvailabilityService {
 			return data;
 		} catch (error) {
 			this.errorCount++;
-			console.error('❌ [CommercialAvailability] Error al consultar disponibilidad:', error);
 
 			// Si hay muchos errores consecutivos, pausar polling temporalmente
 			if (this.errorCount >= 3) {
-				console.warn(`⚠️ [CommercialAvailability] ${this.errorCount} errores consecutivos, pausando polling temporalmente`);
 			}
 
 			throw error;
@@ -134,7 +132,6 @@ export class CommercialAvailabilityService {
 
 		// Consultar inmediatamente
 		this.checkAvailability().catch(err => {
-			console.error('Error en consulta inicial:', err);
 		});
 
 		// Configurar polling
@@ -203,7 +200,7 @@ export class CommercialAvailabilityService {
 	 */
 	private log(message: string, ...args: any[]): void {
 		if (this.config.debug) {
-			console.log(message, ...args);
+			debugLog(message, ...args);
 		}
 	}
 }

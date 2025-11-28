@@ -2,6 +2,7 @@ import { EndpointManager } from '../core/tracking-pixel-SDK';
 import { MessageV2, MessageListResponse } from '../types';
 import { ChatV2Service } from './chat-v2-service';
 import { getCommonHeaders, getCommonFetchOptions } from '../utils/http-headers';
+import { debugLog } from '../utils/debug-logger';
 
 /**
  * Servicio para cargar mensajes con paginación cursor-based
@@ -41,21 +42,21 @@ export class MessagePaginationService {
         let response = await fetch(url, options);
 
         if (response.status === 401) {
-            console.log('[MessagePaginationService] ⚠️ Error 401 - Intentando re-autenticación...');
+            debugLog('[MessagePaginationService] ⚠️ Error 401 - Intentando re-autenticación...');
 
             // Intentar re-autenticar usando ChatV2Service
             const chatService = ChatV2Service.getInstance();
             const reauthed = await chatService.reAuthenticate();
 
             if (reauthed) {
-                console.log('[MessagePaginationService] ✅ Re-autenticación exitosa, reintentando petición...');
+                debugLog('[MessagePaginationService] ✅ Re-autenticación exitosa, reintentando petición...');
                 // Reintentar la petición con las nuevas credenciales
                 response = await fetch(url, {
                     ...options,
                     headers: this.getAuthHeaders()
                 });
             } else {
-                console.log('[MessagePaginationService] ❌ Re-autenticación fallida');
+                debugLog('[MessagePaginationService] ❌ Re-autenticación fallida');
             }
         }
 
@@ -79,7 +80,7 @@ export class MessagePaginationService {
      * @returns Promise con la lista de mensajes
      */
     async loadInitialMessages(chatId: string, limit: number = 20): Promise<MessageListResponse> {
-        console.log(`📋 [MessagePagination] Cargando mensajes iniciales del chat: ${chatId}`);
+        debugLog(`📋 [MessagePagination] Cargando mensajes iniciales del chat: ${chatId}`);
 
         const url = `${this.getMessagesEndpoint()}/chat/${chatId}?limit=${limit}`;
 
@@ -88,7 +89,6 @@ export class MessagePaginationService {
             
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('❌ [MessagePagination] Error al cargar mensajes iniciales:', errorText);
                 throw new Error(`Error al cargar mensajes iniciales (${response.status}): ${errorText}`);
             }
 
@@ -99,7 +99,7 @@ export class MessagePaginationService {
                 messageList.cursor = messageList.nextCursor;
             }
             
-            console.log(`✅ [MessagePagination] Mensajes iniciales cargados:`, {
+            debugLog(`✅ [MessagePagination] Mensajes iniciales cargados:`, {
                 count: messageList.messages?.length || 0,
                 total: messageList.total,
                 hasMore: messageList.hasMore,
@@ -108,7 +108,6 @@ export class MessagePaginationService {
 
             return messageList;
         } catch (error) {
-            console.error('❌ [MessagePagination] Error de red al cargar mensajes iniciales:', error);
             throw error;
         }
     }
@@ -121,7 +120,7 @@ export class MessagePaginationService {
      * @returns Promise con la lista de mensajes antiguos
      */
     async loadOlderMessages(chatId: string, cursor: string, limit: number = 20): Promise<MessageListResponse> {
-        console.log(`📜 [MessagePagination] Cargando mensajes antiguos del chat: ${chatId} con cursor: ${cursor.substring(0, 20)}...`);
+        debugLog(`📜 [MessagePagination] Cargando mensajes antiguos del chat: ${chatId} con cursor: ${cursor.substring(0, 20)}...`);
         
         const encodedCursor = encodeURIComponent(cursor);
         const url = `${this.getMessagesEndpoint()}/chat/${chatId}?limit=${limit}&cursor=${encodedCursor}`;
@@ -131,7 +130,6 @@ export class MessagePaginationService {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('❌ [MessagePagination] Error al cargar mensajes antiguos:', errorText);
                 throw new Error(`Error al cargar mensajes antiguos (${response.status}): ${errorText}`);
             }
 
@@ -142,7 +140,7 @@ export class MessagePaginationService {
                 messageList.cursor = messageList.nextCursor;
             }
             
-            console.log(`✅ [MessagePagination] Mensajes antiguos cargados:`, {
+            debugLog(`✅ [MessagePagination] Mensajes antiguos cargados:`, {
                 count: messageList.messages?.length || 0,
                 total: messageList.total,
                 hasMore: messageList.hasMore,
@@ -151,7 +149,6 @@ export class MessagePaginationService {
 
             return messageList;
         } catch (error) {
-            console.error('❌ [MessagePagination] Error de red al cargar mensajes antiguos:', error);
             throw error;
         }
     }
@@ -171,7 +168,6 @@ export class MessagePaginationService {
             atob(cursor);
             return true;
         } catch (error) {
-            console.warn('⚠️ [MessagePagination] Cursor inválido:', cursor);
             return false;
         }
     }

@@ -1,3 +1,5 @@
+import { debugLog } from '../utils/debug-logger';
+
 /**
  * Consent Banner UI - Renderiza banner GDPR automático
  *
@@ -88,7 +90,7 @@ export class ConsentBannerUI {
       className: config.className ?? ''
     };
 
-    console.log('[ConsentBannerUI] 🎨 Inicializado con config:', this.config);
+    debugLog('[ConsentBannerUI] 🎨 Inicializado con config:', this.config);
   }
 
   /**
@@ -96,7 +98,7 @@ export class ConsentBannerUI {
    */
   public render(): void {
     if (!this.config.enabled || this.config.style === 'none') {
-      console.log('[ConsentBannerUI] ⚠️ Banner deshabilitado');
+      debugLog('[ConsentBannerUI] ⚠️ Banner deshabilitado');
       return;
     }
 
@@ -123,7 +125,7 @@ export class ConsentBannerUI {
       }
 
       document.body.appendChild(this.bannerElement);
-      console.log('[ConsentBannerUI] ✅ Banner renderizado (estilo: ' + this.config.style + ')');
+      debugLog('[ConsentBannerUI] ✅ Banner renderizado (estilo: ' + this.config.style + ')');
     }
   }
 
@@ -133,7 +135,7 @@ export class ConsentBannerUI {
   public show(): void {
     if (this.bannerElement) {
       this.bannerElement.style.display = 'block';
-      console.log('[ConsentBannerUI] 👁️ Banner mostrado');
+      debugLog('[ConsentBannerUI] 👁️ Banner mostrado');
     }
   }
 
@@ -143,7 +145,7 @@ export class ConsentBannerUI {
   public hide(): void {
     if (this.bannerElement) {
       this.bannerElement.style.display = 'none';
-      console.log('[ConsentBannerUI] 🙈 Banner oculto');
+      debugLog('[ConsentBannerUI] 🙈 Banner oculto');
     }
   }
 
@@ -154,7 +156,7 @@ export class ConsentBannerUI {
     if (this.bannerElement && this.bannerElement.parentNode) {
       this.bannerElement.parentNode.removeChild(this.bannerElement);
       this.bannerElement = null;
-      console.log('[ConsentBannerUI] 🗑️ Banner removido');
+      debugLog('[ConsentBannerUI] 🗑️ Banner removido');
     }
   }
 
@@ -541,15 +543,15 @@ export class ConsentBannerUI {
    * Callbacks para acciones (serán sobrescritos desde fuera)
    */
   public onAccept = () => {
-    console.log('[ConsentBannerUI] 🟢 Callback onAccept (no configurado)');
+    debugLog('[ConsentBannerUI] 🟢 Callback onAccept (no configurado)');
   };
 
   public onDeny = () => {
-    console.log('[ConsentBannerUI] 🔴 Callback onDeny (no configurado)');
+    debugLog('[ConsentBannerUI] 🔴 Callback onDeny (no configurado)');
   };
 
   public onPreferences = () => {
-    console.log('[ConsentBannerUI] ⚙️ Callback onPreferences (no configurado)');
+    debugLog('[ConsentBannerUI] ⚙️ Callback onPreferences (no configurado)');
   };
 
   /**
@@ -577,7 +579,7 @@ export class ConsentBannerUI {
     if (config.autoShow !== undefined) this.config.autoShow = config.autoShow;
     if (config.className) this.config.className = config.className;
 
-    console.log('[ConsentBannerUI] 🔄 Configuración actualizada');
+    debugLog('[ConsentBannerUI] 🔄 Configuración actualizada');
 
     // Re-renderizar si el banner ya existe
     if (this.bannerElement) {

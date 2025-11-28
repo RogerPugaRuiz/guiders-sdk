@@ -134,7 +134,6 @@ export class EventQueueManager {
       this.queue = parsed.filter(this.isValidEvent);
       debugLog(`[EventQueueManager] 📂 ${this.queue.length} eventos cargados desde localStorage`);
     } catch (error) {
-      console.error('[EventQueueManager] ❌ Error cargando cola desde localStorage:', error);
       this.queue = [];
     }
   }
@@ -152,7 +151,6 @@ export class EventQueueManager {
       localStorage.setItem(EventQueueManager.STORAGE_KEY, serialized);
       debugLog(`[EventQueueManager] 💾 Cola guardada en localStorage (${this.queue.length} eventos)`);
     } catch (error) {
-      console.error('[EventQueueManager] ❌ Error guardando cola en localStorage:', error);
 
       // Si el error es por QuotaExceeded, limpiar eventos antiguos
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
@@ -164,7 +162,6 @@ export class EventQueueManager {
         try {
           localStorage.setItem(EventQueueManager.STORAGE_KEY, JSON.stringify(this.queue));
         } catch (retryError) {
-          console.error('[EventQueueManager] ❌ Error en segundo intento:', retryError);
         }
       }
     }

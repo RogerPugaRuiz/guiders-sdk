@@ -2,6 +2,7 @@ import { AsyncSignal, Signal } from './signal';
 import { VisitorsV2Service, IdentifyVisitorResponse } from '../services/visitors-v2-service';
 import { ChatV2Service } from '../services/chat-v2-service';
 import { ChatListV2 } from '../types';
+import { debugLog } from '../utils/debug-logger';
 
 /**
  * Estado combinado de identity + chats
@@ -65,7 +66,7 @@ export class IdentitySignal extends AsyncSignal<IdentityWithChatsData> {
    * @param consentVersion Versión del SDK para el consentimiento (opcional, se lee de localStorage si no se proporciona)
    */
   public async identify(fingerprint: string, apiKey?: string, consentVersion?: string): Promise<IdentityWithChatsData> {
-    console.log('[IdentitySignal] 🚀 Iniciando identificación del visitante...');
+    debugLog('[IdentitySignal] 🚀 Iniciando identificación del visitante...');
 
     return this.execute(async () => {
       // Obtener información de consentimiento del localStorage
@@ -82,9 +83,8 @@ export class IdentitySignal extends AsyncSignal<IdentityWithChatsData> {
               // Esto garantiza que siempre se envíe la versión actual del SDK, no la guardada en localStorage
               consentVersion: consentVersion || consentState.version || 'v1.0'
             };
-            console.log('[IdentitySignal] 🔐 Estado de consentimiento:', consentInfo);
+            debugLog('[IdentitySignal] 🔐 Estado de consentimiento:', consentInfo);
           } catch (e) {
-            console.warn('[IdentitySignal] ⚠️ No se pudo parsear estado de consentimiento');
           }
         }
       }
@@ -96,14 +96,14 @@ export class IdentitySignal extends AsyncSignal<IdentityWithChatsData> {
         throw new Error('Failed to identify visitor');
       }
 
-      console.log('[IdentitySignal] ✅ Visitante identificado:', identity.visitorId);
+      debugLog('[IdentitySignal] ✅ Visitante identificado:', identity.visitorId);
 
       // 2. Cargar chats automáticamente si se obtuvo visitorId
       let chats: ChatListV2 | null = null;
       
       if (identity.visitorId) {
         try {
-          console.log('[IdentitySignal] 💬 Cargando chats del visitante...');
+          debugLog('[IdentitySignal] 💬 Cargando chats del visitante...');
           this.chatsSignal.setLoading();
           
           chats = await ChatV2Service.getInstance().getVisitorChats(
@@ -113,14 +113,12 @@ export class IdentitySignal extends AsyncSignal<IdentityWithChatsData> {
           );
           
           this.chatsSignal.setSuccess(chats);
-          console.log('[IdentitySignal] ✅ Chats cargados:', chats.chats.length, 'chats encontrados');
+          debugLog('[IdentitySignal] ✅ Chats cargados:', chats.chats.length, 'chats encontrados');
         } catch (chatsError) {
-          console.warn('[IdentitySignal] ⚠️ Error cargando chats:', chatsError);
           this.chatsSignal.setError(chatsError instanceof Error ? chatsError : new Error(String(chatsError)));
           // No lanzamos el error aquí para que identity siga siendo exitoso
         }
       } else {
-        console.warn('[IdentitySignal] ⚠️ No se obtuvo visitorId, saltando carga de chats');
       }
 
       const result: IdentityWithChatsData = {
@@ -139,12 +137,11 @@ export class IdentitySignal extends AsyncSignal<IdentityWithChatsData> {
     const currentState = this.getState();
     
     if (!currentState.data?.identity?.visitorId) {
-      console.warn('[IdentitySignal] ❌ No hay visitorId disponible para recargar chats');
       return null;
     }
 
     try {
-      console.log('[IdentitySignal] 🔄 Recargando chats...');
+      debugLog('[IdentitySignal] 🔄 Recargando chats...');
       this.chatsSignal.setLoading();
       
       const chats = await ChatV2Service.getInstance().getVisitorChats(
@@ -161,11 +158,10 @@ export class IdentitySignal extends AsyncSignal<IdentityWithChatsData> {
         chats
       });
       
-      console.log('[IdentitySignal] ✅ Chats recargados exitosamente');
+      debugLog('[IdentitySignal] ✅ Chats recargados exitosamente');
       return chats;
     } catch (error) {
       const errorObj = error instanceof Error ? error : new Error(String(error));
-      console.error('[IdentitySignal] ❌ Error recargando chats:', errorObj);
       this.chatsSignal.setError(errorObj);
       throw errorObj;
     }

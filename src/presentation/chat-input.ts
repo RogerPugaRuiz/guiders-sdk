@@ -177,7 +177,6 @@ export class ChatInputUI {
 			const chatUI = this.chatUI as any;
 			return chatUI.chatId || null;
 		} catch (error) {
-			console.warn('🎲 [ChatInput] No se pudo obtener el chat ID:', error);
 			return null;
 		}
 	}

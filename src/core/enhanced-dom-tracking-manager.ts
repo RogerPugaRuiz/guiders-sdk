@@ -151,7 +151,7 @@ export class EnhancedDomTrackingManager extends DomTrackingManager {
 
         const detectionResults = this.heuristicDetector.detectElements(eventType);
         
-        console.log(`[EnhancedDomTrackingManager] 🎯 Found ${detectionResults.length} elements for "${eventType}"`);
+        debugLog(`[EnhancedDomTrackingManager] 🎯 Found ${detectionResults.length} elements for "${eventType}"`);
 
         detectionResults.forEach((result: DetectionResult) => {
             this.attachEventListener(result.element, eventType, domEvent, result);
@@ -180,7 +180,7 @@ export class EnhancedDomTrackingManager extends DomTrackingManager {
         }
 
         const handler = () => {
-            console.log(`[EnhancedDomTrackingManager] 📊 Tracking "${eventType}" (confidence: ${result.confidence.toFixed(2)})`);
+            debugLog(`[EnhancedDomTrackingManager] 📊 Tracking "${eventType}" (confidence: ${result.confidence.toFixed(2)})`);
             
             // Extract data using the configured extractor, but enhance with heuristic metadata
             const baseData = this.createHeuristicEventData(element, eventType, result);
@@ -300,7 +300,7 @@ export class EnhancedDomTrackingManager extends DomTrackingManager {
      */
     public setHeuristicEnabled(enabled: boolean): void {
         this.heuristicEnabled = enabled;
-        console.log(`[EnhancedDomTrackingManager] Heuristic detection ${enabled ? 'enabled' : 'disabled'}`);
+        debugLog(`[EnhancedDomTrackingManager] Heuristic detection ${enabled ? 'enabled' : 'disabled'}`);
     }
 
     /**
@@ -343,7 +343,6 @@ export class EnhancedDomTrackingManager extends DomTrackingManager {
      * @deprecated Use enableAutomaticTracking() instead
      */
     public enableDOMTracking(): void {
-        console.warn('[EnhancedDomTrackingManager] enableDOMTracking() is deprecated. Use enableAutomaticTracking() instead.');
         this.enableAutomaticTracking();
     }
 }

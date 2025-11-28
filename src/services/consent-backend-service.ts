@@ -6,6 +6,7 @@
  */
 
 import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { debugLog } from '../utils/debug-logger';
 
 /**
  * Tipos de consentimiento del backend
@@ -107,7 +108,7 @@ export class ConsentBackendService {
    */
   public setSessionId(sessionId: string): void {
     this.sessionId = sessionId;
-    console.log('[ConsentBackendService] 🔐 Session ID establecido');
+    debugLog('[ConsentBackendService] 🔐 Session ID establecido');
   }
 
   /**
@@ -140,7 +141,7 @@ export class ConsentBackendService {
     // Añadir header X-Guiders-Sid si hay sessionId
     if (sessionId) {
       headers['X-Guiders-Sid'] = sessionId;
-      console.log('[ConsentBackendService] 🔐 Enviando X-Guiders-Sid:', sessionId);
+      debugLog('[ConsentBackendService] 🔐 Enviando X-Guiders-Sid:', sessionId);
     }
 
     try {
@@ -152,10 +153,10 @@ export class ConsentBackendService {
 
       // Manejar 401 con retry
       if (response.status === 401 && !isRetry) {
-        console.log('[ConsentBackendService] ⚠️ Error 401 - Intentando re-autenticación...');
+        debugLog('[ConsentBackendService] ⚠️ Error 401 - Intentando re-autenticación...');
         const reauthed = await this.reAuthenticate();
         if (reauthed) {
-          console.log('[ConsentBackendService] ✅ Re-autenticación exitosa, reintentando...');
+          debugLog('[ConsentBackendService] ✅ Re-autenticación exitosa, reintentando...');
           return this.makeRequest<T>(path, options, true);
         }
       }
@@ -169,7 +170,6 @@ export class ConsentBackendService {
 
       return await response.json();
     } catch (error) {
-      console.error('[ConsentBackendService] ❌ Error en petición:', error);
       throw error;
     }
   }
@@ -197,14 +197,14 @@ export class ConsentBackendService {
       }
 
       if (!fingerprint) {
-        console.log('[ConsentBackendService] ❌ No hay fingerprint para re-autenticar');
+        debugLog('[ConsentBackendService] ❌ No hay fingerprint para re-autenticar');
         return false;
       }
 
       const endpoint = EndpointManager.getInstance().getEndpoint();
       const identifyUrl = `${endpoint}/visitors/identify`;
 
-      console.log('[ConsentBackendService] 🔐 Re-autenticando...');
+      debugLog('[ConsentBackendService] 🔐 Re-autenticando...');
 
       const response = await fetch(identifyUrl, {
         method: 'POST',
@@ -226,7 +226,7 @@ export class ConsentBackendService {
         if (data.sessionId) {
           sessionStorage.setItem('guiders_backend_session_id', data.sessionId);
           this.sessionId = data.sessionId;
-          console.log('[ConsentBackendService] ✅ SessionId actualizado:', data.sessionId);
+          debugLog('[ConsentBackendService] ✅ SessionId actualizado:', data.sessionId);
         }
 
         if (data.visitorId) {
@@ -240,10 +240,9 @@ export class ConsentBackendService {
         return true;
       }
 
-      console.log('[ConsentBackendService] ❌ Error en re-autenticación:', response.status);
+      debugLog('[ConsentBackendService] ❌ Error en re-autenticación:', response.status);
       return false;
     } catch (error) {
-      console.error('[ConsentBackendService] ❌ Error en re-autenticación:', error);
       return false;
     }
   }
@@ -276,7 +275,7 @@ export class ConsentBackendService {
       personalization?: boolean;
     }
   ): Promise<BackendConsentResponse[]> {
-    console.log('[ConsentBackendService] ✅ Otorgando consentimientos:', preferences);
+    debugLog('[ConsentBackendService] ✅ Otorgando consentimientos:', preferences);
 
     const grantedConsents: BackendConsentResponse[] = [];
 
@@ -306,7 +305,6 @@ export class ConsentBackendService {
 
         grantedConsents.push(response);
       } catch (error) {
-        console.error(`[ConsentBackendService] ❌ Error otorgando ${category}:`, error);
         // Continuar con las demás categorías aunque una falle
       }
     }
@@ -324,7 +322,7 @@ export class ConsentBackendService {
   ): Promise<BackendConsentResponse> {
     const backendType = this.sdkCategoryToBackendType(category);
 
-    console.log('[ConsentBackendService] ❌ Revocando consentimiento:', {
+    debugLog('[ConsentBackendService] ❌ Revocando consentimiento:', {
       visitorId,
       category,
       backendType,
@@ -348,7 +346,7 @@ export class ConsentBackendService {
     visitorId: string,
     reason?: string
   ): Promise<BackendConsentResponse[]> {
-    console.log('[ConsentBackendService] ❌ Revocando TODOS los consentimientos');
+    debugLog('[ConsentBackendService] ❌ Revocando TODOS los consentimientos');
 
     const categories = ['analytics', 'functional', 'personalization'];
     const results: BackendConsentResponse[] = [];
@@ -358,7 +356,6 @@ export class ConsentBackendService {
         const result = await this.revokeConsent(visitorId, category, reason);
         results.push(result);
       } catch (error) {
-        console.error(`[ConsentBackendService] ⚠️ Error revocando ${category}:`, error);
         // Continuar con las demás categorías
       }
     }
@@ -375,7 +372,7 @@ export class ConsentBackendService {
   ): Promise<BackendConsentResponse> {
     const backendType = this.sdkCategoryToBackendType(category);
 
-    console.log('[ConsentBackendService] 🔄 Renovando consentimiento:', {
+    debugLog('[ConsentBackendService] 🔄 Renovando consentimiento:', {
       visitorId,
       category,
       backendType
@@ -396,7 +393,7 @@ export class ConsentBackendService {
   public async getConsentHistory(
     visitorId: string
   ): Promise<BackendConsentHistoryResponse> {
-    console.log('[ConsentBackendService] 📋 Obteniendo historial de consentimientos');
+    debugLog('[ConsentBackendService] 📋 Obteniendo historial de consentimientos');
 
     return this.makeRequest<BackendConsentHistoryResponse>(
       `/visitors/${visitorId}`
@@ -409,7 +406,7 @@ export class ConsentBackendService {
   public async getAuditLogs(
     visitorId: string
   ): Promise<BackendAuditLogsResponse> {
-    console.log('[ConsentBackendService] 📜 Obteniendo audit logs');
+    debugLog('[ConsentBackendService] 📜 Obteniendo audit logs');
 
     return this.makeRequest<BackendAuditLogsResponse>(
       `/visitors/${visitorId}/audit-logs`
@@ -428,7 +425,7 @@ export class ConsentBackendService {
     functional: boolean;
     personalization: boolean;
   }> {
-    console.log('[ConsentBackendService] 🔄 Sincronizando con backend...');
+    debugLog('[ConsentBackendService] 🔄 Sincronizando con backend...');
 
     try {
       const history = await this.getConsentHistory(visitorId);
@@ -455,10 +452,9 @@ export class ConsentBackendService {
         }
       }
 
-      console.log('[ConsentBackendService] ✅ Estado sincronizado:', activeConsents);
+      debugLog('[ConsentBackendService] ✅ Estado sincronizado:', activeConsents);
       return activeConsents;
     } catch (error) {
-      console.error('[ConsentBackendService] ❌ Error sincronizando:', error);
 
       // Retornar estado por defecto en caso de error
       return {
@@ -485,7 +481,6 @@ export class ConsentBackendService {
 
       return consent?.status === 'granted';
     } catch (error) {
-      console.error('[ConsentBackendService] ❌ Error verificando consentimiento:', error);
       return false;
     }
   }
@@ -495,7 +490,7 @@ export class ConsentBackendService {
    * (para cumplir con Right to Access - Art. 15 GDPR)
    */
   public async exportConsentData(visitorId: string): Promise<string> {
-    console.log('[ConsentBackendService] 📦 Exportando datos de consentimiento');
+    debugLog('[ConsentBackendService] 📦 Exportando datos de consentimiento');
 
     try {
       const [history, auditLogs] = await Promise.all([
@@ -519,7 +514,6 @@ export class ConsentBackendService {
 
       return JSON.stringify(exportData, null, 2);
     } catch (error) {
-      console.error('[ConsentBackendService] ❌ Error exportando datos:', error);
       throw error;
     }
   }
@@ -531,7 +525,7 @@ export class ConsentBackendService {
    * Nota: Este endpoint debe implementarse en el backend
    */
   public async deleteConsentData(visitorId: string): Promise<void> {
-    console.log('[ConsentBackendService] 🗑️ Eliminando datos de consentimiento del backend');
+    debugLog('[ConsentBackendService] 🗑️ Eliminando datos de consentimiento del backend');
 
     try {
       // Primero revocar todos los consentimientos
@@ -545,9 +539,8 @@ export class ConsentBackendService {
       //   method: 'DELETE'
       // });
 
-      console.log('[ConsentBackendService] ✅ Datos de consentimiento eliminados');
+      debugLog('[ConsentBackendService] ✅ Datos de consentimiento eliminados');
     } catch (error) {
-      console.error('[ConsentBackendService] ❌ Error eliminando datos:', error);
       throw error;
     }
   }

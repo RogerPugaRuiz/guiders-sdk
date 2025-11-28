@@ -102,7 +102,6 @@ export class Signal<T = any> {
       try {
         subscriber(this.getState());
       } catch (error) {
-        console.warn('[Signal] Error en subscriber:', error);
       }
     });
   }
@@ -184,7 +183,6 @@ export class AsyncSignal<T = any> extends Signal<T> {
       }
 
       // Si no es la promesa más reciente, la ignoramos silenciosamente
-      console.warn('[AsyncSignal] ⚠️ Operación cancelada - reemplazada por una más reciente (ID:', thisPromiseId, '→', this.promiseId, ')');
       // Retornar el resultado parcial sin lanzar error
       return result;
     } catch (error) {
@@ -194,7 +192,6 @@ export class AsyncSignal<T = any> extends Signal<T> {
         this.currentPromise = null;
       } else {
         // Operación cancelada, no procesar el error
-        console.warn('[AsyncSignal] ⚠️ Error en operación cancelada (ID:', thisPromiseId, ') - ignorando');
       }
       throw error;
     }

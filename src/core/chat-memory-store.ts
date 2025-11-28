@@ -1,3 +1,5 @@
+import { debugLog } from '../utils/debug-logger';
+
 /**
  * ChatMemoryStore - Gestor en memoria para el ID del chat actual
  * Reemplaza el uso de localStorage para chatV2Id
@@ -20,7 +22,7 @@ export class ChatMemoryStore {
    */
   public setChatId(chatId: string): void {
     this.currentChatId = chatId;
-    console.log('[ChatMemoryStore] 💾 Chat ID guardado en memoria:', chatId);
+    debugLog('[ChatMemoryStore] 💾 Chat ID guardado en memoria:', chatId);
   }
 
   /**
@@ -35,7 +37,7 @@ export class ChatMemoryStore {
    */
   public clearChatId(): void {
     this.currentChatId = null;
-    console.log('[ChatMemoryStore] 🗑️ Chat ID limpiado de memoria');
+    debugLog('[ChatMemoryStore] 🗑️ Chat ID limpiado de memoria');
   }
 
   /**

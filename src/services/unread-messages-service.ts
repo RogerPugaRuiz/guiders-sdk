@@ -13,6 +13,7 @@ import { EndpointManager } from '../core/tracking-pixel-SDK';
 import { WebSocketService } from './websocket-service';
 import { RealtimeMessage } from '../types/websocket-types';
 import { getCommonHeaders, getCommonFetchOptions } from '../utils/http-headers';
+import { debugLog } from '../utils/debug-logger';
 
 export interface UnreadMessage {
 	id: string;
@@ -57,7 +58,7 @@ export class UnreadMessagesService {
 
 	private constructor() {
 		this.wsService = WebSocketService.getInstance();
-		console.log('📬 [UnreadMessagesService] Instancia creada');
+		debugLog('📬 [UnreadMessagesService] Instancia creada');
 	}
 
 	public static getInstance(): UnreadMessagesService {
@@ -171,7 +172,6 @@ export class UnreadMessagesService {
 
 			if (!response.ok) {
 				const errorText = await response.text();
-				console.error('[UnreadMessagesService] ❌ Error al obtener mensajes no leídos:', errorText);
 				throw new Error(`Error al obtener mensajes no leídos (${response.status}): ${errorText}`);
 			}
 
@@ -196,7 +196,6 @@ export class UnreadMessagesService {
 				// Marcar todos los mensajes como leídos
 				const messageIds = this.unreadMessages.map(m => m.id);
 				this.markAsRead(messageIds).catch(error => {
-					console.error('[UnreadMessagesService] ❌ Error al marcar mensajes previos como leídos:', error);
 				});
 
 				// Limpiar lista de no leídos
@@ -209,7 +208,6 @@ export class UnreadMessagesService {
 			this.notifyCountChange();
 
 		} catch (error) {
-			console.error('[UnreadMessagesService] ❌ Error en refreshUnreadMessages:', error);
 		}
 	}
 
@@ -233,7 +231,6 @@ export class UnreadMessagesService {
 
 			if (!response.ok) {
 				const errorText = await response.text();
-				console.error('[UnreadMessagesService] ❌ Error al marcar mensajes como leídos:', errorText);
 				return false;
 			}
 
@@ -250,7 +247,6 @@ export class UnreadMessagesService {
 			return true;
 
 		} catch (error) {
-			console.error('[UnreadMessagesService] ❌ Error en markAsRead:', error);
 			return false;
 		}
 	}
@@ -305,7 +301,6 @@ export class UnreadMessagesService {
 		if (this.isChatOpen) {
 			this.log('✅ Chat abierto - marcando mensaje como leído automáticamente');
 			this.markAsRead([message.messageId]).catch(error => {
-				console.error('[UnreadMessagesService] ❌ Error al marcar mensaje como leído automáticamente:', error);
 			});
 			return; // No añadir a no leídos ni notificar badge
 		}
@@ -319,7 +314,6 @@ export class UnreadMessagesService {
 
 			// Marcar mensaje como leído inmediatamente
 			this.markAsRead([message.messageId]).catch(error => {
-				console.error('[UnreadMessagesService] ❌ Error al marcar mensaje como leído:', error);
 			});
 			return; // No añadir a no leídos ni mostrar badge
 		}
@@ -397,7 +391,7 @@ export class UnreadMessagesService {
 	 */
 	private log(...args: any[]): void {
 		if (this.debug) {
-			console.log('📬 [UnreadMessagesService]', ...args);
+			debugLog('📬 [UnreadMessagesService]', ...args);
 		}
 	}
 }

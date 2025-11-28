@@ -103,7 +103,6 @@ export class MessageRenderer {
                 return 'user';
             }
         } catch (error) {
-            console.warn('No se pudo determinar el visitor ID actual:', error);
         }
         
         // Determinar por tipo si está disponible

@@ -62,7 +62,6 @@ export interface ChatDetail {
  */
 export async function fetchChatDetailV2(chatId: string, force: boolean = false): Promise<ChatDetailV2> {
 	if (!chatId) {
-		console.warn('[chat-detail-service] ❌ fetchChatDetailV2 llamado sin chatId');
 		throw new Error('chatId requerido');
 	}
 
@@ -106,7 +105,6 @@ export async function fetchChatDetailV2(chatId: string, force: boolean = false):
 			}
 		}
 	} catch (cacheErr) {
-		console.warn('[chat-detail-service] ⚠️ Error procesando cache guiders_recent_chats:', cacheErr);
 	}
 	} else {
 		debugLog('[chat-detail-service] 🔄 Force refresh habilitado - ignorando caché y consultando backend directamente');
