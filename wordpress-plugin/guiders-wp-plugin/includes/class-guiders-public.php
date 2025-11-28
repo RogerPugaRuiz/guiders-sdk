@@ -426,14 +426,6 @@ class GuidersPublic {
                         if (cookieData.advanced === '1') consent.personalization = true;
                         if (cookieData.preference === '1') consent.personalization = true;
 
-                            'raw_cookie': cookieData,
-                            'mapped': {
-                                'functional (strict)': consent.functional,
-                                'analytics (performance/thirdparty)': consent.analytics,
-                                'personalization (targeting/marketing/advanced/preference)': consent.personalization
-                            }
-                        });
-
                         return consent;
                     } catch (e) {
                         
@@ -570,11 +562,6 @@ class GuidersPublic {
                                 analytics: parsed.analytics === 'true' || parsed.analytics === true,
                                 personalization: parsed.marketing === 'true' || parsed.marketing === true
                             };
-
-                                'Technical (functional)': consent.functional,
-                                'Analytics': consent.analytics,
-                                'Marketing (personalization)': consent.personalization
-                            });
 
                             return consent;
                         }
