@@ -527,7 +527,6 @@ jQuery(document).ready(function($) {
                 });
             }
         } catch (e) {
-            console.error('Error restoring temp settings:', e);
         }
     }
 
@@ -540,7 +539,6 @@ jQuery(document).ready(function($) {
             tempSettings[fieldName] = value;
             sessionStorage.setItem(TEMP_STORAGE_KEY, JSON.stringify(tempSettings));
         } catch (e) {
-            console.error('Error saving temp settings:', e);
         }
     }
 
@@ -600,7 +598,6 @@ jQuery(document).ready(function($) {
                 tempSettings = JSON.parse(tempData);
             }
         } catch (e) {
-            console.error('Error reading temp settings:', e);
         }
 
         // Add hidden fields ONLY for settings that aren't in the current tab

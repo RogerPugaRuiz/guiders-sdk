@@ -237,7 +237,6 @@ class GuidersPublic {
             )); ?>;
 
             // Log de configuración (ejecutado inmediatamente al cargar el script)
-            console.log('[Guiders WP] 🔧 Configuración inicial:', cookieConfig);
 
             // Exponer para debugging
             window.guidersCookieConfig = cookieConfig;
@@ -249,7 +248,6 @@ class GuidersPublic {
                 // Verificar si la sincronización está habilitada
                 if (!cookieConfig.wp_consent_api_enabled) {
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Sincronización WP Consent API desactivada en configuración');
                     }
                     return false;
                 }
@@ -257,7 +255,6 @@ class GuidersPublic {
                 // Verificar si se debe forzar el sistema interno
                 if (cookieConfig.system === 'internal') {
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Sistema configurado como "interno" - saltando WP Consent API');
                     }
                     return false;
                 }
@@ -267,7 +264,6 @@ class GuidersPublic {
 
                 if (!hasWPConsentAPI) {
                     if (cookieConfig.debug || cookieConfig.system === 'wp_consent_api') {
-                        console.log('[Guiders WP] WP Consent API no detectada');
                     }
                     return false;
                 }
@@ -275,14 +271,11 @@ class GuidersPublic {
                 // Si el sistema es 'custom', no hacer nada (el usuario debe implementar su lógica)
                 if (cookieConfig.system === 'custom') {
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Sistema configurado como "personalizado" - saltando sincronización automática');
                     }
                     return false;
                 }
 
                 if (cookieConfig.debug) {
-                    console.log('[Guiders WP] WP Consent API detectada - sincronizando consentimiento');
-                    console.log('[Guiders WP] Configuración:', cookieConfig);
                 }
 
                 // Mapeo de categorías: WP Consent API → Guiders SDK
@@ -296,7 +289,6 @@ class GuidersPublic {
                 function syncInitialConsent() {
                     if (!window.guiders || !window.guiders.grantConsentWithPreferences) {
                         if (cookieConfig.debug) {
-                            console.log('[Guiders WP] SDK no listo para sincronizar consentimiento');
                         }
                         return;
                     }
@@ -311,7 +303,6 @@ class GuidersPublic {
                         guidersConsent[guidersCategory] = hasConsent;
                         if (hasConsent) hasAnyConsent = true;
                         if (cookieConfig.debug) {
-                            console.log('[Guiders WP] Consentimiento sincronizado: ' + wpCategory + ' → ' + guidersCategory + ' = ' + hasConsent);
                         }
                     });
 
@@ -319,7 +310,6 @@ class GuidersPublic {
                     if (hasAnyConsent) {
                         window.guiders.grantConsentWithPreferences(guidersConsent);
                         if (cookieConfig.debug) {
-                            console.log('[Guiders WP] Consentimiento inicial sincronizado con Guiders SDK');
                         }
                     }
                 }
@@ -342,13 +332,11 @@ class GuidersPublic {
                             window.guiders.grantConsentWithPreferences(update);
 
                             if (cookieConfig.debug) {
-                                console.log('[Guiders WP] Consentimiento actualizado: ' + wpCategory + ' → ' + guidersCategory + ' = ' + newConsent);
                             }
                         });
                     });
 
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Listener de cambios de consentimiento activado');
                     }
                 }
 
@@ -366,7 +354,6 @@ class GuidersPublic {
                 // Verificar si debe sincronizarse
                 if (!cookieConfig.wp_consent_api_enabled) {
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Sincronización de cookies desactivada');
                     }
                     return false;
                 }
@@ -374,7 +361,6 @@ class GuidersPublic {
                 // Verificar si se debe forzar el sistema interno
                 if (cookieConfig.system === 'internal') {
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Sistema configurado como "interno" - saltando Moove GDPR');
                     }
                     return false;
                 }
@@ -384,13 +370,11 @@ class GuidersPublic {
 
                 if (!hasMooveGDPR) {
                     if (cookieConfig.debug && cookieConfig.system === 'custom') {
-                        console.log('[Guiders WP] Moove GDPR no detectado');
                     }
                     return false;
                 }
 
                 if (cookieConfig.debug) {
-                    console.log('[Guiders WP] Moove GDPR detectado - configurando sincronización');
                 }
 
                 // Función helper para leer cookies
@@ -414,7 +398,6 @@ class GuidersPublic {
 
                     if (!cookieValue) {
                         if (cookieConfig.debug) {
-                            console.log('[Guiders WP] 🔍 Cookie moove_gdpr_popup no encontrada - Moove GDPR no instalado o usuario aún no ha interactuado');
                         }
                         return null;
                     }
@@ -425,7 +408,6 @@ class GuidersPublic {
                         var cookieData = JSON.parse(decoded);
 
                         if (cookieConfig.debug) {
-                            console.log('[Guiders WP] ✅ Moove GDPR detectado - Cookie moove_gdpr_popup:', cookieData);
                         }
 
                         // MAPEO FLEXIBLE: Detecta automáticamente si usa 3 o 5 categorías
@@ -458,7 +440,6 @@ class GuidersPublic {
                         if (cookieData.advanced === '1') consent.personalization = true;
                         if (cookieData.preference === '1') consent.personalization = true;
 
-                        console.log('[Guiders WP] 📋 Moove GDPR - Categorías detectadas y mapeadas:', {
                             'raw_cookie': cookieData,
                             'mapped': {
                                 'functional (strict)': consent.functional,
@@ -470,7 +451,6 @@ class GuidersPublic {
                         return consent;
                     } catch (e) {
                         if (cookieConfig.debug) {
-                            console.log('[Guiders WP] Error parsing Moove cookie:', e);
                         }
                     }
 
@@ -485,7 +465,6 @@ class GuidersPublic {
                                         localStorage.getItem('moove_gdpr_preference') === '1';
 
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Moove localStorage fallback:', {
                             functional: functional,
                             analytics: analytics,
                             personalization: personalization
@@ -508,11 +487,9 @@ class GuidersPublic {
                         if (syncRetries < maxSyncRetries) {
                             syncRetries++;
                             if (cookieConfig.debug) {
-                                console.log('[Guiders WP] SDK no listo, reintentando en 500ms... (intento ' + syncRetries + '/' + maxSyncRetries + ')');
                             }
                             setTimeout(syncMooveToGuiders, 500);
                         } else {
-                            console.log('[Guiders WP] ❌ SDK no disponible después de ' + maxSyncRetries + ' reintentos');
                         }
                         return;
                     }
@@ -521,17 +498,14 @@ class GuidersPublic {
 
                     if (!consent) {
                         if (cookieConfig.debug) {
-                            console.log('[Guiders WP] No se pudo leer consentimiento de Moove GDPR');
                         }
                         return;
                     }
 
-                    console.log('[Guiders WP] 🍪 Moove GDPR - Consentimiento leído:', consent);
 
                     // Actualizar Guiders con el consentimiento usando el método correcto
                     window.guiders.grantConsentWithPreferences(consent);
 
-                    console.log('[Guiders WP] ✅ Consentimiento sincronizado con Guiders SDK');
 
                     // Resetear contador de reintentos para futuras sincronizaciones
                     syncRetries = 0;
@@ -539,7 +513,6 @@ class GuidersPublic {
 
                 // Escuchar el evento de cierre del modal de Moove
                 document.addEventListener('moove_gdpr_modal_closed', function() {
-                    console.log('[Guiders WP] 💾 Evento de cierre de Moove GDPR detectado');
                     setTimeout(syncMooveToGuiders, 100); // Pequeño delay para asegurar que la cookie esté actualizada
                 });
 
@@ -548,7 +521,6 @@ class GuidersPublic {
                 setInterval(function() {
                     var currentConsent = getCookie('moove_gdpr_popup');
                     if (currentConsent !== lastMooveConsent) {
-                        console.log('[Guiders WP] 💾 Cambio en cookie Moove GDPR detectado:', currentConsent);
                         lastMooveConsent = currentConsent;
                         syncMooveToGuiders();
                     }
@@ -558,7 +530,6 @@ class GuidersPublic {
                 syncMooveToGuiders();
 
                 if (cookieConfig.debug) {
-                    console.log('[Guiders WP] Integración con Moove GDPR completada');
                 }
 
                 return true; // Moove GDPR detectado y configurado
@@ -571,7 +542,6 @@ class GuidersPublic {
                 // Verificar si debe sincronizarse
                 if (!cookieConfig.wp_consent_api_enabled) {
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Sincronización de cookies desactivada');
                     }
                     return false;
                 }
@@ -579,7 +549,6 @@ class GuidersPublic {
                 // Verificar si se debe forzar el sistema interno
                 if (cookieConfig.system === 'internal') {
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Sistema configurado como "interno" - saltando Beautiful Cookie Banner');
                     }
                     return false;
                 }
@@ -601,13 +570,11 @@ class GuidersPublic {
 
                 if (!hasBeautifulCookieBanner) {
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Beautiful Cookie Banner no detectado (ni cookie ni elementos DOM .cc-window/.cc-banner)');
                     }
                     return false;
                 }
 
                 if (cookieConfig.debug) {
-                    console.log('[Guiders WP] ✅ Beautiful Cookie Banner detectado - configurando sincronización');
                 }
 
                 // Función para leer consentimiento de Beautiful Cookie Banner
@@ -616,13 +583,11 @@ class GuidersPublic {
 
                     if (!cookieValue) {
                         if (cookieConfig.debug) {
-                            console.log('[Guiders WP] 🔍 Cookie cookieconsent_status no encontrada - Beautiful Cookie Banner no instalado o usuario aún no ha interactuado');
                         }
                         return null;
                     }
 
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] ✅ Beautiful Cookie Banner detectado - Cookie cookieconsent_status:', cookieValue);
                     }
 
                     // Intentar parsear como JSON (modo diferenciado)
@@ -637,7 +602,6 @@ class GuidersPublic {
                                 personalization: parsed.marketing === 'true' || parsed.marketing === true
                             };
 
-                            console.log('[Guiders WP] 📋 Modo diferenciado - Categorías detectadas:', {
                                 'Technical (functional)': consent.functional,
                                 'Analytics': consent.analytics,
                                 'Marketing (personalization)': consent.personalization
@@ -653,7 +617,6 @@ class GuidersPublic {
                     // Usar modo ESTRICTO (solo 'allow' = consentimiento)
                     var hasConsent = cookieValue === 'allow';
 
-                    console.log('[Guiders WP] 📋 Modo simple - Valor:', cookieValue, '(todas las categorías:', hasConsent ? 'ACEPTADAS' : 'RECHAZADAS' + ')');
 
                     return {
                         functional: hasConsent,
@@ -671,11 +634,9 @@ class GuidersPublic {
                         if (syncRetries < maxSyncRetries) {
                             syncRetries++;
                             if (cookieConfig.debug) {
-                                console.log('[Guiders WP] SDK no listo, reintentando en 500ms... (intento ' + syncRetries + '/' + maxSyncRetries + ')');
                             }
                             setTimeout(syncBeautifulCookieBannerToGuiders, 500);
                         } else {
-                            console.log('[Guiders WP] ❌ SDK no disponible después de ' + maxSyncRetries + ' reintentos');
                         }
                         return;
                     }
@@ -684,17 +645,14 @@ class GuidersPublic {
 
                     if (!consent) {
                         if (cookieConfig.debug) {
-                            console.log('[Guiders WP] No se pudo leer consentimiento de Beautiful Cookie Banner');
                         }
                         return;
                     }
 
-                    console.log('[Guiders WP] 🍪 Beautiful Cookie Banner - Consentimiento leído:', consent);
 
                     // Actualizar Guiders con el consentimiento usando el método correcto
                     window.guiders.grantConsentWithPreferences(consent);
 
-                    console.log('[Guiders WP] ✅ Consentimiento sincronizado con Guiders SDK');
 
                     // Resetear contador de reintentos para futuras sincronizaciones
                     syncRetries = 0;
@@ -710,7 +668,6 @@ class GuidersPublic {
                         if (data && (data.event === 'beautiful_cookie_consent_updated' ||
                                     data.event === 'beautiful_cookie_consent_initialized')) {
                             if (cookieConfig.debug) {
-                                console.log('[Guiders WP] Evento dataLayer detectado:', data.event);
                             }
                             setTimeout(syncBeautifulCookieBannerToGuiders, 100);
                         }
@@ -719,7 +676,6 @@ class GuidersPublic {
                     };
 
                     if (cookieConfig.debug) {
-                        console.log('[Guiders WP] Listener dataLayer configurado para Beautiful Cookie Banner');
                     }
                 }
 
@@ -729,7 +685,6 @@ class GuidersPublic {
                     var currentConsent = getCookie('cookieconsent_status');
                     if (currentConsent !== lastConsent) {
                         lastConsent = currentConsent;
-                        console.log('[Guiders WP] 💾 Cambio en cookie detectado (Save Settings/Allow/Deny):', currentConsent);
                         syncBeautifulCookieBannerToGuiders();
                     }
                 }, 1000);
@@ -738,7 +693,6 @@ class GuidersPublic {
                 setTimeout(syncBeautifulCookieBannerToGuiders, 500);
 
                 if (cookieConfig.debug) {
-                    console.log('[Guiders WP] Integración con Beautiful Cookie Banner completada');
                 }
 
                 return true; // Beautiful Cookie Banner detectado y configurado
@@ -811,7 +765,6 @@ class GuidersPublic {
                     // ⚠️ IMPORTANTE: Sincronizar consentimiento INMEDIATAMENTE
                     // Debe ejecutarse ANTES de cualquier inicialización del SDK (incluso antes del delay)
                     // Si requireConsent=true, el SDK espera consentimiento para inicializarse
-                    console.log('[Guiders WP] 🔍 Detectando gestores de cookies...');
 
                     var hasWPConsent = setupConsentSync();
                     var hasMooveGDPR = setupMooveGDPRSync();
@@ -824,12 +777,10 @@ class GuidersPublic {
                     if (hasBeautifulCookie) detected.push('Beautiful Cookie Banner');
 
                     if (detected.length > 0) {
-                        console.log('[Guiders WP] ✅ Gestores de cookies detectados: ' + detected.join(', '));
 
                         // ⚠️ IMPORTANTE: Si se detecta un gestor externo, FORZAR requireConsent=true
                         // Esto asegura que el chat no se muestre hasta que se otorgue consentimiento
                         if (!sdkOptions.requireConsent) {
-                            console.log('[Guiders WP] 🔒 Activando requireConsent automáticamente (gestor externo detectado)');
                             sdkOptions.requireConsent = true;
                         }
 
@@ -838,26 +789,19 @@ class GuidersPublic {
                         if (typeof localStorage !== 'undefined') {
                             var oldState = localStorage.getItem('guiders_consent_state');
                             if (oldState) {
-                                console.log('[Guiders WP] 🗑️ Limpiando consentimiento antiguo del SDK (gestor externo detectado)');
                                 localStorage.removeItem('guiders_consent_state');
                             }
                         }
                     } else {
-                        console.log('[Guiders WP] ⚠️ No se detectó ningún gestor de cookies externo');
-                        console.log('[Guiders WP] ℹ️ El SDK usará su sistema de consentimiento interno');
-                        console.log('[Guiders WP] 💡 Gestores soportados: WP Consent API, Moove GDPR, Beautiful Cookie Banner');
                     }
 
                     function doInit() {
                         if (window.guiders) {
-                            console.log('[Guiders WP] ⚠️ SDK ya inicializado, saltando doInit()');
                             return; // safeguard
                         }
 
-                        console.log('[Guiders WP] 🚀 Inicializando SDK...');
                         window.guiders = new window.TrackingPixelSDK(sdkOptions);
                         window.guiders.init().then(function() {
-                            console.log('Guiders SDK initialized successfully');
 
                             if (config.features.tracking) {
                                 window.guiders.enableAutomaticTracking();
@@ -874,7 +818,6 @@ class GuidersPublic {
                                 title: document.title
                             });
                         }).catch(function(error) {
-                            console.error('Failed to initialize Guiders SDK:', error);
                         });
                     }
 
@@ -882,7 +825,6 @@ class GuidersPublic {
                     if (typeof window.initGuiders === 'undefined') {
                         window.initGuiders = function(force) {
                             if (window.guiders && !force) {
-                                console.warn('[Guiders WP] initGuiders() ignorado: instancia existente. Usa force=true para reinicializar.');
                                 return window.guiders;
                             }
                             if (force && window.guiders) {
@@ -894,33 +836,26 @@ class GuidersPublic {
                         };
                     }
 
-                    console.log('[Guiders WP] 🚀 Modo de inicialización:', config.autoInitMode, '- readyState:', document.readyState);
 
                     switch(config.autoInitMode) {
                         case 'immediate':
-                            console.log('[Guiders WP] ⚡ Inicialización inmediata');
                             doInit();
                             break;
                         case 'domready':
                             if (document.readyState === 'loading') {
-                                console.log('[Guiders WP] ⏳ Esperando DOMContentLoaded');
                                 document.addEventListener('DOMContentLoaded', doInit);
                             } else {
-                                console.log('[Guiders WP] ✅ DOM ya listo, inicializando');
                                 doInit();
                             }
                             break;
                         case 'delayed':
                             var d = parseInt(config.autoInitDelay || 500, 10);
-                            console.log('[Guiders WP] ⏱️ Inicialización retrasada:', d + 'ms');
                             setTimeout(doInit, isNaN(d)?500:d);
                             break;
                         case 'manual':
                             // No auto init; el desarrollador puede llamar window.guiders = new TrackingPixelSDK(...)
-                            console.log('[Guiders WP] 🔧 Auto-init manual seleccionado; el SDK no se inicializará automáticamente.');
                             break;
                         default:
-                            console.log('[Guiders WP] 📋 Fallback a domready');
                             // fallback domready
                             if (document.readyState === 'loading') {
                                 document.addEventListener('DOMContentLoaded', doInit);
@@ -928,7 +863,6 @@ class GuidersPublic {
                     }
                     
                 } catch (error) {
-                    console.error('Error initializing Guiders SDK:', error);
                 }
             }
             
