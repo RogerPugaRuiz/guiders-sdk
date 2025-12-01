@@ -103,6 +103,17 @@ export class RealtimeMessageManager {
 	}
 
 	/**
+	 * Actualiza la referencia de ChatUI
+	 * IMPORTANTE: Debe llamarse cuando se recrea el ChatUI para evitar referencias desactualizadas
+	 */
+	public setChatUI(chatUI: ChatUI): void {
+		if (this.chatUI !== chatUI) {
+			debugLog('💬 [RealtimeMessageManager] 🔄 Actualizando referencia de ChatUI');
+			this.chatUI = chatUI;
+		}
+	}
+
+	/**
 	 * Establece el chat activo actual
 	 */
 	public setCurrentChat(chatId: string): void {

@@ -2255,6 +2255,20 @@ export class TrackingPixelSDK {
 				debugLog('[TrackingPixelSDK] ✅ Usando ChatMessagesUI para carga unificada');
 				await this.chatMessagesUI.initializeChat(chatId);
 
+				// 📡 CRÍTICO: Unirse a la sala del chat para recibir mensajes en tiempo real
+				// Esto debe hacerse DESPUÉS de que la conexión WebSocket esté lista
+				if (this.wsService.isConnected()) {
+					debugLog('[TrackingPixelSDK] 📡 Uniéndose a sala de chat después de cargar mensajes:', chatId);
+					this.realtimeMessageManager.setCurrentChat(chatId);
+
+					// También actualizar el servicio de mensajes no leídos
+					if (this.chatToggleButton) {
+						this.chatToggleButton.setActiveChatForUnread(chatId);
+					}
+				} else {
+					debugLog('[TrackingPixelSDK] ⚠️ WebSocket no conectado aún, setCurrentChat se llamará en onConnect');
+				}
+
 				// ✅ Después de cargar exitosamente, verificar si mostrar mensaje de bienvenida
 				debugLog('[TrackingPixelSDK] 💬 Carga completa, verificando necesidad de mensaje de bienvenida');
 				if (chat.checkAndAddInitialMessages) {
@@ -2310,6 +2324,16 @@ export class TrackingPixelSDK {
 
 			// Ocultar indicador de carga
 			chat.hideLoadingMessages();
+
+			// 📡 CRÍTICO: Unirse a la sala del chat para recibir mensajes en tiempo real (sistema legacy)
+			if (this.wsService.isConnected()) {
+				debugLog('[TrackingPixelSDK] 📡 Uniéndose a sala de chat después de cargar mensajes (legacy):', chatId);
+				this.realtimeMessageManager.setCurrentChat(chatId);
+
+				if (this.chatToggleButton) {
+					this.chatToggleButton.setActiveChatForUnread(chatId);
+				}
+			}
 
 			// Hacer scroll al final para mostrar los mensajes más recientes
 			setTimeout(() => {
@@ -2528,6 +2552,10 @@ export class TrackingPixelSDK {
 		if (!visitorId) {
 			return;
 		}
+
+		// 🔧 FIX: Siempre actualizar la referencia de ChatUI en el RMM
+		// Esto evita que el RMM tenga una referencia desactualizada cuando se recrea el ChatUI
+		this.realtimeMessageManager.setChatUI(chat);
 
 		// Verificar si ya está conectado
 		debugLog('📡 [TrackingPixelSDK] 🔍 DEBUG: Verificando si ya conectado:', this.wsService.isConnected());
