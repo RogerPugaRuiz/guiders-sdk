@@ -352,6 +352,60 @@ class GuidersAdmin {
             'guiders_commercial_availability_section'
         );
 
+        // ==================== QUICK ACTIONS SECTION ====================
+        // Quick Actions section
+        add_settings_section(
+            'guiders_quick_actions_section',
+            __('Quick Actions - Botones de Acción Rápida', 'guiders-wp-plugin'),
+            array($this, 'quickActionsSectionCallback'),
+            'guiders-settings-chat'
+        );
+
+        // Quick Actions enabled field
+        add_settings_field(
+            'quick_actions_enabled',
+            __('Habilitar Quick Actions', 'guiders-wp-plugin'),
+            array($this, 'quickActionsEnabledFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_quick_actions_section'
+        );
+
+        // Quick Actions welcome message field
+        add_settings_field(
+            'quick_actions_welcome_message',
+            __('Mensaje de Bienvenida', 'guiders-wp-plugin'),
+            array($this, 'quickActionsWelcomeMessageFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_quick_actions_section'
+        );
+
+        // Quick Actions show on first open field
+        add_settings_field(
+            'quick_actions_show_on_first_open',
+            __('Mostrar en Primera Apertura', 'guiders-wp-plugin'),
+            array($this, 'quickActionsShowOnFirstOpenFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_quick_actions_section'
+        );
+
+        // Quick Actions show on chat start field
+        add_settings_field(
+            'quick_actions_show_on_chat_start',
+            __('Mostrar al Iniciar Chat', 'guiders-wp-plugin'),
+            array($this, 'quickActionsShowOnChatStartFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_quick_actions_section'
+        );
+
+        // Quick Actions buttons field
+        add_settings_field(
+            'quick_actions_buttons',
+            __('Botones de Acción', 'guiders-wp-plugin'),
+            array($this, 'quickActionsButtonsFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_quick_actions_section'
+        );
+
         // Tracking V2 section
         add_settings_section(
             'guiders_tracking_v2_section',
@@ -1468,6 +1522,188 @@ class GuidersAdmin {
         echo '<input type="checkbox" id="commercial_availability_show_badge" name="guiders_wp_plugin_settings[commercial_availability_show_badge]" value="1" ' . checked($show_badge, true, false) . ' />';
         echo '<label for="commercial_availability_show_badge">' . __('Mostrar número de comerciales disponibles', 'guiders-wp-plugin') . '</label>';
         echo '<p class="description">' . __('Si está activado, se mostrará un contador en el botón del chat con el número de comerciales disponibles.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    // === Quick Actions Field Callbacks ===
+
+    /**
+     * Quick Actions section callback
+     */
+    public function quickActionsSectionCallback() {
+        echo '<p>' . __('Configure los botones de acción rápida que aparecerán cuando el visitante abra el chat.', 'guiders-wp-plugin') . '</p>';
+        echo '<p class="description">' . __('Los Quick Actions permiten ofrecer opciones predefinidas para facilitar la interacción del visitante con el chat.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Quick Actions enabled field callback
+     */
+    public function quickActionsEnabledFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $enabled = isset($settings['quick_actions_enabled']) ? $settings['quick_actions_enabled'] : false;
+
+        echo '<input type="checkbox" id="quick_actions_enabled" name="guiders_wp_plugin_settings[quick_actions_enabled]" value="1" ' . checked($enabled, true, false) . ' />';
+        echo '<label for="quick_actions_enabled">' . __('Mostrar botones de acción rápida en el chat', 'guiders-wp-plugin') . '</label>';
+    }
+
+    /**
+     * Quick Actions welcome message field callback
+     */
+    public function quickActionsWelcomeMessageFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $message = isset($settings['quick_actions_welcome_message']) ? $settings['quick_actions_welcome_message'] : '¡Hola! 👋 ¿En qué puedo ayudarte hoy?';
+
+        echo '<input type="text" id="quick_actions_welcome_message" name="guiders_wp_plugin_settings[quick_actions_welcome_message]" value="' . esc_attr($message) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Mensaje que aparece encima de los botones de acción rápida.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Quick Actions show on first open field callback
+     */
+    public function quickActionsShowOnFirstOpenFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $show = isset($settings['quick_actions_show_on_first_open']) ? $settings['quick_actions_show_on_first_open'] : true;
+
+        echo '<input type="checkbox" id="quick_actions_show_on_first_open" name="guiders_wp_plugin_settings[quick_actions_show_on_first_open]" value="1" ' . checked($show, true, false) . ' />';
+        echo '<label for="quick_actions_show_on_first_open">' . __('Mostrar los botones la primera vez que se abre el chat', 'guiders-wp-plugin') . '</label>';
+    }
+
+    /**
+     * Quick Actions show on chat start field callback
+     */
+    public function quickActionsShowOnChatStartFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $show = isset($settings['quick_actions_show_on_chat_start']) ? $settings['quick_actions_show_on_chat_start'] : true;
+
+        echo '<input type="checkbox" id="quick_actions_show_on_chat_start" name="guiders_wp_plugin_settings[quick_actions_show_on_chat_start]" value="1" ' . checked($show, true, false) . ' />';
+        echo '<label for="quick_actions_show_on_chat_start">' . __('Mostrar los botones cuando se inicia una nueva conversación', 'guiders-wp-plugin') . '</label>';
+    }
+
+    /**
+     * Quick Actions buttons field callback
+     */
+    public function quickActionsButtonsFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $buttons_json = isset($settings['quick_actions_buttons']) ? $settings['quick_actions_buttons'] : '';
+
+        // Default buttons if empty
+        $default_buttons = array(
+            array('id' => 'greet', 'label' => 'Saludar', 'emoji' => '👋', 'actionType' => 'send_message', 'payload' => '¡Hola! Me gustaría obtener más información.'),
+            array('id' => 'pricing', 'label' => 'Ver precios', 'emoji' => '💰', 'actionType' => 'send_message', 'payload' => '¿Cuáles son sus planes y precios?'),
+            array('id' => 'agent', 'label' => 'Hablar con persona', 'emoji' => '👤', 'actionType' => 'request_agent', 'payload' => ''),
+            array('id' => 'help', 'label' => 'Centro de ayuda', 'emoji' => '📚', 'actionType' => 'open_url', 'payload' => 'https://help.example.com')
+        );
+
+        $buttons = !empty($buttons_json) ? json_decode($buttons_json, true) : $default_buttons;
+        if (!is_array($buttons)) {
+            $buttons = $default_buttons;
+        }
+        ?>
+        <div id="quick-actions-buttons-container">
+            <table class="widefat quick-actions-table" style="max-width: 800px;">
+                <thead>
+                    <tr>
+                        <th style="width: 80px;"><?php _e('Emoji', 'guiders-wp-plugin'); ?></th>
+                        <th style="width: 120px;"><?php _e('Etiqueta', 'guiders-wp-plugin'); ?></th>
+                        <th style="width: 140px;"><?php _e('Tipo de Acción', 'guiders-wp-plugin'); ?></th>
+                        <th><?php _e('Payload/URL', 'guiders-wp-plugin'); ?></th>
+                        <th style="width: 60px;"><?php _e('Acciones', 'guiders-wp-plugin'); ?></th>
+                    </tr>
+                </thead>
+                <tbody id="quick-actions-buttons-list">
+                    <?php foreach ($buttons as $index => $button): ?>
+                    <tr class="quick-action-row" data-index="<?php echo $index; ?>">
+                        <td>
+                            <input type="text" class="qa-emoji" value="<?php echo esc_attr($button['emoji'] ?? ''); ?>" style="width: 60px; text-align: center; font-size: 20px;" />
+                        </td>
+                        <td>
+                            <input type="text" class="qa-label" value="<?php echo esc_attr($button['label'] ?? ''); ?>" style="width: 100%;" />
+                        </td>
+                        <td>
+                            <select class="qa-action-type" style="width: 100%;">
+                                <option value="send_message" <?php selected($button['actionType'] ?? '', 'send_message'); ?>><?php _e('Enviar mensaje', 'guiders-wp-plugin'); ?></option>
+                                <option value="request_agent" <?php selected($button['actionType'] ?? '', 'request_agent'); ?>><?php _e('Solicitar agente', 'guiders-wp-plugin'); ?></option>
+                                <option value="open_url" <?php selected($button['actionType'] ?? '', 'open_url'); ?>><?php _e('Abrir URL', 'guiders-wp-plugin'); ?></option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" class="qa-payload" value="<?php echo esc_attr($button['payload'] ?? ''); ?>" style="width: 100%;" placeholder="<?php _e('Mensaje o URL...', 'guiders-wp-plugin'); ?>" />
+                        </td>
+                        <td>
+                            <button type="button" class="button qa-remove-btn" title="<?php _e('Eliminar', 'guiders-wp-plugin'); ?>">✕</button>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            <p style="margin-top: 10px;">
+                <button type="button" class="button button-secondary" id="qa-add-button">
+                    <?php _e('+ Añadir botón', 'guiders-wp-plugin'); ?>
+                </button>
+            </p>
+            <input type="hidden" id="quick_actions_buttons" name="guiders_wp_plugin_settings[quick_actions_buttons]" value="<?php echo esc_attr($buttons_json); ?>" />
+        </div>
+        <p class="description">
+            <?php _e('Tipos de acción:', 'guiders-wp-plugin'); ?><br>
+            • <strong><?php _e('Enviar mensaje', 'guiders-wp-plugin'); ?>:</strong> <?php _e('Envía el texto del payload como mensaje en el chat.', 'guiders-wp-plugin'); ?><br>
+            • <strong><?php _e('Solicitar agente', 'guiders-wp-plugin'); ?>:</strong> <?php _e('Solicita un agente humano (no requiere payload).', 'guiders-wp-plugin'); ?><br>
+            • <strong><?php _e('Abrir URL', 'guiders-wp-plugin'); ?>:</strong> <?php _e('Abre la URL del payload en una nueva pestaña.', 'guiders-wp-plugin'); ?>
+        </p>
+        <script>
+        jQuery(document).ready(function($) {
+            var buttonIndex = <?php echo count($buttons); ?>;
+
+            function updateHiddenField() {
+                var buttons = [];
+                $('#quick-actions-buttons-list tr.quick-action-row').each(function(i) {
+                    var $row = $(this);
+                    var button = {
+                        id: 'btn_' + i,
+                        emoji: $row.find('.qa-emoji').val(),
+                        label: $row.find('.qa-label').val(),
+                        actionType: $row.find('.qa-action-type').val(),
+                        payload: $row.find('.qa-payload').val()
+                    };
+                    if (button.label) { // Solo añadir si tiene etiqueta
+                        buttons.push(button);
+                    }
+                });
+                $('#quick_actions_buttons').val(JSON.stringify(buttons));
+            }
+
+            // Add button
+            $('#qa-add-button').on('click', function() {
+                var newRow = '<tr class="quick-action-row" data-index="' + buttonIndex + '">' +
+                    '<td><input type="text" class="qa-emoji" value="" style="width: 60px; text-align: center; font-size: 20px;" /></td>' +
+                    '<td><input type="text" class="qa-label" value="" style="width: 100%;" /></td>' +
+                    '<td><select class="qa-action-type" style="width: 100%;">' +
+                        '<option value="send_message"><?php _e('Enviar mensaje', 'guiders-wp-plugin'); ?></option>' +
+                        '<option value="request_agent"><?php _e('Solicitar agente', 'guiders-wp-plugin'); ?></option>' +
+                        '<option value="open_url"><?php _e('Abrir URL', 'guiders-wp-plugin'); ?></option>' +
+                    '</select></td>' +
+                    '<td><input type="text" class="qa-payload" value="" style="width: 100%;" placeholder="<?php _e('Mensaje o URL...', 'guiders-wp-plugin'); ?>" /></td>' +
+                    '<td><button type="button" class="button qa-remove-btn" title="<?php _e('Eliminar', 'guiders-wp-plugin'); ?>">✕</button></td>' +
+                '</tr>';
+                $('#quick-actions-buttons-list').append(newRow);
+                buttonIndex++;
+                updateHiddenField();
+            });
+
+            // Remove button
+            $(document).on('click', '.qa-remove-btn', function() {
+                $(this).closest('tr').remove();
+                updateHiddenField();
+            });
+
+            // Update on any change
+            $(document).on('change keyup', '.qa-emoji, .qa-label, .qa-action-type, .qa-payload', function() {
+                updateHiddenField();
+            });
+
+            // Initial update
+            updateHiddenField();
+        });
+        </script>
+        <?php
     }
 
     // === Tracking V2 Field Callbacks ===

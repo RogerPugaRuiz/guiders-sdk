@@ -113,6 +113,17 @@ $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'general
                 </div>
 
                 <div class="guiders-info-box">
+                    <h3><?php _e('Quick Actions', 'guiders-wp-plugin'); ?></h3>
+                    <p><?php _e('Botones de acción rápida que aparecen al abrir el chat.', 'guiders-wp-plugin'); ?></p>
+                    <ul>
+                        <li><?php _e('👋 <strong>Enviar mensaje:</strong> Envía un mensaje predefinido', 'guiders-wp-plugin'); ?></li>
+                        <li><?php _e('👤 <strong>Solicitar agente:</strong> Pide hablar con una persona', 'guiders-wp-plugin'); ?></li>
+                        <li><?php _e('🔗 <strong>Abrir URL:</strong> Abre un enlace externo', 'guiders-wp-plugin'); ?></li>
+                    </ul>
+                    <p class="description"><?php _e('Facilita la interacción del visitante con opciones predefinidas.', 'guiders-wp-plugin'); ?></p>
+                </div>
+
+                <div class="guiders-info-box">
                     <h3><?php _e('Mensaje de Consentimiento', 'guiders-wp-plugin'); ?></h3>
                     <p><?php _e('Muestra un mensaje de consentimiento antes de iniciar el chat para cumplir con GDPR.', 'guiders-wp-plugin'); ?></p>
                     <p class="description"><?php _e('Personaliza el texto y los enlaces a tu política de privacidad.', 'guiders-wp-plugin'); ?></p>

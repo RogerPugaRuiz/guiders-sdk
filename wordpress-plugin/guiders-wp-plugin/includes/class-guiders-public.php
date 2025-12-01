@@ -146,7 +146,8 @@ class GuidersPublic {
             'flushInterval' => isset($this->settings['flush_interval']) ? intval($this->settings['flush_interval']) : 5000,
             'trackingV2' => $this->getTrackingV2Config(),
             'presence' => $this->getPresenceConfig(),
-            'autoOpenChatOnMessage' => isset($this->settings['auto_open_chat_on_message']) ? (bool)$this->settings['auto_open_chat_on_message'] : true
+            'autoOpenChatOnMessage' => isset($this->settings['auto_open_chat_on_message']) ? (bool)$this->settings['auto_open_chat_on_message'] : true,
+            'quickActions' => $this->getQuickActionsConfig()
         );
 
         // Add environment-specific endpoints
@@ -1183,6 +1184,59 @@ class GuidersPublic {
             'typingTimeout' => isset($this->settings['presence_typing_timeout']) ? intval($this->settings['presence_typing_timeout']) : 2000,
             'pollingInterval' => isset($this->settings['presence_polling_interval']) ? intval($this->settings['presence_polling_interval']) : 30000,
             'showOfflineBanner' => isset($this->settings['presence_show_offline_banner']) ? $this->settings['presence_show_offline_banner'] : true
+        );
+
+        return $config;
+    }
+
+    /**
+     * Get Quick Actions configuration
+     */
+    private function getQuickActionsConfig() {
+        $enabled = isset($this->settings['quick_actions_enabled']) ? $this->settings['quick_actions_enabled'] : false;
+
+        if (!$enabled) {
+            return array('enabled' => false);
+        }
+
+        $buttons_json = isset($this->settings['quick_actions_buttons']) ? $this->settings['quick_actions_buttons'] : '';
+        $buttons_raw = !empty($buttons_json) ? json_decode($buttons_json, true) : array();
+
+        // Transform buttons to SDK format
+        $buttons = array();
+        if (is_array($buttons_raw)) {
+            foreach ($buttons_raw as $button) {
+                $action = array('type' => $button['actionType'] ?? 'send_message');
+
+                // Add payload based on action type
+                if ($action['type'] === 'send_message' && !empty($button['payload'])) {
+                    $action['payload'] = $button['payload'];
+                } elseif ($action['type'] === 'open_url' && !empty($button['payload'])) {
+                    $action['payload'] = $button['payload'];
+                }
+                // request_agent doesn't need payload
+
+                $buttons[] = array(
+                    'id' => $button['id'] ?? 'btn_' . count($buttons),
+                    'label' => $button['label'] ?? '',
+                    'emoji' => $button['emoji'] ?? '',
+                    'action' => $action
+                );
+            }
+        }
+
+        $config = array(
+            'enabled' => true,
+            'welcomeMessage' => isset($this->settings['quick_actions_welcome_message'])
+                ? $this->settings['quick_actions_welcome_message']
+                : '¡Hola! 👋 ¿En qué puedo ayudarte hoy?',
+            'showOnFirstOpen' => isset($this->settings['quick_actions_show_on_first_open'])
+                ? (bool)$this->settings['quick_actions_show_on_first_open']
+                : true,
+            'showOnChatStart' => isset($this->settings['quick_actions_show_on_chat_start'])
+                ? (bool)$this->settings['quick_actions_show_on_chat_start']
+                : true,
+            'buttons' => $buttons
         );
 
         return $config;
