@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.7.1
+Stable tag: 2.8.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,28 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.8.0 =
+* **✨ Quick Actions**: Sistema de acciones rápidas configurables al abrir el chat
+  * **Configuración en Admin**: Nueva sección "Quick Actions" en el panel de WordPress
+  * **Botones Personalizables**: Define botones con emoji, etiqueta y acción (mensaje, solicitar agente, URL, custom)
+  * **Mensaje de Bienvenida**: Configura el mensaje que aparece con los botones
+  * **Tipos de Acción**: send_message, request_agent, open_url, custom
+  * **Integración Backend**: Notifica al comercial cuando se solicita agente humano
+* **✨ Soporte Mensajes IA**: Detección y renderizado diferenciado de mensajes de IA
+  * **Indicador Visual**: Los mensajes de IA muestran emoji 🤖 y estilo diferenciado
+  * **Detección Automática**: Por flag isAI, type=ai, senderId conocido o aiMetadata
+  * **Configurable**: Personaliza emoji, nombre del asistente y comportamiento
+* **🔧 Validación JavaScript en PHP**: Validación automática de objetos JS en archivos PHP
+  * **Pre-commit Hook**: Detecta errores de sintaxis antes de commitear
+  * **Prevención de Bugs**: Evita JavaScript malformado en integraciones de cookies
+* **🐛 Fix Chat en Tiempo Real**: Corrección crítica de mensajes comercial → visitante
+  * **Problema Resuelto**: Mensajes no aparecían sin recargar página
+  * **Causa**: Referencia desactualizada de ChatUI en RealtimeMessageManager
+  * **Solución**: Método setChatUI() para mantener referencia sincronizada
+* **🐛 Fix Autenticación Same-Domain**: Elimina credentials:include
+  * **Problema Resuelto**: Error HTTP 400 cuando panel y web están en mismo dominio
+  * **Solución**: Autenticación via header X-Guiders-Sid en lugar de cookies include
 
 = 2.7.1 =
 * **🐛 Corrección Crítica**: Eliminación completa de console logs en producción
