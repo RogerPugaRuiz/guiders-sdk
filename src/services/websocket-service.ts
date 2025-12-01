@@ -473,6 +473,27 @@ export class WebSocketService {
 		this.socket.on('visitor:left', (data: any) => {
 			debugLog('📡 [WebSocketService] ✅ Confirmación de salida de sala de visitante:', data);
 		});
+
+		// 🤖 Eventos de IA - Typing indicator cuando la IA está generando respuesta
+		this.socket.on('ai:typing:start', (data: { chatId: string }) => {
+			debugLog('📡 [WebSocketService] 🤖 ai:typing:start recibido - IA generando respuesta:', {
+				chatId: data.chatId
+			});
+
+			if (this.callbacks.onAITypingStart) {
+				this.callbacks.onAITypingStart(data);
+			}
+		});
+
+		this.socket.on('ai:typing:stop', (data: { chatId: string }) => {
+			debugLog('📡 [WebSocketService] 🤖 ai:typing:stop recibido - IA terminó de generar:', {
+				chatId: data.chatId
+			});
+
+			if (this.callbacks.onAITypingStop) {
+				this.callbacks.onAITypingStop(data);
+			}
+		});
 	}
 
 	/**
@@ -813,6 +834,24 @@ export class WebSocketService {
 			mergedCallbacks.onPresenceChanged = (event) => {
 				if (oldOnPresenceChanged) oldOnPresenceChanged(event);
 				if (callbacks.onPresenceChanged) callbacks.onPresenceChanged(event);
+			};
+		}
+
+		// 🤖 Merge onAITypingStart callbacks
+		const oldOnAITypingStart = this.callbacks.onAITypingStart;
+		if (oldOnAITypingStart || callbacks.onAITypingStart) {
+			mergedCallbacks.onAITypingStart = (data) => {
+				if (oldOnAITypingStart) oldOnAITypingStart(data);
+				if (callbacks.onAITypingStart) callbacks.onAITypingStart(data);
+			};
+		}
+
+		// 🤖 Merge onAITypingStop callbacks
+		const oldOnAITypingStop = this.callbacks.onAITypingStop;
+		if (oldOnAITypingStop || callbacks.onAITypingStop) {
+			mergedCallbacks.onAITypingStop = (data) => {
+				if (oldOnAITypingStop) oldOnAITypingStop(data);
+				if (callbacks.onAITypingStop) callbacks.onAITypingStop(data);
 			};
 		}
 

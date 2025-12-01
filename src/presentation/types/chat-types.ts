@@ -1,6 +1,11 @@
 // chat-types.ts - Tipos e interfaces para el sistema de chat
 
-import { ChatPositionConfig, MobileDetectionConfig } from "../../types";
+import { ChatPositionConfig, MobileDetectionConfig, AIConfig } from "../../types";
+import { AIMetadata } from "../../types/websocket-types";
+import { QuickActionsConfig } from "./quick-actions-types";
+
+// Re-exportar tipos de Quick Actions
+export * from "./quick-actions-types";
 
 /**
  * Tipo para identificar el remitente de un mensaje
@@ -33,6 +38,10 @@ export interface ChatUIOptions {
 	mobileDetection?: MobileDetectionConfig;
 	/** Configuración del mensaje de consentimiento del chat */
 	chatConsentMessage?: Partial<ChatConsentMessageConfig>;
+	/** Configuración de Quick Actions (botones de acción rápida) */
+	quickActions?: Partial<QuickActionsConfig>;
+	/** Configuración de IA para el chat */
+	ai?: Partial<AIConfig>;
 }
 
 /**
@@ -47,6 +56,11 @@ export interface ChatMessageParams {
 	timestamp?: number;
 	/** ID del remitente del mensaje */
 	senderId?: string;
+	// 🤖 Campos para mensajes de IA
+	/** Indica si el mensaje fue generado por IA */
+	isAI?: boolean;
+	/** Metadatos del modelo de IA (modelo, confianza, etc.) */
+	aiMetadata?: AIMetadata;
 }
 
 /**

@@ -1,6 +1,7 @@
-import { MessageV2 } from '../../types';
+import { MessageV2, AIConfig } from '../../types';
+import { AIMetadata } from '../../types/websocket-types';
 
-export type Sender = 'user' | 'agent' | 'system';
+export type Sender = 'user' | 'agent' | 'system' | 'ai';
 
 export interface MessageRenderData {
     id?: string;
@@ -8,7 +9,19 @@ export interface MessageRenderData {
     sender: Sender;
     timestamp?: number | string;
     senderId?: string;
+    // 🤖 Campos para mensajes de IA
+    isAI?: boolean;
+    aiMetadata?: AIMetadata;
 }
+
+// 🤖 Configuración de IA para el renderer (singleton)
+let aiRenderConfig: AIConfig = {
+    enabled: true,
+    showAIIndicator: true,
+    aiAvatarEmoji: '🤖',
+    aiSenderName: 'Asistente IA',
+    showTypingIndicator: true
+};
 
 /**
  * Utilidad unificada para renderizar mensajes de chat
@@ -16,7 +29,21 @@ export interface MessageRenderData {
  * tengan exactamente el mismo estilo y estructura visual.
  */
 export class MessageRenderer {
-    
+
+    /**
+     * 🤖 Actualiza la configuración de IA para el renderer
+     */
+    public static setAIConfig(config: Partial<AIConfig>): void {
+        aiRenderConfig = { ...aiRenderConfig, ...config };
+    }
+
+    /**
+     * 🤖 Obtiene la configuración de IA actual
+     */
+    public static getAIConfig(): AIConfig {
+        return { ...aiRenderConfig };
+    }
+
     /**
      * Crea un elemento de mensaje unificado
      * @param data - Datos del mensaje para renderizar
@@ -25,17 +52,31 @@ export class MessageRenderer {
     public static createMessageElement(data: MessageRenderData): HTMLDivElement {
         const messageDiv = document.createElement('div');
         const isUserMessage = data.sender === 'user';
-        
+        const isAIMessage = data.isAI === true || data.sender === 'ai';
+
         // ✅ USAR CLASES COMPATIBLES CON ChatUI - estructura esperada
-        const wrapperClasses = isUserMessage 
-            ? 'chat-message-wrapper chat-message-user-wrapper' 
+        let wrapperClasses = isUserMessage
+            ? 'chat-message-wrapper chat-message-user-wrapper'
             : 'chat-message-wrapper chat-message-other-wrapper';
-        
+
+        // 🤖 Añadir clase de IA si corresponde
+        if (isAIMessage) {
+            wrapperClasses += ' chat-message-ai-wrapper';
+        }
+
         messageDiv.className = wrapperClasses;
-        
+
         // Agregar ID si está disponible
         if (data.id) {
             messageDiv.setAttribute('data-message-id', data.id);
+        }
+
+        // 🤖 Marcar como mensaje de IA
+        if (isAIMessage) {
+            messageDiv.setAttribute('data-ai-message', 'true');
+            if (data.aiMetadata?.model) {
+                messageDiv.setAttribute('data-ai-model', data.aiMetadata.model);
+            }
         }
 
         // ✅ Agregar timestamp para date separators
@@ -45,13 +86,23 @@ export class MessageRenderer {
                 : new Date(data.timestamp).toISOString();
             messageDiv.setAttribute('data-created-at', timestamp);
         }
-        
+
         // Crear estructura compatible con ChatUI pero con estilos modernos
         const contentWrapper = document.createElement('div');
         contentWrapper.className = 'message-content-wrapper';
 
         const chatMessage = document.createElement('div');
-        chatMessage.className = isUserMessage ? 'chat-message chat-message-user' : 'chat-message chat-message-other';
+        let messageClasses = isUserMessage ? 'chat-message chat-message-user' : 'chat-message chat-message-other';
+        if (isAIMessage) {
+            messageClasses += ' chat-message-ai';
+        }
+        chatMessage.className = messageClasses;
+
+        // 🤖 Header de IA (solo si está habilitado)
+        if (isAIMessage && aiRenderConfig.showAIIndicator !== false) {
+            const aiHeader = this.createAIHeader();
+            chatMessage.appendChild(aiHeader);
+        }
 
         const messageText = document.createElement('div');
         messageText.className = 'message-text';
@@ -72,11 +123,66 @@ export class MessageRenderer {
         chatMessage.appendChild(messageTime);
         contentWrapper.appendChild(chatMessage);
         messageDiv.appendChild(contentWrapper);
-        
+
         // Aplicar estilos modernos formales
-        this.applyModernMessageStyles(messageDiv, isUserMessage);
-        
+        this.applyModernMessageStyles(messageDiv, isUserMessage, isAIMessage);
+
         return messageDiv;
+    }
+
+    /**
+     * 🤖 Crea el header de IA con avatar, nombre y badge
+     */
+    private static createAIHeader(): HTMLElement {
+        const header = document.createElement('div');
+        header.className = 'ai-message-header';
+        header.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(66, 133, 244, 0.15);
+        `;
+
+        // Avatar emoji
+        const avatar = document.createElement('span');
+        avatar.className = 'ai-avatar';
+        avatar.textContent = aiRenderConfig.aiAvatarEmoji || '🤖';
+        avatar.style.cssText = `
+            font-size: 14px;
+        `;
+
+        // Nombre
+        const name = document.createElement('span');
+        name.className = 'ai-sender-name';
+        name.textContent = aiRenderConfig.aiSenderName || 'Asistente IA';
+        name.style.cssText = `
+            font-size: 12px;
+            font-weight: 500;
+            color: #4285f4;
+        `;
+
+        // Badge
+        const badge = document.createElement('span');
+        badge.className = 'ai-badge';
+        badge.textContent = 'IA';
+        badge.style.cssText = `
+            background: linear-gradient(135deg, #4285f4, #34a853);
+            color: white;
+            font-size: 9px;
+            font-weight: 600;
+            padding: 2px 5px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        `;
+
+        header.appendChild(avatar);
+        header.appendChild(name);
+        header.appendChild(badge);
+
+        return header;
     }
     
     /**
@@ -176,7 +282,7 @@ export class MessageRenderer {
      * Aplica estilos CSS modernos a un mensaje
      * Esta es la función clave que define el aspecto visual unificado
      */
-    private static applyModernMessageStyles(messageDiv: HTMLElement, isUserMessage: boolean): void {
+    private static applyModernMessageStyles(messageDiv: HTMLElement, isUserMessage: boolean, isAIMessage: boolean = false): void {
         const avatar = messageDiv.querySelector('.chat-avatar') as HTMLElement;
         const messageEl = messageDiv.querySelector('.chat-message') as HTMLElement;
         const text = messageDiv.querySelector('.message-text') as HTMLElement;
@@ -237,6 +343,22 @@ export class MessageRenderer {
 
         // ✅ MENSAJE PRINCIPAL - Con layout en fila para texto + hora
         if (messageEl) {
+            // 🤖 Estilos específicos para mensajes de IA
+            let messageBackground: string;
+            let messageBorder: string = '';
+
+            if (isUserMessage) {
+                messageBackground = `background: #D1E7FF;`;
+                messageBorder = `border-bottom-right-radius: 2px;`;
+            } else if (isAIMessage) {
+                // Estilo distintivo para mensajes de IA: gradiente azul claro con borde lateral
+                messageBackground = `background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fe 100%);`;
+                messageBorder = `border-bottom-left-radius: 2px; border-left: 3px solid #4285f4;`;
+            } else {
+                messageBackground = `background: #FFFFFF;`;
+                messageBorder = `border-bottom-left-radius: 2px;`;
+            }
+
             messageEl.style.cssText = `
                 padding: 8px 12px;
                 border-radius: 10px;
@@ -245,19 +367,14 @@ export class MessageRenderer {
                 word-wrap: break-word;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
                 display: inline-flex;
-                flex-direction: row;
+                flex-direction: ${isAIMessage ? 'column' : 'row'};
                 flex-wrap: nowrap;
-                align-items: flex-end;
+                align-items: ${isAIMessage ? 'stretch' : 'flex-end'};
                 gap: 6px;
                 max-width: 100%;
-                ${isUserMessage ?
-                    `background: #D1E7FF;
-                     color: #2c3e50;
-                     border-bottom-right-radius: 2px;` :
-                    `background: #FFFFFF;
-                     color: #2c3e50;
-                     border-bottom-left-radius: 2px;`
-                }
+                ${messageBackground}
+                color: #2c3e50;
+                ${messageBorder}
                 transition: all 0.2s ease;
             `;
         }

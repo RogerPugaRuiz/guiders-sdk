@@ -6,7 +6,19 @@
 /**
  * Tipos de mensajes soportados
  */
-export type MessageType = 'text' | 'image' | 'file' | 'system';
+export type MessageType = 'text' | 'image' | 'file' | 'system' | 'ai';
+
+/**
+ * Metadatos de mensajes generados por IA
+ */
+export interface AIMetadata {
+	/** Modelo de IA utilizado (ej: 'gpt-4', 'claude-3') */
+	model?: string;
+	/** Nivel de confianza de la respuesta (0-1) */
+	confidence?: number;
+	/** Acciones sugeridas basadas en la conversación */
+	suggestedActions?: string[];
+}
 
 /**
  * Estados posibles del chat
@@ -31,6 +43,9 @@ export interface RealtimeMessage {
 		fileSize: number;
 		mimeType: string;
 	};
+	// 🤖 Campos para mensajes de IA
+	isAI?: boolean;           // true si es respuesta generada por IA
+	aiMetadata?: AIMetadata;  // Metadatos del modelo de IA
 }
 
 /**
@@ -115,6 +130,11 @@ export interface WebSocketCallbacks {
 	onPresenceChanged?: (event: import('../types/presence-types').PresenceChangedEvent) => void;
 	/** Callback cuando se confirma la unión a una sala personal (🆕 2025: auto-join automático) */
 	onPresenceJoined?: (event: import('../types/presence-types').PresenceJoinedEvent) => void;
+	// 🤖 Callbacks para IA
+	/** Callback cuando la IA comienza a generar una respuesta */
+	onAITypingStart?: (data: { chatId: string }) => void;
+	/** Callback cuando la IA termina de generar una respuesta */
+	onAITypingStop?: (data: { chatId: string }) => void;
 }
 
 /**

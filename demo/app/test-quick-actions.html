@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Quick Actions - Guiders SDK</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .test-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .pass { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .fail { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: linear-gradient(145deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 { color: #2c3e50; }
+        h1 { border-bottom: 3px solid #007bff; padding-bottom: 10px; }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 13px;
+            overflow-x: auto;
+            border-left: 4px solid #007bff;
+        }
+        code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .config-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            margin: 15px 0;
+        }
+        .config-section h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .feature-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .feature-item h4 {
+            margin: 0 0 8px 0;
+            color: #2c3e50;
+        }
+        .feature-item p {
+            margin: 0;
+            font-size: 13px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <h1>Quick Actions - Test de Botones de Acción Rápida</h1>
+
+    <div class="test-controls">
+        <div class="info">
+            <h3>Instrucciones del Test:</h3>
+            <ol>
+                <li><strong>Iniciar SDK</strong> - El chat widget aparecerá con Quick Actions</li>
+                <li><strong>Abrir el chat</strong> - Verás el mensaje de bienvenida y botones</li>
+                <li><strong>Hacer clic en un botón</strong> - Observa la acción ejecutada</li>
+                <li><strong>Verificar en consola</strong> - Los eventos se registran en la consola</li>
+            </ol>
+        </div>
+
+        <div>
+            <button onclick="openChat()" id="open-btn">Abrir Chat</button>
+            <button onclick="closeChat()" id="close-btn">Cerrar Chat</button>
+            <button onclick="toggleQuickActions()" id="toggle-btn">Toggle Quick Actions</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Configuración de Quick Actions</h2>
+        <p>Esta demo utiliza la siguiente configuración:</p>
+        <div class="config-section">
+            <pre id="config-display"></pre>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Funcionalidades Implementadas</h2>
+        <div class="feature-list">
+            <div class="feature-item">
+                <h4>send_message</h4>
+                <p>Envía un mensaje predefinido al chat automáticamente</p>
+            </div>
+            <div class="feature-item">
+                <h4>request_agent</h4>
+                <p>Solicita hablar con una persona real y notifica al backend</p>
+            </div>
+            <div class="feature-item">
+                <h4>open_url</h4>
+                <p>Abre una URL en una nueva pestaña</p>
+            </div>
+            <div class="feature-item">
+                <h4>custom</h4>
+                <p>Ejecuta una acción personalizada definida por el desarrollador</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Log de Eventos</h2>
+        <pre id="event-log">Los eventos de Quick Actions aparecerán aquí...</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Ejemplo de Integración</h2>
+        <pre><code>// Configuración básica de Quick Actions
+const sdk = new TrackingPixelSDK({
+    apiKey: 'your-api-key',
+    quickActions: {
+        enabled: true,
+        welcomeMessage: '¡Hola! ¿En qué puedo ayudarte hoy?',
+        showOnFirstOpen: true,
+        buttons: [
+            {
+                id: 'greet',
+                label: 'Saludar',
+                emoji: '👋',
+                action: { type: 'send_message', payload: '¡Hola! Me gustaría obtener más información.' }
+            },
+            {
+                id: 'agent',
+                label: 'Hablar con persona',
+                emoji: '👤',
+                action: { type: 'request_agent' }
+            },
+            {
+                id: 'help',
+                label: 'Centro de ayuda',
+                emoji: '📚',
+                action: { type: 'open_url', payload: 'https://help.example.com' }
+            }
+        ],
+        onCustomAction: (buttonId, action) => {
+            console.log('Acción personalizada:', buttonId, action);
+        }
+    }
+});</code></pre>
+    </div>
+
+    <!-- SDK del chat con Quick Actions configurado -->
+    <script>
+        // Configuración de Quick Actions para la demo
+        const quickActionsConfig = {
+            enabled: true,
+            welcomeMessage: '¡Hola! ¿En qué puedo ayudarte hoy?',
+            showOnFirstOpen: true,
+            showOnChatStart: true,
+            buttons: [
+                {
+                    id: 'greet',
+                    label: 'Saludar',
+                    emoji: '👋',
+                    action: {
+                        type: 'send_message',
+                        payload: '¡Hola! Me gustaría obtener más información sobre sus servicios.'
+                    }
+                },
+                {
+                    id: 'pricing',
+                    label: 'Ver precios',
+                    emoji: '💰',
+                    action: {
+                        type: 'send_message',
+                        payload: '¿Cuáles son sus planes y precios?'
+                    }
+                },
+                {
+                    id: 'agent',
+                    label: 'Hablar con persona',
+                    emoji: '👤',
+                    action: { type: 'request_agent' }
+                },
+                {
+                    id: 'help',
+                    label: 'Centro de ayuda',
+                    emoji: '📚',
+                    action: {
+                        type: 'open_url',
+                        payload: 'https://example.com/help'
+                    }
+                },
+                {
+                    id: 'custom-demo',
+                    label: 'Acción custom',
+                    emoji: '⚡',
+                    action: {
+                        type: 'custom',
+                        payload: { customData: 'test', timestamp: Date.now() }
+                    }
+                }
+            ],
+            onCustomAction: (buttonId, action) => {
+                logEvent(`Acción personalizada ejecutada: ${buttonId}`, 'custom');
+                logEvent(`Payload: ${JSON.stringify(action.payload)}`, 'info');
+                alert(`¡Acción personalizada "${buttonId}" ejecutada!\n\nPayload: ${JSON.stringify(action.payload, null, 2)}`);
+            }
+        };
+
+        // Mostrar configuración en la página
+        document.getElementById('config-display').textContent = JSON.stringify(quickActionsConfig, null, 2);
+
+        // Función para logging
+        function logEvent(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('event-log');
+            const emoji = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'custom' ? '⚡' : 'ℹ️';
+            const existingLog = logElement.textContent;
+            logElement.textContent = `[${timestamp}] ${emoji} ${message}\n${existingLog}`;
+            console.log(`[Quick Actions Test] ${message}`);
+        }
+
+        // Configurar la variable global antes de cargar el SDK
+        window.GUIDERS_CONFIG = {
+            apiKey: 'demo-quick-actions-key',
+            requireConsent: false,
+            quickActions: quickActionsConfig
+        };
+    </script>
+
+    <script src="guiders-sdk.js"></script>
+
+    <script>
+        // Esperar a que el SDK se inicialice
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                logEvent('SDK inicializado', 'success');
+                logEvent('Quick Actions configurado con ' + quickActionsConfig.buttons.length + ' botones', 'info');
+
+                // Verificar que el SDK está disponible
+                if (window.guiders) {
+                    logEvent('window.guiders disponible', 'success');
+
+                    // Escuchar eventos del chat
+                    if (window.guiders.chatUI) {
+                        logEvent('ChatUI disponible', 'success');
+                    }
+                }
+            }, 1000);
+        });
+
+        function openChat() {
+            if (window.guiders && window.guiders.chatUI) {
+                window.guiders.chatUI.show();
+                logEvent('Chat abierto', 'success');
+            } else {
+                logEvent('Chat no disponible', 'error');
+            }
+        }
+
+        function closeChat() {
+            if (window.guiders && window.guiders.chatUI) {
+                window.guiders.chatUI.hide();
+                logEvent('Chat cerrado', 'info');
+            }
+        }
+
+        function toggleQuickActions() {
+            if (window.guiders && window.guiders.chatUI) {
+                const quickActionsUI = window.guiders.chatUI.quickActionsUI;
+                if (quickActionsUI) {
+                    if (quickActionsUI.isVisible()) {
+                        quickActionsUI.hide();
+                        logEvent('Quick Actions oculto', 'info');
+                    } else {
+                        quickActionsUI.show();
+                        logEvent('Quick Actions visible', 'success');
+                    }
+                } else {
+                    logEvent('QuickActionsUI no disponible', 'error');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

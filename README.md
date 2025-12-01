@@ -35,6 +35,7 @@ SDK para la integración del sistema de guías y chat en sitios web.
 1. [🔐 Control de Consentimiento GDPR/LOPDGDD](#-control-de-consentimiento-gdprlopdgdd)
 1. [🎯 Detección Heurística Inteligente](#-detección-heurística-inteligente-nuevo)
 1. [Chat en vivo](#chat-en-vivo)
+   - [Quick Actions (Acciones Rápidas)](#quick-actions-acciones-rápidas)
 1. [API Chat V2](#api-chat-v2-nuevo)
 1. [Autenticación de Tokens](#autenticación-de-tokens)
 1. [Detección de bots](#detección-de-bots)
@@ -498,6 +499,79 @@ El chat utiliza un sistema de inicialización lazy que garantiza que permanezca 
 // El chat se inicializa automáticamente y permanece oculto
 // hasta que el usuario interactúe con el botón toggle
 ```
+
+### Quick Actions (Acciones Rápidas)
+
+El SDK incluye un sistema de botones de acción rápida que se muestran cuando el usuario abre el chat. Estos botones permiten al usuario realizar acciones comunes con un solo clic.
+
+#### Configuración básica
+
+```javascript
+const sdk = new TrackingPixelSDK({
+  apiKey: 'YOUR_API_KEY',
+  quickActions: {
+    enabled: true,
+    welcomeMessage: '¡Hola! ¿En qué puedo ayudarte?',
+    showOnFirstOpen: true,
+    buttons: [
+      {
+        id: 'greet',
+        label: 'Saludar',
+        emoji: '👋',
+        action: { type: 'send_message', payload: '¡Hola! Me gustaría más información.' }
+      },
+      {
+        id: 'agent',
+        label: 'Hablar con persona',
+        emoji: '👤',
+        action: { type: 'request_agent' }
+      },
+      {
+        id: 'help',
+        label: 'Centro de ayuda',
+        emoji: '📚',
+        action: { type: 'open_url', payload: 'https://help.example.com' }
+      }
+    ]
+  }
+});
+```
+
+#### Tipos de acciones
+
+| Tipo | Descripción | Payload |
+|------|-------------|---------|
+| `send_message` | Envía un mensaje predefinido al chat | `string` o `{ message: string, metadata?: object }` |
+| `request_agent` | Solicita hablar con una persona real | No requiere payload |
+| `open_url` | Abre una URL en nueva pestaña | `string` (URL) |
+| `custom` | Ejecuta acción personalizada | Cualquier objeto |
+
+#### Acciones personalizadas
+
+```javascript
+quickActions: {
+  enabled: true,
+  buttons: [
+    {
+      id: 'custom-action',
+      label: 'Mi acción',
+      emoji: '⚡',
+      action: { type: 'custom', payload: { customData: 'test' } }
+    }
+  ],
+  onCustomAction: (buttonId, action) => {
+    console.log('Acción ejecutada:', buttonId, action.payload);
+    // Tu lógica personalizada aquí
+  }
+}
+```
+
+#### Comportamiento
+
+- Los botones se muestran automáticamente cuando se abre el chat por primera vez
+- Después de hacer clic en cualquier botón, todos desaparecen
+- El evento `quick_action_clicked` se trackea automáticamente
+- Para `request_agent`, se envía un mensaje y se notifica al backend via `POST /api/chats/{chatId}/request-agent`
 
 ## API Chat V2 (Nuevo)
 

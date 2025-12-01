@@ -332,3 +332,28 @@ export interface TrackingV2Config {
 	/** Configuración de agregación (frontend) */
 	aggregation?: Partial<TrackingV2AggregationConfig>;
 }
+
+// --- Configuración de IA para el chat ---
+
+/**
+ * Configuración del sistema de respuestas de IA
+ *
+ * Permite personalizar cómo se muestran los mensajes generados por IA
+ * en el chat. El procesamiento de IA se realiza en el backend.
+ */
+export interface AIConfig {
+	/** Habilitar soporte de IA (default: true) */
+	enabled?: boolean;
+	/** Mostrar badge "IA" en mensajes de IA (default: true) */
+	showAIIndicator?: boolean;
+	/** Emoji para avatar de IA (default: '🤖') */
+	aiAvatarEmoji?: string;
+	/** Nombre del remitente IA (default: 'Asistente IA') */
+	aiSenderName?: string;
+	/** Mostrar indicador "IA está escribiendo..." (default: true) */
+	showTypingIndicator?: boolean;
+	/** Mensaje de bienvenida de IA (opcional) */
+	welcomeMessage?: string;
+	/** IDs de remitentes que se consideran IA (adicionales a la detección automática) */
+	aiSenderIds?: string[];
+}

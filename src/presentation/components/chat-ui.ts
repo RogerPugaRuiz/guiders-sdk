@@ -7,7 +7,7 @@ import { fetchChatDetail, ChatDetail, ChatParticipant } from "../../services/cha
 import { ChatMemoryStore } from "../../core/chat-memory-store";
 
 // Importar tipos y utilidades
-import { ChatUIOptions, Sender, ChatMessageParams, ActiveInterval } from '../types/chat-types';
+import { ChatUIOptions, Sender, ChatMessageParams, ActiveInterval, QuickActionsConfig, QuickAction } from '../types/chat-types';
 import { formatTime, formatDate, isBot, generateInitials, createDateSeparator } from '../utils/chat-utils';
 import { MessageRenderer, MessageRenderData } from '../utils/message-renderer';
 import { resolvePosition, ResolvedPosition } from '../../utils/position-resolver';
@@ -15,6 +15,9 @@ import { resolvePosition, ResolvedPosition } from '../../utils/position-resolver
 // Importar componentes de presencia
 import { PresenceService } from '../../services/presence-service';
 import { PresenceChangedEvent, TypingEvent, PresenceStatus } from '../../types/presence-types';
+
+// Importar componente de Quick Actions
+import { QuickActionsUI } from './quick-actions-ui';
 
 /**
  * Clase ChatUI para renderizar mensajes en el chat.
@@ -62,6 +65,15 @@ export class ChatUI {
 	private chatConsentMessageConfig: import('../types/chat-types').ChatConsentMessageConfig;
 	private chatConsentMessageShown: boolean = false;
 
+	// Quick Actions
+	private quickActionsUI: QuickActionsUI | null = null;
+	private quickActionsConfig: QuickActionsConfig;
+
+	// Callbacks públicos para Quick Actions (configurados desde TrackingPixelSDK)
+	public onQuickActionSendMessage: ((message: string, metadata?: Record<string, any>) => Promise<void>) | null = null;
+	public onQuickActionRequestAgent: (() => Promise<void>) | null = null;
+	public onTrackQuickAction: ((data: Record<string, any>) => void) | null = null;
+
 	// Control de estado para evitar creación de múltiples chats
 	private isCreatingChatFlag: boolean = false;
 	private chatCreationPromise: Promise<void> | null = null;
@@ -93,6 +105,23 @@ export class ChatUI {
 			showOnce: true,
 			...options.chatConsentMessage
 		};
+
+		// Inicializar configuración de Quick Actions
+		this.quickActionsConfig = {
+			enabled: false,
+			welcomeMessage: '¡Hola! 👋 ¿En qué puedo ayudarte?',
+			showOnFirstOpen: true,
+			showOnChatStart: true,
+			buttons: [],
+			...options.quickActions
+		};
+		debugLog('💬 [ChatUI] Quick Actions config:', this.quickActionsConfig);
+
+		// 🤖 Configurar IA para el MessageRenderer
+		if (options.ai) {
+			MessageRenderer.setAIConfig(options.ai);
+			debugLog('💬 [ChatUI] 🤖 AI config aplicada:', options.ai);
+		}
 
 		// Resolver posición del widget
 		this.resolvedPosition = resolvePosition(options.position, options.mobileDetection);
@@ -288,6 +317,9 @@ export class ChatUI {
 		this.container.appendChild(containerMessages);
 		this.containerMessages = containerMessages;
 
+		// Crear Quick Actions (si están habilitados)
+		this.createQuickActions();
+
 		// Bloque inferior para "empujar" mensajes hacia arriba
 		const div = document.createElement('div');
 		div.className = 'chat-messages-bottom';
@@ -303,6 +335,93 @@ export class ChatUI {
 		this.containerMessages.addEventListener('scroll', () => {
 			// Scroll infinito desactivado
 		});
+	}
+
+	/**
+	 * Crea el componente de Quick Actions
+	 */
+	private createQuickActions(): void {
+		if (!this.containerMessages) return;
+		if (!this.quickActionsConfig.enabled || this.quickActionsConfig.buttons.length === 0) {
+			debugLog('💬 [ChatUI] Quick Actions deshabilitado o sin botones');
+			return;
+		}
+
+		this.quickActionsUI = new QuickActionsUI(this.quickActionsConfig);
+
+		// Configurar callbacks
+		this.quickActionsUI.onSendMessage = (message, metadata) => {
+			this.handleQuickActionSendMessage(message, metadata);
+		};
+
+		this.quickActionsUI.onRequestAgent = () => {
+			this.handleQuickActionRequestAgent();
+		};
+
+		this.quickActionsUI.onOpenUrl = (url) => {
+			this.handleQuickActionOpenUrl(url);
+		};
+
+		this.quickActionsUI.onActionClicked = (buttonId, action) => {
+			this.trackQuickActionClick(buttonId, action);
+		};
+
+		// Renderizar y agregar al final del contenedor (oculto inicialmente)
+		const element = this.quickActionsUI.render();
+		element.style.display = 'none';
+
+		// Insertar antes de .chat-messages-bottom para que quede al final del área de mensajes
+		const bottomDiv = this.containerMessages.querySelector('.chat-messages-bottom');
+		if (bottomDiv) {
+			this.containerMessages.insertBefore(element, bottomDiv);
+		} else {
+			this.containerMessages.appendChild(element);
+		}
+
+		debugLog('💬 [ChatUI] Quick Actions creado');
+	}
+
+	/**
+	 * Handler para enviar mensaje desde Quick Actions
+	 */
+	private async handleQuickActionSendMessage(message: string, metadata?: Record<string, any>): Promise<void> {
+		debugLog('💬 [ChatUI] Quick Action: enviar mensaje', message);
+		if (this.onQuickActionSendMessage) {
+			await this.onQuickActionSendMessage(message, metadata);
+		}
+	}
+
+	/**
+	 * Handler para solicitar agente humano desde Quick Actions
+	 */
+	private async handleQuickActionRequestAgent(): Promise<void> {
+		debugLog('💬 [ChatUI] Quick Action: solicitar agente humano');
+		if (this.onQuickActionRequestAgent) {
+			await this.onQuickActionRequestAgent();
+		}
+	}
+
+	/**
+	 * Handler para abrir URL desde Quick Actions
+	 */
+	private handleQuickActionOpenUrl(url: string): void {
+		debugLog('💬 [ChatUI] Quick Action: abrir URL', url);
+		// La URL ya se abre en quick-actions-ui.ts, aquí solo para logging
+	}
+
+	/**
+	 * Trackea el clic en un Quick Action
+	 */
+	private trackQuickActionClick(buttonId: string, action: QuickAction): void {
+		debugLog('💬 [ChatUI] Quick Action clicked:', buttonId, action.type);
+		if (this.onTrackQuickAction) {
+			this.onTrackQuickAction({
+				eventType: 'quick_action_clicked',
+				buttonId,
+				actionType: action.type,
+				timestamp: Date.now()
+			});
+		}
 	}
 
 	/**
@@ -905,6 +1024,94 @@ export class ChatUI {
 					font-size: 11px;
 				}
 			}
+
+			/* 🚀 Quick Actions - Botones de acción rápida */
+			.guiders-quick-actions {
+				display: flex;
+				flex-direction: column;
+				padding: 12px 16px;
+				margin: 0;
+				background: transparent;
+				position: sticky;
+				bottom: 0;
+				transition: opacity 0.3s ease, transform 0.3s ease;
+			}
+
+			.guiders-quick-actions-welcome {
+				padding: 12px 16px;
+				background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+				border-radius: 12px;
+				margin-bottom: 12px;
+				color: #1d1d1f;
+				font-size: 14px;
+				line-height: 1.5;
+				text-align: center;
+			}
+
+			.guiders-quick-actions-buttons {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+				justify-content: center;
+			}
+
+			.guiders-quick-action-btn {
+				padding: 10px 16px;
+				border-radius: 20px;
+				font-size: 13px;
+				font-weight: 500;
+				cursor: pointer;
+				transition: all 0.2s ease;
+				white-space: nowrap;
+				font-family: inherit;
+				background: white;
+				color: #1d1d1f;
+				border: 1.5px solid #e5e7eb;
+			}
+
+			.guiders-quick-action-btn:hover {
+				background: #f8f9fa;
+				border-color: #d1d5db;
+				transform: translateY(-1px);
+				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+			}
+
+			.guiders-quick-action-btn:active {
+				transform: translateY(0);
+				background: #f1f3f5;
+			}
+
+			.guiders-quick-action-btn:focus {
+				outline: none;
+				border-color: #3b82f6;
+				box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+			}
+
+			/* 📱 Responsive: scroll horizontal en móvil */
+			@media (max-width: 768px) {
+				.guiders-quick-actions {
+					margin: 0;
+					padding: 8px 12px;
+				}
+
+				.guiders-quick-actions-buttons {
+					flex-wrap: nowrap;
+					overflow-x: auto;
+					justify-content: flex-start;
+					padding-bottom: 8px;
+					-webkit-overflow-scrolling: touch;
+					scrollbar-width: none;
+					-ms-overflow-style: none;
+				}
+
+				.guiders-quick-actions-buttons::-webkit-scrollbar {
+					display: none;
+				}
+
+				.guiders-quick-action-btn {
+					flex-shrink: 0;
+				}
+			}
 		`;
 	}
 
@@ -952,8 +1159,8 @@ export class ChatUI {
 	}
 
 	public renderChatMessage(params: ChatMessageParams): void {
-		const { text, sender, timestamp, senderId } = params;
-		this.addMessage(text, sender, timestamp, senderId);
+		const { text, sender, timestamp, senderId, isAI, aiMetadata } = params;
+		this.addMessage(text, sender, timestamp, senderId, isAI, aiMetadata);
 		this.rebuildDateSeparators();
 	}
 
@@ -1059,7 +1266,7 @@ export class ChatUI {
 	}
 
 	// Métodos privados
-	private addMessage(text: string, sender: Sender, timestamp?: number, senderId?: string): void {
+	private addMessage(text: string, sender: Sender, timestamp?: number, senderId?: string, isAI?: boolean, aiMetadata?: import('../../types/websocket-types').AIMetadata): void {
 		if (!this.container || !this.containerMessages) {
 			throw new Error('No se ha inicializado el chat');
 		}
@@ -1067,21 +1274,24 @@ export class ChatUI {
 		const messageDate = timestamp ? new Date(timestamp) : new Date();
 		this.addDateSeparatorIfNeeded(messageDate);
 
-		const messageDiv = this.createMessageDiv(text, sender, timestamp, senderId);
+		const messageDiv = this.createMessageDiv(text, sender, timestamp, senderId, isAI, aiMetadata);
 		this.containerMessages.appendChild(messageDiv);
 
 		this.scrollToBottom(true);
 	}
 
-	private createMessageDiv(text: string, sender: Sender, timestamp?: number, senderId?: string): HTMLDivElement {
+	private createMessageDiv(text: string, sender: Sender, timestamp?: number, senderId?: string, isAI?: boolean, aiMetadata?: import('../../types/websocket-types').AIMetadata): HTMLDivElement {
 		// ✅ USAR FUNCIÓN UNIFICADA - Garantiza el mismo estilo que mensajes cargados dinámicamente
 		const messageData: MessageRenderData = {
 			content: text,
-			sender: this.mapSenderType(sender), // Mapear tipos compatibles
+			sender: isAI ? 'ai' : this.mapSenderType(sender), // Mapear tipos compatibles
 			timestamp: timestamp,
-			senderId: senderId
+			senderId: senderId,
+			// 🤖 Información de IA
+			isAI: isAI,
+			aiMetadata: aiMetadata
 		};
-		
+
 		return MessageRenderer.createMessageElement(messageData);
 	}
 	
@@ -1617,10 +1827,21 @@ export class ChatUI {
 		if (messageElements.length === 0) {
 			debugLog('💬 [ChatUI] ✅ Chat vacío confirmado, agregando mensajes iniciales');
 
+			// Mostrar Quick Actions si están habilitados
+			if (this.quickActionsUI && this.quickActionsConfig.enabled) {
+				debugLog('💬 [ChatUI] Mostrando Quick Actions');
+				this.quickActionsUI.show();
+			}
+
 			// Añadir mensaje de consentimiento (si está habilitado)
 			this.addChatConsentMessage();
 		} else {
 			debugLog('💬 [ChatUI] Chat tiene mensajes, omitiendo mensajes iniciales');
+
+			// Ocultar Quick Actions si hay mensajes
+			if (this.quickActionsUI) {
+				this.quickActionsUI.hide();
+			}
 		}
 	}
 

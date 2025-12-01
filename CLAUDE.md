@@ -95,7 +95,11 @@ src/
     │   ├── chat-ui.ts              # Main chat widget
     │   ├── chat-input-ui.ts        # Message input + file upload
     │   ├── chat-messages-ui.ts     # Message list renderer
-    │   └── message-renderer.ts     # Individual message formatting
+    │   ├── message-renderer.ts     # Individual message formatting
+    │   └── quick-actions-ui.ts     # Quick action buttons component
+    ├── types/
+    │   ├── chat-types.ts           # Chat type definitions
+    │   └── quick-actions-types.ts  # Quick Actions type definitions
     └── consent-banner-ui.ts        # GDPR consent banner UI
 ```
 
@@ -461,6 +465,41 @@ if (result.isBot) {
    ```
 
 3. Update banner UI: `demo/app/partials/gdpr-banner.php`
+
+### Quick Actions System
+
+**Purpose**: Provide configurable quick action buttons when chat opens (e.g., "Talk to a person", "Check pricing").
+
+**Architecture**:
+- **QuickActionsUI** (`src/presentation/components/quick-actions-ui.ts`): Standalone component
+- **Types** (`src/presentation/types/quick-actions-types.ts`): Type definitions
+- **Integration**: Embedded in ChatUI, callbacks wired to TrackingPixelSDK
+
+**Action Types**:
+| Type | Handler | Backend Notification |
+|------|---------|---------------------|
+| `send_message` | Sends message via `RealtimeMessageManager` | No |
+| `request_agent` | Sends message + calls `/api/chats/{id}/request-agent` | Yes |
+| `open_url` | Opens URL in new tab | No |
+| `custom` | Calls `onCustomAction` callback | No |
+
+**Configuration**:
+```typescript
+quickActions: {
+  enabled: true,
+  welcomeMessage: '¿En qué puedo ayudarte?',
+  showOnFirstOpen: true,
+  buttons: [
+    { id: 'greet', label: 'Saludar', emoji: '👋', action: { type: 'send_message', payload: 'Hola' } },
+    { id: 'agent', label: 'Persona real', emoji: '👤', action: { type: 'request_agent' } }
+  ],
+  onCustomAction: (buttonId, action) => { /* handle custom */ }
+}
+```
+
+**Event Tracking**: All button clicks emit `quick_action_clicked` event with `buttonId`, `actionType`, `timestamp`.
+
+**Test demo**: `demo/app/test-quick-actions.html`
 
 ### Active Hours Validation
 

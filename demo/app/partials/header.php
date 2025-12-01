@@ -25,7 +25,7 @@
       flushInterval: 5000,    // Enviar eventos cada 5 segundos
       autoOpenChatOnMessage: true, // ✅ Auto-abrir chat cuando comercial envía mensaje
       chatConsentMessage: {
-        enabled: true,
+        enabled: false,  // ✅ DESACTIVADO para desarrollo
         message: 'Al unirte al chat, confirmas que has leído y entiendes nuestra',
         privacyPolicyUrl: '/privacy-policy',
         privacyPolicyText: 'Política de Privacidad',
@@ -42,7 +42,7 @@
         fallbackMessage: '🕐 Nuestro chat está disponible de 8:00-17:00 (hora de Madrid). ¡Vuelve durante nuestros horarios de atención!'
       },
       commercialAvailability: {
-        enabled: true,          // Habilitar verificación de disponibilidad
+        enabled: false,         // ✅ DESACTIVADO para desarrollo (puede ocultar chat)
         pollingInterval: 10,    // Consultar cada 10 segundos (rápido para demo)
         showBadge: true,        // Mostrar número de comerciales disponibles
         debug: true             // Habilitar logs de debug
@@ -85,6 +85,39 @@
         // - Eventos filtrados: solo recibes presencia del comercial asignado a tu chat
         // - Heartbeat automático cada 30s para mantener estado online
         // - Detección automática: 5 min → away, 15 min → offline
+      },
+      // 🆕 Quick Actions - Botones de acción rápida en el chat
+      quickActions: {
+        enabled: true,
+        welcomeMessage: '¡Hola! 👋 ¿En qué puedo ayudarte hoy?',
+        showOnFirstOpen: true,
+        showOnChatStart: true,
+        buttons: [
+          {
+            id: 'greet',
+            label: 'Saludar',
+            emoji: '👋',
+            action: { type: 'send_message', payload: '¡Hola! Me gustaría obtener más información.' }
+          },
+          {
+            id: 'pricing',
+            label: 'Ver precios',
+            emoji: '💰',
+            action: { type: 'send_message', payload: '¿Cuáles son sus planes y precios?' }
+          },
+          {
+            id: 'agent',
+            label: 'Hablar con persona',
+            emoji: '👤',
+            action: { type: 'request_agent' }
+          },
+          {
+            id: 'help',
+            label: 'Centro de ayuda',
+            emoji: '📚',
+            action: { type: 'open_url', payload: 'https://help.guiders.app' }
+          }
+        ]
       }
     };
 
@@ -98,10 +131,11 @@
   </script>
 
   <!-- Guiders SDK Script -->
-  <script src="/guiders-sdk.js?dev=true&v=<?php echo time(); ?>" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script>
+  <!-- Archivo estático (comentado): -->
+  <!-- <script src="/guiders-sdk.js?dev=true&v=<?php echo time(); ?>" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script> -->
 
-  <!-- Desarrollo (servidor webpack): -->
-  <!-- <script src="http://127.0.0.1:8081/index.js?dev=true" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script> -->
+  <!-- ✅ Desarrollo (servidor webpack con hot reload): -->
+  <script src="http://127.0.0.1:8081/index.js?dev=true" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script>
 
   <!-- Producción: -->
   <!-- <script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js" data-api-key="ea0cb2d33e9a186906747071e88a1a1eb1c219a0189f0344c7d87e2c497bf626"></script> -->

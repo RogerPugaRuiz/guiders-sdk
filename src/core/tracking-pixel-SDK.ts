@@ -32,12 +32,13 @@ import { SessionTrackingManager, SessionTrackingConfig } from "./session-trackin
 import { ChatMemoryStore } from "./chat-memory-store";
 import { IdentitySignal } from "./identity-signal";
 import { ActiveHoursValidator } from "./active-hours-validator";
-import { ActiveHoursConfig } from "../types";
+import { ActiveHoursConfig, AIConfig } from "../types";
 import { WebSocketService } from "../services/websocket-service";
 import { RealtimeMessageManager } from "../services/realtime-message-manager";
 import { ConsentManager, ConsentManagerConfig } from "./consent-manager";
 import { ConsentBackendService } from "../services/consent-backend-service";
 import { ConsentBannerUI, ConsentBannerConfig } from "../presentation/consent-banner-ui";
+import { QuickActionsConfig } from "../presentation/types/quick-actions-types";
 import { debugLog } from "../utils/debug-logger";
 import { CommercialAvailabilityService } from "../services/commercial-availability-service";
 import { CommercialAvailabilityConfig } from "../types";
@@ -100,6 +101,10 @@ interface SDKOptions {
 	};
 	// Auto-open chat when message received
 	autoOpenChatOnMessage?: boolean;    // Auto-open chat when new message arrives (default: true)
+	// Quick Actions Configuration (fast action buttons in chat)
+	quickActions?: Partial<QuickActionsConfig>;
+	// AI Configuration (display options for AI-generated messages)
+	ai?: Partial<AIConfig>;
 	// Tracking V2 Configuration
 	trackingV2?: {
 		enabled?: boolean;        // Enable tracking V2 (default: true)
@@ -220,6 +225,8 @@ export class TrackingPixelSDK {
 		userInteractionThrottle?: number;
 	};
 	private autoOpenChatOnMessage: boolean = true;
+	private quickActionsConfig?: Partial<QuickActionsConfig>;
+	private aiConfig?: Partial<AIConfig>;
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -261,6 +268,15 @@ export class TrackingPixelSDK {
 		// Configurar auto-apertura del chat al recibir mensajes
 		this.autoOpenChatOnMessage = options.autoOpenChatOnMessage ?? true;
 		debugLog('[TrackingPixelSDK] 📬 Auto-apertura del chat:', this.autoOpenChatOnMessage ? 'habilitada' : 'deshabilitada');
+
+		// Configurar Quick Actions (botones de acción rápida)
+		this.quickActionsConfig = options.quickActions;
+
+		// 🤖 Configurar IA (opciones de visualización para mensajes de IA)
+		this.aiConfig = options.ai;
+		if (this.aiConfig) {
+			debugLog('[TrackingPixelSDK] 🤖 Configuración de IA:', this.aiConfig);
+		}
 
 		// Configurar validador de horarios activos si se proporciona
 		if (options.activeHours && options.activeHours.enabled) {
@@ -549,7 +565,13 @@ export class TrackingPixelSDK {
 			chatConsentMessage: this.chatConsentMessageConfig,
 			position: this.chatPositionConfig,
 			mobileDetection: this.mobileDetectionConfig,
+			quickActions: this.quickActionsConfig,
+			// 🤖 Configuración de IA para renderizado de mensajes
+			ai: this.aiConfig,
 		});
+
+		// Configurar callbacks de Quick Actions
+		this.setupQuickActionsCallbacks();
 		const chat = this.chatUI; // Alias para mantener compatibilidad con el código existente
 		this.chatInputUI = new ChatInputUI(chat);
 		const chatInput = this.chatInputUI; // Alias para compatibilidad con código existente
@@ -926,6 +948,147 @@ export class TrackingPixelSDK {
 
 		// Registrar múltiples eventos de cierre para asegurar endSession
 		this.setupPageUnloadHandlers();
+	}
+
+	/**
+	 * Configura los callbacks de Quick Actions en el ChatUI
+	 */
+	private setupQuickActionsCallbacks(): void {
+		if (!this.chatUI) return;
+
+		// Callback para enviar mensaje desde Quick Actions
+		this.chatUI.onQuickActionSendMessage = async (message: string, metadata?: Record<string, any>) => {
+			debugLog('[TrackingPixelSDK] Quick Action: enviando mensaje', message);
+			await this.realtimeMessageManager.sendMessage(message, 'text');
+		};
+
+		// Callback para solicitar agente humano
+		this.chatUI.onQuickActionRequestAgent = async () => {
+			debugLog('[TrackingPixelSDK] Quick Action: solicitando agente humano');
+			await this.handleRequestAgent();
+		};
+
+		// Callback para trackear clics en Quick Actions
+		this.chatUI.onTrackQuickAction = (data: Record<string, any>) => {
+			debugLog('[TrackingPixelSDK] Quick Action tracked:', data);
+			this.captureEvent(data.eventType || 'quick_action_clicked', {
+				buttonId: data.buttonId,
+				actionType: data.actionType,
+				timestamp: data.timestamp
+			});
+		};
+
+		debugLog('[TrackingPixelSDK] Quick Actions callbacks configurados');
+	}
+
+	/**
+	 * Maneja la solicitud de agente humano desde Quick Actions
+	 */
+	private async handleRequestAgent(): Promise<void> {
+		debugLog('[TrackingPixelSDK] Procesando solicitud de agente humano');
+
+		try {
+			// 1. Trackear el evento
+			this.captureEvent('agent_requested', {
+				source: 'quick_action',
+				timestamp: Date.now()
+			});
+
+			// 2. Enviar mensaje al chat
+			const message = 'Me gustaría hablar con un agente';
+			const currentChatId = this.realtimeMessageManager.getCurrentChatId();
+
+			if (currentChatId) {
+				// Hay chat activo - enviar mensaje normalmente
+				debugLog('[TrackingPixelSDK] Chat activo encontrado, enviando mensaje');
+				await this.realtimeMessageManager.sendMessage(message, 'text');
+			} else {
+				// No hay chat activo - usar sendMessageSmart para crear chat + mensaje
+				debugLog('[TrackingPixelSDK] No hay chat activo, creando chat con mensaje...');
+				const visitorId = this.getVisitorId();
+				if (!visitorId) {
+					debugLog('[TrackingPixelSDK] Error: No hay visitorId');
+					return;
+				}
+
+				const chatService = ChatV2Service.getInstance();
+				const result = await chatService.sendMessageSmart(visitorId, message, {
+					metadata: {
+						source: 'quick_action_request_agent',
+						department: 'sales'
+					}
+				}, 'text');
+
+				debugLog('[TrackingPixelSDK] Chat creado/mensaje enviado:', result);
+
+				// Actualizar chatId en ChatUI y RealtimeMessageManager
+				const newChatId = result.chat.id;
+				if (this.chatUI) {
+					this.chatUI.setChatId(newChatId);
+				}
+				this.realtimeMessageManager.setCurrentChat(newChatId);
+
+				// Renderizar el mensaje enviado en el UI
+				if (this.chatUI) {
+					this.chatUI.renderChatMessage({
+						text: message,
+						sender: 'user',
+						timestamp: Date.now(),
+						senderId: visitorId
+					});
+				}
+			}
+
+			// 3. Notificar al backend
+			await this.notifyAgentRequest();
+		} catch (error) {
+			debugLog('[TrackingPixelSDK] Error en solicitud de agente:', error);
+		}
+	}
+
+	/**
+	 * Notifica al backend que el usuario quiere hablar con un agente humano
+	 */
+	private async notifyAgentRequest(): Promise<void> {
+		const visitorId = this.getVisitorId();
+		const chatId = this.chatUI?.getChatId?.();
+
+		if (!visitorId) {
+			debugLog('[TrackingPixelSDK] No hay visitorId para notificar request-agent');
+			return;
+		}
+
+		if (!chatId) {
+			debugLog('[TrackingPixelSDK] No hay chatId para notificar request-agent');
+			return;
+		}
+
+		const endpoint = EndpointManager.getInstance().getEndpoint();
+		const url = `${endpoint}/chats/${chatId}/request-agent`;
+
+		try {
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Guiders-SID': visitorId
+				},
+				credentials: 'include',
+				body: JSON.stringify({
+					visitorId,
+					timestamp: new Date().toISOString(),
+					source: 'quick_action'
+				})
+			});
+
+			if (response.ok) {
+				debugLog('[TrackingPixelSDK] Notificación request-agent enviada correctamente');
+			} else {
+				debugLog('[TrackingPixelSDK] Error en request-agent:', response.status);
+			}
+		} catch (error) {
+			debugLog('[TrackingPixelSDK] Error en notifyAgentRequest:', error);
+		}
 	}
 
 	/**
@@ -2372,6 +2535,19 @@ export class TrackingPixelSDK {
 
 		if (this.wsService.isConnected()) {
 			debugLog('📡 [TrackingPixelSDK] ✅ WebSocket ya conectado (skip init)');
+
+			// 🔧 FIX: Asegurar que RealtimeMessageManager esté inicializado
+			// Incluso si el WebSocket ya está conectado, el RMM puede no estar inicializado
+			if (!this.realtimeMessageManager.getVisitorId()) {
+				debugLog('📡 [TrackingPixelSDK] 🔧 Inicializando RealtimeMessageManager (WS ya conectado)');
+				this.realtimeMessageManager.initialize({
+					chatUI: chat,
+					visitorId: visitorId,
+					enableTypingIndicators: true,
+					aiConfig: this.aiConfig
+				});
+			}
+
 			// Actualizar chat actual si cambió
 			const currentChatId = chat.getChatId();
 			if (currentChatId && this.realtimeMessageManager.getCurrentChatId() !== currentChatId) {
@@ -2450,7 +2626,9 @@ export class TrackingPixelSDK {
 			this.realtimeMessageManager.initialize({
 				chatUI: chat,
 				visitorId: visitorId,
-				enableTypingIndicators: true
+				enableTypingIndicators: true,
+				// 🤖 Pasar configuración de IA
+				aiConfig: this.aiConfig
 			});
 
 			// NOTA: setCurrentChat se llama dentro del callback onConnect (línea 2346)
@@ -2687,7 +2865,13 @@ export class TrackingPixelSDK {
 			chatConsentMessage: this.chatConsentMessageConfig,
 			position: this.chatPositionConfig,
 			mobileDetection: this.mobileDetectionConfig,
+			quickActions: this.quickActionsConfig,
+			// 🤖 Configuración de IA para renderizado de mensajes
+			ai: this.aiConfig,
 		});
+
+		// Configurar callbacks de Quick Actions
+		this.setupQuickActionsCallbacks();
 
 		const initChatOnly = () => {
 			if (!this.chatUI) return;

@@ -12,7 +12,8 @@
 import { debugLog } from '../utils/debug-logger';
 import { WebSocketService } from './websocket-service';
 import { ChatV2Service } from './chat-v2-service';
-import { RealtimeMessage, ChatStatusUpdate, TypingIndicator } from '../types/websocket-types';
+import { RealtimeMessage, ChatStatusUpdate, TypingIndicator, AIMetadata } from '../types/websocket-types';
+import { AIConfig } from '../types';
 import { ChatUI } from '../presentation/components/chat-ui';
 import { MessageRenderer } from '../presentation/utils/message-renderer';
 
@@ -25,6 +26,8 @@ export interface RealtimeMessageManagerOptions {
 	enableTypingIndicators?: boolean;
 	/** Delay para typing indicators (ms) */
 	typingIndicatorDelay?: number;
+	/** Configuración de IA */
+	aiConfig?: AIConfig;
 }
 
 export class RealtimeMessageManager {
@@ -39,6 +42,17 @@ export class RealtimeMessageManager {
 	private enableTypingIndicators: boolean = true;
 	private typingIndicatorDelay: number = 3000;
 	private typingTimeouts: Map<string, NodeJS.Timeout> = new Map();
+
+	// 🤖 Configuración de IA
+	private aiConfig: AIConfig = {
+		enabled: true,
+		showAIIndicator: true,
+		aiAvatarEmoji: '🤖',
+		aiSenderName: 'Asistente IA',
+		showTypingIndicator: true
+	};
+	// IDs de remitentes que se consideran IA por defecto
+	private defaultAISenderIds: string[] = ['ai-assistant', 'ai-bot', 'bot', 'system-ai', 'assistant'];
 
 	private constructor() {
 		this.wsService = WebSocketService.getInstance();
@@ -60,13 +74,20 @@ export class RealtimeMessageManager {
 		debugLog('💬 [RealtimeMessageManager] 🚀 Inicializando con:', {
 			visitorId: options.visitorId,
 			hasChatUI: !!options.chatUI,
-			enableTyping: options.enableTypingIndicators
+			enableTyping: options.enableTypingIndicators,
+			aiEnabled: options.aiConfig?.enabled
 		});
 
 		this.chatUI = options.chatUI;
 		this.visitorId = options.visitorId;
 		this.enableTypingIndicators = options.enableTypingIndicators !== false;
 		this.typingIndicatorDelay = options.typingIndicatorDelay || 3000;
+
+		// 🤖 Configuración de IA
+		if (options.aiConfig) {
+			this.aiConfig = { ...this.aiConfig, ...options.aiConfig };
+			debugLog('💬 [RealtimeMessageManager] 🤖 Configuración de IA aplicada:', this.aiConfig);
+		}
 
 		// Registrar callbacks del WebSocket
 		this.wsService.updateCallbacks({
@@ -108,6 +129,13 @@ export class RealtimeMessageManager {
 		if (this.chatUI) {
 			this.chatUI.setChatId(chatId);
 		}
+	}
+
+	/**
+	 * Obtiene el visitorId actual
+	 */
+	public getVisitorId(): string {
+		return this.visitorId;
 	}
 
 	/**
@@ -165,6 +193,64 @@ export class RealtimeMessageManager {
 
 			this.typingTimeouts.set(this.visitorId, timeout);
 		}
+	}
+
+	// ========== AI Detection ==========
+
+	/**
+	 * 🤖 Detecta si un mensaje fue generado por IA
+	 * Usa múltiples señales para determinar el origen del mensaje
+	 */
+	private isAIMessage(message: RealtimeMessage): boolean {
+		// Si la IA está deshabilitada, nunca detectamos mensajes de IA
+		if (this.aiConfig.enabled === false) {
+			return false;
+		}
+
+		// 1. Flag explícito del backend (más fiable)
+		if (message.isAI === true) {
+			debugLog('💬 [RealtimeMessageManager] 🤖 Mensaje de IA detectado (flag isAI)');
+			return true;
+		}
+
+		// 2. Tipo de mensaje 'ai'
+		if (message.type === 'ai') {
+			debugLog('💬 [RealtimeMessageManager] 🤖 Mensaje de IA detectado (type=ai)');
+			return true;
+		}
+
+		// 3. SenderId conocido de IA
+		const allAISenderIds = [
+			...this.defaultAISenderIds,
+			...(this.aiConfig.aiSenderIds || [])
+		];
+		if (allAISenderIds.includes(message.senderId)) {
+			debugLog('💬 [RealtimeMessageManager] 🤖 Mensaje de IA detectado (senderId conocido):', message.senderId);
+			return true;
+		}
+
+		// 4. Metadatos de IA presentes
+		if (message.aiMetadata && (message.aiMetadata.model || message.aiMetadata.confidence !== undefined)) {
+			debugLog('💬 [RealtimeMessageManager] 🤖 Mensaje de IA detectado (aiMetadata presente)');
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Actualiza la configuración de IA en runtime
+	 */
+	public setAIConfig(config: Partial<AIConfig>): void {
+		this.aiConfig = { ...this.aiConfig, ...config };
+		debugLog('💬 [RealtimeMessageManager] 🤖 Configuración de IA actualizada:', this.aiConfig);
+	}
+
+	/**
+	 * Obtiene la configuración de IA actual
+	 */
+	public getAIConfig(): AIConfig {
+		return { ...this.aiConfig };
 	}
 
 	// ========== Event Handlers ==========
@@ -232,21 +318,30 @@ export class RealtimeMessageManager {
 		}
 
 		try {
-			// El mensaje es de otro participante (comercial, bot, etc.)
+			// El mensaje es de otro participante (comercial, bot, IA, etc.)
 			const sender = 'other';
+
+			// 🤖 Detectar si es mensaje de IA
+			const isAI = this.isAIMessage(message);
 
 			// Renderizar usando la API de ChatUI
 			this.chatUI.renderChatMessage({
 				text: message.content,
 				sender: sender,
 				timestamp: new Date(message.sentAt).getTime(),
-				senderId: message.senderId
+				senderId: message.senderId,
+				// 🤖 Información de IA
+				isAI: isAI,
+				aiMetadata: message.aiMetadata
 			});
 
 			// Scroll al fondo
 			this.chatUI.scrollToBottom(true);
 
-			debugLog('💬 [RealtimeMessageManager] ✅ Mensaje renderizado en UI');
+			debugLog('💬 [RealtimeMessageManager] ✅ Mensaje renderizado en UI', {
+				isAI: isAI,
+				aiModel: message.aiMetadata?.model
+			});
 		} catch (error) {
 		}
 	}
