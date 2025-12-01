@@ -177,7 +177,6 @@ export class PresenceService {
 
       const response = await fetch(url, {
         method: 'GET',
-        credentials: 'include', // ✅ Enviar cookies de sesión automáticamente
         headers
       });
 
@@ -327,7 +326,6 @@ export class PresenceService {
 
       const response = await fetch(url, {
         method: 'POST',
-        credentials: 'include', // ✅ Enviar cookies de sesión
         headers: {
           'Content-Type': 'application/json'
         }
@@ -350,7 +348,6 @@ export class PresenceService {
 
       const response = await fetch(url, {
         method: 'POST',
-        credentials: 'include', // ✅ Enviar cookies de sesión
         headers: {
           'Content-Type': 'application/json'
         }

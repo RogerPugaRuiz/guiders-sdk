@@ -113,7 +113,6 @@ export class ChatV2Service {
 					'Content-Type': 'application/json',
 					...this.getAuthHeaders()
 				},
-				credentials: 'include',
 				body: JSON.stringify({
 					fingerprint,
 					domain,

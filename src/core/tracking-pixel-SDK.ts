@@ -1073,7 +1073,6 @@ export class TrackingPixelSDK {
 					'Content-Type': 'application/json',
 					'X-Guiders-SID': visitorId
 				},
-				credentials: 'include',
 				body: JSON.stringify({
 					visitorId,
 					timestamp: new Date().toISOString(),

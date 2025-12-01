@@ -147,8 +147,8 @@ export class ConsentBackendService {
     try {
       const response = await fetch(url, {
         ...options,
-        headers,
-        credentials: 'include' // Incluir cookies para session-based auth
+        headers
+        // credentials: 'include' removed - auth via X-Guiders-Sid header
       });
 
       // Manejar 401 con retry
@@ -209,7 +209,6 @@ export class ConsentBackendService {
       const response = await fetch(identifyUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           fingerprint,
           domain,

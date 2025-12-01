@@ -40,8 +40,12 @@ export function getCommonHeaders(): Record<string, string> {
 /**
  * Opciones de fetch base para peticiones al backend
  * Incluye:
- * - credentials: 'include' (para cookies HttpOnly)
  * - headers comunes (X-Guiders-Sid)
+ *
+ * NOTA: NO usamos credentials: 'include' porque causa conflictos cuando
+ * el panel comercial y la web del visitante están en el mismo dominio (ej: localhost).
+ * Las cookies se envían automáticamente para el mismo origen sin necesidad de 'include'.
+ * La autenticación se maneja mediante el header X-Guiders-Sid.
  *
  * @param method - HTTP method (GET, POST, etc.)
  * @returns RequestInit object
@@ -49,7 +53,6 @@ export function getCommonHeaders(): Record<string, string> {
 export function getCommonFetchOptions(method: string = 'GET'): RequestInit {
   return {
     method,
-    headers: getCommonHeaders(),
-    credentials: 'include' // Para cookies HttpOnly
+    headers: getCommonHeaders()
   };
 }

@@ -93,8 +93,8 @@ export class VisitorsV2Service {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        credentials: 'include' // Para cookie HttpOnly de sesión
+        body: JSON.stringify(payload)
+        // credentials: 'include' removed - auth via X-Guiders-Sid header
       });
 
       // ✅ Caso exitoso: Usuario aceptó el consentimiento (HTTP 200)
@@ -190,8 +190,7 @@ export class VisitorsV2Service {
           'Content-Type': 'application/json',
           'x-guiders-sid': sessionId
         },
-        body: JSON.stringify(body),
-        credentials: 'include'
+        body: JSON.stringify(body)
       });
 
       if (!res.ok) {
@@ -262,7 +261,6 @@ export class VisitorsV2Service {
             'x-guiders-sid': sessionId
           },
           body: JSON.stringify(payload),
-          credentials: 'include',
           keepalive: true // Permite que la petición sobreviva page unload
         });
 
