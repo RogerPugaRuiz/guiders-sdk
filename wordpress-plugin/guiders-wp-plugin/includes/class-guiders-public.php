@@ -147,7 +147,8 @@ class GuidersPublic {
             'trackingV2' => $this->getTrackingV2Config(),
             'presence' => $this->getPresenceConfig(),
             'autoOpenChatOnMessage' => isset($this->settings['auto_open_chat_on_message']) ? (bool)$this->settings['auto_open_chat_on_message'] : true,
-            'quickActions' => $this->getQuickActionsConfig()
+            'quickActions' => $this->getQuickActionsConfig(),
+            'aiConfig' => $this->getAIConfig()
         );
 
         // Add environment-specific endpoints
@@ -706,6 +707,16 @@ class GuidersPublic {
                         sdkOptions.autoOpenChatOnMessage = config.autoOpenChatOnMessage;
                     }
 
+                    // Add Quick Actions configuration if available
+                    if (config.quickActions) {
+                        sdkOptions.quickActions = config.quickActions;
+                    }
+
+                    // Add AI Config configuration if available (SDK uses 'ai' key)
+                    if (config.aiConfig) {
+                        sdkOptions.ai = config.aiConfig;
+                    }
+
                     // Asignar siempre endpoints explícitos (evita fallback a localhost y doble init)
                     if (config.endpoint) {
                         sdkOptions.endpoint = (config.endpoint + '').replace(/\/+$/,'');
@@ -1240,5 +1251,33 @@ class GuidersPublic {
         );
 
         return $config;
+    }
+
+    /**
+     * Get AI Config configuration
+     */
+    private function getAIConfig() {
+        $enabled = isset($this->settings['ai_enabled']) ? (bool)$this->settings['ai_enabled'] : true;
+
+        // Si AI está deshabilitado, retornar config mínima
+        if (!$enabled) {
+            return array('enabled' => false);
+        }
+
+        return array(
+            'enabled' => true,
+            'showAIIndicator' => isset($this->settings['ai_show_indicator'])
+                ? (bool)$this->settings['ai_show_indicator']
+                : true,
+            'aiAvatarEmoji' => isset($this->settings['ai_avatar_emoji'])
+                ? $this->settings['ai_avatar_emoji']
+                : '🤖',
+            'aiSenderName' => isset($this->settings['ai_sender_name'])
+                ? $this->settings['ai_sender_name']
+                : 'Asistente IA',
+            'showTypingIndicator' => isset($this->settings['ai_show_typing_indicator'])
+                ? (bool)$this->settings['ai_show_typing_indicator']
+                : true
+        );
     }
 }

@@ -406,6 +406,60 @@ class GuidersAdmin {
             'guiders_quick_actions_section'
         );
 
+        // ==================== AI CONFIG SECTION ====================
+        // AI Config section
+        add_settings_section(
+            'guiders_ai_config_section',
+            __('Configuración de IA - Mensajes del Asistente', 'guiders-wp-plugin'),
+            array($this, 'aiConfigSectionCallback'),
+            'guiders-settings-chat'
+        );
+
+        // AI enabled field
+        add_settings_field(
+            'ai_enabled',
+            __('Habilitar Soporte IA', 'guiders-wp-plugin'),
+            array($this, 'aiEnabledFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_ai_config_section'
+        );
+
+        // AI show indicator field
+        add_settings_field(
+            'ai_show_indicator',
+            __('Mostrar Indicador IA', 'guiders-wp-plugin'),
+            array($this, 'aiShowIndicatorFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_ai_config_section'
+        );
+
+        // AI avatar emoji field
+        add_settings_field(
+            'ai_avatar_emoji',
+            __('Emoji del Avatar IA', 'guiders-wp-plugin'),
+            array($this, 'aiAvatarEmojiFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_ai_config_section'
+        );
+
+        // AI sender name field
+        add_settings_field(
+            'ai_sender_name',
+            __('Nombre del Asistente IA', 'guiders-wp-plugin'),
+            array($this, 'aiSenderNameFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_ai_config_section'
+        );
+
+        // AI typing indicator field
+        add_settings_field(
+            'ai_show_typing_indicator',
+            __('Indicador "IA escribiendo..."', 'guiders-wp-plugin'),
+            array($this, 'aiShowTypingIndicatorFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_ai_config_section'
+        );
+
         // Tracking V2 section
         add_settings_section(
             'guiders_tracking_v2_section',
@@ -1704,6 +1758,72 @@ class GuidersAdmin {
         });
         </script>
         <?php
+    }
+
+    // === AI Config Field Callbacks ===
+
+    /**
+     * AI Config section callback
+     */
+    public function aiConfigSectionCallback() {
+        echo '<p>' . __('Configure cómo se muestran los mensajes generados por el asistente de IA en el chat.', 'guiders-wp-plugin') . '</p>';
+        echo '<p class="description">' . __('El procesamiento de IA se realiza en el backend. Estas opciones controlan solo la visualización en el chat del visitante.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * AI enabled field callback
+     */
+    public function aiEnabledFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $enabled = isset($settings['ai_enabled']) ? $settings['ai_enabled'] : true;
+
+        echo '<input type="checkbox" id="ai_enabled" name="guiders_wp_plugin_settings[ai_enabled]" value="1" ' . checked($enabled, true, false) . ' />';
+        echo '<label for="ai_enabled">' . __('Habilitar visualización de mensajes de IA', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('Si está desactivado, los mensajes de IA se mostrarán como mensajes normales sin indicador especial.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * AI show indicator field callback
+     */
+    public function aiShowIndicatorFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $show = isset($settings['ai_show_indicator']) ? $settings['ai_show_indicator'] : true;
+
+        echo '<input type="checkbox" id="ai_show_indicator" name="guiders_wp_plugin_settings[ai_show_indicator]" value="1" ' . checked($show, true, false) . ' />';
+        echo '<label for="ai_show_indicator">' . __('Mostrar badge "IA" en los mensajes generados por IA', 'guiders-wp-plugin') . '</label>';
+    }
+
+    /**
+     * AI avatar emoji field callback
+     */
+    public function aiAvatarEmojiFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $emoji = isset($settings['ai_avatar_emoji']) ? $settings['ai_avatar_emoji'] : '🤖';
+
+        echo '<input type="text" id="ai_avatar_emoji" name="guiders_wp_plugin_settings[ai_avatar_emoji]" value="' . esc_attr($emoji) . '" style="width: 60px; text-align: center; font-size: 24px;" />';
+        echo '<p class="description">' . __('Emoji que aparece como avatar en los mensajes de IA. Ejemplos: 🤖 🧠 💡 🔮', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * AI sender name field callback
+     */
+    public function aiSenderNameFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $name = isset($settings['ai_sender_name']) ? $settings['ai_sender_name'] : 'Asistente IA';
+
+        echo '<input type="text" id="ai_sender_name" name="guiders_wp_plugin_settings[ai_sender_name]" value="' . esc_attr($name) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Nombre que aparece como remitente de los mensajes de IA.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * AI show typing indicator field callback
+     */
+    public function aiShowTypingIndicatorFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $show = isset($settings['ai_show_typing_indicator']) ? $settings['ai_show_typing_indicator'] : true;
+
+        echo '<input type="checkbox" id="ai_show_typing_indicator" name="guiders_wp_plugin_settings[ai_show_typing_indicator]" value="1" ' . checked($show, true, false) . ' />';
+        echo '<label for="ai_show_typing_indicator">' . __('Mostrar indicador "IA está escribiendo..." mientras genera respuesta', 'guiders-wp-plugin') . '</label>';
     }
 
     // === Tracking V2 Field Callbacks ===
