@@ -1,4 +1,4 @@
-import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { EndpointManager } from '../core/endpoint-manager';
 import { MessageV2, MessageListResponse } from '../types';
 import { ChatV2Service } from './chat-v2-service';
 import { getCommonHeaders, getCommonFetchOptions } from '../utils/http-headers';

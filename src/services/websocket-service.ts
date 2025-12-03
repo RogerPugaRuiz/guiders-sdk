@@ -29,7 +29,7 @@ import {
 	LeaveVisitorRoomPayload,
 	ChatCreatedEvent
 } from '../types/websocket-types';
-import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { EndpointManager } from '../core/endpoint-manager';
 import { debugLog, debugWarn, debugError } from '../utils/debug-logger';
 
 export class WebSocketService {

@@ -1,37 +1,22 @@
-import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { EndpointManager } from '../core/endpoint-manager';
 import { debugLog } from '../utils/debug-logger';
 import { ChatSessionStore } from './chat-session-store';
-import { VisitorInfoV2, ChatMetadataV2, AssignedCommercial } from '../types';
+import { ChatV2, VisitorInfoV2, ChatMetadataV2, AssignedCommercial } from '../types';
 
-// Interfaz para la respuesta V2 del chat basada en los DTOs del backend
-export interface ChatDetailV2 {
-	id: string;
+/**
+ * ChatDetailV2 - Tipo para respuestas de API con tipado menos estricto
+ * Deriva de ChatV2 pero permite strings en campos que la API podría devolver
+ * con valores no contemplados en los union types.
+ */
+export type ChatDetailV2 = Omit<ChatV2, 'status' | 'priority' | 'resolutionStatus' | 'lastMessagePreview'> & {
 	status: string;
 	priority: string;
-	visitorInfo: VisitorInfoV2;
-	assignedCommercialId?: string;
-	assignedCommercial?: AssignedCommercial;
-	availableCommercialIds?: string[];
-	metadata: ChatMetadataV2;
-	createdAt: Date;
-	assignedAt?: Date;
-	closedAt?: Date;
-	lastMessageDate?: Date;
-	totalMessages: number;
-	unreadMessagesCount: number;
-	isActive: boolean;
-	visitorId: string;
-	department: string;
-	tags?: string[];
-	updatedAt?: Date;
-	averageResponseTimeMinutes?: number;
-	chatDurationMinutes?: number;
 	resolutionStatus?: string;
-	satisfactionRating?: number;
-}
+};
 
 // Interfaces legacy para mantener compatibilidad
-export interface ChatParticipant {
+/** @deprecated Use ChatParticipant from presence-types.ts for real-time presence */
+export interface LegacyChatParticipant {
 	id: string;
 	name: string;
 	isCommercial: boolean;
@@ -44,9 +29,13 @@ export interface ChatParticipant {
 	isAnonymous: boolean;
 }
 
+/** @deprecated Use ChatParticipant from presence-types.ts instead */
+export type ChatParticipant = LegacyChatParticipant;
+
+/** @deprecated Use ChatV2 from types/index.ts for V2 API */
 export interface ChatDetail {
 	id: string;
-	participants: ChatParticipant[];
+	participants: LegacyChatParticipant[];
 	status: string;
 	lastMessage: any | null;
 	lastMessageAt: string | null;
@@ -152,7 +141,7 @@ export async function fetchChatDetailV2(chatId: string, force: boolean = false):
  * @returns Detalles del chat en formato legacy
  */
 export function convertV2ToLegacy(chatDetailV2: ChatDetailV2): ChatDetail {
-	const participants: ChatParticipant[] = [];
+	const participants: LegacyChatParticipant[] = [];
 	
 	// Añadir el visitante como participante
 	participants.push({

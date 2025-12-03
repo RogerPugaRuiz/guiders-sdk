@@ -4,10 +4,9 @@ import { Message } from "../../types";
 import { debugLog } from "../../utils/debug-logger";
 import { ChatSessionStore } from "../../services/chat-session-store";
 import { fetchChatDetail, ChatDetail, ChatParticipant } from "../../services/chat-detail-service";
-import { ChatMemoryStore } from "../../core/chat-memory-store";
 
 // Importar tipos y utilidades
-import { ChatUIOptions, Sender, ChatMessageParams, ActiveInterval, QuickActionsConfig, QuickAction } from '../types/chat-types';
+import { ChatUIOptions, Sender, ChatMessageParams, ActiveInterval, QuickActionsConfig, QuickAction, ChatSelectorConfig, ChatSelectorItem } from '../types/chat-types';
 import { formatTime, formatDate, isBot, generateInitials, createDateSeparator } from '../utils/chat-utils';
 import { MessageRenderer, MessageRenderData } from '../utils/message-renderer';
 import { resolvePosition, ResolvedPosition } from '../../utils/position-resolver';
@@ -18,6 +17,12 @@ import { PresenceChangedEvent, TypingEvent, PresenceStatus } from '../../types/p
 
 // Importar componente de Quick Actions
 import { QuickActionsUI } from './quick-actions-ui';
+
+// Importar componente de Chat Selector
+import { ChatSelectorUI } from './chat-selector-ui';
+
+// Importar componente de Chat List View (estilo Intercom)
+import { ChatListView } from './chat-list-view';
 
 /**
  * Clase ChatUI para renderizar mensajes en el chat.
@@ -69,6 +74,21 @@ export class ChatUI {
 	private quickActionsUI: QuickActionsUI | null = null;
 	private quickActionsConfig: QuickActionsConfig;
 
+	// Chat Selector (múltiples conversaciones)
+	private chatSelectorUI: ChatSelectorUI | null = null;
+	private chatSelectorConfig: ChatSelectorConfig;
+
+	// Chat List View (vista de lista estilo Intercom)
+	private chatListView: ChatListView | null = null;
+	private chatListViewContainer: HTMLElement | null = null;
+	private isShowingChatList: boolean = false;
+	private chatViewContainer: HTMLElement | null = null; // Contenedor del chat normal
+	private backButton: HTMLElement | null = null; // Botón de flecha atrás
+
+	// Callbacks públicos para Chat Selector (configurados desde TrackingPixelSDK)
+	public onChatSwitch: ((chatId: string) => Promise<void>) | null = null;
+	public onNewChatRequest: (() => Promise<void>) | null = null;
+
 	// Callbacks públicos para Quick Actions (configurados desde TrackingPixelSDK)
 	public onQuickActionSendMessage: ((message: string, metadata?: Record<string, any>) => Promise<void>) | null = null;
 	public onQuickActionRequestAgent: (() => Promise<void>) | null = null;
@@ -116,6 +136,18 @@ export class ChatUI {
 			...options.quickActions
 		};
 		debugLog('💬 [ChatUI] Quick Actions config:', this.quickActionsConfig);
+
+		// Inicializar configuración de Chat Selector
+		this.chatSelectorConfig = {
+			enabled: false,
+			newChatLabel: 'Nueva conversación',
+			newChatEmoji: '+',
+			maxChatsToShow: 10,
+			showUnreadBadge: true,
+			emptyStateMessage: 'No hay conversaciones anteriores',
+			...options.chatSelector
+		};
+		debugLog('💬 [ChatUI] Chat Selector config:', this.chatSelectorConfig);
 
 		// 🤖 Configurar IA para el MessageRenderer
 		if (options.ai) {
@@ -205,6 +237,23 @@ export class ChatUI {
 		mainContainer.style.gap = '12px';
 		mainContainer.style.flex = '1';
 
+		// Botón de flecha atrás (solo si Chat Selector está habilitado)
+		if (this.chatSelectorConfig.enabled) {
+			const backButton = document.createElement('button');
+			backButton.className = 'chat-back-btn';
+			backButton.setAttribute('aria-label', 'Ver conversaciones');
+			backButton.innerHTML = `
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+			`;
+			backButton.addEventListener('click', () => {
+				this.showChatListView();
+			});
+			this.backButton = backButton;
+			mainContainer.appendChild(backButton);
+		}
+
 		// Avatar del comercial (oculto por defecto hasta que haya comercial asignado)
 		const avatarContainer = document.createElement('div');
 		avatarContainer.className = 'chat-header-avatar-container';
@@ -239,13 +288,22 @@ export class ChatUI {
 		titleContainer.style.flex = '1';
 		titleContainer.style.minWidth = '0'; // Para permitir truncamiento de texto
 
+		// Contenedor de título (sin selector dropdown)
+		const titleRow = document.createElement('div');
+		titleRow.className = 'chat-header-title-row';
+		titleRow.style.display = 'flex';
+		titleRow.style.alignItems = 'center';
+		titleRow.style.gap = '4px';
+
 		const titleEl = document.createElement('div');
 		titleEl.className = 'chat-header-title';
 		titleEl.textContent = 'Chat';
 		this.titleElement = titleEl;
 
+		titleRow.appendChild(titleEl);
+
 		// Ensamblar header main
-		titleContainer.appendChild(titleEl);
+		titleContainer.appendChild(titleRow);
 
 		mainContainer.appendChild(avatarContainer);
 		mainContainer.appendChild(titleContainer);
@@ -351,6 +409,7 @@ export class ChatUI {
 
 		// Configurar callbacks
 		this.quickActionsUI.onSendMessage = (message, metadata) => {
+			console.log('[GUIDERS DEBUG] quickActionsUI.onSendMessage callback EJECUTADO');
 			this.handleQuickActionSendMessage(message, metadata);
 		};
 
@@ -382,10 +441,336 @@ export class ChatUI {
 	}
 
 	/**
+	 * Crea el componente de Chat Selector (dropdown - DEPRECATED)
+	 * @deprecated Usar createChatListView() en su lugar
+	 */
+	private createChatSelector(container: HTMLElement): void {
+		if (!this.chatSelectorConfig.enabled) {
+			debugLog('💬 [ChatUI] Chat Selector deshabilitado');
+			return;
+		}
+
+		this.chatSelectorUI = new ChatSelectorUI(this.chatSelectorConfig, {
+			onChatSelected: (chatId) => {
+				this.handleChatSwitch(chatId);
+			},
+			onNewChatRequested: () => {
+				this.handleNewChatRequest();
+			},
+			onDropdownOpen: () => {
+				this.loadVisitorChats();
+			}
+		});
+
+		const element = this.chatSelectorUI.render();
+		container.appendChild(element);
+
+		debugLog('💬 [ChatUI] Chat Selector creado');
+	}
+
+	/**
+	 * Crea la vista de lista de chats (estilo Intercom)
+	 */
+	private createChatListView(): void {
+		if (!this.chatSelectorConfig.enabled || !this.container) {
+			return;
+		}
+
+		this.chatListView = new ChatListView(this.chatSelectorConfig, {
+			onChatSelected: (chatId) => {
+				debugLog('💬 [ChatUI] Chat seleccionado desde lista:', chatId);
+				this.handleChatSwitch(chatId);
+				this.hideChatListView();
+			},
+			onNewChatRequested: () => {
+				debugLog('💬 [ChatUI] Nueva conversación solicitada desde lista');
+				this.handleNewChatRequest();
+				this.hideChatListView();
+			},
+			onBackToChat: () => {
+				debugLog('💬 [ChatUI] Volver al chat desde lista');
+				this.hideChatListView();
+			},
+			onClose: () => {
+				debugLog('💬 [ChatUI] Cerrar widget desde lista');
+				this.hide();
+			}
+		});
+
+		// Crear contenedor para la vista de lista
+		this.chatListViewContainer = document.createElement('div');
+		this.chatListViewContainer.className = 'guiders-chat-list-view-wrapper';
+		this.chatListViewContainer.style.cssText = `
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: #fff;
+			z-index: 10;
+			display: none;
+		`;
+
+		// Renderizar la vista y añadirla al contenedor
+		const listViewElement = this.chatListView.render();
+		this.chatListViewContainer.appendChild(listViewElement);
+
+		// Insertar en el contenedor principal del chat
+		this.container.appendChild(this.chatListViewContainer);
+
+		debugLog('💬 [ChatUI] ChatListView creado');
+	}
+
+	/**
+	 * Muestra la vista de lista de chats
+	 */
+	public showChatListView(): void {
+		if (!this.chatSelectorConfig.enabled) {
+			debugLog('💬 [ChatUI] Chat Selector no habilitado');
+			return;
+		}
+
+		// Crear la vista de lista si no existe
+		if (!this.chatListViewContainer) {
+			this.createChatListView();
+		}
+
+		if (this.chatListViewContainer) {
+			this.chatListViewContainer.style.display = 'flex';
+			this.isShowingChatList = true;
+
+			// Cargar chats cuando se muestra la vista
+			this.loadVisitorChatsForListView();
+
+			debugLog('💬 [ChatUI] Mostrando vista de lista de chats');
+		}
+	}
+
+	/**
+	 * Oculta la vista de lista de chats
+	 */
+	public hideChatListView(): void {
+		if (this.chatListViewContainer) {
+			this.chatListViewContainer.style.display = 'none';
+			this.isShowingChatList = false;
+			debugLog('💬 [ChatUI] Ocultando vista de lista de chats');
+		}
+	}
+
+	/**
+	 * Carga la lista de chats del visitante para la vista de lista (ChatListView)
+	 */
+	private async loadVisitorChatsForListView(): Promise<void> {
+		if (!this.chatListView || !this.visitorId) {
+			debugLog('💬 [ChatUI] ⚠️ No se puede cargar chats: lista o visitorId faltante');
+			return;
+		}
+
+		this.chatListView.setLoading(true);
+
+		try {
+			const { ChatV2Service } = await import('../../services/chat-v2-service');
+			const chatService = ChatV2Service.getInstance();
+			const chatList = await chatService.getVisitorChats(this.visitorId, undefined, this.chatSelectorConfig.maxChatsToShow || 10);
+
+			const listItems = ChatListView.fromChatV2List(chatList.chats, this.chatId);
+			this.chatListView.setChats(listItems);
+			this.chatListView.setSelectedChat(this.chatId);
+
+			debugLog('💬 [ChatUI] ✅ Chats cargados para lista:', listItems.length);
+		} catch (error) {
+			debugLog('💬 [ChatUI] ❌ Error al cargar chats:', error);
+			this.chatListView.setError('Error al cargar conversaciones');
+		}
+	}
+
+	/**
+	 * Carga la lista de chats del visitante para el selector (dropdown - DEPRECATED)
+	 * @deprecated Usar loadVisitorChatsForListView() en su lugar
+	 */
+	private async loadVisitorChats(): Promise<void> {
+		if (!this.chatSelectorUI || !this.visitorId) {
+			debugLog('💬 [ChatUI] ⚠️ No se puede cargar chats: selector o visitorId faltante');
+			return;
+		}
+
+		this.chatSelectorUI.setLoading(true);
+
+		try {
+			const { ChatV2Service } = await import('../../services/chat-v2-service');
+			const chatService = ChatV2Service.getInstance();
+			const chatList = await chatService.getVisitorChats(this.visitorId, undefined, this.chatSelectorConfig.maxChatsToShow || 10);
+
+			const selectorItems = ChatSelectorUI.fromChatV2List(chatList.chats, this.chatId);
+			this.chatSelectorUI.setChats(selectorItems);
+			this.chatSelectorUI.setSelectedChat(this.chatId);
+
+			debugLog('💬 [ChatUI] ✅ Chats cargados para selector:', selectorItems.length);
+		} catch (error) {
+			debugLog('💬 [ChatUI] ❌ Error al cargar chats:', error);
+			this.chatSelectorUI.setError('Error al cargar conversaciones');
+		}
+	}
+
+	/**
+	 * Maneja el cambio de chat desde el selector
+	 */
+	private async handleChatSwitch(chatId: string): Promise<void> {
+		if (chatId === this.chatId) {
+			debugLog('💬 [ChatUI] Chat ya seleccionado, omitiendo switch');
+			return;
+		}
+
+		debugLog('💬 [ChatUI] 🔄 Cambiando a chat:', chatId);
+
+		// Emitir evento custom para que TrackingPixelSDK lo maneje
+		const event = new CustomEvent('guidersChatSwitch', {
+			detail: { chatId },
+			bubbles: true
+		});
+		this.container?.dispatchEvent(event);
+
+		// Callback directo si está configurado
+		if (this.onChatSwitch) {
+			await this.onChatSwitch(chatId);
+		}
+	}
+
+	/**
+	 * Maneja la solicitud de crear un nuevo chat
+	 */
+	private async handleNewChatRequest(): Promise<void> {
+		debugLog('💬 [ChatUI] 🆕 Solicitando crear nuevo chat');
+
+		// IMPORTANTE: Primero ejecutar el callback para resetear el chatId
+		// ANTES de mostrar los Quick Actions. Esto evita que el usuario
+		// haga clic en un Quick Action y el mensaje se envíe al chat anterior.
+
+		// Emitir evento custom para que TrackingPixelSDK lo maneje
+		const event = new CustomEvent('guidersNewChatRequested', {
+			bubbles: true
+		});
+		this.container?.dispatchEvent(event);
+
+		// Callback directo si está configurado (resetea chatId)
+		if (this.onNewChatRequest) {
+			await this.onNewChatRequest();
+		}
+
+		// DESPUÉS de resetear el chatId, mostrar la UI de nuevo chat
+		// Esto incluye limpiar mensajes y mostrar Quick Actions
+		this.resetHeaderToDefault();
+	}
+
+	/**
+	 * Resetea el header a un estado genérico (sin comercial asignado)
+	 */
+	public resetHeaderToDefault(): void {
+		debugLog('💬 [ChatUI] Reseteando header a estado por defecto');
+
+		// Limpiar chatDetail para que no muestre info del chat anterior
+		this.chatDetail = null;
+
+		// Resetear título a genérico
+		if (this.titleElement) {
+			this.titleElement.textContent = 'Chat';
+		}
+
+		// Ocultar avatar container (no hay comercial asignado aún)
+		if (this.avatarContainer) {
+			this.avatarContainer.style.display = 'none';
+		}
+
+		// Resetear avatar a icono por defecto
+		if (this.avatarElement) {
+			this.avatarElement.innerHTML = `
+				<svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="white"/>
+				</svg>
+			`;
+			this.avatarElement.style.background = '#a0a0a0';
+			this.avatarElement.style.padding = '10px';
+		}
+
+		// Ocultar punto de estado
+		if (this.avatarStatusDot) {
+			this.avatarStatusDot.style.display = 'none';
+		}
+
+		// Ocultar banner offline (no hay comercial asignado aún, no tiene sentido mostrar que está desconectado)
+		this.hideOfflineBanner();
+
+		// Limpiar mensajes del chat anterior
+		this.clearMessages();
+
+		// Mostrar Quick Actions si están habilitados y configurados para mostrar al iniciar chat
+		debugLog('💬 [ChatUI] Quick Actions config:', {
+			quickActionsUI: !!this.quickActionsUI,
+			enabled: this.quickActionsConfig.enabled,
+			showOnChatStart: this.quickActionsConfig.showOnChatStart,
+			buttons: this.quickActionsConfig.buttons?.length || 0
+		});
+		if (this.quickActionsUI && this.quickActionsConfig.enabled && this.quickActionsConfig.showOnChatStart) {
+			debugLog('💬 [ChatUI] Mostrando Quick Actions al iniciar nuevo chat');
+
+			// Verificar si el elemento Quick Actions está en el DOM, si no, re-añadirlo
+			const quickActionsElement = this.quickActionsUI.getElement();
+			if (quickActionsElement && this.containerMessages) {
+				const isInDOM = this.containerMessages.contains(quickActionsElement);
+				if (!isInDOM) {
+					debugLog('💬 [ChatUI] Quick Actions element no está en el DOM, re-añadiendo...');
+					// Insertar antes de .chat-messages-bottom o al final
+					const bottomDiv = this.containerMessages.querySelector('.chat-messages-bottom');
+					if (bottomDiv) {
+						this.containerMessages.insertBefore(quickActionsElement, bottomDiv);
+					} else {
+						this.containerMessages.appendChild(quickActionsElement);
+					}
+				}
+			}
+
+			this.quickActionsUI.show();
+		}
+
+		// Añadir mensaje de consentimiento si está configurado
+		this.addChatConsentMessage();
+	}
+
+	/**
+	 * Método público para cambiar a un chat específico
+	 */
+	public async switchToChat(chatId: string): Promise<void> {
+		await this.handleChatSwitch(chatId);
+	}
+
+	/**
+	 * Método público para crear un nuevo chat
+	 */
+	public async createNewChat(): Promise<void> {
+		await this.handleNewChatRequest();
+	}
+
+	/**
+	 * Actualiza el chat seleccionado en el selector
+	 */
+	public updateSelectedChat(chatId: string | null): void {
+		// Actualizar selector dropdown (deprecated)
+		if (this.chatSelectorUI) {
+			this.chatSelectorUI.setSelectedChat(chatId);
+		}
+		// Actualizar vista de lista (estilo Intercom)
+		if (this.chatListView) {
+			this.chatListView.setSelectedChat(chatId);
+		}
+	}
+
+	/**
 	 * Handler para enviar mensaje desde Quick Actions
 	 */
 	private async handleQuickActionSendMessage(message: string, metadata?: Record<string, any>): Promise<void> {
+		console.log('[GUIDERS DEBUG] handleQuickActionSendMessage LLAMADO con:', message);
 		debugLog('💬 [ChatUI] Quick Action: enviar mensaje', message);
+		console.log('[GUIDERS DEBUG] onQuickActionSendMessage callback existe?', !!this.onQuickActionSendMessage);
 		if (this.onQuickActionSendMessage) {
 			await this.onQuickActionSendMessage(message, metadata);
 		}
@@ -638,23 +1023,78 @@ export class ChatUI {
 					height: 36px;
 					background: rgba(255, 255, 255, 0.15);
 				}
-				
+
 				.chat-close-btn:hover {
 					background: rgba(255, 255, 255, 0.25);
 				}
-				
+
 				.chat-close-btn svg {
 					width: 22px;
 					height: 22px;
 				}
 			}
-			
+
+			/* Botón de flecha atrás (estilo Intercom) */
+			.chat-back-btn {
+				background: transparent;
+				border: none;
+				color: #111827;
+				cursor: pointer;
+				width: 32px;
+				height: 32px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 0;
+				opacity: 0.9;
+				transition: all 0.2s ease;
+				border-radius: 50%;
+				flex-shrink: 0;
+			}
+
+			.chat-back-btn:hover {
+				opacity: 1;
+				background: rgba(0, 0, 0, 0.05);
+			}
+
+			.chat-back-btn:active {
+				transform: scale(0.95);
+				background: rgba(0, 0, 0, 0.1);
+			}
+
+			.chat-back-btn svg {
+				width: 20px;
+				height: 20px;
+			}
+
+			/* 📱 Botón de atrás más visible en móvil */
+			@media (max-width: 768px) {
+				.chat-back-btn {
+					width: 36px;
+					height: 36px;
+				}
+
+				.chat-back-btn svg {
+					width: 22px;
+					height: 22px;
+				}
+			}
+
+			/* Wrapper de la vista de lista */
+			.guiders-chat-list-view-wrapper {
+				display: flex;
+				flex-direction: column;
+				height: 100%;
+				width: 100%;
+			}
+
 			.chat-messages {
 				display: flex;
 				flex-direction: column;
 				flex: 1;
 				overflow-y: auto;
 				padding: 18px 16px 80px 16px;
+				margin-bottom: 25px;
 				background: #ffffff;
 				scroll-behavior: smooth;
 			}
@@ -1112,6 +1552,262 @@ export class ChatUI {
 					flex-shrink: 0;
 				}
 			}
+
+			/* 📋 Chat Selector - Dropdown de múltiples conversaciones */
+			${ChatSelectorUI.getStyles()}
+
+			/* 📋 Chat List View - Vista de lista estilo Intercom */
+			.guiders-chat-list-view {
+				display: flex;
+				flex-direction: column;
+				height: 100%;
+				width: 100%;
+				background: #fff;
+				font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+				box-sizing: border-box;
+			}
+
+			.guiders-chat-list-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 12px 12px;
+				border-bottom: 1px solid #e5e7eb;
+				min-height: 56px;
+				background: #ffffff;
+				gap: 8px;
+			}
+
+			.guiders-chat-list-back-btn {
+				background: none;
+				border: none;
+				padding: 8px;
+				cursor: pointer;
+				color: #111827;
+				transition: all 0.2s;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 50%;
+				flex-shrink: 0;
+			}
+
+			.guiders-chat-list-back-btn:hover {
+				background: rgba(0, 0, 0, 0.05);
+			}
+
+			.guiders-chat-list-title {
+				margin: 0;
+				font-size: 17px;
+				font-weight: 600;
+				color: #111827;
+				flex: 1;
+				text-align: left;
+			}
+
+			.guiders-chat-list-close-btn {
+				background: none;
+				border: none;
+				padding: 8px;
+				cursor: pointer;
+				color: #6b7280;
+				transition: all 0.2s;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 50%;
+				flex-shrink: 0;
+			}
+
+			.guiders-chat-list-close-btn:hover {
+				background: rgba(0, 0, 0, 0.05);
+				color: #111827;
+			}
+
+			.guiders-chat-list-container {
+				flex: 1;
+				overflow-y: auto;
+				display: flex;
+				flex-direction: column;
+				width: 100%;
+			}
+
+			.guiders-chat-list-container > button {
+				display: flex !important;
+				flex-direction: row !important;
+				width: 100% !important;
+				box-sizing: border-box;
+			}
+
+			.guiders-chat-list-loading,
+			.guiders-chat-list-error,
+			.guiders-chat-list-empty {
+				padding: 24px;
+				text-align: center;
+				color: #6b7280;
+				font-size: 14px;
+			}
+
+			.guiders-chat-list-error {
+				color: #dc2626;
+			}
+
+			.guiders-chat-list-new-chat {
+				display: flex !important;
+				align-items: center;
+				gap: 12px;
+				width: 100% !important;
+				min-width: 100% !important;
+				padding: 16px 20px;
+				border: none !important;
+				border-bottom: 1px solid #e5e7eb !important;
+				border-radius: 0 !important;
+				background: #f9fafb;
+				cursor: pointer;
+				text-align: left;
+				transition: background 0.2s;
+				box-sizing: border-box;
+				flex-shrink: 0;
+			}
+
+			.guiders-chat-list-new-chat:hover {
+				background: #f3f4f6;
+			}
+
+			.guiders-chat-list-new-icon {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 44px;
+				height: 44px;
+				border-radius: 50%;
+				background: #18181b;
+				color: #fff;
+				flex-shrink: 0;
+			}
+
+			.guiders-chat-list-new-text {
+				font-size: 15px;
+				font-weight: 500;
+				color: #111827;
+			}
+
+			.guiders-chat-list-item {
+				display: flex !important;
+				align-items: center;
+				gap: 12px;
+				width: 100% !important;
+				min-width: 100% !important;
+				padding: 14px 20px;
+				border: none !important;
+				border-bottom: 1px solid #f3f4f6 !important;
+				border-radius: 0 !important;
+				background: #fff;
+				cursor: pointer;
+				text-align: left;
+				transition: background 0.2s;
+				box-sizing: border-box;
+				flex-shrink: 0;
+			}
+
+			.guiders-chat-list-item:hover {
+				background: #f9fafb;
+			}
+
+			.guiders-chat-list-item.selected {
+				background: #eff6ff;
+			}
+
+			.guiders-chat-list-avatar {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 44px;
+				height: 44px;
+				border-radius: 50%;
+				background: #e5e7eb;
+				color: #6b7280;
+				flex-shrink: 0;
+				overflow: hidden;
+			}
+
+			.guiders-chat-list-avatar-img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+				border-radius: 50%;
+			}
+
+			.guiders-chat-list-content {
+				flex: 1;
+				min-width: 0;
+			}
+
+			.guiders-chat-list-title-row {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 8px;
+				margin-bottom: 4px;
+			}
+
+			.guiders-chat-list-item-title {
+				font-size: 15px;
+				font-weight: 500;
+				color: #111827;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.guiders-chat-list-item-time {
+				font-size: 12px;
+				color: #9ca3af;
+				flex-shrink: 0;
+			}
+
+			.guiders-chat-list-preview-row {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 8px;
+			}
+
+			.guiders-chat-list-preview {
+				font-size: 13px;
+				color: #6b7280;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.guiders-chat-list-badge {
+				background: #ef4444;
+				color: #fff;
+				font-size: 11px;
+				font-weight: 600;
+				padding: 2px 6px;
+				border-radius: 10px;
+				min-width: 18px;
+				text-align: center;
+				flex-shrink: 0;
+			}
+
+			.guiders-spinner {
+				display: inline-block;
+				width: 16px;
+				height: 16px;
+				border: 2px solid #e5e7eb;
+				border-top-color: #18181b;
+				border-radius: 50%;
+				animation: guiders-spin 1s linear infinite;
+				margin-right: 8px;
+				vertical-align: middle;
+			}
+
+			@keyframes guiders-spin {
+				to { transform: rotate(360deg); }
+			}
 		`;
 	}
 
@@ -1120,17 +1816,23 @@ export class ChatUI {
 		if (!this.container) {
 			throw new Error('No se ha inicializado el chat');
 		}
-		
+
 		if (this.chatId !== chatId) {
 			this.messagesLoaded = false;
 			this.lastKnownChatStatus = null;
 			this.lastNotificationType = null;
 		}
-		
+
 		this.chatId = chatId;
 		this.container.setAttribute('data-chat-id', chatId);
-		ChatSessionStore.getInstance().setCurrent(chatId);
-		ChatMemoryStore.getInstance().setChatId(chatId);
+
+		// Si chatId está vacío, limpiar el store en lugar de establecer valor vacío
+		if (!chatId) {
+			ChatSessionStore.getInstance().clearCurrent();
+			debugLog('💬 [ChatUI] Chat ID limpiado del store');
+		} else {
+			ChatSessionStore.getInstance().setCurrent(chatId);
+		}
 	}
 
 	public getChatId(): string | null {
@@ -1138,10 +1840,15 @@ export class ChatUI {
 			throw new Error('No se ha inicializado el chat');
 		}
 
-		if (!this.chatId) {
-			this.chatId = ChatMemoryStore.getInstance().getChatId();
+		// IMPORTANTE: Solo restaurar desde ChatSessionStore si chatId es exactamente vacío/null
+		// No restaurar si es un string vacío intencionalmente establecido
+		if (this.chatId === null || this.chatId === undefined) {
+			const storedChatId = ChatSessionStore.getInstance().getCurrent();
+			debugLog('💬 [ChatUI] getChatId() restaurando desde ChatSessionStore:', storedChatId);
+			this.chatId = storedChatId;
 		}
 
+		debugLog('💬 [ChatUI] getChatId() devolviendo:', this.chatId);
 		return this.chatId;
 	}
 
@@ -2147,10 +2854,13 @@ export class ChatUI {
 	public clearMessages(): void {
 		if (!this.containerMessages) return;
 
-		// Limpiar todos los elementos excepto el indicador de carga
+		// Limpiar todos los elementos excepto: indicador de carga, quick actions, y el div inferior
 		const children = Array.from(this.containerMessages.children);
 		children.forEach(child => {
-			if (!child.classList.contains('loading-messages-indicator')) {
+			// Preservar: indicador de carga, quick actions, y el div inferior (chat-messages-bottom)
+			if (!child.classList.contains('loading-messages-indicator') &&
+				!child.classList.contains('guiders-quick-actions') &&
+				!child.classList.contains('chat-messages-bottom')) {
 				child.remove();
 			}
 		});

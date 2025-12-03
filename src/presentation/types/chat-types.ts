@@ -3,9 +3,11 @@
 import { ChatPositionConfig, MobileDetectionConfig, AIConfig } from "../../types";
 import { AIMetadata } from "../../types/websocket-types";
 import { QuickActionsConfig } from "./quick-actions-types";
+import { ChatSelectorConfig } from "./chat-selector-types";
 
-// Re-exportar tipos de Quick Actions
+// Re-exportar tipos de Quick Actions y Chat Selector
 export * from "./quick-actions-types";
+export * from "./chat-selector-types";
 
 /**
  * Tipo para identificar el remitente de un mensaje
@@ -42,6 +44,8 @@ export interface ChatUIOptions {
 	quickActions?: Partial<QuickActionsConfig>;
 	/** Configuración de IA para el chat */
 	ai?: Partial<AIConfig>;
+	/** Configuración del selector de chats (múltiples conversaciones) */
+	chatSelector?: Partial<ChatSelectorConfig>;
 }
 
 /**

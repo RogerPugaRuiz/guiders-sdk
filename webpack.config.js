@@ -4,6 +4,7 @@ const {
 	BundleAnalyzerPlugin
 } = require("webpack-bundle-analyzer");
 const Dotenv = require('dotenv-webpack');
+const TerserPlugin = require('terser-webpack-plugin');
 const packageJson = require('./package.json');
 
 module.exports = {
@@ -35,6 +36,30 @@ module.exports = {
 		}]
 	},
 	mode: 'production',
+	// Optimizaciones de producción
+	optimization: {
+		usedExports: true,     // Tree-shaking: marca exports no usados
+		minimize: true,
+		minimizer: [
+			new TerserPlugin({
+				terserOptions: {
+					compress: {
+						drop_console: false,  // Mantener console para debug-logger
+						drop_debugger: true,
+						passes: 2,            // Múltiples pasadas de compresión
+						pure_funcs: ['debugLog'], // Eliminar llamadas a debugLog en producción
+					},
+					mangle: {
+						safari10: true,       // Compatibilidad Safari 10
+					},
+					format: {
+						comments: false,      // Eliminar comentarios
+					},
+				},
+				extractComments: false,
+			}),
+		],
+	},
 	externals: {
 	}
 };

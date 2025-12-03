@@ -164,11 +164,12 @@ export class ChatMessagesUI {
      * Inicializa el chat con un ID específico
      * Carga los mensajes iniciales y hace scroll al bottom
      * @param chatId ID del chat
+     * @param force Forzar recarga aunque sea el mismo chat
      */
-    async initializeChat(chatId: string): Promise<void> {
-        debugLog(`💬 [ChatMessagesUI] Inicializando chat: ${chatId}`);
-        
-        if (this.chatId === chatId && !this.isInitialLoad) {
+    async initializeChat(chatId: string, force: boolean = false): Promise<void> {
+        debugLog(`💬 [ChatMessagesUI] Inicializando chat: ${chatId}, force: ${force}`);
+
+        if (this.chatId === chatId && !this.isInitialLoad && !force) {
             debugLog(`💬 [ChatMessagesUI] Chat ${chatId} ya está inicializado`);
             return;
         }

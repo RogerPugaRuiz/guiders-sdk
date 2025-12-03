@@ -115,8 +115,25 @@ export class RealtimeMessageManager {
 
 	/**
 	 * Establece el chat activo actual
+	 * Si chatId está vacío, limpia el chat actual (para crear uno nuevo)
 	 */
 	public setCurrentChat(chatId: string): void {
+		// CASO ESPECIAL: Limpiar chat actual para preparar nuevo chat
+		if (!chatId || chatId === '') {
+			debugLog('💬 [RealtimeMessageManager] 🧹 Limpiando chat actual para nuevo chat');
+
+			// Salir del chat anterior si existe
+			if (this.currentChatId) {
+				this.wsService.leaveChatRoom(this.currentChatId);
+			}
+
+			// Establecer a null para indicar que no hay chat activo
+			this.currentChatId = null;
+
+			// NO actualizar ChatUI aquí - ya fue actualizado por quien nos llamó
+			return;
+		}
+
 		if (this.currentChatId === chatId) {
 			debugLog('💬 [RealtimeMessageManager] Chat ya activo:', chatId);
 			return;

@@ -26,7 +26,7 @@
 
 import { WebSocketService } from './websocket-service';
 import { ChatV2Service } from './chat-v2-service';
-import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { EndpointManager } from '../core/endpoint-manager';
 import { debugLog } from '../utils/debug-logger';
 import {
   ChatPresence,

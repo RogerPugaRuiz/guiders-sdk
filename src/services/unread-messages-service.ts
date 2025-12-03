@@ -9,7 +9,7 @@
  * - Integración con ChatToggleButtonUI para mostrar badge
  */
 
-import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { EndpointManager } from '../core/endpoint-manager';
 import { WebSocketService } from './websocket-service';
 import { RealtimeMessage } from '../types/websocket-types';
 import { getCommonHeaders, getCommonFetchOptions } from '../utils/http-headers';

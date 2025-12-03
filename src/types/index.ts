@@ -128,6 +128,7 @@ export interface ChatV2 {
 	assignedAt?: Date;
 	closedAt?: Date;
 	lastMessageDate?: Date;
+	lastMessagePreview?: string;
 	totalMessages: number;
 	unreadMessagesCount: number;
 	isActive: boolean;

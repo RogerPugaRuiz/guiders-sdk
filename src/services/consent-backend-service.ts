@@ -5,7 +5,7 @@
  * Maneja la sincronización bidireccional entre el estado local y el servidor.
  */
 
-import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { EndpointManager } from '../core/endpoint-manager';
 import { debugLog } from '../utils/debug-logger';
 
 /**

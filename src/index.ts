@@ -5,8 +5,8 @@ import { resolveDefaultEndpoints } from "./core/endpoint-resolver";
 import { ActiveHoursConfig } from './types';
 import { debugLog, debugWarn, debugError } from "./utils/debug-logger";
 
-// Importar mensajes aleatorios para dev (se auto-inicializa solo en modo dev)
-import "./core/dev-random-messages";
+// NOTA: dev-random-messages se carga dinámicamente solo en modo dev (ver línea ~126)
+// NO importar estáticamente para evitar incluirlo en el bundle de producción
 
 export * from "./core/tracking-pixel-SDK";
 export * from "./core/token-manager";
@@ -122,7 +122,9 @@ function initializeGuidersSDK() {
 			window.guiders = new window.TrackingPixelSDK(sdkOptions);
 
 			// Configurar acceso global para dev random messages (solo en modo dev)
-			if (!isProd && typeof window !== 'undefined') {
+			// IMPORTANTE: Usar __PRODUCTION__ (constante de build) para permitir tree-shaking
+			// webpack elimina este bloque completo en producción
+			if (!__PRODUCTION__ && typeof window !== 'undefined') {
 				import('./core/dev-random-messages').then(({ DevRandomMessages }) => {
 					const devRandomMessages = DevRandomMessages.getInstance();
 					window.guidersDevRandomMessages = {

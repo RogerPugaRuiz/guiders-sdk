@@ -4,7 +4,7 @@ import {
   IngestEventsResponseDto,
   TenantMetadataDto
 } from '../types';
-import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { EndpointManager } from '../core/endpoint-manager';
 import { debugLog } from '../utils/debug-logger';
 import { getCommonFetchOptions } from '../utils/http-headers';
 

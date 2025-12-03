@@ -358,16 +358,8 @@ export class DevRandomMessages {
   }
 }
 
-// Auto-inicializar en modo dev
-if (typeof window !== 'undefined') {
-  // Esperar a que el DOM esté listo
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      DevRandomMessages.getInstance();
-    });
-  } else {
-    DevRandomMessages.getInstance();
-  }
-}
+// NOTA: La inicialización se hace desde src/index.ts mediante import dinámico
+// Solo en modo dev: import('./core/dev-random-messages').then(...)
+// NO auto-inicializar aquí para evitar incluir el módulo en el bundle de producción
 
 export default DevRandomMessages;

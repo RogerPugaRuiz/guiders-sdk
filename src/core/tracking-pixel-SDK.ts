@@ -20,6 +20,10 @@ import { ChatMessagesUI } from "../presentation/chat-messages-ui";
 import { VisitorsV2Service } from "../services/visitors-v2-service";
 import { ChatV2Service } from "../services/chat-v2-service";
 import { resolveDefaultEndpoints } from "./endpoint-resolver";
+import { EndpointManager } from "./endpoint-manager";
+
+// Re-export para mantener compatibilidad hacia atrás
+export { EndpointManager } from "./endpoint-manager";
 import { ChatInputUI } from "../presentation/chat-input";
 import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
 import { fetchChatDetail, fetchChatDetailV2, ChatDetail, ChatDetailV2, ChatParticipant } from "../services/chat-detail-service";
@@ -29,7 +33,7 @@ import { DomTrackingManager, DefaultTrackDataExtractor } from "./dom-tracking-ma
 import { EnhancedDomTrackingManager } from "./enhanced-dom-tracking-manager";
 import { HeuristicDetectionConfig } from "./heuristic-element-detector";
 import { SessionTrackingManager, SessionTrackingConfig } from "./session-tracking-manager";
-import { ChatMemoryStore } from "./chat-memory-store";
+import { ChatSessionStore } from "../services/chat-session-store";
 import { IdentitySignal } from "./identity-signal";
 import { ActiveHoursValidator } from "./active-hours-validator";
 import { ActiveHoursConfig, AIConfig } from "../types";
@@ -39,6 +43,7 @@ import { ConsentManager, ConsentManagerConfig } from "./consent-manager";
 import { ConsentBackendService } from "../services/consent-backend-service";
 import { ConsentBannerUI, ConsentBannerConfig } from "../presentation/consent-banner-ui";
 import { QuickActionsConfig } from "../presentation/types/quick-actions-types";
+import { ChatSelectorConfig } from "../presentation/types/chat-selector-types";
 import { debugLog } from "../utils/debug-logger";
 import { CommercialAvailabilityService } from "../services/commercial-availability-service";
 import { CommercialAvailabilityConfig } from "../types";
@@ -105,6 +110,8 @@ interface SDKOptions {
 	quickActions?: Partial<QuickActionsConfig>;
 	// AI Configuration (display options for AI-generated messages)
 	ai?: Partial<AIConfig>;
+	// Chat Selector Configuration (manage multiple conversations)
+	chatSelector?: Partial<ChatSelectorConfig>;
 	// Tracking V2 Configuration
 	trackingV2?: {
 		enabled?: boolean;        // Enable tracking V2 (default: true)
@@ -116,58 +123,6 @@ interface SDKOptions {
 		throttling?: Partial<import('../types').TrackingV2ThrottlingConfig>;  // Throttling configuration
 		aggregation?: Partial<import('../types').TrackingV2AggregationConfig>; // Aggregation configuration
 	};
-}
-
-
-export class EndpointManager {
-	private static instance: EndpointManager;
-	private endpoint: string;
-	private webSocketEndpoint: string;
-
-	private constructor(endpoint: string, webSocketEndpoint: string) {
-		this.endpoint = endpoint;
-		this.webSocketEndpoint = webSocketEndpoint;
-	}
-
-	public static getInstance(endpoint?: string, webSocketEndpoint?: string): EndpointManager {
-		if (!EndpointManager.instance) {
-			const defaults = resolveDefaultEndpoints();
-			EndpointManager.instance = new EndpointManager(
-				endpoint || defaults.endpoint,
-				webSocketEndpoint || defaults.webSocketEndpoint
-			);
-		} else if (endpoint || webSocketEndpoint) {
-			// Permite actualizar endpoints explícitamente si se pasan ahora
-			if (endpoint) EndpointManager.instance.endpoint = endpoint;
-			if (webSocketEndpoint) EndpointManager.instance.webSocketEndpoint = webSocketEndpoint;
-		}
-		return EndpointManager.instance;
-	}
-
-	public static setInstance(endpoint: string, webSocketEndpoint: string): void {
-		if (!EndpointManager.instance) {
-			EndpointManager.instance = new EndpointManager(endpoint, webSocketEndpoint);
-		} else {
-			EndpointManager.instance.endpoint = endpoint;
-			EndpointManager.instance.webSocketEndpoint = webSocketEndpoint;
-		}
-	}
-
-	public getEndpoint(): string {
-		return this.endpoint;
-	}
-
-	public getWebSocketEndpoint(): string {
-		return this.webSocketEndpoint;
-	}
-
-	public setEndpoint(endpoint: string): void {
-		this.endpoint = endpoint;
-	}
-
-	public setWebSocketEndpoint(webSocketEndpoint: string): void {
-		this.webSocketEndpoint = webSocketEndpoint;
-	}
 }
 
 export class TrackingPixelSDK {
@@ -227,6 +182,11 @@ export class TrackingPixelSDK {
 	private autoOpenChatOnMessage: boolean = true;
 	private quickActionsConfig?: Partial<QuickActionsConfig>;
 	private aiConfig?: Partial<AIConfig>;
+	private chatSelectorConfig?: Partial<ChatSelectorConfig>;
+	// Flag para indicar que el usuario quiere crear un nuevo chat
+	// Se establece en true cuando se pulsa "Nueva conversación"
+	// Se usa para forzar la creación de chat nuevo en Quick Actions
+	private pendingNewChat: boolean = false;
 
 	constructor(options: SDKOptions) {
 		const defaults = resolveDefaultEndpoints();
@@ -276,6 +236,12 @@ export class TrackingPixelSDK {
 		this.aiConfig = options.ai;
 		if (this.aiConfig) {
 			debugLog('[TrackingPixelSDK] 🤖 Configuración de IA:', this.aiConfig);
+		}
+
+		// 📋 Configurar Chat Selector (múltiples conversaciones)
+		this.chatSelectorConfig = options.chatSelector;
+		if (this.chatSelectorConfig?.enabled) {
+			debugLog('[TrackingPixelSDK] 📋 Configuración de Chat Selector:', this.chatSelectorConfig);
 		}
 
 		// Configurar validador de horarios activos si se proporciona
@@ -568,10 +534,15 @@ export class TrackingPixelSDK {
 			quickActions: this.quickActionsConfig,
 			// 🤖 Configuración de IA para renderizado de mensajes
 			ai: this.aiConfig,
+			// 📋 Configuración del selector de chats
+			chatSelector: this.chatSelectorConfig,
 		});
 
 		// Configurar callbacks de Quick Actions
 		this.setupQuickActionsCallbacks();
+
+		// Configurar callbacks de Chat Selector
+		this.setupChatSelectorCallbacks();
 		const chat = this.chatUI; // Alias para mantener compatibilidad con el código existente
 		this.chatInputUI = new ChatInputUI(chat);
 		const chatInput = this.chatInputUI; // Alias para compatibilidad con código existente
@@ -958,8 +929,83 @@ export class TrackingPixelSDK {
 
 		// Callback para enviar mensaje desde Quick Actions
 		this.chatUI.onQuickActionSendMessage = async (message: string, metadata?: Record<string, any>) => {
-			debugLog('[TrackingPixelSDK] Quick Action: enviando mensaje', message);
-			await this.realtimeMessageManager.sendMessage(message, 'text');
+			// DEBUG: Log siempre visible en consola para diagnóstico
+			console.log('[GUIDERS DEBUG] Quick Action: enviando mensaje', message);
+			console.log('[GUIDERS DEBUG] 🚩 pendingNewChat =', this.pendingNewChat);
+
+			const currentChatId = this.realtimeMessageManager.getCurrentChatId();
+			const chatUIChatId = this.chatUI?.getChatId();
+			console.log('[GUIDERS DEBUG] currentChatId (realtimeManager) =', currentChatId);
+			console.log('[GUIDERS DEBUG] chatUIChatId =', chatUIChatId);
+
+			// IMPORTANTE: Determinar si debemos crear un nuevo chat.
+			// Usamos múltiples señales para ser más robustos:
+			// 1. pendingNewChat - flag explícito establecido cuando se pulsa "Nueva conversación"
+			// 2. chatUIChatId vacío - indica que el UI no tiene chat activo
+			// 3. currentChatId vacío - indica que el manager no tiene chat activo
+			const noChatIdInUI = !chatUIChatId || chatUIChatId === '';
+			const noChatIdInManager = !currentChatId || currentChatId === '';
+			const shouldCreateNewChat = this.pendingNewChat || noChatIdInUI || noChatIdInManager;
+
+			console.log('[GUIDERS DEBUG] shouldCreateNewChat =', shouldCreateNewChat, {
+				pendingNewChat: this.pendingNewChat,
+				noChatIdInUI,
+				noChatIdInManager
+			});
+
+			if (!shouldCreateNewChat && currentChatId) {
+				// Hay chat activo Y NO queremos crear uno nuevo - enviar mensaje normalmente
+				debugLog('[TrackingPixelSDK] Chat activo encontrado, enviando mensaje via realtimeMessageManager');
+				await this.realtimeMessageManager.sendMessage(message, 'text');
+			} else {
+				// Queremos crear un chat nuevo (pendingNewChat=true) o no hay chat activo
+				debugLog('[TrackingPixelSDK] FORZANDO creación de chat nuevo...');
+
+				// Resetear el flag inmediatamente para evitar múltiples creaciones
+				this.pendingNewChat = false;
+				debugLog('[TrackingPixelSDK] 🚩 pendingNewChat = false (reseteado)');
+
+				const visitorId = this.getVisitorId();
+				if (!visitorId) {
+					debugLog('[TrackingPixelSDK] Error: No hay visitorId');
+					return;
+				}
+
+				const chatService = ChatV2Service.getInstance();
+				// IMPORTANTE: forceNewChat=true para crear un chat nuevo
+				// en lugar de reutilizar uno existente
+				const result = await chatService.sendMessageSmart(
+					visitorId,
+					message,
+					{
+						metadata: {
+							source: 'quick_action_send_message',
+							...metadata
+						}
+					},
+					'text',
+					true // forceNewChat: siempre crear chat nuevo
+				);
+
+				debugLog('[TrackingPixelSDK] Chat creado/mensaje enviado:', result);
+
+				// Actualizar chatId en ChatUI y RealtimeMessageManager
+				const newChatId = result.chat.id;
+				if (this.chatUI) {
+					this.chatUI.setChatId(newChatId);
+				}
+				this.realtimeMessageManager.setCurrentChat(newChatId);
+
+				// Renderizar el mensaje enviado en el UI
+				if (this.chatUI) {
+					this.chatUI.renderChatMessage({
+						text: message,
+						sender: 'user',
+						timestamp: Date.now(),
+						senderId: visitorId
+					});
+				}
+			}
 		};
 
 		// Callback para solicitar agente humano
@@ -979,6 +1025,117 @@ export class TrackingPixelSDK {
 		};
 
 		debugLog('[TrackingPixelSDK] Quick Actions callbacks configurados');
+	}
+
+	/**
+	 * Configura los callbacks del Chat Selector
+	 */
+	private setupChatSelectorCallbacks(): void {
+		if (!this.chatUI) return;
+
+		// Callback para cambiar de chat
+		this.chatUI.onChatSwitch = async (chatId: string) => {
+			debugLog('[TrackingPixelSDK] Chat Selector: cambiando a chat', chatId);
+			await this.switchChat(chatId);
+		};
+
+		// Callback para crear nuevo chat
+		this.chatUI.onNewChatRequest = async () => {
+			debugLog('[TrackingPixelSDK] Chat Selector: solicitando nuevo chat');
+			await this.createNewChat();
+		};
+
+		debugLog('[TrackingPixelSDK] Chat Selector callbacks configurados');
+	}
+
+	/**
+	 * Cambia a un chat específico
+	 */
+	public async switchChat(chatId: string): Promise<void> {
+		debugLog('[TrackingPixelSDK] 🔄 Cambiando a chat:', chatId);
+
+		// Resetear el flag de nuevo chat ya que estamos cambiando a un chat existente
+		this.pendingNewChat = false;
+
+		// Limpiar mensajes actuales
+		if (this.chatUI) {
+			this.chatUI.clearMessages();
+			this.chatUI.showLoadingMessages();
+		}
+
+		// Actualizar el chatId en el UI y el store
+		if (this.chatUI) {
+			this.chatUI.setChatId(chatId);
+			this.chatUI.updateSelectedChat(chatId);
+		}
+
+		// Cambiar a la nueva sala (setCurrentChat maneja leave/join internamente)
+		if (this.realtimeMessageManager) {
+			this.realtimeMessageManager.setCurrentChat(chatId);
+		}
+
+		// Cargar mensajes del nuevo chat (forzar recarga)
+		if (this.chatUI) {
+			await this.loadChatMessagesOnOpen(this.chatUI, true);
+		}
+
+		// Trackear el evento
+		this.captureEvent('chat_switched', {
+			chatId,
+			timestamp: Date.now()
+		});
+
+		debugLog('[TrackingPixelSDK] ✅ Cambio de chat completado:', chatId);
+	}
+
+	/**
+	 * Crea un nuevo chat para el visitante
+	 *
+	 * NOTA: Este método solo resetea el estado del chat actual.
+	 * La limpieza de UI y mostrar Quick Actions se hace en ChatUI.resetHeaderToDefault()
+	 * que se llama DESPUÉS de este método en el flujo de handleNewChatRequest().
+	 */
+	public async createNewChat(): Promise<void> {
+		debugLog('[TrackingPixelSDK] 🆕 Creando nuevo chat');
+
+		// IMPORTANTE: Marcar que queremos crear un nuevo chat
+		// Este flag se usa en onQuickActionSendMessage para forzar la creación
+		// de un chat nuevo en lugar de enviar a uno existente
+		this.pendingNewChat = true;
+		debugLog('[TrackingPixelSDK] 🚩 pendingNewChat = true');
+
+		// Resetear el chat actual en el RealtimeMessageManager
+		// Esto sale de la sala WebSocket actual y establece currentChatId a ''
+		if (this.realtimeMessageManager) {
+			this.realtimeMessageManager.setCurrentChat('');
+		}
+
+		// Resetear el estado interno del ChatUI para permitir creación de nuevo chat
+		if (this.chatUI) {
+			this.chatUI.setChatId('');
+			this.chatUI.updateSelectedChat(null);
+			this.chatUI.setCreatingChat(false);
+		}
+
+		// Trackear el evento
+		this.captureEvent('new_chat_requested', {
+			timestamp: Date.now()
+		});
+
+		debugLog('[TrackingPixelSDK] ✅ Listo para crear nuevo chat');
+	}
+
+	/**
+	 * Obtiene la lista de chats del visitante actual
+	 */
+	public async getVisitorChats(): Promise<import('../types').ChatListV2> {
+		const visitorId = this.chatUI?.getVisitorId();
+		if (!visitorId) {
+			throw new Error('No visitor ID available');
+		}
+
+		const chatService = ChatV2Service.getInstance();
+		return chatService.getVisitorChats(visitorId);
 	}
 
 	/**
@@ -1247,8 +1404,8 @@ export class TrackingPixelSDK {
 
 				if (hasExistingChats && result.chats) {
 					localStorage.setItem('guiders_recent_chats', JSON.stringify(result.chats.chats));
-					ChatMemoryStore.getInstance().setChatId(result.chats.chats![0].id);
-					debugLog('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) guardado en memoria:', result.chats.chats![0].id);
+					ChatSessionStore.getInstance().setCurrent(result.chats.chats![0].id);
+					debugLog('[TrackingPixelSDK] ♻️ Chat reutilizable (más reciente) guardado:', result.chats.chats![0].id);
 
 					// 🔧 ELIMINADO: No cargar mensajes automáticamente al identificar visitante
 					// Solo cargar cuando el usuario abra el chat para evitar peticiones innecesarias
@@ -2234,8 +2391,9 @@ export class TrackingPixelSDK {
 	/**
 	 * Carga los mensajes del chat cuando se abre por primera vez
 	 * @param chat Instancia del ChatUI
+	 * @param force Forzar recarga aunque sea el mismo chat
 	 */
-	private async loadChatMessagesOnOpen(chat: any): Promise<void> {
+	private async loadChatMessagesOnOpen(chat: any, force: boolean = false): Promise<void> {
 		// 🔒 PROTECCIÓN CONTRA RACE CONDITION: Establecer bandera de carga
 		chat.setLoadingInitialMessages(true);
 
@@ -2252,8 +2410,8 @@ export class TrackingPixelSDK {
 
 			// 🔧 UNIFICACIÓN: Delegar completamente a ChatMessagesUI si está disponible
 			if (this.chatMessagesUI) {
-				debugLog('[TrackingPixelSDK] ✅ Usando ChatMessagesUI para carga unificada');
-				await this.chatMessagesUI.initializeChat(chatId);
+				debugLog('[TrackingPixelSDK] ✅ Usando ChatMessagesUI para carga unificada, force:', force);
+				await this.chatMessagesUI.initializeChat(chatId, force);
 
 				// 📡 CRÍTICO: Unirse a la sala del chat para recibir mensajes en tiempo real
 				// Esto debe hacerse DESPUÉS de que la conexión WebSocket esté lista
@@ -2633,8 +2791,8 @@ export class TrackingPixelSDK {
 						this.wsService.joinChatRoom(event.chatId);
 						this.realtimeMessageManager.setCurrentChat(event.chatId);
 
-						// Actualizar ChatMemoryStore con el nuevo chat
-						ChatMemoryStore.getInstance().setChatId(event.chatId);
+						// Actualizar ChatSessionStore con el nuevo chat
+						ChatSessionStore.getInstance().setCurrent(event.chatId);
 
 						// Actualizar servicio de mensajes no leídos
 						if (this.chatToggleButton) {

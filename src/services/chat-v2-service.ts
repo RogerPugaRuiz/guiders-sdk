@@ -1,4 +1,4 @@
-import { EndpointManager } from '../core/tracking-pixel-SDK';
+import { EndpointManager } from '../core/endpoint-manager';
 import { debugLog, debugWarn, debugError } from '../utils/debug-logger';
 import { ChatV2, ChatListV2 } from '../types';
 import { getCommonHeaders, getCommonFetchOptions } from '../utils/http-headers';
@@ -337,11 +337,11 @@ export class ChatV2Service {
 		debugLog(`[ChatV2Service] 🔓 Abriendo chat ${chatId}`);
 
 		try {
-			const response = await fetch(`${this.getBaseUrl()}/${chatId}/open`, this.getFetchOptions('PUT'));
+			const response = await fetch(`${this.getBaseUrl()}/${chatId}/view-open`, this.getFetchOptions('PUT'));
 
 			// Si el endpoint no existe (404) o no está implementado (501), es opcional
 			if (response.status === 404 || response.status === 501) {
-				debugWarn(`[ChatV2Service] ⚠️ Endpoint /open no disponible (${response.status}) - continuando sin sincronizar estado`);
+				debugWarn(`[ChatV2Service] ⚠️ Endpoint /view-open no disponible (${response.status}) - continuando sin sincronizar estado`);
 				return null;
 			}
 
@@ -358,7 +358,7 @@ export class ChatV2Service {
 		} catch (error) {
 			// Si es error de red o endpoint no existe, no es crítico
 			if (error instanceof TypeError) {
-				debugWarn(`[ChatV2Service] ⚠️ No se pudo conectar al endpoint /open - continuando sin sincronizar estado`);
+				debugWarn(`[ChatV2Service] ⚠️ No se pudo conectar al endpoint /view-open - continuando sin sincronizar estado`);
 				return null;
 			}
 			// Re-lanzar otros errores
@@ -379,11 +379,11 @@ export class ChatV2Service {
 		debugLog(`[ChatV2Service] 🔒 Cerrando chat ${chatId}`);
 
 		try {
-			const response = await fetch(`${this.getBaseUrl()}/${chatId}/close`, this.getFetchOptions('PUT'));
+			const response = await fetch(`${this.getBaseUrl()}/${chatId}/view-close`, this.getFetchOptions('PUT'));
 
 			// Si el endpoint no existe (404) o no está implementado (501), es opcional
 			if (response.status === 404 || response.status === 501) {
-				debugWarn(`[ChatV2Service] ⚠️ Endpoint /close no disponible (${response.status}) - continuando sin sincronizar estado`);
+				debugWarn(`[ChatV2Service] ⚠️ Endpoint /view-close no disponible (${response.status}) - continuando sin sincronizar estado`);
 				return null;
 			}
 
@@ -400,7 +400,7 @@ export class ChatV2Service {
 		} catch (error) {
 			// Si es error de red o endpoint no existe, no es crítico
 			if (error instanceof TypeError) {
-				debugWarn(`[ChatV2Service] ⚠️ No se pudo conectar al endpoint /close - continuando sin sincronizar estado`);
+				debugWarn(`[ChatV2Service] ⚠️ No se pudo conectar al endpoint /view-close - continuando sin sincronizar estado`);
 				return null;
 			}
 			// Re-lanzar otros errores
@@ -569,27 +569,43 @@ export class ChatV2Service {
 	 * @param content Contenido del mensaje
 	 * @param chatData Datos del chat (solo se usa si se crea uno nuevo)
 	 * @param messageType Tipo de mensaje (default: TEXT)
+	 * @param forceNewChat Si es true, siempre crea un chat nuevo (ignora chats existentes)
 	 * @returns Promise con el resultado de la operación
 	 */
 	async sendMessageSmart(
-		visitorId: string, 
-		content: string, 
-		chatData: any = {}, 
-		messageType: string = 'text'
+		visitorId: string,
+		content: string,
+		chatData: any = {},
+		messageType: string = 'text',
+		forceNewChat: boolean = false
 	): Promise<{ chat: { id: string }; message: { id: string }; isNewChat: boolean }> {
-		debugLog(`[ChatV2Service] 🧠 Enviando mensaje inteligente para visitante ${visitorId}`);
+		debugLog(`[ChatV2Service] 🧠 Enviando mensaje inteligente para visitante ${visitorId}`, { forceNewChat });
 
 		try {
-			// Primero intentar obtener chats existentes del visitante
+			// Si forceNewChat es true, siempre crear un chat nuevo
+			if (forceNewChat) {
+				debugLog(`[ChatV2Service] 🆕 Forzando creación de chat nuevo con mensaje`);
+
+				const messageData = { content, type: messageType };
+				const result = await this.createChatWithMessage(chatData, messageData);
+
+				return {
+					chat: { id: result.chatId },
+					message: { id: result.messageId },
+					isNewChat: true
+				};
+			}
+
+			// Comportamiento por defecto: buscar chats existentes
 			const chatList = await this.getVisitorChats(visitorId, undefined, 1);
-			
+
 			if (chatList.chats && chatList.chats.length > 0) {
 				// Existe al menos un chat, usar el primero (más reciente) y enviar mensaje
 				const existingChat = chatList.chats[0];
 				debugLog(`[ChatV2Service] 📋 Chat existente encontrado: ${existingChat.id}, enviando mensaje`);
-				
+
 				const message = await this.sendMessage(existingChat.id, content, messageType);
-				
+
 				return {
 					chat: { id: existingChat.id },
 					message: { id: message.messageId || message.id },
@@ -598,10 +614,10 @@ export class ChatV2Service {
 			} else {
 				// No hay chats existentes, crear uno nuevo con el mensaje
 				debugLog(`[ChatV2Service] 🆕 No hay chats existentes, creando chat nuevo con mensaje`);
-				
+
 				const messageData = { content, type: messageType };
 				const result = await this.createChatWithMessage(chatData, messageData);
-				
+
 				return {
 					chat: { id: result.chatId }, // Crear objeto chat con el ID recibido
 					message: { id: result.messageId }, // Crear objeto message con el ID recibido

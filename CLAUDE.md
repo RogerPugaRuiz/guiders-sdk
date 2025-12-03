@@ -501,6 +501,134 @@ quickActions: {
 
 **Test demo**: `demo/app/test-quick-actions.html`
 
+### Adding WordPress Admin Configuration Fields
+
+**CRITICAL**: When adding new configuration options to the WordPress admin panel, you MUST complete ALL 4 steps. Missing any step will cause the setting to not save properly.
+
+#### Step 1: Register the Settings Field (class-guiders-admin.php)
+
+In the `registerSettings()` method, add your field registration:
+
+```php
+// In registerSettings() method, find the appropriate section
+add_settings_field(
+    'my_new_setting',                              // Field ID
+    __('Mi Nueva Configuración', 'guiders-wp-plugin'), // Label
+    array($this, 'myNewSettingFieldCallback'),     // Callback method
+    'guiders-settings-chat',                       // Page (tab)
+    'guiders_my_section'                           // Section ID
+);
+```
+
+#### Step 2: Create the Field Callback Method (class-guiders-admin.php)
+
+Add the callback method that renders the HTML:
+
+```php
+/**
+ * My new setting field callback
+ */
+public function myNewSettingFieldCallback() {
+    $settings = get_option('guiders_wp_plugin_settings', array());
+
+    // For checkbox:
+    $enabled = isset($settings['my_new_setting']) ? $settings['my_new_setting'] : false;
+    echo '<input type="checkbox" id="my_new_setting" name="guiders_wp_plugin_settings[my_new_setting]" value="1" ' . checked($enabled, true, false) . ' />';
+    echo '<label for="my_new_setting">' . __('Descripción del checkbox', 'guiders-wp-plugin') . '</label>';
+
+    // For text input:
+    $value = isset($settings['my_text_setting']) ? $settings['my_text_setting'] : 'default';
+    echo '<input type="text" id="my_text_setting" name="guiders_wp_plugin_settings[my_text_setting]" value="' . esc_attr($value) . '" class="regular-text" />';
+
+    // For number input:
+    $number = isset($settings['my_number_setting']) ? $settings['my_number_setting'] : 10;
+    echo '<input type="number" id="my_number_setting" name="guiders_wp_plugin_settings[my_number_setting]" value="' . esc_attr($number) . '" min="1" max="100" />';
+}
+```
+
+#### Step 3: Add Validation in validateSettings() (class-guiders-admin.php) - **CRITICAL!**
+
+**This step is frequently forgotten and causes settings to not save!**
+
+In the `validateSettings()` method, add validation for your new fields:
+
+```php
+// In validateSettings() method, before "return $validated;"
+
+// For checkbox (uses $validateCheckbox helper):
+$validated['my_new_setting'] = isset($input['my_new_setting']) ? $validateCheckbox($input['my_new_setting']) : false;
+
+// For text field:
+if (isset($input['my_text_setting'])) {
+    $validated['my_text_setting'] = sanitize_text_field($input['my_text_setting']);
+}
+
+// For number field with range validation:
+if (isset($input['my_number_setting'])) {
+    $number = intval($input['my_number_setting']);
+    $validated['my_number_setting'] = max(1, min(100, $number)); // Clamp between 1-100
+}
+
+// For textarea:
+if (isset($input['my_textarea_setting'])) {
+    $validated['my_textarea_setting'] = sanitize_textarea_field($input['my_textarea_setting']);
+}
+```
+
+#### Step 4: Pass to Frontend Config (class-guiders-public.php)
+
+If the setting needs to be passed to the JavaScript SDK:
+
+```php
+// Option A: Add directly to the config array in getConfig()
+$config = array(
+    // ... existing config ...
+    'myNewSetting' => isset($this->settings['my_new_setting']) ? (bool)$this->settings['my_new_setting'] : false,
+);
+
+// Option B: Create a helper method for grouped settings
+private function getMyFeatureConfig() {
+    $enabled = isset($this->settings['my_feature_enabled']) ? (bool)$this->settings['my_feature_enabled'] : false;
+
+    if (!$enabled) {
+        return array('enabled' => false);
+    }
+
+    return array(
+        'enabled' => true,
+        'option1' => isset($this->settings['my_feature_option1'])
+            ? $this->settings['my_feature_option1']
+            : 'default',
+        'option2' => isset($this->settings['my_feature_option2'])
+            ? intval($this->settings['my_feature_option2'])
+            : 10
+    );
+}
+
+// Then in getConfig():
+'myFeature' => $this->getMyFeatureConfig(),
+```
+
+#### Checklist for New Admin Settings
+
+- [ ] Field registered with `add_settings_field()` in `registerSettings()`
+- [ ] Callback method created (e.g., `mySettingFieldCallback()`)
+- [ ] **Validation added in `validateSettings()`** (most common mistake!)
+- [ ] Frontend config updated in `class-guiders-public.php` if needed
+- [ ] Rebuild plugin: `bash wordpress-plugin/build-plugin.sh`
+
+#### Common Pitfalls
+
+1. **Checkbox not saving**: Missing validation in `validateSettings()`. Checkboxes need special handling because unchecked checkboxes don't submit any value.
+
+2. **Default value not working**: Make sure to provide default in both the callback AND the validation.
+
+3. **Setting resets on other tab save**: The `validateSettings()` function merges with existing settings, but only for fields that are validated. Always add validation for new fields.
+
+**Files involved**:
+- `wordpress-plugin/guiders-wp-plugin/includes/class-guiders-admin.php` - Admin UI and validation
+- `wordpress-plugin/guiders-wp-plugin/includes/class-guiders-public.php` - Frontend config
+
 ### Active Hours Validation
 
 **Configure chat availability by schedule**:
