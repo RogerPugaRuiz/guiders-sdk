@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.8.0
+Stable tag: 2.9.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,23 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.9.0 =
+* ✨ **Selector de Conversaciones en Admin**: Nueva sección de configuración para personalizar el selector de chats
+  * Habilitar/deshabilitar el selector de conversaciones
+  * Personalizar texto y emoji del botón "Nueva conversación"
+  * Configurar máximo de chats a mostrar
+  * Mensaje personalizado cuando no hay conversaciones
+* ✨ **Configuración de IA en Admin**: Sección de ajustes para el asistente de IA
+  * Habilitar/deshabilitar funcionalidades de IA
+  * Mostrar indicador de IA en mensajes
+  * Personalizar emoji y nombre del avatar de IA
+  * Configurar indicador de escritura de IA
+* 🔧 **Mejoras Técnicas del SDK**:
+  * Extracción de EndpointManager para mejor mantenibilidad
+  * Consolidación de tipos (ChatDetailV2, ChatParticipant)
+  * Utilidades compartidas para componentes de lista de chats
+  * Optimizaciones de webpack (tree-shaking, TerserPlugin)
 
 = 2.8.0 =
 * **✨ Quick Actions**: Sistema de acciones rápidas configurables al abrir el chat
