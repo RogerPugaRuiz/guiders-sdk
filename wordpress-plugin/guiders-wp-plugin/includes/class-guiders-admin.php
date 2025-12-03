@@ -460,6 +460,60 @@ class GuidersAdmin {
             'guiders_ai_config_section'
         );
 
+        // ==================== CHAT SELECTOR SECTION ====================
+        // Chat Selector section
+        add_settings_section(
+            'guiders_chat_selector_section',
+            __('Selector de Conversaciones', 'guiders-wp-plugin'),
+            array($this, 'chatSelectorSectionCallback'),
+            'guiders-settings-chat'
+        );
+
+        // Chat selector enabled field
+        add_settings_field(
+            'chat_selector_enabled',
+            __('Habilitar Selector', 'guiders-wp-plugin'),
+            array($this, 'chatSelectorEnabledFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_chat_selector_section'
+        );
+
+        // Chat selector new chat label field
+        add_settings_field(
+            'chat_selector_new_chat_label',
+            __('Texto "Nueva conversación"', 'guiders-wp-plugin'),
+            array($this, 'chatSelectorNewChatLabelFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_chat_selector_section'
+        );
+
+        // Chat selector new chat emoji field
+        add_settings_field(
+            'chat_selector_new_chat_emoji',
+            __('Emoji Nuevo Chat', 'guiders-wp-plugin'),
+            array($this, 'chatSelectorNewChatEmojiFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_chat_selector_section'
+        );
+
+        // Chat selector max chats field
+        add_settings_field(
+            'chat_selector_max_chats',
+            __('Máximo de Chats', 'guiders-wp-plugin'),
+            array($this, 'chatSelectorMaxChatsFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_chat_selector_section'
+        );
+
+        // Chat selector empty message field
+        add_settings_field(
+            'chat_selector_empty_message',
+            __('Mensaje Sin Conversaciones', 'guiders-wp-plugin'),
+            array($this, 'chatSelectorEmptyMessageFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_chat_selector_section'
+        );
+
         // Tracking V2 section
         add_settings_section(
             'guiders_tracking_v2_section',
@@ -1027,6 +1081,44 @@ class GuidersAdmin {
 
         // Validate cookie consent debug
         $validated['cookie_consent_debug'] = isset($input['cookie_consent_debug']) ? $validateCheckbox($input['cookie_consent_debug']) : false;
+
+        // Validate Quick Actions settings
+        $validated['quick_actions_enabled'] = isset($input['quick_actions_enabled']) ? $validateCheckbox($input['quick_actions_enabled']) : false;
+        if (isset($input['quick_actions_welcome_message'])) {
+            $validated['quick_actions_welcome_message'] = sanitize_textarea_field($input['quick_actions_welcome_message']);
+        }
+        $validated['quick_actions_show_on_first_open'] = isset($input['quick_actions_show_on_first_open']) ? $validateCheckbox($input['quick_actions_show_on_first_open']) : true;
+        $validated['quick_actions_show_on_chat_start'] = isset($input['quick_actions_show_on_chat_start']) ? $validateCheckbox($input['quick_actions_show_on_chat_start']) : true;
+        if (isset($input['quick_actions_buttons'])) {
+            $validated['quick_actions_buttons'] = wp_kses_post($input['quick_actions_buttons']);
+        }
+
+        // Validate AI Config settings
+        $validated['ai_enabled'] = isset($input['ai_enabled']) ? $validateCheckbox($input['ai_enabled']) : true;
+        $validated['ai_show_indicator'] = isset($input['ai_show_indicator']) ? $validateCheckbox($input['ai_show_indicator']) : true;
+        if (isset($input['ai_avatar_emoji'])) {
+            $validated['ai_avatar_emoji'] = sanitize_text_field($input['ai_avatar_emoji']);
+        }
+        if (isset($input['ai_sender_name'])) {
+            $validated['ai_sender_name'] = sanitize_text_field($input['ai_sender_name']);
+        }
+        $validated['ai_show_typing_indicator'] = isset($input['ai_show_typing_indicator']) ? $validateCheckbox($input['ai_show_typing_indicator']) : true;
+
+        // Validate Chat Selector settings
+        $validated['chat_selector_enabled'] = isset($input['chat_selector_enabled']) ? $validateCheckbox($input['chat_selector_enabled']) : false;
+        if (isset($input['chat_selector_new_chat_label'])) {
+            $validated['chat_selector_new_chat_label'] = sanitize_text_field($input['chat_selector_new_chat_label']);
+        }
+        if (isset($input['chat_selector_new_chat_emoji'])) {
+            $validated['chat_selector_new_chat_emoji'] = sanitize_text_field($input['chat_selector_new_chat_emoji']);
+        }
+        if (isset($input['chat_selector_max_chats'])) {
+            $max_chats = intval($input['chat_selector_max_chats']);
+            $validated['chat_selector_max_chats'] = max(1, min(50, $max_chats));
+        }
+        if (isset($input['chat_selector_empty_message'])) {
+            $validated['chat_selector_empty_message'] = sanitize_text_field($input['chat_selector_empty_message']);
+        }
 
         return $validated;
     }
@@ -1824,6 +1916,72 @@ class GuidersAdmin {
 
         echo '<input type="checkbox" id="ai_show_typing_indicator" name="guiders_wp_plugin_settings[ai_show_typing_indicator]" value="1" ' . checked($show, true, false) . ' />';
         echo '<label for="ai_show_typing_indicator">' . __('Mostrar indicador "IA está escribiendo..." mientras genera respuesta', 'guiders-wp-plugin') . '</label>';
+    }
+
+    // === Chat Selector Field Callbacks ===
+
+    /**
+     * Chat Selector section callback
+     */
+    public function chatSelectorSectionCallback() {
+        echo '<p>' . __('Configure el selector de conversaciones para permitir a los visitantes gestionar múltiples chats.', 'guiders-wp-plugin') . '</p>';
+        echo '<p class="description">' . __('El selector aparece en el encabezado del chat y permite cambiar entre conversaciones o iniciar una nueva.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat Selector enabled field callback
+     */
+    public function chatSelectorEnabledFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $enabled = isset($settings['chat_selector_enabled']) ? $settings['chat_selector_enabled'] : false;
+
+        echo '<input type="checkbox" id="chat_selector_enabled" name="guiders_wp_plugin_settings[chat_selector_enabled]" value="1" ' . checked($enabled, true, false) . ' />';
+        echo '<label for="chat_selector_enabled">' . __('Habilitar selector de conversaciones', 'guiders-wp-plugin') . '</label>';
+        echo '<p class="description">' . __('Si está activado, los visitantes podrán ver y cambiar entre sus conversaciones anteriores.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat Selector new chat label field callback
+     */
+    public function chatSelectorNewChatLabelFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $label = isset($settings['chat_selector_new_chat_label']) ? $settings['chat_selector_new_chat_label'] : 'Nueva conversación';
+
+        echo '<input type="text" id="chat_selector_new_chat_label" name="guiders_wp_plugin_settings[chat_selector_new_chat_label]" value="' . esc_attr($label) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Texto del botón para iniciar una nueva conversación.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat Selector new chat emoji field callback
+     */
+    public function chatSelectorNewChatEmojiFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $emoji = isset($settings['chat_selector_new_chat_emoji']) ? $settings['chat_selector_new_chat_emoji'] : '+';
+
+        echo '<input type="text" id="chat_selector_new_chat_emoji" name="guiders_wp_plugin_settings[chat_selector_new_chat_emoji]" value="' . esc_attr($emoji) . '" style="width: 60px; text-align: center; font-size: 18px;" />';
+        echo '<p class="description">' . __('Emoji o símbolo para el botón de nueva conversación. Ejemplos: + ✨ 💬 📝', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat Selector max chats field callback
+     */
+    public function chatSelectorMaxChatsFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $max_chats = isset($settings['chat_selector_max_chats']) ? $settings['chat_selector_max_chats'] : 10;
+
+        echo '<input type="number" id="chat_selector_max_chats" name="guiders_wp_plugin_settings[chat_selector_max_chats]" value="' . esc_attr($max_chats) . '" min="1" max="50" />';
+        echo '<p class="description">' . __('Número máximo de conversaciones a mostrar en el selector (1-50).', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat Selector empty message field callback
+     */
+    public function chatSelectorEmptyMessageFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $message = isset($settings['chat_selector_empty_message']) ? $settings['chat_selector_empty_message'] : 'No hay conversaciones anteriores';
+
+        echo '<input type="text" id="chat_selector_empty_message" name="guiders_wp_plugin_settings[chat_selector_empty_message]" value="' . esc_attr($message) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Mensaje que se muestra cuando no hay conversaciones previas.', 'guiders-wp-plugin') . '</p>';
     }
 
     // === Tracking V2 Field Callbacks ===

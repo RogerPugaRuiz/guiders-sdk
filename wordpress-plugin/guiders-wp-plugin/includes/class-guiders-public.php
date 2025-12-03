@@ -148,7 +148,8 @@ class GuidersPublic {
             'presence' => $this->getPresenceConfig(),
             'autoOpenChatOnMessage' => isset($this->settings['auto_open_chat_on_message']) ? (bool)$this->settings['auto_open_chat_on_message'] : true,
             'quickActions' => $this->getQuickActionsConfig(),
-            'aiConfig' => $this->getAIConfig()
+            'aiConfig' => $this->getAIConfig(),
+            'chatSelector' => $this->getChatSelectorConfig()
         );
 
         // Add environment-specific endpoints
@@ -1278,6 +1279,35 @@ class GuidersPublic {
             'showTypingIndicator' => isset($this->settings['ai_show_typing_indicator'])
                 ? (bool)$this->settings['ai_show_typing_indicator']
                 : true
+        );
+    }
+
+    /**
+     * Get Chat Selector configuration
+     */
+    private function getChatSelectorConfig() {
+        $enabled = isset($this->settings['chat_selector_enabled']) ? (bool)$this->settings['chat_selector_enabled'] : false;
+
+        // Si Chat Selector está deshabilitado, retornar config mínima
+        if (!$enabled) {
+            return array('enabled' => false);
+        }
+
+        return array(
+            'enabled' => true,
+            'newChatLabel' => isset($this->settings['chat_selector_new_chat_label'])
+                ? $this->settings['chat_selector_new_chat_label']
+                : 'Nueva conversación',
+            'newChatEmoji' => isset($this->settings['chat_selector_new_chat_emoji'])
+                ? $this->settings['chat_selector_new_chat_emoji']
+                : '+',
+            'maxChatsToShow' => isset($this->settings['chat_selector_max_chats'])
+                ? intval($this->settings['chat_selector_max_chats'])
+                : 10,
+            'emptyStateMessage' => isset($this->settings['chat_selector_empty_message'])
+                ? $this->settings['chat_selector_empty_message']
+                : 'No hay conversaciones anteriores',
+            'showUnreadBadge' => true
         );
     }
 }
