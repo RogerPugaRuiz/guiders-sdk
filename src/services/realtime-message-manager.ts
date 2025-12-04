@@ -47,7 +47,6 @@ export class RealtimeMessageManager {
 	private aiConfig: AIConfig = {
 		enabled: true,
 		showAIIndicator: true,
-		aiAvatarEmoji: '🤖',
 		aiSenderName: 'Asistente IA',
 		showTypingIndicator: true
 	};

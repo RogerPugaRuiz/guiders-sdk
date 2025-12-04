@@ -53,6 +53,17 @@ export interface MessageV2 {
 	isFirstResponse: boolean;
 	createdAt: string;
 	updatedAt: string;
+	// Campos de IA (opcionales, presentes cuando el mensaje es de IA)
+	isAI?: boolean;
+	aiMetadata?: {
+		model?: string;
+		processingTimeMs?: number;
+		context?: {
+			provider?: string;
+			triggerMessageId?: string;
+			tokensUsed?: number;
+		};
+	};
 }
 
 export interface MessageListResponse {
@@ -347,8 +358,6 @@ export interface AIConfig {
 	enabled?: boolean;
 	/** Mostrar badge "IA" en mensajes de IA (default: true) */
 	showAIIndicator?: boolean;
-	/** Emoji para avatar de IA (default: '🤖') */
-	aiAvatarEmoji?: string;
 	/** Nombre del remitente IA (default: 'Asistente IA') */
 	aiSenderName?: string;
 	/** Mostrar indicador "IA está escribiendo..." (default: true) */

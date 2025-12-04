@@ -12,12 +12,20 @@ export type MessageType = 'text' | 'image' | 'file' | 'system' | 'ai';
  * Metadatos de mensajes generados por IA
  */
 export interface AIMetadata {
-	/** Modelo de IA utilizado (ej: 'gpt-4', 'claude-3') */
+	/** Modelo de IA utilizado (ej: 'gpt-4', 'claude-3', 'llama-3.3-70b-versatile') */
 	model?: string;
 	/** Nivel de confianza de la respuesta (0-1) */
 	confidence?: number;
 	/** Acciones sugeridas basadas en la conversación */
 	suggestedActions?: string[];
+	/** Tiempo de procesamiento en milisegundos */
+	processingTimeMs?: number;
+	/** Contexto adicional del procesamiento de IA */
+	context?: {
+		provider?: string;
+		triggerMessageId?: string;
+		tokensUsed?: number;
+	};
 }
 
 /**
