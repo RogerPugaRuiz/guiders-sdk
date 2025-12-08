@@ -1079,6 +1079,12 @@ export class TrackingPixelSDK {
 			await this.loadChatMessagesOnOpen(this.chatUI, true);
 		}
 
+		// Refrescar el header con los datos del nuevo chat
+		if (this.chatUI) {
+			debugLog('[TrackingPixelSDK] 🔄 Refrescando header del chat');
+			await this.chatUI.refreshChatDetailsForced();
+		}
+
 		// Trackear el evento
 		this.captureEvent('chat_switched', {
 			chatId,
@@ -1221,7 +1227,7 @@ export class TrackingPixelSDK {
 		}
 
 		const endpoint = EndpointManager.getInstance().getEndpoint();
-		const url = `${endpoint}/chats/${chatId}/request-agent`;
+		const url = `${endpoint}/v2/chats/${chatId}/request-agent`;
 
 		try {
 			const response = await fetch(url, {

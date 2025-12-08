@@ -68,6 +68,10 @@ export interface ChatPresence {
 
 /**
  * Evento de cambio de presencia (WebSocket)
+ *
+ * 🆕 2025: Soporte para dos formatos de payload:
+ * - **Granular** (enviado a `chat:{chatId}`): incluye campo `chatId`
+ * - **Global** (enviado a `visitor:{id}` / `commercial:{id}`): incluye `affectedChatIds`
  */
 export interface PresenceChangedEvent {
   /** ID del usuario que cambió */
@@ -84,6 +88,18 @@ export interface PresenceChangedEvent {
 
   /** Timestamp del cambio */
   timestamp: string;
+
+  /**
+   * 🆕 2025: ID del chat afectado (eventos granulares)
+   * Presente cuando el evento se envía a la sala `chat:{chatId}`
+   */
+  chatId?: string;
+
+  /**
+   * 🆕 2025: IDs de chats afectados (eventos globales)
+   * Presente cuando el evento se envía a la sala personal (`visitor:{id}` o `commercial:{id}`)
+   */
+  affectedChatIds?: string[];
 }
 
 /**

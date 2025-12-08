@@ -4,6 +4,17 @@ import { ChatSessionStore } from './chat-session-store';
 import { ChatV2, VisitorInfoV2, ChatMetadataV2, AssignedCommercial } from '../types';
 
 /**
+ * Helper para convertir fecha a string ISO de forma segura
+ * Maneja tanto objetos Date como strings
+ */
+function toISOStringSafe(date: Date | string | null | undefined): string | null {
+	if (!date) return null;
+	if (typeof date === 'string') return date;
+	if (date instanceof Date) return date.toISOString();
+	return null;
+}
+
+/**
  * ChatDetailV2 - Tipo para respuestas de API con tipado menos estricto
  * Deriva de ChatV2 pero permite strings en campos que la API podría devolver
  * con valores no contemplados en los union types.
@@ -150,8 +161,8 @@ export function convertV2ToLegacy(chatDetailV2: ChatDetailV2): ChatDetail {
 		isCommercial: false,
 		isVisitor: true,
 		isOnline: true, // Asumimos que el visitante está online si el chat está activo
-		assignedAt: chatDetailV2.createdAt.toISOString(),
-		lastSeenAt: chatDetailV2.lastMessageDate?.toISOString() || null,
+		assignedAt: toISOStringSafe(chatDetailV2.createdAt) || new Date().toISOString(),
+		lastSeenAt: toISOStringSafe(chatDetailV2.lastMessageDate),
 		isViewing: chatDetailV2.isActive,
 		isTyping: false,
 		isAnonymous: false
@@ -167,10 +178,10 @@ export function convertV2ToLegacy(chatDetailV2: ChatDetailV2): ChatDetail {
 			name: commercialName,
 			isCommercial: true,
 			isVisitor: false,
-			isOnline: chatDetailV2.isActive, // Si el chat está activo, asumimos que está online
-			assignedAt: chatDetailV2.assignedAt?.toISOString() || chatDetailV2.createdAt.toISOString(),
-			lastSeenAt: chatDetailV2.lastMessageDate?.toISOString() || null,
-			isViewing: chatDetailV2.isActive,
+			isOnline: chatDetailV2.isActive ?? true, // Usar isActive de la API, fallback true
+			assignedAt: toISOStringSafe(chatDetailV2.assignedAt) || toISOStringSafe(chatDetailV2.createdAt) || new Date().toISOString(),
+			lastSeenAt: toISOStringSafe(chatDetailV2.lastMessageDate),
+			isViewing: chatDetailV2.isActive ?? true,
 			isTyping: false,
 			isAnonymous: false
 		});
@@ -183,7 +194,7 @@ export function convertV2ToLegacy(chatDetailV2: ChatDetailV2): ChatDetail {
 				isCommercial: true,
 				isVisitor: false,
 				isOnline: false, // Disponibles pero no asignados = offline
-				assignedAt: chatDetailV2.createdAt.toISOString(),
+				assignedAt: toISOStringSafe(chatDetailV2.createdAt) || new Date().toISOString(),
 				lastSeenAt: null,
 				isViewing: false,
 				isTyping: false,
@@ -197,8 +208,8 @@ export function convertV2ToLegacy(chatDetailV2: ChatDetailV2): ChatDetail {
 		participants,
 		status: chatDetailV2.status,
 		lastMessage: null, // V2 no incluye el último mensaje directamente
-		lastMessageAt: chatDetailV2.lastMessageDate?.toISOString() || null,
-		createdAt: chatDetailV2.createdAt.toISOString(),
+		lastMessageAt: toISOStringSafe(chatDetailV2.lastMessageDate),
+		createdAt: toISOStringSafe(chatDetailV2.createdAt) || new Date().toISOString(),
 		assignedCommercial: chatDetailV2.assignedCommercial
 	};
 }

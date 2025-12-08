@@ -27,7 +27,8 @@ import {
 	TypingPayload,
 	JoinVisitorRoomPayload,
 	LeaveVisitorRoomPayload,
-	ChatCreatedEvent
+	ChatCreatedEvent,
+	CommercialAssignedEvent
 } from '../types/websocket-types';
 import { EndpointManager } from '../core/endpoint-manager';
 import { debugLog, debugWarn, debugError } from '../utils/debug-logger';
@@ -401,6 +402,19 @@ export class WebSocketService {
 			}
 		});
 
+		// Evento de comercial asignado al chat
+		this.socket.on('chat:commercial-assigned', (event: CommercialAssignedEvent) => {
+			console.log('📡 [WebSocketService] 👤 chat:commercial-assigned recibido:', event);
+			console.log('📡 [WebSocketService] 👤 callback existe?', !!this.callbacks.onCommercialAssigned);
+
+			if (this.callbacks.onCommercialAssigned) {
+				console.log('📡 [WebSocketService] 👤 Llamando callback onCommercialAssigned...');
+				this.callbacks.onCommercialAssigned(event);
+			} else {
+				console.log('📡 [WebSocketService] ⚠️ No hay callback onCommercialAssigned registrado');
+			}
+		});
+
 		// Eventos de Presencia y Typing Indicators (nuevos)
 		this.socket.on('typing:start', (event: any) => {
 			debugLog('📡 [WebSocketService] ✍️ typing:start recibido:', {
@@ -427,11 +441,19 @@ export class WebSocketService {
 		});
 
 		this.socket.on('presence:changed', (event: any) => {
+			// 🆕 2025: Detectar formato del evento (granular vs global)
+			const isGranular = !!event.chatId;
+			const isGlobal = !!event.affectedChatIds;
+
 			debugLog('📡 [WebSocketService] 🟢 presence:changed recibido:', {
 				userId: event.userId,
 				userType: event.userType,
 				status: event.status,
-				previousStatus: event.previousStatus
+				previousStatus: event.previousStatus,
+				// Nuevos campos 2025
+				format: isGranular ? 'granular' : isGlobal ? 'global' : 'legacy',
+				chatId: event.chatId,
+				affectedChatIds: event.affectedChatIds
 			});
 
 			if (this.callbacks.onPresenceChanged) {
@@ -810,6 +832,15 @@ export class WebSocketService {
 			mergedCallbacks.onChatCreated = (event) => {
 				if (oldOnChatCreated) oldOnChatCreated(event);
 				if (callbacks.onChatCreated) callbacks.onChatCreated(event);
+			};
+		}
+
+		// Merge onCommercialAssigned callbacks
+		const oldOnCommercialAssigned = this.callbacks.onCommercialAssigned;
+		if (oldOnCommercialAssigned || callbacks.onCommercialAssigned) {
+			mergedCallbacks.onCommercialAssigned = (event) => {
+				if (oldOnCommercialAssigned) oldOnCommercialAssigned(event);
+				if (callbacks.onCommercialAssigned) callbacks.onCommercialAssigned(event);
 			};
 		}
 

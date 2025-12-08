@@ -130,6 +130,8 @@ export interface WebSocketCallbacks {
 	onTyping?: (typing: TypingIndicator) => void;
 	/** Callback cuando un comercial crea un chat proactivamente */
 	onChatCreated?: (event: ChatCreatedEvent) => void;
+	/** Callback cuando un comercial es asignado al chat */
+	onCommercialAssigned?: (event: CommercialAssignedEvent) => void;
 	/** Callback cuando alguien comienza a escribir (presencia V2) */
 	onTypingStart?: (event: import('../types/presence-types').TypingEvent) => void;
 	/** Callback cuando alguien deja de escribir (presencia V2) */
@@ -211,4 +213,26 @@ export interface ChatCreatedEvent {
 	metadata?: Record<string, any>;
 	createdAt: string;
 	message: string;
+}
+
+/**
+ * Información del comercial asignado
+ */
+export interface AssignedCommercialInfo {
+	id: string;
+	name: string;
+	avatarUrl?: string;
+}
+
+/**
+ * Evento cuando un comercial es asignado a un chat (chat:commercial-assigned)
+ */
+export interface CommercialAssignedEvent {
+	chatId: string;
+	commercialId: string;
+	visitorId: string;
+	status: string;           // nuevo estado del chat
+	assignedAt: string;       // timestamp ISO
+	assignmentReason: string; // 'auto' | 'manual'
+	commercial?: AssignedCommercialInfo; // información del comercial
 }
