@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.10.2
+Stable tag: 2.10.3
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,12 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.10.3 =
+* 🐛 **Fix re-apertura automática al cerrar chat**: Corregido bug crítico donde el chat se volvía a abrir automáticamente inmediatamente después de cerrarlo
+  * El problema ocurría porque al cerrar el chat, se refrescaban los mensajes no leídos y, si había mensajes, se disparaba la auto-apertura
+  * Implementado sistema de cooldown de 3 segundos tras cierre manual para bloquear la auto-apertura
+  * El cooldown aplica tanto a `refreshUnreadMessages()` como a `handleNewMessage()` del WebSocket
 
 = 2.10.2 =
 * 🐛 **Fix estado online incorrecto al reabrir chat**: Corregido bug donde el indicador de presencia mostraba "online" incorrectamente cuando el comercial estaba offline
