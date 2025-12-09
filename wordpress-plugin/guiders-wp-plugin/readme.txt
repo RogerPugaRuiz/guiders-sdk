@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.10.0
+Stable tag: 2.10.1
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,13 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.10.1 =
+* 🐛 **Fix banner offline al reabrir chat**: Corregido bug donde el banner de "agente desconectado" no reaparecía tras cerrar y abrir el chat
+* 🐛 **Fix múltiples instancias de ChatUI**: Solucionado problema donde se creaban 3 instancias del chat, perdiendo la configuración del selector
+* 🐛 **Fix botón de retroceso**: El botón de volver ahora aparece correctamente cuando el selector de chats está habilitado
+* 🐛 **Fix avatar círculo blanco**: Restaurado correctamente el avatar por defecto cuando la imagen del comercial falla al cargar
+* 🔧 **Mejora inicialización WordPress**: `window.TrackingPixelSDK` ahora siempre está disponible para inicialización manual
 
 = 2.10.0 =
 * ✨ **Mejora en detección de mensajes IA**: Mejor identificación y estilizado de mensajes del asistente de IA
