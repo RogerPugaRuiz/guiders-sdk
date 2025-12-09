@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.10.1
+Stable tag: 2.10.2
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,14 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.10.2 =
+* 🐛 **Fix estado online incorrecto al reabrir chat**: Corregido bug donde el indicador de presencia mostraba "online" incorrectamente cuando el comercial estaba offline
+  * Añadida verificación de consistencia entre `connectionStatus` y contadores de presencia de la API
+  * Si la API devuelve `{online: 0, offline: 1}`, el comercial se marca como offline independientemente de otros valores
+* 🐛 **Fix múltiples solicitudes de presencia**: Añadido guard para evitar múltiples llamadas `getChatPresence` en vuelo
+* 🐛 **Fix race condition en cambio de chat**: Añadida verificación de que el chatId no haya cambiado durante la solicitud async
+* 🔧 **Limpieza de estado de presencia**: Reset correcto de `pendingPresenceRequest` al desactivar presencia
 
 = 2.10.1 =
 * 🐛 **Fix banner offline al reabrir chat**: Corregido bug donde el banner de "agente desconectado" no reaparecía tras cerrar y abrir el chat
