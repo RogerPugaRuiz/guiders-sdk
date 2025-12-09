@@ -15,6 +15,9 @@ import { resolvePosition, ResolvedPosition } from '../../utils/position-resolver
 import { PresenceService } from '../../services/presence-service';
 import { PresenceChangedEvent, TypingEvent, PresenceStatus } from '../../types/presence-types';
 
+// Importar tipos de WebSocket
+import { AssignedCommercialInfo } from '../../types/websocket-types';
+
 // Importar componente de Quick Actions
 import { QuickActionsUI } from './quick-actions-ui';
 
@@ -23,6 +26,9 @@ import { ChatSelectorUI } from './chat-selector-ui';
 
 // Importar componente de Chat List View (estilo Intercom)
 import { ChatListView } from './chat-list-view';
+
+// Clave para persistir estado de presencia en sessionStorage
+const PRESENCE_STATE_KEY = 'guiders_presence_state';
 
 /**
  * Clase ChatUI para renderizar mensajes en el chat.
@@ -65,6 +71,7 @@ export class ChatUI {
 	private presenceUnsubscribe: (() => void) | null = null;
 	private typingUnsubscribe: (() => void) | null = null;
 	private showOfflineBannerEnabled: boolean = true; // Configuración para mostrar/ocultar banner
+	private hasReceivedPresenceEvent: boolean = false; // Indica si ya recibimos un evento de presencia del WebSocket
 
 	// Configuración y estado del mensaje de consentimiento del chat
 	private chatConsentMessageConfig: import('../types/chat-types').ChatConsentMessageConfig;
@@ -623,17 +630,27 @@ export class ChatUI {
 
 		debugLog('💬 [ChatUI] 🔄 Cambiando a chat:', chatId);
 
-		// Emitir evento custom para que TrackingPixelSDK lo maneje
+		// 1. Desactivar presencia del chat anterior
+		this.deactivatePresence();
+
+		// 2. Resetear bandera de presencia al cambiar de chat
+		this.hasReceivedPresenceEvent = false;
+
+		// 3. Emitir evento custom para que TrackingPixelSDK lo maneje
 		const event = new CustomEvent('guidersChatSwitch', {
 			detail: { chatId },
 			bubbles: true
 		});
 		this.container?.dispatchEvent(event);
 
-		// Callback directo si está configurado
+		// 4. Callback directo si está configurado (actualiza chatId y carga detalles)
 		if (this.onChatSwitch) {
 			await this.onChatSwitch(chatId);
 		}
+
+		// 5. Reactivar presencia para el nuevo chat
+		// El chatId ya debería estar actualizado por el callback
+		this.activatePresence();
 	}
 
 	/**
@@ -642,23 +659,30 @@ export class ChatUI {
 	private async handleNewChatRequest(): Promise<void> {
 		debugLog('💬 [ChatUI] 🆕 Solicitando crear nuevo chat');
 
+		// 1. Desactivar presencia del chat anterior (si había uno)
+		this.deactivatePresence();
+
+		// 2. Resetear bandera de presencia al crear nuevo chat
+		this.hasReceivedPresenceEvent = false;
+
 		// IMPORTANTE: Primero ejecutar el callback para resetear el chatId
 		// ANTES de mostrar los Quick Actions. Esto evita que el usuario
 		// haga clic en un Quick Action y el mensaje se envíe al chat anterior.
 
-		// Emitir evento custom para que TrackingPixelSDK lo maneje
+		// 3. Emitir evento custom para que TrackingPixelSDK lo maneje
 		const event = new CustomEvent('guidersNewChatRequested', {
 			bubbles: true
 		});
 		this.container?.dispatchEvent(event);
 
-		// Callback directo si está configurado (resetea chatId)
+		// 4. Callback directo si está configurado (resetea chatId)
 		if (this.onNewChatRequest) {
 			await this.onNewChatRequest();
 		}
 
-		// DESPUÉS de resetear el chatId, mostrar la UI de nuevo chat
+		// 5. DESPUÉS de resetear el chatId, mostrar la UI de nuevo chat
 		// Esto incluye limpiar mensajes y mostrar Quick Actions
+		// No reactivamos presencia aquí porque no hay chat nuevo aún
 		this.resetHeaderToDefault();
 	}
 
@@ -1861,6 +1885,145 @@ export class ChatUI {
 		return this.visitorId;
 	}
 
+	/**
+	 * Obtiene el último estado conocido del chat
+	 * @returns Estado del chat o null si no se ha cargado
+	 */
+	public getLastKnownChatStatus(): string | null {
+		return this.lastKnownChatStatus;
+	}
+
+	/**
+	 * Verifica si el chat tiene un comercial asignado
+	 * @returns true si hay comercial asignado, false en caso contrario
+	 */
+	public hasAssignedCommercial(): boolean {
+		return !!(this.chatDetail?.assignedCommercial?.id);
+	}
+
+	/**
+	 * Actualiza el header del chat directamente con la información del comercial
+	 * Usado cuando se recibe el evento chat:commercial-assigned via WebSocket
+	 * @param commercial Información del comercial asignado
+	 * @param newStatus Nuevo estado del chat (opcional)
+	 */
+	public updateHeaderWithCommercial(commercial: AssignedCommercialInfo, newStatus?: string): void {
+		console.log('👤 [ChatUI] updateHeaderWithCommercial LLAMADO:', {
+			commercial,
+			newStatus,
+			hasChatDetail: !!this.chatDetail,
+			hasTitleElement: !!this.titleElement,
+			hasAvatarElement: !!this.avatarElement
+		});
+
+		// Actualizar estado del chat si se proporciona
+		if (newStatus) {
+			this.lastKnownChatStatus = newStatus;
+		}
+
+		// Si hay chatDetail, actualizarlo
+		if (this.chatDetail) {
+			this.chatDetail.assignedCommercial = {
+				id: commercial.id,
+				name: commercial.name,
+				avatarUrl: commercial.avatarUrl
+			};
+
+			if (newStatus) {
+				this.chatDetail.status = newStatus;
+			}
+
+			// Añadir o actualizar el comercial en participants
+			const existingParticipant = this.chatDetail.participants.find(p => p.id === commercial.id);
+			if (!existingParticipant) {
+				this.chatDetail.participants.push({
+					id: commercial.id,
+					name: commercial.name,
+					isCommercial: true,
+					isVisitor: false,
+					isOnline: true,
+					assignedAt: new Date().toISOString(),
+					lastSeenAt: new Date().toISOString(),
+					isViewing: false,
+					isTyping: false,
+					isAnonymous: false
+				});
+			} else {
+				existingParticipant.name = commercial.name;
+				existingParticipant.isOnline = true;
+				existingParticipant.lastSeenAt = new Date().toISOString();
+			}
+
+			// Usar updateChatHeader si tenemos chatDetail
+			this.updateChatHeader();
+			console.log('✅ [ChatUI] Header actualizado via updateChatHeader:', commercial.name);
+		} else {
+			// Si no hay chatDetail, actualizar el header directamente en el DOM
+			console.log('👤 [ChatUI] No hay chatDetail, actualizando DOM directamente');
+			this.updateHeaderDirectly(commercial);
+		}
+
+		// 🆕 Activar sistema de presencia para obtener estado real del comercial
+		// Esto es importante porque acabamos de asumir isOnline: true arriba,
+		// pero necesitamos el estado real del WebSocket
+		if (this.chatId && !this.presenceUnsubscribe) {
+			debugLog('💬 [ChatUI] Activando presencia tras asignación de comercial');
+			this.hasReceivedPresenceEvent = false; // Resetear para obtener estado fresco
+			this.activatePresence();
+		}
+	}
+
+	/**
+	 * Actualiza el header directamente en el DOM sin depender de chatDetail
+	 * Usado cuando chatDetail aún no está cargado
+	 */
+	private updateHeaderDirectly(commercial: AssignedCommercialInfo): void {
+		// Actualizar título
+		if (this.titleElement) {
+			this.titleElement.textContent = commercial.name || 'Asesor';
+			console.log('✅ [ChatUI] Título actualizado directamente:', commercial.name);
+		}
+
+		// Mostrar avatar container
+		if (this.avatarContainer) {
+			this.avatarContainer.style.display = 'block';
+		}
+
+		// Actualizar avatar si hay URL
+		if (commercial.avatarUrl && this.avatarElement) {
+			const img = document.createElement('img');
+			img.src = commercial.avatarUrl;
+			img.alt = commercial.name || 'Asesor';
+			img.style.cssText = `
+				width: 44px;
+				height: 44px;
+				object-fit: cover;
+				border-radius: 50%;
+				display: block;
+			`;
+
+			img.onerror = () => {
+				// Si falla, restaurar el SVG por defecto
+				this.avatarElement!.innerHTML = `
+					<svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="white"/>
+					</svg>
+				`;
+			};
+
+			this.avatarElement.innerHTML = '';
+			this.avatarElement.style.background = 'transparent';
+			this.avatarElement.style.padding = '0';
+			this.avatarElement.appendChild(img);
+			console.log('✅ [ChatUI] Avatar actualizado directamente:', commercial.avatarUrl);
+		}
+
+		// Actualizar indicador de estado online
+		// El comercial que acaba de aceptar la conversación está online
+		this.updateAvatarStatus('online');
+		console.log('✅ [ChatUI] Estado online actualizado directamente');
+	}
+
 	public getMessagesContainer(): HTMLElement | null {
 		return this.containerMessages;
 	}
@@ -2369,18 +2532,30 @@ export class ChatUI {
 	}
 
 	private async loadChatDetails(force: boolean = false): Promise<void> {
-		if (!this.chatId) return;
+		console.log('📋 [ChatUI] loadChatDetails LLAMADO, chatId:', this.chatId, 'force:', force);
+
+		if (!this.chatId) {
+			console.log('⚠️ [ChatUI] loadChatDetails: No hay chatId');
+			return;
+		}
 
 		try {
-			debugLog(force ? "🔄 Forzando carga de detalles del chat desde backend..." : "Cargando detalles del chat...");
+			console.log('📋 [ChatUI] Cargando detalles del chat desde backend...');
 			this.chatDetail = await fetchChatDetail(this.chatId, force);
-			debugLog("Detalles del chat:", this.chatDetail);
+			console.log('📋 [ChatUI] chatDetail obtenido:', {
+				id: this.chatDetail?.id,
+				status: this.chatDetail?.status,
+				assignedCommercial: this.chatDetail?.assignedCommercial,
+				participantsCount: this.chatDetail?.participants?.length
+			});
 
 			this.lastKnownChatStatus = this.chatDetail.status;
-			debugLog("Estado actual del chat:", this.lastKnownChatStatus);
 
+			console.log('📋 [ChatUI] Llamando updateChatHeader...');
 			this.updateChatHeader();
+			console.log('📋 [ChatUI] updateChatHeader completado');
 		} catch (error) {
+			console.log('❌ [ChatUI] Error en loadChatDetails:', error);
 		}
 	}
 
@@ -2401,10 +2576,19 @@ export class ChatUI {
 	}
 
 	private updateChatHeader(): void {
-		if (!this.chatDetail || !this.titleElement) return;
+		console.log('🎯 [ChatUI] updateChatHeader LLAMADO', {
+			hasChatDetail: !!this.chatDetail,
+			hasTitleElement: !!this.titleElement,
+			hasAvatarContainer: !!this.avatarContainer,
+			hasAvatarStatusDot: !!this.avatarStatusDot
+		});
 
-		// 🔍 Logging detallado para debugging
-		debugLog('🔍 [ChatUI] Actualizando header con chatDetail:', {
+		if (!this.chatDetail || !this.titleElement) {
+			console.log('⚠️ [ChatUI] updateChatHeader: Falta chatDetail o titleElement');
+			return;
+		}
+
+		console.log('🎯 [ChatUI] Actualizando header con chatDetail:', {
 			chatId: this.chatDetail.id,
 			status: this.chatDetail.status,
 			assignedCommercial: this.chatDetail.assignedCommercial,
@@ -2422,11 +2606,30 @@ export class ChatUI {
 		if (commercialParticipants.length > 0) {
 			const advisor = commercialParticipants[0];
 			this.titleElement.textContent = advisor.name || 'Asesor';
-			debugLog('✅ [ChatUI] Título del header actualizado:', advisor.name);
+			console.log('✅ [ChatUI] Título actualizado:', advisor.name, 'isOnline:', advisor.isOnline);
+
+			// Actualizar estado online del comercial
+			// Solo actualizar si NO hemos recibido ya un evento de presencia del WebSocket
+			// (para evitar sobrescribir el estado real con el estado persistido)
+			if (!this.hasReceivedPresenceEvent) {
+				// 🔧 FIX: Asumir offline por defecto hasta que el sistema de presencia
+				// confirme el estado real. Esto evita mostrar "online" incorrectamente
+				// cuando el comercial está realmente offline.
+				// El sistema de presencia (activatePresence → getChatPresence) actualizará
+				// el estado correcto en milisegundos.
+				console.log('📥 [ChatUI] Estado de presencia pendiente - asumiendo offline hasta confirmación');
+				this.updateAvatarStatus('offline');
+			} else {
+				console.log('📥 [ChatUI] Saltando actualización de estado - ya tenemos estado real del WebSocket');
+			}
 
 			// Mostrar avatar y estado de conexión
 			if (this.avatarContainer) {
 				this.avatarContainer.style.display = 'block';
+			}
+			// Mostrar el punto de estado cuando hay comercial asignado
+			if (this.avatarStatusDot) {
+				this.avatarStatusDot.style.display = 'block';
 			}
 		} else {
 			this.titleElement.textContent = 'Chat';
@@ -2435,6 +2638,9 @@ export class ChatUI {
 			// Ocultar avatar y estado de conexión cuando no hay comercial
 			if (this.avatarContainer) {
 				this.avatarContainer.style.display = 'none';
+			}
+			if (this.avatarStatusDot) {
+				this.avatarStatusDot.style.display = 'none';
 			}
 		}
 
@@ -2672,7 +2878,9 @@ export class ChatUI {
 	 * Útil cuando se recibe el primer mensaje del comercial para obtener datos actualizados
 	 */
 	public async refreshChatDetailsForced(): Promise<void> {
+		console.log('🔄 [ChatUI] refreshChatDetailsForced LLAMADO, chatId:', this.chatId);
 		await this.loadChatDetails(true);
+		console.log('🔄 [ChatUI] refreshChatDetailsForced COMPLETADO');
 	}
 
 	/**
@@ -2936,7 +3144,12 @@ export class ChatUI {
 	 * @param status Estado de presencia del comercial
 	 */
 	private updateAvatarStatus(status: PresenceStatus): void {
-		if (!this.avatarStatusDot) return;
+		console.log('👤 [ChatUI] updateAvatarStatus llamado con:', status, 'avatarStatusDot existe:', !!this.avatarStatusDot);
+
+		if (!this.avatarStatusDot) {
+			console.log('⚠️ [ChatUI] avatarStatusDot es null, no se puede actualizar estado');
+			return;
+		}
 
 		// Limpiar clases anteriores de estado
 		this.avatarStatusDot.className = 'avatar-status-dot';
@@ -2944,7 +3157,106 @@ export class ChatUI {
 		// Aplicar nueva clase de estado
 		this.avatarStatusDot.classList.add(`status-${status}`);
 
-		debugLog('💬 [ChatUI] Avatar status dot actualizado a:', status);
+		// Persistir estado en sessionStorage por commercialId
+		// Esto permite que el estado se comparta entre múltiples chats del mismo comercial
+		this.persistPresenceState(status);
+
+		console.log('✅ [ChatUI] Avatar status dot actualizado a:', status);
+	}
+
+	/**
+	 * Obtiene el ID del comercial asignado al chat actual
+	 */
+	private getCurrentCommercialId(): string | null {
+		return this.chatDetail?.assignedCommercial?.id || null;
+	}
+
+	/**
+	 * Persiste el estado de presencia en sessionStorage por commercialId
+	 * Esto permite que el estado se comparta entre múltiples chats del mismo comercial
+	 */
+	private persistPresenceState(status: PresenceStatus): void {
+		const commercialId = this.getCurrentCommercialId();
+		if (!commercialId) return;
+
+		try {
+			const stateJson = sessionStorage.getItem(PRESENCE_STATE_KEY);
+			const state = stateJson ? JSON.parse(stateJson) : {};
+			state[commercialId] = {
+				status,
+				timestamp: Date.now()
+			};
+			sessionStorage.setItem(PRESENCE_STATE_KEY, JSON.stringify(state));
+			debugLog('💾 [ChatUI] Estado de presencia persistido:', status, 'para comercial:', commercialId);
+		} catch (e) {
+			// Silenciar errores de storage
+		}
+	}
+
+	/**
+	 * Recupera el estado de presencia persistido por commercialId
+	 */
+	private getPersistedPresenceState(): PresenceStatus | null {
+		const commercialId = this.getCurrentCommercialId();
+		if (!commercialId) return null;
+
+		try {
+			const stateJson = sessionStorage.getItem(PRESENCE_STATE_KEY);
+			if (!stateJson) return null;
+
+			const state = JSON.parse(stateJson);
+			const commercialState = state[commercialId];
+
+			if (!commercialState) return null;
+
+			// Expirar después de 5 minutos (el comercial pudo cambiar de estado)
+			const MAX_AGE_MS = 5 * 60 * 1000;
+			if (Date.now() - commercialState.timestamp > MAX_AGE_MS) {
+				debugLog('⏰ [ChatUI] Estado de presencia expirado para comercial:', commercialId);
+				return null;
+			}
+
+			debugLog('📥 [ChatUI] Estado de presencia recuperado:', commercialState.status, 'para comercial:', commercialId);
+			return commercialState.status as PresenceStatus;
+		} catch (e) {
+			return null;
+		}
+	}
+
+	/**
+	 * 🆕 2025: Verifica si un evento de presencia es relevante para este chat
+	 *
+	 * Maneja dos formatos de payload:
+	 * - **Granular**: evento tiene `chatId` (enviado a sala `chat:{chatId}`)
+	 * - **Global**: evento tiene `affectedChatIds` (enviado a sala personal)
+	 *
+	 * @param event Evento de presencia recibido
+	 * @returns true si el evento aplica a este chat
+	 */
+	private isPresenceEventRelevant(event: PresenceChangedEvent): boolean {
+		if (!this.chatId) {
+			debugLog('💬 [ChatUI] ⚠️ No hay chatId actual, ignorando evento');
+			return false;
+		}
+
+		// Formato granular: evento específico para un chat
+		if (event.chatId) {
+			const isRelevant = event.chatId === this.chatId;
+			debugLog(`💬 [ChatUI] Evento GRANULAR - chatId=${event.chatId}, actual=${this.chatId}, relevante=${isRelevant}`);
+			return isRelevant;
+		}
+
+		// Formato global: evento con lista de chats afectados
+		if (event.affectedChatIds && Array.isArray(event.affectedChatIds)) {
+			const isRelevant = event.affectedChatIds.includes(this.chatId);
+			debugLog(`💬 [ChatUI] Evento GLOBAL - afectados=${event.affectedChatIds.length}, incluye actual=${isRelevant}`);
+			return isRelevant;
+		}
+
+		// Formato legacy (sin chatId ni affectedChatIds): asumir relevante
+		// Esto mantiene compatibilidad con backends antiguos
+		debugLog('💬 [ChatUI] Evento LEGACY (sin chatId/affectedChatIds) - asumiendo relevante');
+		return true;
 	}
 
 	/**
@@ -2971,13 +3283,25 @@ export class ChatUI {
 
 			debugLog('💬 [ChatUI] ✅ Presencia inicial obtenida:', presence);
 
+			// 🔧 FIX: Si ya recibimos un evento en tiempo real más reciente,
+			// no sobrescribir el estado con la respuesta de la API (que puede estar desactualizada)
+			if (this.hasReceivedPresenceEvent) {
+				console.log('⏭️ [ChatUI] Ignorando presencia inicial - ya tenemos estado más reciente del WebSocket');
+				return;
+			}
+
 			// Buscar el comercial en los participantes
 			const commercial = this.presenceService!.getCommercialFromParticipants(presence.participants);
 
 			if (commercial && this.avatarStatusDot) {
+				// Marcar que ya tenemos estado de presencia real (desde API inicial)
+				this.hasReceivedPresenceEvent = true;
+
+				console.log('📡 [ChatUI] Aplicando presencia inicial:', commercial.connectionStatus);
+
 				// Actualizar punto de estado en el avatar
 				this.updateAvatarStatus(commercial.connectionStatus);
-				debugLog('💬 [ChatUI] Avatar status dot actualizado:', commercial.connectionStatus);
+				debugLog('💬 [ChatUI] Avatar status dot actualizado (presencia inicial):', commercial.connectionStatus);
 
 				// Mostrar/ocultar banner offline
 				if (commercial.connectionStatus === 'offline') {
@@ -2990,10 +3314,38 @@ export class ChatUI {
 
 		// Suscribirse a cambios de presencia
 		this.presenceUnsubscribe = this.presenceService.onPresenceChanged((event: PresenceChangedEvent) => {
-			debugLog('💬 [ChatUI] 🟢 Evento de presencia recibido:', event);
+			console.log('🔔 [ChatUI] EVENTO DE PRESENCIA RECIBIDO:', {
+				userId: event.userId,
+				userType: event.userType,
+				status: event.status,
+				previousStatus: event.previousStatus,
+				chatId: event.chatId,
+				affectedChatIds: event.affectedChatIds,
+				currentChatId: this.chatId,
+				currentCommercialId: this.getCurrentCommercialId()
+			});
+
+			// 🆕 2025: Verificar si el evento es relevante para este chat
+			const isRelevantEvent = this.isPresenceEventRelevant(event);
+			console.log('🔍 [ChatUI] ¿Evento relevante?', isRelevantEvent);
+
+			if (!isRelevantEvent) {
+				console.log('⏭️ [ChatUI] Evento ignorado - no relevante para este chat');
+				return;
+			}
 
 			// Actualizar punto de estado en el avatar
+			console.log('🎯 [ChatUI] Procesando evento...', {
+				hasAvatarStatusDot: !!this.avatarStatusDot,
+				eventUserType: event.userType,
+				eventStatus: event.status
+			});
+
 			if (this.avatarStatusDot && event.userType === 'commercial') {
+				// Marcar que ya recibimos un evento de presencia real del WebSocket
+				this.hasReceivedPresenceEvent = true;
+
+				console.log('✅ [ChatUI] Actualizando avatar status a:', event.status);
 				this.updateAvatarStatus(event.status);
 
 				// Actualizar banner offline
@@ -3002,6 +3354,11 @@ export class ChatUI {
 				} else {
 					this.hideOfflineBanner();
 				}
+			} else {
+				console.log('⚠️ [ChatUI] No se actualizó avatar:', {
+					hasAvatarStatusDot: !!this.avatarStatusDot,
+					userType: event.userType
+				});
 			}
 		});
 
@@ -3019,14 +3376,20 @@ export class ChatUI {
 
 	/**
 	 * Desactiva el sistema de presencia
-	 * Se llama cuando se cierra el chat
+	 * Se llama cuando se cierra el chat o se cambia a otro chat
 	 */
 	private deactivatePresence(): void {
-		if (!this.presenceService || !this.chatId) {
+		// Solo requerir presenceService, chatId puede ser null si estamos limpiando
+		if (!this.presenceService) {
 			return;
 		}
 
-		debugLog('💬 [ChatUI] 🔴 Desactivando sistema de presencia para chat:', this.chatId);
+		// Si no hay suscripciones activas, no hay nada que limpiar
+		if (!this.presenceUnsubscribe && !this.typingUnsubscribe) {
+			return;
+		}
+
+		debugLog('💬 [ChatUI] 🔴 Desactivando sistema de presencia para chat:', this.chatId || '(ninguno)');
 
 		// Desuscribirse de eventos
 		if (this.presenceUnsubscribe) {
@@ -3058,22 +3421,39 @@ export class ChatUI {
 	 * Muestra el banner de advertencia offline
 	 */
 	private showOfflineBanner(): void {
+		console.log('👁️ [ChatUI] showOfflineBanner llamado', {
+			hasOfflineBanner: !!this.offlineBanner,
+			showOfflineBannerEnabled: this.showOfflineBannerEnabled,
+			currentDisplay: this.offlineBanner?.style.display
+		});
+
 		// Solo mostrar si está habilitado en la configuración
 		if (this.offlineBanner && this.showOfflineBannerEnabled) {
 			this.offlineBanner.style.display = 'block';
-			debugLog('💬 [ChatUI] 📢 Banner offline mostrado');
+			console.log('👁️ [ChatUI] Banner offline mostrado - display:', this.offlineBanner.style.display);
 		} else if (!this.showOfflineBannerEnabled) {
-			debugLog('💬 [ChatUI] ⚠️ Banner offline deshabilitado en configuración');
+			console.log('⚠️ [ChatUI] Banner offline deshabilitado en configuración');
 		}
+		// Sincronizar indicador de estado del avatar
+		this.updateAvatarStatus('offline');
 	}
 
 	/**
 	 * Oculta el banner de advertencia offline
 	 */
 	private hideOfflineBanner(): void {
+		console.log('🙈 [ChatUI] hideOfflineBanner llamado', {
+			hasOfflineBanner: !!this.offlineBanner,
+			currentDisplay: this.offlineBanner?.style.display
+		});
+
 		if (this.offlineBanner) {
 			this.offlineBanner.style.display = 'none';
-			debugLog('💬 [ChatUI] 📢 Banner offline ocultado');
+			console.log('🙈 [ChatUI] Banner offline ocultado - display:', this.offlineBanner.style.display);
+		} else {
+			console.log('⚠️ [ChatUI] No hay offlineBanner para ocultar');
 		}
+		// Sincronizar indicador de estado del avatar
+		this.updateAvatarStatus('online');
 	}
 }

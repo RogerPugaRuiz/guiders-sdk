@@ -108,11 +108,21 @@ export class PresenceService {
       },
 
       onPresenceChanged: (event: PresenceChangedEvent) => {
-        // 🆕 2025: Eventos ahora están FILTRADOS - solo recibes cambios de usuarios con chats activos
+        // 🆕 2025: Detectar formato del evento (granular vs global)
+        const isGranular = !!event.chatId;
+        const isGlobal = !!event.affectedChatIds;
+        const formatType = isGranular ? 'GRANULAR' : isGlobal ? 'GLOBAL' : 'LEGACY';
+
         debugLog('═══════════════════════════════════════════════════════');
         debugLog('🔔 EVENTO DE PRESENCIA FILTRADO RECIBIDO');
+        debugLog(`📋 Formato: ${formatType}`);
         debugLog(`👤 Usuario: ${event.userId.substring(0, 8)}... (${event.userType})`);
         debugLog(`📊 Estado: ${event.previousStatus} → ${event.status}`);
+        if (isGranular) {
+          debugLog(`🎯 Chat específico: ${event.chatId}`);
+        } else if (isGlobal) {
+          debugLog(`🌐 Chats afectados: ${event.affectedChatIds?.join(', ')}`);
+        }
         debugLog('✅ Este evento fue filtrado por el backend (solo chats activos)');
         debugLog('═══════════════════════════════════════════════════════');
 
@@ -121,6 +131,9 @@ export class PresenceService {
           userType: event.userType,
           status: event.status,
           previousStatus: event.previousStatus,
+          format: formatType,
+          chatId: event.chatId,
+          affectedChatIds: event.affectedChatIds,
           filtered: true // Indicar que es un evento filtrado
         });
 

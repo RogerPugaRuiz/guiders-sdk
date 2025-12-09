@@ -18,10 +18,12 @@ export interface MessageRenderData {
 let aiRenderConfig: AIConfig = {
     enabled: true,
     showAIIndicator: true,
-    aiAvatarEmoji: '🤖',
     aiSenderName: 'Asistente IA',
     showTypingIndicator: true
 };
+
+// SVG icon de Lucide para el avatar de IA
+const AI_BOT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bot"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`;
 
 /**
  * Utilidad unificada para renderizar mensajes de chat
@@ -142,15 +144,18 @@ export class MessageRenderer {
             gap: 6px;
             margin-bottom: 6px;
             padding-bottom: 4px;
-            border-bottom: 1px solid rgba(66, 133, 244, 0.15);
+            border-bottom: 1px solid rgba(107, 114, 128, 0.15);
         `;
 
-        // Avatar emoji
+        // Avatar: SVG de Lucide
         const avatar = document.createElement('span');
         avatar.className = 'ai-avatar';
-        avatar.textContent = aiRenderConfig.aiAvatarEmoji || '🤖';
+        avatar.innerHTML = AI_BOT_SVG;
         avatar.style.cssText = `
-            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
         `;
 
         // Nombre
@@ -160,27 +165,11 @@ export class MessageRenderer {
         name.style.cssText = `
             font-size: 12px;
             font-weight: 500;
-            color: #4285f4;
-        `;
-
-        // Badge
-        const badge = document.createElement('span');
-        badge.className = 'ai-badge';
-        badge.textContent = 'IA';
-        badge.style.cssText = `
-            background: linear-gradient(135deg, #4285f4, #34a853);
-            color: white;
-            font-size: 9px;
-            font-weight: 600;
-            padding: 2px 5px;
-            border-radius: 3px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            color: #6b7280;
         `;
 
         header.appendChild(avatar);
         header.appendChild(name);
-        header.appendChild(badge);
 
         return header;
     }
@@ -189,20 +178,67 @@ export class MessageRenderer {
      * Convierte MessageV2 (de API) a MessageRenderData
      */
     public static fromMessageV2(message: MessageV2): MessageRenderData {
+        const isAIMessage = this.isAIMessage(message);
+
         return {
             id: message.id,
             content: message.content,
             sender: this.determineSender(message),
             timestamp: message.createdAt,
-            senderId: message.senderId
+            senderId: message.senderId,
+            // Campos de IA
+            isAI: isAIMessage,
+            aiMetadata: message.aiMetadata ? {
+                model: message.aiMetadata.model,
+                processingTimeMs: message.aiMetadata.processingTimeMs,
+                context: message.aiMetadata.context
+            } : undefined
         };
     }
-    
+
+    /**
+     * Detecta si un mensaje es de IA basándose en múltiples criterios
+     */
+    private static isAIMessage(message: MessageV2): boolean {
+        // 1. Campo explícito isAI
+        if (message.isAI === true) {
+            return true;
+        }
+
+        // 2. Tipo de mensaje 'AI' o 'ai' (case insensitive)
+        if (message.type && message.type.toLowerCase() === 'ai') {
+            return true;
+        }
+
+        // 3. SenderId conocido como IA
+        if (message.senderId === 'ai' || message.senderId === 'AI') {
+            return true;
+        }
+
+        // 4. Tiene aiMetadata
+        if (message.aiMetadata && message.aiMetadata.model) {
+            return true;
+        }
+
+        // 5. Verificar contra IDs configurados de IA
+        const aiSenderIds = aiRenderConfig.aiSenderIds || [];
+        if (aiSenderIds.includes(message.senderId)) {
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * Determina el tipo de sender basado en MessageV2
      */
     private static determineSender(message: MessageV2): Sender {
-        // Lógica idéntica a ChatMessagesUI.isUserMessage
+        // Primero verificar si es mensaje de IA
+        if (this.isAIMessage(message)) {
+            return 'ai';
+        }
+
+        // Lógica para mensajes de usuario
         try {
             const visitorId = localStorage.getItem('visitorId');
             if (visitorId && message.senderId === visitorId) {
@@ -210,7 +246,7 @@ export class MessageRenderer {
             }
         } catch (error) {
         }
-        
+
         // Determinar por tipo si está disponible
         if (message.type === 'user') {
             return 'user';
@@ -218,7 +254,7 @@ export class MessageRenderer {
         if (message.type === 'system') {
             return 'system';
         }
-        
+
         // Fallback: es un agente/asistente
         return 'agent';
     }
@@ -294,7 +330,7 @@ export class MessageRenderer {
             display: flex;
             align-items: flex-end;
             margin-bottom: 3px;
-            ${isUserMessage ? 'flex-direction: row-reverse; margin-left: 30%;' : 'flex-direction: row; margin-right: 30%;'}
+            ${isUserMessage ? 'flex-direction: row-reverse; margin-left: 10%;' : 'flex-direction: row; margin-right: 10%;'}
             opacity: 1;
             transform: translateY(0);
         `;
@@ -350,11 +386,8 @@ export class MessageRenderer {
             if (isUserMessage) {
                 messageBackground = `background: #D1E7FF;`;
                 messageBorder = `border-bottom-right-radius: 2px;`;
-            } else if (isAIMessage) {
-                // Estilo distintivo para mensajes de IA: gradiente azul claro con borde lateral
-                messageBackground = `background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fe 100%);`;
-                messageBorder = `border-bottom-left-radius: 2px; border-left: 3px solid #4285f4;`;
             } else {
+                // Mensajes de agente o IA: mismo estilo
                 messageBackground = `background: #FFFFFF;`;
                 messageBorder = `border-bottom-left-radius: 2px;`;
             }

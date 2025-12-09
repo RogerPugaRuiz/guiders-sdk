@@ -433,15 +433,6 @@ class GuidersAdmin {
             'guiders_ai_config_section'
         );
 
-        // AI avatar emoji field
-        add_settings_field(
-            'ai_avatar_emoji',
-            __('Emoji del Avatar IA', 'guiders-wp-plugin'),
-            array($this, 'aiAvatarEmojiFieldCallback'),
-            'guiders-settings-chat',
-            'guiders_ai_config_section'
-        );
-
         // AI sender name field
         add_settings_field(
             'ai_sender_name',
@@ -1096,9 +1087,6 @@ class GuidersAdmin {
         // Validate AI Config settings
         $validated['ai_enabled'] = isset($input['ai_enabled']) ? $validateCheckbox($input['ai_enabled']) : true;
         $validated['ai_show_indicator'] = isset($input['ai_show_indicator']) ? $validateCheckbox($input['ai_show_indicator']) : true;
-        if (isset($input['ai_avatar_emoji'])) {
-            $validated['ai_avatar_emoji'] = sanitize_text_field($input['ai_avatar_emoji']);
-        }
         if (isset($input['ai_sender_name'])) {
             $validated['ai_sender_name'] = sanitize_text_field($input['ai_sender_name']);
         }
@@ -1883,17 +1871,6 @@ class GuidersAdmin {
 
         echo '<input type="checkbox" id="ai_show_indicator" name="guiders_wp_plugin_settings[ai_show_indicator]" value="1" ' . checked($show, true, false) . ' />';
         echo '<label for="ai_show_indicator">' . __('Mostrar badge "IA" en los mensajes generados por IA', 'guiders-wp-plugin') . '</label>';
-    }
-
-    /**
-     * AI avatar emoji field callback
-     */
-    public function aiAvatarEmojiFieldCallback() {
-        $settings = get_option('guiders_wp_plugin_settings', array());
-        $emoji = isset($settings['ai_avatar_emoji']) ? $settings['ai_avatar_emoji'] : '🤖';
-
-        echo '<input type="text" id="ai_avatar_emoji" name="guiders_wp_plugin_settings[ai_avatar_emoji]" value="' . esc_attr($emoji) . '" style="width: 60px; text-align: center; font-size: 24px;" />';
-        echo '<p class="description">' . __('Emoji que aparece como avatar en los mensajes de IA. Ejemplos: 🤖 🧠 💡 🔮', 'guiders-wp-plugin') . '</p>';
     }
 
     /**

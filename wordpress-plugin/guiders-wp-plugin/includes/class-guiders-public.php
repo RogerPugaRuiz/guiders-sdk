@@ -1270,9 +1270,6 @@ class GuidersPublic {
             'showAIIndicator' => isset($this->settings['ai_show_indicator'])
                 ? (bool)$this->settings['ai_show_indicator']
                 : true,
-            'aiAvatarEmoji' => isset($this->settings['ai_avatar_emoji'])
-                ? $this->settings['ai_avatar_emoji']
-                : '🤖',
             'aiSenderName' => isset($this->settings['ai_sender_name'])
                 ? $this->settings['ai_sender_name']
                 : 'Asistente IA',

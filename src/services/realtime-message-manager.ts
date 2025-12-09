@@ -12,7 +12,7 @@
 import { debugLog } from '../utils/debug-logger';
 import { WebSocketService } from './websocket-service';
 import { ChatV2Service } from './chat-v2-service';
-import { RealtimeMessage, ChatStatusUpdate, TypingIndicator, AIMetadata } from '../types/websocket-types';
+import { RealtimeMessage, ChatStatusUpdate, TypingIndicator, AIMetadata, CommercialAssignedEvent } from '../types/websocket-types';
 import { AIConfig } from '../types';
 import { ChatUI } from '../presentation/components/chat-ui';
 import { MessageRenderer } from '../presentation/utils/message-renderer';
@@ -47,7 +47,6 @@ export class RealtimeMessageManager {
 	private aiConfig: AIConfig = {
 		enabled: true,
 		showAIIndicator: true,
-		aiAvatarEmoji: '🤖',
 		aiSenderName: 'Asistente IA',
 		showTypingIndicator: true
 	};
@@ -96,7 +95,8 @@ export class RealtimeMessageManager {
 			onError: (error) => this.handleError(error),
 			onMessage: (message) => this.handleNewMessage(message),
 			onChatStatus: (status) => this.handleChatStatus(status),
-			onTyping: (typing) => this.handleTyping(typing)
+			onTyping: (typing) => this.handleTyping(typing),
+			onCommercialAssigned: (event) => this.handleCommercialAssigned(event)
 		});
 
 		debugLog('💬 [RealtimeMessageManager] ✅ Inicializado correctamente');
@@ -370,8 +370,55 @@ export class RealtimeMessageManager {
 				isAI: isAI,
 				aiModel: message.aiMetadata?.model
 			});
+
+			// Verificar si necesitamos refrescar el header porque el chat estaba PENDING
+			// y ahora tenemos un comercial asignado (primer mensaje del comercial)
+			this.checkAndRefreshHeaderOnCommercialAssignment();
 		} catch (error) {
 		}
+	}
+
+	/**
+	 * Verifica si el chat estaba en estado PENDING sin comercial asignado
+	 * y dispara un refresh asíncrono del header para obtener datos del comercial
+	 */
+	private checkAndRefreshHeaderOnCommercialAssignment(): void {
+		if (!this.chatUI) return;
+
+		// Obtener el estado actual del chat desde ChatUI
+		const chatStatus = this.chatUI.getLastKnownChatStatus();
+		const hasCommercial = this.chatUI.hasAssignedCommercial();
+
+		debugLog('💬 [RealtimeMessageManager] 🔍 Verificando asignación de comercial:', {
+			chatStatus,
+			hasCommercial
+		});
+
+		// Solo refrescar si:
+		// 1. El chat estaba en estado PENDING, o
+		// 2. No tenía comercial asignado previamente
+		const shouldRefresh =
+			chatStatus === 'PENDING' ||
+			chatStatus === 'pending' ||
+			!hasCommercial;
+
+		if (!shouldRefresh) {
+			debugLog('💬 [RealtimeMessageManager] ℹ️ No es necesario refrescar header (ya tiene comercial asignado)');
+			return;
+		}
+
+		debugLog('💬 [RealtimeMessageManager] 🔄 Refrescando header del chat - primer mensaje de comercial detectado');
+
+		// Refresh asíncrono - no bloqueamos el renderizado del mensaje
+		// Usamos setTimeout(0) para ejecutar en el próximo tick del event loop
+		setTimeout(async () => {
+			try {
+				await this.chatUI?.refreshChatDetailsForced();
+				debugLog('💬 [RealtimeMessageManager] ✅ Header actualizado con datos del comercial');
+			} catch (error) {
+				debugLog('💬 [RealtimeMessageManager] ⚠️ Error al refrescar header:', error);
+			}
+		}, 0);
 	}
 
 	/**
@@ -423,6 +470,50 @@ export class RealtimeMessageManager {
 
 		// TODO: Implementar indicador visual de "X está escribiendo..."
 		// Esto requeriría añadir método showTypingIndicator() en ChatUI
+	}
+
+	/**
+	 * Maneja el evento de comercial asignado al chat
+	 * Cuando un comercial es asignado, actualizamos los datos del chat para mostrar su info
+	 */
+	private handleCommercialAssigned(event: CommercialAssignedEvent): void {
+		console.log('💬 [RealtimeMessageManager] 👤 handleCommercialAssigned LLAMADO:', {
+			eventChatId: event.chatId,
+			currentChatId: this.currentChatId,
+			hasChatUI: !!this.chatUI,
+			commercialId: event.commercialId,
+			status: event.status,
+			hasCommercialInfo: !!event.commercial,
+			commercial: event.commercial
+		});
+
+		// Verificar que el evento pertenece al chat actual
+		if (event.chatId !== this.currentChatId) {
+			console.log('💬 [RealtimeMessageManager] ⚠️ Evento de otro chat, ignorando');
+			return;
+		}
+
+		if (!this.chatUI) {
+			console.log('💬 [RealtimeMessageManager] ⚠️ chatUI es null, no se puede actualizar header');
+			return;
+		}
+
+		// Si el evento incluye info del comercial, actualizar header directamente
+		if (event.commercial) {
+			console.log('💬 [RealtimeMessageManager] ✅ Llamando updateHeaderWithCommercial con:', event.commercial);
+			this.chatUI.updateHeaderWithCommercial(event.commercial, event.status);
+			console.log('💬 [RealtimeMessageManager] ✅ updateHeaderWithCommercial completado');
+		} else {
+			// Fallback: si no hay info del comercial, intentar refrescar del backend
+			console.log('💬 [RealtimeMessageManager] ⚠️ No hay info de comercial en evento, usando refreshChatDetailsForced');
+			setTimeout(async () => {
+				try {
+					await this.chatUI?.refreshChatDetailsForced();
+				} catch (error) {
+					console.log('💬 [RealtimeMessageManager] ❌ Error al refrescar datos del chat:', error);
+				}
+			}, 0);
+		}
 	}
 
 	/**
