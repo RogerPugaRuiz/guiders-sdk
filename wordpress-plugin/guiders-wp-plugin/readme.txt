@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.10.11
+Stable tag: 2.10.12
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,12 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.10.12 =
+* 🔧 **Fix scripts de build/release**: Actualizados para usar `guiders-sdk.min.js`
+  * `build-plugin.sh` ahora copia el SDK al nombre correcto
+  * `release-wp-publish.sh` ahora comitea el archivo correcto
+  * Completa la migración iniciada en v2.10.11
 
 = 2.10.11 =
 * 🔧 **Fix invalidación de caché**: Renombrado archivo JS de `guiders-sdk.js` a `guiders-sdk.min.js`
