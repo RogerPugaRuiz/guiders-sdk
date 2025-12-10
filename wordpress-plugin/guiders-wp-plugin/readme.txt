@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.10.5
+Stable tag: 2.10.6
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,17 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.10.6 =
+* 🐛 **Fix sincronización de estado de presencia**: Corregido bug donde el indicador online/offline mostraba estado incorrecto al reabrir el chat
+  * El estado persistido podía estar obsoleto si el comercial cambió de estado mientras el chat estaba cerrado
+  * Ahora siempre muestra "offline" inicialmente hasta que API o WebSocket confirmen el estado real
+  * Solo persiste estados confirmados por API/WebSocket, no estados temporales de espera
+  * Eliminada la dependencia del estado persistido para el renderizado inicial
+* 🐛 **Fix doble carga del SDK**: Añadida protección contra carga duplicada del script
+  * Nuevo guard `__GUIDERS_SCRIPT_LOADED__` previene que el script se ejecute dos veces
+  * Útil cuando hay plugins de caché, optimizadores o configuraciones que duplican scripts
+  * Muestra advertencia en consola si se detecta segunda carga
 
 = 2.10.5 =
 * 🐛 **Fix definitivo re-apertura ultra-rápida**: Añadida capa de protección adicional a nivel de ChatUI
