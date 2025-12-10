@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.10.4
+Stable tag: 2.10.5
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,22 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.10.5 =
+* 🐛 **Fix definitivo re-apertura ultra-rápida**: Añadida capa de protección adicional a nivel de ChatUI
+  * Nuevo sistema de timestamp de cierre manual con bloqueo de 5 segundos
+  * Método `canAutoOpen()` verificado antes de cualquier auto-apertura
+  * Protección dual: cooldown en UnreadMessagesService (5s) + bloqueo en ChatUI (5s) - **SINCRONIZADOS**
+  * Corrige el bug donde el chat aún se reabría con clicks muy rápidos antes de que el SDK terminara de cargar
+* 🐛 **Fix estado de presencia al reabrir chat**: El indicador online/offline ahora se mantiene correctamente al cerrar y abrir el chat
+  * Uso de estado persistido en sessionStorage al mostrar el header del chat
+  * Reset del flag `hasReceivedPresenceEvent` al cerrar para usar estado persistido al reabrir
+  * El sistema de presencia confirma el estado real después de activarse
+  * **Validación de commercialId**: Solo usa estado persistido si el ID del comercial está disponible, evitando estados inconsistentes durante carga async
+* 🐛 **Fix race condition en toggle rápido**: Corregido bug donde clicks rápidos en el botón del chat causaban que el chat no apareciera
+  * El setTimeout de la animación de cierre (300ms) podía ejecutarse después de una nueva apertura
+  * Ahora se cancela cualquier timeout de cierre pendiente al abrir el chat
+  * Múltiples clicks rápidos ya no corrompen el estado de visibilidad
 
 = 2.10.4 =
 * 🐛 **Fix timing de cooldown**: El callback de cierre ahora se ejecuta inmediatamente al cerrar el chat, no después de 300ms de animación
