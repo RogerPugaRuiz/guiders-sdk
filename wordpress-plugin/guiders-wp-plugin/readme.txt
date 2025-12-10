@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.10.12
+Stable tag: 2.10.13
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,16 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.10.13 =
+* 🐛 **Fix WebSocket presencia en tiempo real**: Corregido bug donde los callbacks de presencia se perdían
+  * El avatar del comercial ahora actualiza su estado (online/offline/away) en tiempo real
+  * El banner offline ahora aparece cuando el comercial se desconecta
+  * Los callbacks de PresenceService ya no se sobrescriben al conectar
+* 🔧 **Protección contra auto-apertura**: El chat no se re-abre automáticamente tras cierre manual (5s de bloqueo)
+* 🔧 **Guard contra doble carga**: Previene que el script se ejecute dos veces en WordPress
+* ✨ **Mejoras de UI**: Layout de hora estilo WhatsApp en mensajes
+* 🐛 **Fix propagación de config**: Chat selector config se propaga correctamente a ChatUI
 
 = 2.10.12 =
 * 🔧 **Fix scripts de build/release**: Actualizados para usar `guiders-sdk.min.js`
