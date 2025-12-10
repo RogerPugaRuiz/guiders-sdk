@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.10.9
+Stable tag: 2.10.10
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,12 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.10.10 =
+* 🐛 **Fix cache busting con MD5**: Cambiado de `filemtime()` a `md5_file()` para generar hash único
+  * El hash se basa en el contenido del archivo, no en el timestamp
+  * Versión resultante: `ver=2.10.10.a1b2c3d4` (8 caracteres de hash)
+  * Más robusto contra cachés agresivos
 
 = 2.10.9 =
 * 🐛 **Fix cache busting agresivo**: Añadido `filemtime()` al versionado del script
