@@ -203,7 +203,9 @@ export class WebSocketService {
 			sessionId: config.sessionId
 		};
 
-		this.callbacks = callbacks;
+		// 🔧 FIX: Usar updateCallbacks() para fusionar con callbacks existentes
+		// En lugar de sobrescribir, esto preserva callbacks registrados por PresenceService
+		this.updateCallbacks(callbacks);
 
 		debugLog('📡 [WebSocketService] 🚀 INTENTANDO CONECTAR a:', {
 			url: this.config.url,
@@ -764,6 +766,14 @@ export class WebSocketService {
 	 * @param callbacks Nuevos callbacks a registrar
 	 */
 	public updateCallbacks(callbacks: Partial<WebSocketCallbacks>): void {
+		debugLog('📡 [WebSocketService] 🔧 updateCallbacks() llamado con:', {
+			hasOnConnect: !!callbacks.onConnect,
+			hasOnPresenceChanged: !!callbacks.onPresenceChanged,
+			hasOnPresenceJoined: !!callbacks.onPresenceJoined,
+			existingOnPresenceChanged: !!this.callbacks.onPresenceChanged,
+			existingOnPresenceJoined: !!this.callbacks.onPresenceJoined
+		});
+
 		// Store old callbacks in closures to avoid recursion
 		const oldOnConnect = this.callbacks.onConnect;
 		const oldOnDisconnect = this.callbacks.onDisconnect;
@@ -775,6 +785,7 @@ export class WebSocketService {
 		const oldOnTypingStart = this.callbacks.onTypingStart;
 		const oldOnTypingStop = this.callbacks.onTypingStop;
 		const oldOnPresenceChanged = this.callbacks.onPresenceChanged;
+		const oldOnPresenceJoined = this.callbacks.onPresenceJoined;
 
 		// Merge callbacks properly - if both old and new have the same callback, chain them
 		const mergedCallbacks: WebSocketCallbacks = {};
@@ -865,6 +876,14 @@ export class WebSocketService {
 			mergedCallbacks.onPresenceChanged = (event) => {
 				if (oldOnPresenceChanged) oldOnPresenceChanged(event);
 				if (callbacks.onPresenceChanged) callbacks.onPresenceChanged(event);
+			};
+		}
+
+		// Merge onPresenceJoined callbacks (auto-join a sala personal)
+		if (oldOnPresenceJoined || callbacks.onPresenceJoined) {
+			mergedCallbacks.onPresenceJoined = (event) => {
+				if (oldOnPresenceJoined) oldOnPresenceJoined(event);
+				if (callbacks.onPresenceJoined) callbacks.onPresenceJoined(event);
 			};
 		}
 
