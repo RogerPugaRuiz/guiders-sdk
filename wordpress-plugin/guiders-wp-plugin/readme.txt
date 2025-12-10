@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.10.6
+Stable tag: 2.10.7
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,12 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.10.7 =
+* 🔍 **Debug: Logs de presencia para investigación**: Añadidos logs detallados para diagnosticar el problema de sincronización online/offline en producción
+  * Logs con prefijo `🔍 [PRESENCE DEBUG]` en consola del navegador
+  * Tracking de: updateChatHeader, updateAvatarStatus, activatePresence, WebSocket eventos, deactivatePresence
+  * Esta versión es temporal para investigación - los logs se eliminarán en la próxima versión estable
 
 = 2.10.6 =
 * 🐛 **Fix sincronización de estado de presencia**: Corregido bug donde el indicador online/offline mostraba estado incorrecto al reabrir el chat
