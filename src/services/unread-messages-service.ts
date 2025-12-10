@@ -55,6 +55,9 @@ export class UnreadMessagesService {
 	private wsService: WebSocketService;
 	private debug: boolean = false;
 	private isChatOpen: boolean = false; // Track if chat is currently open
+	// 🔧 FIX: Cooldown para evitar re-apertura automática tras cerrar manualmente
+	private autoOpenCooldownUntil: number = 0;
+	private static readonly AUTO_OPEN_COOLDOWN_MS = 5000; // 5 segundos de cooldown (sincronizado con ChatUI)
 
 	private constructor() {
 		this.wsService = WebSocketService.getInstance();
@@ -119,6 +122,12 @@ export class UnreadMessagesService {
 	public setChatOpenState(isOpen: boolean): void {
 		this.isChatOpen = isOpen;
 		this.log('💬 Estado del chat cambiado:', isOpen ? 'abierto' : 'cerrado');
+
+		// 🔧 FIX: Si se cierra el chat, activar cooldown para evitar re-apertura automática
+		if (!isOpen) {
+			this.autoOpenCooldownUntil = Date.now() + UnreadMessagesService.AUTO_OPEN_COOLDOWN_MS;
+			this.log('⏱️ Cooldown de auto-apertura activado hasta:', new Date(this.autoOpenCooldownUntil).toISOString());
+		}
 
 		// Si se cierra el chat, refrescar el contador para mostrar badge si hay mensajes
 		if (!isOpen && this.unreadCount > 0) {
@@ -188,7 +197,9 @@ export class UnreadMessagesService {
 			});
 
 			// Si hay mensajes no leídos Y auto-open habilitado Y chat cerrado → abrir chat
-			if (this.unreadCount > 0 && this.autoOpenChatOnMessage && !this.isChatOpen && this.onMessageReceivedCallback) {
+			// 🔧 FIX: Verificar que no estemos en período de cooldown (tras cierre manual)
+			const isInCooldown = Date.now() < this.autoOpenCooldownUntil;
+			if (this.unreadCount > 0 && this.autoOpenChatOnMessage && !this.isChatOpen && this.onMessageReceivedCallback && !isInCooldown) {
 				this.log('🔓 Auto-apertura: mensajes no leídos previos detectados - abriendo chat con chatId:', this.currentChatId);
 				this.onMessageReceivedCallback(this.currentChatId);
 				this.isChatOpen = true;
@@ -202,6 +213,8 @@ export class UnreadMessagesService {
 				this.unreadMessages = [];
 				this.unreadCount = 0;
 				return; // No notificar badge (el chat se está abriendo)
+			} else if (isInCooldown && this.unreadCount > 0) {
+				this.log('⏱️ Auto-apertura bloqueada por cooldown - mostrando badge en su lugar');
 			}
 
 			// Notificar cambio de contador (solo si el chat no se abrió automáticamente)
@@ -306,7 +319,9 @@ export class UnreadMessagesService {
 		}
 
 		// Si el chat está cerrado Y auto-open está habilitado → abrir chat inmediatamente
-		if (this.autoOpenChatOnMessage && this.onMessageReceivedCallback) {
+		// 🔧 FIX: Verificar que no estemos en período de cooldown (tras cierre manual)
+		const isInCooldown = Date.now() < this.autoOpenCooldownUntil;
+		if (this.autoOpenChatOnMessage && this.onMessageReceivedCallback && !isInCooldown) {
 			this.log('🔓 Auto-apertura habilitada - abriendo chat con chatId:', message.chatId);
 			this.onMessageReceivedCallback(message.chatId);
 			this.isChatOpen = true;
@@ -316,6 +331,8 @@ export class UnreadMessagesService {
 			this.markAsRead([message.messageId]).catch(error => {
 			});
 			return; // No añadir a no leídos ni mostrar badge
+		} else if (isInCooldown) {
+			this.log('⏱️ Auto-apertura bloqueada por cooldown (mensaje nuevo), agregando a no leídos');
 		}
 
 		// Si llegamos aquí, el chat está cerrado y auto-open NO habilitado

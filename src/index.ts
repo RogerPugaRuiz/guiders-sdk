@@ -38,7 +38,8 @@ declare global {
 			[key: string]: any;
 		};
 		RocketLazyLoadScripts?: any;
-		__GUIDERS_INITIALIZING__?: boolean; // Guard interno
+		__GUIDERS_INITIALIZING__?: boolean; // Guard interno contra doble inicialización
+		__GUIDERS_SCRIPT_LOADED__?: boolean; // Guard contra doble carga del script
 		// Funcionalidad dev para mensajes aleatorios
 		guidersDevRandomMessages?: {
 			trigger: (chatId: string, count?: number) => Promise<void>;
@@ -157,10 +158,23 @@ function initializeGuidersSDK() {
 
 // Si estamos en un entorno de navegador, asignamos los módulos al objeto global.
 if (typeof window !== "undefined") {
+	// 🔧 FIX v2.10.6: Guard contra DOBLE CARGA del script (no solo doble inicialización)
+	// Esto previene que el script se ejecute múltiples veces si se incluye dos veces en la página
+	if ((window as any).__GUIDERS_SCRIPT_LOADED__) {
+		debugWarn('[Guiders SDK] ⚠️ Script ya cargado previamente - ignorando segunda carga');
+		// No hacer nada más - el primer script ya manejará todo
+	} else {
+		(window as any).__GUIDERS_SCRIPT_LOADED__ = true;
+
+	// 🔧 FIX: SIEMPRE asignar TrackingPixelSDK a window para que WordPress pueda usarlo
+	// Esto debe hacerse ANTES de verificar preventAutoInit
+	window.TrackingPixelSDK = TrackingPixelSDK;
+
 	// Permitir que integraciones (ej. plugin WP) desactiven el auto-init estableciendo GUIDERS_CONFIG.preventAutoInit = true
 	const preventAutoInit = (window as any).GUIDERS_CONFIG && (window as any).GUIDERS_CONFIG.preventAutoInit;
 	if (preventAutoInit) {
 		debugLog('[Guiders SDK] ⏸️ Auto-init desactivado por configuración (preventAutoInit)');
+		debugLog('[Guiders SDK] ✅ window.TrackingPixelSDK disponible para inicialización manual');
 	} else {
 		// Añadir delay inicial para WP Rocket - esto permite que WP Rocket procese el script correctamente
 		setTimeout(() => {
@@ -224,6 +238,7 @@ if (typeof window !== "undefined") {
 			}
 		}, 500); // Delay inicial para WP Rocket - mismo que funcionó manual
 	}
+	} // Cierre del else de __GUIDERS_SCRIPT_LOADED__
 }
 
 function findGuidersScript(): HTMLScriptElement | null {

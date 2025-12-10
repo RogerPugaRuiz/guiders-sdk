@@ -189,6 +189,8 @@ export class TrackingPixelSDK {
 	private pendingNewChat: boolean = false;
 
 	constructor(options: SDKOptions) {
+		console.log('🚀 [TrackingPixelSDK] Constructor llamado con chatSelector:', options.chatSelector);
+
 		const defaults = resolveDefaultEndpoints();
 		const endpoint = options.endpoint || defaults.endpoint;
 		const webSocketEndpoint = options.webSocketEndpoint || defaults.webSocketEndpoint;
@@ -1336,6 +1338,13 @@ export class TrackingPixelSDK {
 						(chatId: string) => {
 							// Callback para abrir el chat automáticamente al recibir un mensaje
 							debugLog('📬 [TrackingPixelSDK] 🔓 Auto-abriendo chat por mensaje recibido con chatId:', chatId);
+
+							// 🔧 FIX: Verificar si el chat puede ser abierto automáticamente
+							// Esto previene re-apertura si el usuario cerró el chat recientemente
+							if (!this.chatUI!.canAutoOpen()) {
+								debugLog('📬 [TrackingPixelSDK] ⛔ Auto-apertura cancelada - usuario cerró chat recientemente');
+								return;
+							}
 
 							// 1️⃣ Actualizar chatId en ChatUI (crítico para chats nuevos iniciados por comercial)
 							if (!this.chatUI!.getChatId() || this.chatUI!.getChatId() !== chatId) {
@@ -2832,6 +2841,13 @@ export class TrackingPixelSDK {
 					() => {
 						// Callback para abrir el chat automáticamente al recibir un mensaje
 						debugLog('📬 [TrackingPixelSDK] 🔓 Auto-abriendo chat por mensaje recibido');
+
+						// 🔧 FIX: Verificar si el chat puede ser abierto automáticamente
+						if (!this.chatUI!.canAutoOpen()) {
+							debugLog('📬 [TrackingPixelSDK] ⛔ Auto-apertura cancelada - usuario cerró chat recientemente');
+							return;
+						}
+
 						this.chatUI!.show();
 					},
 					this.autoOpenChatOnMessage
@@ -3059,6 +3075,8 @@ export class TrackingPixelSDK {
 			quickActions: this.quickActionsConfig,
 			// 🤖 Configuración de IA para renderizado de mensajes
 			ai: this.aiConfig,
+			// 📋 Configuración del selector de chats
+			chatSelector: this.chatSelectorConfig,
 		});
 
 		// Configurar callbacks de Quick Actions

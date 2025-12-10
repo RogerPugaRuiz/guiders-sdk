@@ -106,7 +106,7 @@ export class MessageRenderer {
             chatMessage.appendChild(aiHeader);
         }
 
-        const messageText = document.createElement('div');
+        const messageText = document.createElement('span');
         messageText.className = 'message-text';
         // Limpiar saltos de línea y espacios múltiples del contenido
         const cleanContent = data.content
@@ -117,11 +117,18 @@ export class MessageRenderer {
             .trim();                 // Eliminar espacios al inicio/final
         messageText.textContent = cleanContent;
 
-        const messageTime = document.createElement('div');
+        // Spacer invisible para reservar espacio para la hora (estilo WhatsApp)
+        const timeSpacer = document.createElement('span');
+        timeSpacer.className = 'message-time-spacer';
+        const timeText = isUserMessage ? `${this.formatTime(data.timestamp)} ✓` : this.formatTime(data.timestamp);
+        timeSpacer.textContent = ` ${timeText}`; // Espacio + texto para medir ancho
+
+        const messageTime = document.createElement('span');
         messageTime.className = 'chat-message-time';
-        messageTime.textContent = isUserMessage ? `${this.formatTime(data.timestamp)} ✓` : this.formatTime(data.timestamp);
+        messageTime.textContent = timeText;
 
         chatMessage.appendChild(messageText);
+        chatMessage.appendChild(timeSpacer);
         chatMessage.appendChild(messageTime);
         contentWrapper.appendChild(chatMessage);
         messageDiv.appendChild(contentWrapper);
@@ -377,7 +384,7 @@ export class MessageRenderer {
             `;
         }
 
-        // ✅ MENSAJE PRINCIPAL - Con layout en fila para texto + hora
+        // ✅ MENSAJE PRINCIPAL - Layout tipo WhatsApp
         if (messageEl) {
             // 🤖 Estilos específicos para mensajes de IA
             let messageBackground: string;
@@ -399,11 +406,7 @@ export class MessageRenderer {
                 overflow-wrap: break-word;
                 word-wrap: break-word;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                display: inline-flex;
-                flex-direction: ${isAIMessage ? 'column' : 'row'};
-                flex-wrap: nowrap;
-                align-items: ${isAIMessage ? 'stretch' : 'flex-end'};
-                gap: 6px;
+                display: inline-block;
                 max-width: 100%;
                 ${messageBackground}
                 color: #2c3e50;
@@ -412,7 +415,18 @@ export class MessageRenderer {
             `;
         }
 
-                // ✅ TEXTO DEL MENSAJE - TIPOGRAFÍA OPTIMIZADA
+        // ✅ TIME SPACER - Invisible pero ocupa espacio (estilo WhatsApp)
+        const timeSpacer = messageDiv.querySelector('.message-time-spacer') as HTMLElement;
+        if (timeSpacer) {
+            timeSpacer.style.cssText = `
+                visibility: hidden;
+                font-size: 10px;
+                padding-left: 8px;
+                white-space: nowrap;
+            `;
+        }
+
+        // ✅ TEXTO DEL MENSAJE - TIPOGRAFÍA OPTIMIZADA (inline para fluir con spacer)
         if (text) {
             text.style.cssText = `
                 font-size: 14px;
@@ -420,7 +434,7 @@ export class MessageRenderer {
                 margin: 0;
                 overflow-wrap: break-word;
                 word-wrap: break-word;
-                white-space: normal;
+                white-space: pre-wrap;
                 -webkit-font-smoothing: antialiased;
                 -moz-osx-font-smoothing: grayscale;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -428,16 +442,18 @@ export class MessageRenderer {
             `;
         }
 
-        // ✅ TIEMPO - Dentro de la burbuja del mensaje
+        // ✅ TIEMPO - Posicionado absolutamente al final (estilo WhatsApp)
         if (time) {
             time.style.cssText = `
+                position: absolute;
+                bottom: 6px;
+                right: 10px;
                 font-size: 10px;
                 color: rgba(44, 62, 80, 0.5);
                 font-weight: 400;
                 letter-spacing: 0.01em;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
                 white-space: nowrap;
-                flex-shrink: 0;
                 opacity: 0.9;
             `;
         }

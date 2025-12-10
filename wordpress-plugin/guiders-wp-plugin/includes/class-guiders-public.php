@@ -74,10 +74,10 @@ class GuidersPublic {
      */
     public function enqueueAssets() {
         try {
-            $sdk_file = GUIDERS_WP_PLUGIN_PLUGIN_URL . 'assets/js/guiders-sdk.js';
+            $sdk_file = GUIDERS_WP_PLUGIN_PLUGIN_URL . 'assets/js/guiders-sdk.min.js';
 
             // Verify SDK file exists
-            $sdk_file_path = GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'assets/js/guiders-sdk.js';
+            $sdk_file_path = GUIDERS_WP_PLUGIN_PLUGIN_DIR . 'assets/js/guiders-sdk.min.js';
             if (!file_exists($sdk_file_path)) {
                 error_log('[Guiders Public] SDK file not found: ' . $sdk_file_path);
                 // Don't enqueue if file doesn't exist
@@ -85,11 +85,16 @@ class GuidersPublic {
             }
 
             // Enqueue the Guiders SDK
+            // 🔧 FIX v2.10.10: Cache busting con hash MD5 del archivo
+            // Esto genera un hash único basado en el contenido del archivo,
+            // garantizando que cualquier cambio en el SDK invalide la caché
+            $file_hash = substr(md5_file($sdk_file_path), 0, 8);
+            $file_version = GUIDERS_WP_PLUGIN_VERSION . '.' . $file_hash;
             wp_enqueue_script(
                 'guiders-sdk',
                 $sdk_file,
                 array(),
-                GUIDERS_WP_PLUGIN_VERSION,
+                $file_version,
                 true // Load in footer
             );
 
@@ -170,8 +175,9 @@ class GuidersPublic {
     $delay = isset($settings['auto_init_delay']) ? intval($settings['auto_init_delay']) : 500;
     $config['autoInitMode'] = $mode;
     $config['autoInitDelay'] = $delay;
-    // Solo establecemos preventAutoInit=true cuando el modo es manual; esto evita confundir al usuario viendo siempre el log de auto-init desactivado.
-    $config['preventAutoInit'] = ($mode === 'manual');
+    // 🔧 FIX: SIEMPRE establecer preventAutoInit=true porque WordPress maneja su propia inicialización
+    // Esto evita que el SDK cree múltiples instancias de ChatUI (una del bundle y otra de WordPress)
+    $config['preventAutoInit'] = true;
         
         return $config;
     }
@@ -716,6 +722,11 @@ class GuidersPublic {
                     // Add AI Config configuration if available (SDK uses 'ai' key)
                     if (config.aiConfig) {
                         sdkOptions.ai = config.aiConfig;
+                    }
+
+                    // Add Chat Selector configuration if available
+                    if (config.chatSelector) {
+                        sdkOptions.chatSelector = config.chatSelector;
                     }
 
                     // Asignar siempre endpoints explícitos (evita fallback a localhost y doble init)

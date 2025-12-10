@@ -46,7 +46,7 @@ if [ ! -f "dist/index.js" ]; then
 fi
 
 echo "📋 Copiando SDK al plugin..."
-cp dist/index.js wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js
+cp dist/index.js wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.min.js
 
 echo "🔍 Validando JavaScript en archivos PHP..."
 if bash wordpress-plugin/validate-php-javascript.sh; then
