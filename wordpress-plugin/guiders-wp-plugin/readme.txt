@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.10.13
+Stable tag: 2.10.14
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,19 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.10.14 =
+* 🐛 **Fix 413 Payload Too Large**: Resueltos errores de payloads HTTP gigantes causados por acumulación de eventos antiguos
+  * **TTL de 24 horas**: Eventos más antiguos que 24h se descartan automáticamente
+  * **Límite de payload 1 MB**: Requests HTTP nunca exceden 1 MB, con fallback automático a multi-request
+  * **Limpieza de eventos V1**: Eventos legacy con campos deprecados (`pageUrl`, `pagePath`) se eliminan de la cola
+  * **Reducción de maxQueueSize**: De 10,000 → 1,000 eventos para optimizar memoria
+* 🔧 **Migración automática**: Eventos sin timestamp reciben timestamp actual (no se descartan inmediatamente)
+* 🔧 **Limpieza forzada**: Si después del pruning la cola excede 1,000 eventos, se eliminan los más antiguos
+* ✨ **EventAggregator limpio**: Ya no propaga campos V1 a eventos V2
+* ✨ **Estadísticas mejoradas**: `getStats()` ahora incluye TTL, edad del evento más antiguo, y utilización de cola
+* 🧪 **Tests E2E**: Añadidos 5 tests de verificación con Playwright (`deployment-verification.spec.ts`)
+* 📚 **Documentación**: Añadida sección "Event Queue Management" en `AGENTS.md`
 
 = 2.10.13 =
 * 🐛 **Fix WebSocket presencia en tiempo real**: Corregido bug donde los callbacks de presencia se perdían
