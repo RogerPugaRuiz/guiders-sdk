@@ -267,6 +267,12 @@ export interface TrackingEventDto {
 	eventType: string;     // Tipo de evento (PAGE_VIEW, CLICK, etc.)
 	metadata: Record<string, any>;  // Datos adicionales del evento
 	occurredAt?: string;   // Timestamp ISO 8601 (opcional, usa fecha actual si se omite)
+	/**
+	 * Internal field: Timestamp (ms since epoch) when event was queued.
+	 * Used for TTL pruning. Auto-set by EventQueueManager.
+	 * @internal
+	 */
+	__queuedAt?: number;
 }
 
 /**
@@ -335,10 +341,14 @@ export interface TrackingV2Config {
 	batchSize?: number;
 	/** Intervalo de flush en ms (default: 5000) */
 	flushInterval?: number;
-	/** Tamaño máximo de la cola en memoria (default: 10000) */
+	/** Tamaño máximo de la cola en memoria (default: 1000) */
 	maxQueueSize?: number;
 	/** Persistir cola en localStorage (default: true) */
 	persistQueue?: boolean;
+	/** Event TTL in milliseconds (default: 86400000 = 24h) */
+	eventTtlMs?: number;
+	/** Max payload size in bytes (default: 1048576 = 1MB) */
+	maxPayloadSizeBytes?: number;
 	/** Configuración de throttling (frontend) */
 	throttling?: Partial<TrackingV2ThrottlingConfig>;
 	/** Configuración de agregación (frontend) */

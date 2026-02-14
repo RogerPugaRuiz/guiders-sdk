@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forzar Recarga - Limpiar Cache</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 40px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            text-align: center;
+        }
+        h1 { color: #4ec9b0; font-size: 32px; }
+        .box {
+            background: #252526;
+            border: 2px solid #4ec9b0;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+        button {
+            background: #d83030;
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            margin: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        button:hover { background: #e64545; }
+        .success { background: #4ec9b0; color: #1e1e1e; }
+        .success:hover { background: #6edcc8; }
+        pre {
+            background: #1e1e1e;
+            border: 1px solid #3c3c3c;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: left;
+            font-size: 14px;
+            margin: 20px 0;
+        }
+        .warning {
+            background: #3a361e;
+            border-left: 4px solid #d7ba7d;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+            color: #d7ba7d;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 Forzar Recarga del SDK</h1>
+    
+    <div class="box">
+        <h2>⚠️ Limpieza de Cache y localStorage</h2>
+        <p>Esta página limpiará todo el cache del SDK para forzar la carga de la nueva versión con las correcciones.</p>
+        
+        <div class="warning">
+            <strong>⚠️ Advertencia:</strong> Esto eliminará:
+            <ul>
+                <li>Cola de eventos de tracking</li>
+                <li>Visitor ID y Session ID</li>
+                <li>Metadata del tenant</li>
+                <li>Configuración de consentimiento</li>
+            </ul>
+        </div>
+        
+        <button onclick="clearEverything()">🗑️ LIMPIAR TODO Y RECARGAR</button>
+    </div>
+    
+    <div class="box">
+        <h2>📋 Resultado</h2>
+        <pre id="result"></pre>
+    </div>
+    
+    <script>
+        function log(message) {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent += message + '\n';
+            console.log(message);
+        }
+        
+        function clearEverything() {
+            log('🧹 Limpiando localStorage...');
+            
+            const keys = Object.keys(localStorage);
+            let cleared = 0;
+            
+            keys.forEach(key => {
+                if (key.startsWith('guiders_')) {
+                    localStorage.removeItem(key);
+                    log(`  ✅ Eliminado: ${key}`);
+                    cleared++;
+                }
+            });
+            
+            log(`\n✅ ${cleared} items eliminados de localStorage`);
+            log('\n🔄 Recargando página en 2 segundos...');
+            
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+        }
+        
+        // Mostrar items actuales
+        window.addEventListener('load', () => {
+            const keys = Object.keys(localStorage).filter(k => k.startsWith('guiders_'));
+            
+            if (keys.length === 0) {
+                log('✅ localStorage limpio - No hay items de Guiders');
+            } else {
+                log('📋 Items actuales en localStorage:\n');
+                keys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    const size = new Blob([value]).size;
+                    log(`  ${key}: ${(size / 1024).toFixed(2)} KB`);
+                });
+                log(`\nTotal: ${keys.length} items`);
+            }
+        });
+    </script>
+</body>
+</html>

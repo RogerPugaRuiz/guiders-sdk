@@ -30,6 +30,8 @@ export class TrackingV2Service {
   private static readonly MAX_BATCH_SIZE = 500;
   private static readonly MAX_RETRIES = 3;
   private static readonly UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  private static readonly MAX_PAYLOAD_SIZE_BYTES = 1024 * 1024; // 1 MB
+  private static readonly MIN_EVENTS_PER_BATCH = 10; // Mínimo de eventos para evitar loops infinitos
 
   private tenantId: string | null = null;
   private siteId: string | null = null;
@@ -166,11 +168,22 @@ export class TrackingV2Service {
     const validEvents = events.filter((event) => this.isValidTrackingEvent(event));
 
     if (validEvents.length < originalCount) {
-      // Eventos inválidos descartados
+      const discarded = originalCount - validEvents.length;
+      debugLog(`[TrackingV2Service] ⚠️ ${discarded} eventos inválidos descartados (formato antiguo/UUIDs inválidos)`);
     }
 
+    // 🔧 SI TODOS LOS EVENTOS SON INVÁLIDOS, retornar respuesta especial indicando que deben eliminarse
     if (validEvents.length === 0) {
-      return null;
+      debugLog('[TrackingV2Service] ❌ TODOS los eventos son inválidos, deben eliminarse de la cola');
+      return {
+        success: true,
+        received: originalCount,
+        processed: 0,
+        discarded: originalCount,
+        aggregated: 0,
+        message: 'All events were invalid and discarded (V1 format or invalid UUIDs)',
+        processingTimeMs: 0
+      };
     }
 
     // Validar tamaño del batch
@@ -179,13 +192,43 @@ export class TrackingV2Service {
       finalEvents = validEvents.slice(0, TrackingV2Service.MAX_BATCH_SIZE);
     }
 
+    // ✅ VERIFICAR tamaño del payload
+    const payloadSize = this.estimatePayloadSize(finalEvents);
+
+    if (payloadSize > TrackingV2Service.MAX_PAYLOAD_SIZE_BYTES) {
+      debugLog(
+        `[TrackingV2Service] ⚠️ Payload excede límite (${payloadSize} bytes > ${TrackingV2Service.MAX_PAYLOAD_SIZE_BYTES} bytes), recortando...`
+      );
+
+      // Intentar recortar eventos
+      const trimmedEvents = this.trimEventsToFitPayload(
+        finalEvents,
+        TrackingV2Service.MAX_PAYLOAD_SIZE_BYTES
+      );
+
+      if (trimmedEvents.length < finalEvents.length) {
+        // Si aún hay eventos restantes después del recorte, usar multi-request
+        const remaining = finalEvents.slice(trimmedEvents.length);
+        debugLog(
+          `[TrackingV2Service] 🔄 Usando multi-request para enviar ${finalEvents.length} eventos en múltiples batches...`
+        );
+
+        const results = await this.sendBatchMultiRequest(finalEvents);
+        return results.length > 0 ? results[0] : null; // Retornar primera respuesta
+      }
+
+      finalEvents = trimmedEvents;
+    }
+
     const payload: IngestTrackingEventsBatchDto = {
       tenantId: this.tenantId!,
       siteId: this.siteId!,
       events: finalEvents
     };
 
-    debugLog(`[TrackingV2Service] 📤 Enviando batch de ${finalEvents.length} eventos válidos...`);
+    debugLog(
+      `[TrackingV2Service] 📤 Enviando batch de ${finalEvents.length} eventos válidos (${payloadSize} bytes)...`
+    );
 
     // Enviar con reintentos
     return this.sendBatchWithRetry(payload, TrackingV2Service.MAX_RETRIES);
@@ -214,10 +257,34 @@ export class TrackingV2Service {
       return false;
     }
 
+    // ✅ sendBeacon tiene un límite de ~64KB en la mayoría de navegadores
+    const BEACON_MAX_SIZE = 64 * 1024; // 64 KB
+    let finalEvents = validEvents.slice(0, TrackingV2Service.MAX_BATCH_SIZE);
+
+    // Verificar tamaño del payload
+    let payloadSize = this.estimatePayloadSize(finalEvents);
+
+    if (payloadSize > BEACON_MAX_SIZE) {
+      debugLog(
+        `[TrackingV2Service] ⚠️ Payload excede límite de sendBeacon (${payloadSize} bytes > ${BEACON_MAX_SIZE} bytes), recortando...`
+      );
+
+      // Recortar eventos para que quepan en el límite de sendBeacon
+      finalEvents = this.trimEventsToFitPayload(finalEvents, BEACON_MAX_SIZE);
+      payloadSize = this.estimatePayloadSize(finalEvents);
+
+      if (finalEvents.length === 0) {
+        debugLog(
+          '[TrackingV2Service] ❌ No se pudo ajustar ningún evento al límite de sendBeacon'
+        );
+        return false;
+      }
+    }
+
     const payload: IngestTrackingEventsBatchDto = {
       tenantId: this.tenantId!,
       siteId: this.siteId!,
-      events: validEvents.slice(0, TrackingV2Service.MAX_BATCH_SIZE)
+      events: finalEvents
     };
 
     const url = this.getTrackingEndpoint();
@@ -226,7 +293,9 @@ export class TrackingV2Service {
     try {
       const success = navigator.sendBeacon(url, blob);
       if (success) {
-        debugLog(`[TrackingV2Service] ✅ ${validEvents.length} eventos válidos enviados via sendBeacon`);
+        debugLog(
+          `[TrackingV2Service] ✅ ${finalEvents.length} eventos válidos enviados via sendBeacon (${payloadSize} bytes)`
+        );
       } else {
         debugLog('[TrackingV2Service] ⚠️ sendBeacon falló');
       }
@@ -348,6 +417,112 @@ export class TrackingV2Service {
   private getTrackingEndpoint(): string {
     const endpoint = EndpointManager.getInstance().getEndpoint();
     return `${endpoint}/tracking-v2/events`;
+  }
+
+  /**
+   * Estima el tamaño del payload en bytes
+   * @param events Array de eventos
+   * @returns Tamaño estimado en bytes
+   */
+  private estimatePayloadSize(events: TrackingEventDto[]): number {
+    const payload: IngestTrackingEventsBatchDto = {
+      tenantId: this.tenantId!,
+      siteId: this.siteId!,
+      events
+    };
+    const json = JSON.stringify(payload);
+    return new Blob([json]).size;
+  }
+
+  /**
+   * Recorta eventos hasta que el payload quepa en el límite de tamaño
+   * @param events Array de eventos original
+   * @param maxSizeBytes Tamaño máximo permitido en bytes
+   * @returns Array recortado de eventos que cabe en el límite
+   */
+  private trimEventsToFitPayload(
+    events: TrackingEventDto[],
+    maxSizeBytes: number
+  ): TrackingEventDto[] {
+    if (events.length === 0) return [];
+
+    // Binary search para encontrar el máximo número de eventos que caben
+    let left = TrackingV2Service.MIN_EVENTS_PER_BATCH;
+    let right = events.length;
+    let bestFit = left;
+
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      const subset = events.slice(0, mid);
+      const size = this.estimatePayloadSize(subset);
+
+      if (size <= maxSizeBytes) {
+        bestFit = mid;
+        left = mid + 1;
+      } else {
+        right = mid - 1;
+      }
+    }
+
+    const trimmedEvents = events.slice(0, bestFit);
+    debugLog(
+      `[TrackingV2Service] ✂️ Payload recortado: ${events.length} → ${trimmedEvents.length} eventos (${this.estimatePayloadSize(trimmedEvents)} bytes)`
+    );
+
+    return trimmedEvents;
+  }
+
+  /**
+   * Envía eventos en múltiples requests si el payload excede el límite
+   * @param events Array de eventos a enviar
+   * @returns Array de respuestas del backend
+   */
+  private async sendBatchMultiRequest(
+    events: TrackingEventDto[]
+  ): Promise<IngestEventsResponseDto[]> {
+    const results: IngestEventsResponseDto[] = [];
+    let remaining = [...events];
+
+    while (remaining.length > 0) {
+      const batch = this.trimEventsToFitPayload(
+        remaining,
+        TrackingV2Service.MAX_PAYLOAD_SIZE_BYTES
+      );
+
+      if (batch.length === 0) {
+        debugLog(
+          '[TrackingV2Service] ⚠️ No se pudo ajustar ningún evento al límite de payload, abortando'
+        );
+        break;
+      }
+
+      const payload: IngestTrackingEventsBatchDto = {
+        tenantId: this.tenantId!,
+        siteId: this.siteId!,
+        events: batch
+      };
+
+      debugLog(
+        `[TrackingV2Service] 📤 Enviando sub-batch ${results.length + 1} de ${batch.length} eventos...`
+      );
+
+      const result = await this.sendBatchWithRetry(
+        payload,
+        TrackingV2Service.MAX_RETRIES
+      );
+
+      if (result) {
+        results.push(result);
+      }
+
+      // Remover eventos enviados
+      remaining = remaining.slice(batch.length);
+    }
+
+    debugLog(
+      `[TrackingV2Service] ✅ Multi-request completado: ${results.length} batches enviados`
+    );
+    return results;
   }
 
   /**

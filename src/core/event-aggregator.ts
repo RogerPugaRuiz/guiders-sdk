@@ -164,8 +164,11 @@ export class EventAggregator {
     const aggregatedEvents: TrackingEventDto[] = [];
 
     for (const [fingerprint, aggregated] of this.buffer.entries()) {
+      // 🔧 Crear evento limpio sin campos V1 deprecados
       const event: TrackingEventDto = {
-        ...aggregated.event,
+        visitorId: aggregated.event.visitorId,
+        sessionId: aggregated.event.sessionId,
+        eventType: aggregated.event.eventType,
         occurredAt: aggregated.lastOccurredAt, // Usar timestamp del último evento
         metadata: {
           ...aggregated.metadata,
@@ -175,6 +178,11 @@ export class EventAggregator {
           lastOccurredAt: aggregated.lastOccurredAt
         }
       };
+
+      // Preservar __queuedAt si existe (para TTL)
+      if (aggregated.event.__queuedAt) {
+        event.__queuedAt = aggregated.event.__queuedAt;
+      }
 
       aggregatedEvents.push(event);
 

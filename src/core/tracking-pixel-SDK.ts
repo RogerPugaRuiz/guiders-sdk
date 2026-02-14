@@ -117,11 +117,13 @@ interface SDKOptions {
 		enabled?: boolean;        // Enable tracking V2 (default: true)
 		batchSize?: number;       // Max batch size (default: 500)
 		flushInterval?: number;   // Flush interval in ms (default: 5000)
-		maxQueueSize?: number;    // Max queue size (default: 10000)
+		maxQueueSize?: number;    // Max queue size (default: 1000)
 		persistQueue?: boolean;   // Persist queue in localStorage (default: true)
 		bypassConsent?: boolean;  // Bypass consent checks (development only, default: false)
 		throttling?: Partial<import('../types').TrackingV2ThrottlingConfig>;  // Throttling configuration
 		aggregation?: Partial<import('../types').TrackingV2AggregationConfig>; // Aggregation configuration
+		eventTtlMs?: number;      // Event TTL in milliseconds (default: 86400000 = 24h)
+		maxPayloadSizeBytes?: number; // Max payload size in bytes (default: 1048576 = 1MB)
 	};
 }
 
@@ -274,8 +276,9 @@ export class TrackingPixelSDK {
 		if (this.trackingV2Enabled) {
 			// Inicializar EventQueueManager
 			this.eventQueueManager = new EventQueueManager({
-				maxSize: options.trackingV2?.maxQueueSize ?? 10000,
-				persistEnabled: options.trackingV2?.persistQueue ?? true
+				maxSize: options.trackingV2?.maxQueueSize ?? 1000,
+				persistEnabled: options.trackingV2?.persistQueue ?? true,
+				ttlMs: options.trackingV2?.eventTtlMs ?? 86400000 // 24 horas por defecto
 			});
 
 			// Inicializar TrackingV2Service (singleton)
@@ -1747,6 +1750,16 @@ export class TrackingPixelSDK {
 					debugLog(`[TrackingPixelSDK] 🔗 ${aggregatedEvents.length} eventos agregados añadidos a la cola`);
 				}
 			}
+
+			// 📊 Obtener estadísticas de la cola antes de enviar
+			const stats = this.eventQueueManager.getStats();
+			debugLog('[TrackingPixelSDK] 📊 Estadísticas de cola:', {
+				queueSize: stats.size,
+				maxSize: stats.maxSize,
+				utilizationPercent: `${((stats.size / stats.maxSize) * 100).toFixed(1)}%`,
+				ttlHours: stats.ttlHours,
+				oldestEventAgeHours: stats.oldestEventAgeHours ?? 'N/A'
+			});
 
 			if (this.eventQueueManager.isEmpty()) {
 				debugLog('[TrackingPixelSDK] 📭 No hay eventos para enviar (V2)');
