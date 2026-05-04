@@ -373,10 +373,40 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .chat-input-container {
             flex-shrink: 0;
-            background: var(--gds-color-bg-elevated);
+            position: relative;
             margin: 0 12px 12px 12px;
             border-radius: 28px;
-            border: 1px solid var(--gds-color-border);
+            padding: 2px;
+            box-sizing: border-box;
+            /* Animated aurora border via pseudo-element */
+        }
+
+        .chat-input-container::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 28px;
+            background: conic-gradient(
+                from var(--deg, 0deg),
+                #a78bfa, #818cf8, #60a5fa, #34d399, #60a5fa, #818cf8, #a78bfa
+            );
+            filter: blur(3px);
+            opacity: 0.7;
+            z-index: 0;
+            animation: rotate-gradient 6s linear infinite;
+            transition: opacity 0.3s ease, filter 0.3s ease;
+        }
+
+        .chat-input-container:focus-within::before {
+            opacity: 1;
+            filter: blur(4px);
+        }
+
+        .chat-input-inner {
+            position: relative;
+            z-index: 1;
+            background: var(--gds-color-bg-elevated);
+            border-radius: 26px;
             padding: 6px 6px 6px 16px;
             box-sizing: border-box;
         }
