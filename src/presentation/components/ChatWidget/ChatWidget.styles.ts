@@ -204,7 +204,7 @@ export function getChatStyles(position: ResolvedPosition): string {
         .chat-close-btn {
             background: transparent;
             border: none;
-            color: #6b7280;
+            color: var(--gds-color-text-secondary);
             cursor: pointer;
             width: 32px;
             height: 32px;
@@ -219,13 +219,13 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .chat-close-btn:hover {
             opacity: 1;
-            background: rgba(0, 0, 0, 0.05);
-            color: #111827;
+            background: var(--gds-color-bg-elevated);
+            color: var(--gds-color-text);
         }
 
         .chat-close-btn:active {
             transform: scale(0.95);
-            background: rgba(0, 0, 0, 0.1);
+            background: var(--gds-color-border);
         }
 
         .chat-close-btn svg {
@@ -237,11 +237,11 @@ export function getChatStyles(position: ResolvedPosition): string {
             .chat-close-btn {
                 width: 36px;
                 height: 36px;
-                background: rgba(255, 255, 255, 0.15);
+                background: var(--gds-color-bg-elevated);
             }
 
             .chat-close-btn:hover {
-                background: rgba(255, 255, 255, 0.25);
+                background: var(--gds-color-border);
             }
 
             .chat-close-btn svg {
@@ -253,7 +253,7 @@ export function getChatStyles(position: ResolvedPosition): string {
         .chat-back-btn {
             background: transparent;
             border: none;
-            color: #111827;
+            color: var(--gds-color-text);
             cursor: pointer;
             width: 32px;
             height: 32px;
@@ -269,12 +269,12 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .chat-back-btn:hover {
             opacity: 1;
-            background: rgba(0, 0, 0, 0.05);
+            background: var(--gds-color-bg-elevated);
         }
 
         .chat-back-btn:active {
             transform: scale(0.95);
-            background: rgba(0, 0, 0, 0.1);
+            background: var(--gds-color-border);
         }
 
         .chat-back-btn svg {
@@ -308,7 +308,7 @@ export function getChatStyles(position: ResolvedPosition): string {
             overflow-y: auto;
             padding: 18px 16px 80px 16px;
             margin-bottom: 25px;
-            background: #ffffff;
+            background: var(--gds-color-bg);
             scroll-behavior: smooth;
         }
 
@@ -337,8 +337,8 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .chat-message-user {
-            background: #18181b;
-            color: #ffffff;
+            background: var(--gds-color-primary);
+            color: var(--gds-color-text-on-primary);
             border-bottom-right-radius: 4px;
         }
 
@@ -349,8 +349,8 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .chat-message-other {
-            background: #e4e4e7 !important;
-            color: #18181b;
+            background: var(--gds-color-bg-elevated);
+            color: var(--gds-color-text);
             border-bottom-left-radius: 4px;
         }
 
@@ -358,7 +358,7 @@ export function getChatStyles(position: ResolvedPosition): string {
             width: 28px;
             height: 28px;
             border-radius: 50%;
-            background-color: #e1e9f1;
+            background-color: var(--gds-color-bg-elevated);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -367,7 +367,7 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .chat-message-time {
             font-size: 11px;
-            color: #6b7280;
+            color: var(--gds-color-text-tertiary);
             margin-top: 4px;
             opacity: 0.85;
         }
@@ -427,7 +427,7 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .chat-send-btn {
             background: var(--gds-color-primary);
-            color: #ffffff;
+            color: var(--gds-color-text-on-primary);
             border: none;
             border-radius: 50%;
             width: 36px;
@@ -601,8 +601,8 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .chat-consent-message {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border: 1px solid #dee2e6;
+            background: var(--gds-color-bg-elevated);
+            border: 1px solid var(--gds-color-border);
             border-radius: 12px;
             padding: 14px 18px;
             text-align: center;
@@ -612,23 +612,23 @@ export function getChatStyles(position: ResolvedPosition): string {
         .chat-consent-message-content {
             font-size: 12px;
             line-height: 1.5;
-            color: #495057;
+            color: var(--gds-color-text-secondary);
         }
 
         .chat-consent-link {
-            color: #0084ff;
+            color: var(--gds-color-primary);
             text-decoration: none;
             font-weight: 500;
             transition: color var(--gds-duration-normal, 150ms) ease, text-decoration var(--gds-duration-normal, 150ms) ease;
         }
 
         .chat-consent-link:hover {
-            color: #0066cc;
+            color: var(--gds-color-primary-hover, var(--gds-color-primary));
             text-decoration: underline;
         }
 
         .chat-consent-link:active {
-            color: #004999;
+            opacity: 0.8;
         }
 
         @media (max-width: 768px) {
@@ -660,10 +660,10 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .guiders-quick-actions-welcome {
             padding: 12px 16px;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            background: var(--gds-color-bg-elevated);
             border-radius: 12px;
             margin-bottom: 12px;
-            color: #1d1d1f;
+            color: var(--gds-color-text);
             font-size: 14px;
             line-height: 1.5;
             text-align: center;
@@ -685,26 +685,26 @@ export function getChatStyles(position: ResolvedPosition): string {
             transition: all var(--gds-duration-normal, 150ms) ease;
             white-space: nowrap;
             font-family: inherit;
-            background: white;
-            color: #1d1d1f;
-            border: 1.5px solid #e5e7eb;
+            background: var(--gds-color-bg);
+            color: var(--gds-color-text);
+            border: 1.5px solid var(--gds-color-border);
         }
 
         .guiders-quick-action-btn:hover {
-            background: #f8f9fa;
-            border-color: #d1d5db;
+            background: var(--gds-color-bg-elevated);
+            border-color: var(--gds-color-border-strong);
             transform: translateY(-1px);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         .guiders-quick-action-btn:active {
             transform: translateY(0);
-            background: #f1f3f5;
+            background: var(--gds-color-bg-elevated);
         }
 
         .guiders-quick-action-btn:focus {
             outline: none;
-            border-color: #3b82f6;
+            border-color: var(--gds-color-primary);
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
 
@@ -776,7 +776,7 @@ export function getChatStyles(position: ResolvedPosition): string {
             max-width: 300px;
             max-height: 350px;
             overflow-y: auto;
-            background: white;
+            background: var(--gds-color-bg);
             border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
             z-index: 1000;
@@ -788,20 +788,20 @@ export function getChatStyles(position: ResolvedPosition): string {
         .guiders-chat-selector-empty {
             padding: 16px;
             text-align: center;
-            color: #666;
+            color: var(--gds-color-text-secondary);
             font-size: 14px;
         }
 
         .guiders-chat-selector-error {
-            color: #dc3545;
+            color: var(--gds-color-error);
         }
 
         .guiders-spinner {
             display: inline-block;
             width: 16px;
             height: 16px;
-            border: 2px solid #e5e7eb;
-            border-top-color: #18181b;
+            border: 2px solid var(--gds-color-border);
+            border-top-color: var(--gds-color-text);
             border-radius: 50%;
             animation: guiders-spin 1s linear infinite;
             margin-right: 8px;
@@ -822,12 +822,12 @@ export function getChatStyles(position: ResolvedPosition): string {
             cursor: pointer;
             text-align: left;
             font-size: 14px;
-            color: #007bff;
+            color: var(--gds-color-primary);
             transition: background-color 0.2s ease;
         }
 
         .guiders-chat-selector-new-chat:hover {
-            background-color: #f0f7ff;
+            background-color: var(--gds-color-bg-elevated);
         }
 
         .guiders-chat-selector-new-emoji {
@@ -837,7 +837,7 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .guiders-chat-selector-separator {
             height: 1px;
-            background: #e0e0e0;
+            background: var(--gds-color-border);
             margin: 4px 0;
         }
 
@@ -855,11 +855,11 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .guiders-chat-selector-item:hover {
-            background-color: #f5f5f5;
+            background-color: var(--gds-color-bg-elevated);
         }
 
         .guiders-chat-selector-item.selected {
-            background-color: #e8f4ff;
+            background-color: var(--gds-color-primary-soft);
         }
 
         .guiders-chat-selector-item-content {
@@ -870,7 +870,7 @@ export function getChatStyles(position: ResolvedPosition): string {
         .guiders-chat-selector-item-title {
             display: block;
             font-size: 14px;
-            color: #333;
+            color: var(--gds-color-text);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -879,7 +879,7 @@ export function getChatStyles(position: ResolvedPosition): string {
         .guiders-chat-selector-item-date {
             display: block;
             font-size: 12px;
-            color: #999;
+            color: var(--gds-color-text-tertiary);
             margin-top: 2px;
         }
 
@@ -890,7 +890,7 @@ export function getChatStyles(position: ResolvedPosition): string {
             min-width: 20px;
             height: 20px;
             padding: 0 6px;
-            background: #dc3545;
+            background: var(--gds-color-error);
             color: white;
             font-size: 11px;
             font-weight: bold;
@@ -904,7 +904,7 @@ export function getChatStyles(position: ResolvedPosition): string {
             flex-direction: column;
             height: 100%;
             width: 100%;
-            background: #fff;
+            background: var(--gds-color-bg);
             font-family: var(--gds-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif);
             box-sizing: border-box;
         }
@@ -914,9 +914,9 @@ export function getChatStyles(position: ResolvedPosition): string {
             align-items: center;
             justify-content: space-between;
             padding: 12px 12px;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--gds-color-border);
             min-height: 56px;
-            background: #ffffff;
+            background: var(--gds-color-bg);
             gap: 8px;
         }
 
@@ -925,7 +925,7 @@ export function getChatStyles(position: ResolvedPosition): string {
             border: none;
             padding: 8px;
             cursor: pointer;
-            color: #111827;
+            color: var(--gds-color-text);
             transition: all 0.2s;
             display: flex;
             align-items: center;
@@ -935,14 +935,14 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .guiders-chat-list-back-btn:hover {
-            background: rgba(0, 0, 0, 0.05);
+            background: var(--gds-color-bg-elevated);
         }
 
         .guiders-chat-list-title {
             margin: 0;
             font-size: 17px;
             font-weight: 600;
-            color: #111827;
+            color: var(--gds-color-text);
             flex: 1;
             text-align: left;
         }
@@ -952,7 +952,7 @@ export function getChatStyles(position: ResolvedPosition): string {
             border: none;
             padding: 8px;
             cursor: pointer;
-            color: #6b7280;
+            color: var(--gds-color-text-secondary);
             transition: all 0.2s;
             display: flex;
             align-items: center;
@@ -962,8 +962,8 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .guiders-chat-list-close-btn:hover {
-            background: rgba(0, 0, 0, 0.05);
-            color: #111827;
+            background: var(--gds-color-bg-elevated);
+            color: var(--gds-color-text);
         }
 
         .guiders-chat-list-container {
@@ -986,12 +986,12 @@ export function getChatStyles(position: ResolvedPosition): string {
         .guiders-chat-list-empty {
             padding: 24px;
             text-align: center;
-            color: #6b7280;
+            color: var(--gds-color-text-secondary);
             font-size: 14px;
         }
 
         .guiders-chat-list-error {
-            color: #dc2626;
+            color: var(--gds-color-error);
         }
 
         .guiders-chat-list-new-chat {
@@ -1002,9 +1002,9 @@ export function getChatStyles(position: ResolvedPosition): string {
             min-width: 100% !important;
             padding: 16px 20px;
             border: none !important;
-            border-bottom: 1px solid #e5e7eb !important;
+            border-bottom: 1px solid var(--gds-color-border) !important;
             border-radius: 0 !important;
-            background: #f9fafb;
+            background: var(--gds-color-bg-elevated);
             cursor: pointer;
             text-align: left;
             transition: background 0.2s;
@@ -1013,7 +1013,7 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .guiders-chat-list-new-chat:hover {
-            background: #f3f4f6;
+            background: var(--gds-color-bg-sunken);
         }
 
         .guiders-chat-list-new-icon {
@@ -1023,15 +1023,15 @@ export function getChatStyles(position: ResolvedPosition): string {
             width: 44px;
             height: 44px;
             border-radius: 50%;
-            background: #18181b;
-            color: #fff;
+            background: var(--gds-color-text);
+            color: var(--gds-color-bg);
             flex-shrink: 0;
         }
 
         .guiders-chat-list-new-text {
             font-size: 15px;
             font-weight: 500;
-            color: #111827;
+            color: var(--gds-color-text);
         }
 
         .guiders-chat-list-item {
@@ -1042,9 +1042,9 @@ export function getChatStyles(position: ResolvedPosition): string {
             min-width: 100% !important;
             padding: 14px 20px;
             border: none !important;
-            border-bottom: 1px solid #f3f4f6 !important;
+            border-bottom: 1px solid var(--gds-color-border-subtle) !important;
             border-radius: 0 !important;
-            background: #fff;
+            background: var(--gds-color-bg);
             cursor: pointer;
             text-align: left;
             transition: background 0.2s;
@@ -1053,11 +1053,11 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .guiders-chat-list-item:hover {
-            background: #f9fafb;
+            background: var(--gds-color-bg-elevated);
         }
 
         .guiders-chat-list-item.selected {
-            background: #eff6ff;
+            background: var(--gds-color-primary-soft);
         }
 
         .guiders-chat-list-avatar {
@@ -1067,8 +1067,8 @@ export function getChatStyles(position: ResolvedPosition): string {
             width: 44px;
             height: 44px;
             border-radius: 50%;
-            background: #e5e7eb;
-            color: #6b7280;
+            background: var(--gds-color-bg-elevated);
+            color: var(--gds-color-text-secondary);
             flex-shrink: 0;
             overflow: hidden;
         }
@@ -1096,7 +1096,7 @@ export function getChatStyles(position: ResolvedPosition): string {
         .guiders-chat-list-item-title {
             font-size: 15px;
             font-weight: 500;
-            color: #111827;
+            color: var(--gds-color-text);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -1104,7 +1104,7 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .guiders-chat-list-item-time {
             font-size: 12px;
-            color: #9ca3af;
+            color: var(--gds-color-text-tertiary);
             flex-shrink: 0;
         }
 
@@ -1117,15 +1117,15 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .guiders-chat-list-preview {
             font-size: 13px;
-            color: #6b7280;
+            color: var(--gds-color-text-secondary);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
         .guiders-chat-list-badge {
-            background: #ef4444;
-            color: #fff;
+            background: var(--gds-color-error);
+            color: var(--gds-color-text-on-primary);
             font-size: 11px;
             font-weight: 600;
             padding: 2px 6px;
