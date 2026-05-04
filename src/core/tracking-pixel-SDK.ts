@@ -16,7 +16,7 @@ import { TrackingV2Service } from "../services/tracking-v2-service";
 import { EventThrottler } from "./event-throttler";
 import { EventAggregator } from "./event-aggregator";
 import { ChatUI } from "../presentation/chat";
-import { ChatMessagesUI } from "../presentation/chat-messages-ui";
+// ChatMessagesUI removed — pagination is managed via Preact hooks
 import { VisitorsV2Service } from "../services/visitors-v2-service";
 import { ChatV2Service } from "../services/chat-v2-service";
 import { resolveDefaultEndpoints } from "./endpoint-resolver";
@@ -24,10 +24,9 @@ import { EndpointManager } from "./endpoint-manager";
 
 // Re-export para mantener compatibilidad hacia atrás
 export { EndpointManager } from "./endpoint-manager";
-import { ChatInputUI } from "../presentation/chat-input";
-import { ChatToggleButtonUI } from "../presentation/chat-toggle-button";
+// ChatInputUI removed — onSubmit handled via ChatUIBridge.onSubmit → signal
 import { fetchChatDetail, fetchChatDetailV2, ChatDetail, ChatDetailV2, ChatParticipant } from "../services/chat-detail-service";
-import { VisitorInfoV2, ChatMetadataV2, ChatPositionConfig, MobileDetectionConfig } from "../types";
+import { VisitorInfoV2, ChatMetadataV2, ChatPositionConfig, MobileDetectionConfig, ChatListV2, TrackingEventDto } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { DomTrackingManager, DefaultTrackDataExtractor } from "./dom-tracking-manager";
 import { EnhancedDomTrackingManager } from "./enhanced-dom-tracking-manager";
@@ -38,16 +37,21 @@ import { IdentitySignal } from "./identity-signal";
 import { ActiveHoursValidator } from "./active-hours-validator";
 import { ActiveHoursConfig, AIConfig } from "../types";
 import { WebSocketService } from "../services/websocket-service";
+import { ChatCreatedEvent } from "../types/websocket-types";
+import { SignalState } from "./signal";
+import { IdentityWithChatsData } from "./identity-signal";
 import { RealtimeMessageManager } from "../services/realtime-message-manager";
-import { ConsentManager, ConsentManagerConfig } from "./consent-manager";
+import { ConsentManager, ConsentManagerConfig, ConsentState } from "./consent-manager";
 import { ConsentBackendService } from "../services/consent-backend-service";
-import { ConsentBannerUI, ConsentBannerConfig } from "../presentation/consent-banner-ui";
+import { ConsentBannerConfig } from '../presentation/types/consent-types';
+// ConsentBannerUI removed — banner is mounted via ChatUIBridge.showConsentBanner
 import { QuickActionsConfig } from "../presentation/types/quick-actions-types";
 import { ChatSelectorConfig } from "../presentation/types/chat-selector-types";
 import { debugLog } from "../utils/debug-logger";
 import { CommercialAvailabilityService } from "../services/commercial-availability-service";
 import { CommercialAvailabilityConfig } from "../types";
 import { PresenceService } from "../services/presence-service";
+import { PresenceManager, PresenceChatUILike } from "./presence-manager";
 
 
 interface SDKOptions {
@@ -144,9 +148,8 @@ export class TrackingPixelSDK {
 	private apiKey: string;
 	private fingerprint: string | null = null;
 	private chatUI: ChatUI | null = null;
-	private chatMessagesUI: ChatMessagesUI | null = null;
-	private chatInputUI: ChatInputUI | null = null;
-	private chatToggleButton: ChatToggleButtonUI | null = null;
+	// chatInputUI removed — handled via ChatUIBridge.onSubmit signal
+	// chatToggleButton removed — toggle is managed via ChatUIBridge signals
 
 	private autoFlush = false;
 	private flushInterval = 10000;
@@ -165,10 +168,10 @@ export class TrackingPixelSDK {
 	private identifyExecuted: boolean = false; // Flag para prevenir múltiples llamadas a identify()
 	private wsService: WebSocketService;
 	private realtimeMessageManager: RealtimeMessageManager;
-	private presenceService: PresenceService | null = null;
+	private presenceManager: PresenceManager | null = null;
 	private consentManager: ConsentManager;
 	private consentBackendService: ConsentBackendService;
-	private consentBanner: ConsentBannerUI | null = null;
+	// consentBanner removed — mounted via ChatUIBridge.showConsentBanner
 	private commercialAvailabilityService: CommercialAvailabilityService | null = null;
 	private commercialAvailabilityConfig?: Partial<CommercialAvailabilityConfig>;
 	private presenceConfig: {
@@ -229,7 +232,7 @@ export class TrackingPixelSDK {
 
 		debugLog('[TrackingPixelSDK] 🟢 Configuración de presencia:', this.presenceConfig);
 
-		// Configurar auto-apertura del chat al recibir mensajes
+		// Auto-open chat when new message arrives (default true)
 		this.autoOpenChatOnMessage = options.autoOpenChatOnMessage ?? true;
 		debugLog('[TrackingPixelSDK] 📬 Auto-apertura del chat:', this.autoOpenChatOnMessage ? 'habilitada' : 'deshabilitada');
 
@@ -328,6 +331,7 @@ export class TrackingPixelSDK {
 		// Inicializar servicios de WebSocket y mensajería en tiempo real
 		this.wsService = WebSocketService.getInstance();
 		this.realtimeMessageManager = RealtimeMessageManager.getInstance();
+		this.presenceManager = new PresenceManager(this.wsService, this.presenceConfig);
 
 		// Nota: PresenceService se inicializará después de identify() cuando tengamos visitorId
 		// Ver método `setupPresenceService()` para la inicialización real
@@ -549,10 +553,9 @@ export class TrackingPixelSDK {
 		// Configurar callbacks de Chat Selector
 		this.setupChatSelectorCallbacks();
 		const chat = this.chatUI; // Alias para mantener compatibilidad con el código existente
-		this.chatInputUI = new ChatInputUI(chat);
-		const chatInput = this.chatInputUI; // Alias para compatibilidad con código existente
-		this.chatToggleButton = new ChatToggleButtonUI(chat);
-		const chatToggleButton = this.chatToggleButton; // Alias para compatibilidad con código existente
+		// ChatInputUI removed — onSubmit is handled via ChatUIBridge.onSubmit → signal
+		// Toggle button is now managed by Preact via ChatUIBridge
+		// (the same `chat` instance exposes the toggle API — no separate alias needed)
 
 		const initializeChatComponents = () => {
 			debugLog("Inicializando componentes del chat rápidamente...");
@@ -564,11 +567,11 @@ export class TrackingPixelSDK {
 				// Inicializar componentes pero mantener el chat oculto
 				chat.init();
 				chat.hide();
-				chatInput.init();
+				
 				
 				// No mostrar el botón de chat cuando está fuera de horarios
-				chatToggleButton.init();
-				chatToggleButton.hide();
+				chat.initToggleButton();
+				chat.hideToggleButton();
 				
 				// Mostrar mensaje de horarios si está disponible
 				const fallbackMessage = this.activeHoursValidator.getFallbackMessage();
@@ -590,7 +593,7 @@ export class TrackingPixelSDK {
 				const checkInterval = setInterval(() => {
 					if (this.activeHoursValidator && this.activeHoursValidator.isChatActive()) {
 						debugLog("🕐 ✅ Chat ahora está disponible según horarios");
-						chatToggleButton.show();
+						chat.showToggleButton();
 						clearInterval(checkInterval);
 					}
 				}, 5 * 60 * 1000); // 5 minutos
@@ -605,15 +608,9 @@ export class TrackingPixelSDK {
 			// otro componente para evitar que el chat se muestre y luego se oculte
 			chat.hide();
 			// Inicializar los demás componentes después de ocultar el chat
-			chatInput.init();
-			chatToggleButton.init();
 			
-			// Inicializar ChatMessagesUI para scroll infinito (después de que chat esté inicializado)
-			const messagesContainer = chat.getMessagesContainer();
-			if (messagesContainer) {
-				this.chatMessagesUI = new ChatMessagesUI(messagesContainer);
-			}
-
+			chat.initToggleButton();
+			
 			// Añadir listener para mensajes de sistema
 			const chatEls = document.querySelectorAll('.chat-widget, .chat-widget-fixed');
 			chatEls.forEach(el => {
@@ -628,7 +625,7 @@ export class TrackingPixelSDK {
 			// Inicializar servicio de disponibilidad de comerciales (API v2)
 			// Este servicio hace polling y actualiza la visibilidad del chat automáticamente
 			// IMPORTANTE: Llamar ANTES de mostrar el botón para evitar flash visual
-			this.initializeCommercialAvailability(chat, chatToggleButton);
+			this.initializeCommercialAvailability(chat);
 
 			// Mostrar el botón solo si la verificación de disponibilidad NO está habilitada
 			// Si está habilitada, el servicio se encargará de mostrarlo cuando haya comerciales disponibles
@@ -636,7 +633,7 @@ export class TrackingPixelSDK {
 				// Validar consentimiento antes de mostrar el chat
 				const consentState = this.consentManager.getState();
 				if (consentState.status === 'granted' && consentState.preferences?.functional) {
-					chatToggleButton.show();
+					chat.showToggleButton();
 					debugLog("🔘 Botón de chat mostrado (consentimiento otorgado)");
 				} else {
 					debugLog("🔒 Chat oculto: consentimiento no otorgado o funcional deshabilitado");
@@ -646,7 +643,7 @@ export class TrackingPixelSDK {
 			}
 
 			// Escuchar eventos de cambio de estado online de participantes
-			this.setupParticipantEventsListener(chat, chatToggleButton);
+			this.setupParticipantEventsListener(chat);
 		
 			chat.onOpen(async () => {
 				this.captureEvent("visitor:open-chat", {
@@ -665,11 +662,11 @@ export class TrackingPixelSDK {
 			}
 
 				// 📡 Actualizar estado del toggle button
-				chatToggleButton.updateState(true);
+				chat.updateToggleState(true);
 
 				// 💬 Notificar al servicio de mensajes no leídos que el chat está abierto
 				// Esto pausa las notificaciones de badge mientras el chat está visible
-				chatToggleButton.notifyChatOpenState(true);
+				chat.notifyChatOpenState(true);
 				debugLog('💬 [TrackingPixelSDK] Notificado: chat abierto - badge pausado');
 
 				// 📡 Inicializar WebSocket si no está conectado
@@ -679,9 +676,9 @@ export class TrackingPixelSDK {
 				this.loadChatMessagesOnOpen(chat);
 
 				// 📬 Marcar todos los mensajes como leídos cuando se abre el chat
-				if (this.chatToggleButton) {
+				if (this.chatUI) {
 					setTimeout(async () => {
-						await this.chatToggleButton!.markAllMessagesAsRead();
+						await this.chatUI!.markAllMessagesAsRead();
 						debugLog('📬 [TrackingPixelSDK] Mensajes marcados como leídos al abrir chat');
 					}, 500); // Reducido a 500ms ya que openChat() ya esperó su respuesta
 				}
@@ -703,17 +700,17 @@ export class TrackingPixelSDK {
 			}
 
 				// 📡 Actualizar estado del toggle button
-				chatToggleButton.updateState(false);
+				chat.updateToggleState(false);
 
 				// 💬 Notificar al servicio de mensajes no leídos que el chat está cerrado
 				// Esto reanuda las notificaciones de badge
-				chatToggleButton.notifyChatOpenState(false);
+				chat.notifyChatOpenState(false);
 				debugLog('💬 [TrackingPixelSDK] Notificado: chat cerrado - badge reactivado');
 
 				// 📬 Refrescar estado de mensajes no leídos al cerrar el chat
 				const chatIdForRefresh = chat.getChatId();
 				if (chatIdForRefresh) {
-					chatToggleButton.setActiveChatForUnread(chatIdForRefresh);
+					chat.setActiveChatForUnread(chatIdForRefresh);
 					debugLog('📬 [TrackingPixelSDK] Refrescando mensajes no leídos al cerrar chat');
 				}
 			});
@@ -726,7 +723,7 @@ export class TrackingPixelSDK {
 				});
 			}, 1000 * 10); // 10 segundos de intervalo
 		
-			chatToggleButton.onToggle((visible: boolean) => {
+			chat.onToggle((visible: boolean) => {
 				debugLog(`Toggle event: chat debe estar ${visible ? 'visible' : 'oculto'}`);
 				if (visible) {
 					// Mostrar el chat si debe estar visible
@@ -737,7 +734,7 @@ export class TrackingPixelSDK {
 				}
 			});
 		
-		chatInput.onSubmit(async (message: string) => {
+		chat.onSubmit(async (message: string) => {
 			if (!message) return;
 			
 			debugLog('💬 [TrackingPixelSDK] 📝 Mensaje enviado desde UI:', message);
@@ -1331,12 +1328,12 @@ export class TrackingPixelSDK {
 
 				// 📬 Inicializar servicio de mensajes no leídos con badge tempranamente
 				// Esto asegura que el badge se actualice correctamente al refrescar la página
-				if (this.chatToggleButton && this.chatUI) {
+				if (this.chatUI) {
 					// Establecer el visitorId en ChatUI para usar en refreshChatDetailsFromVisitorList
 					this.chatUI.setVisitorId(result.identity.visitorId);
 					debugLog('📬 [TrackingPixelSDK] VisitorId establecido en ChatUI:', result.identity.visitorId);
 
-					this.chatToggleButton.connectUnreadService(
+					this.chatUI.connectUnreadService(
 						result.identity.visitorId,
 						(chatId: string) => {
 							// Callback para abrir el chat automáticamente al recibir un mensaje
@@ -1430,8 +1427,8 @@ export class TrackingPixelSDK {
 					// this.loadInitialMessagesFromFirstChat(result.chats.chats[0]);
 
 					// 📬 Cargar mensajes no leídos para mostrar badge al refrescar la página
-					if (this.chatToggleButton && result.chats.chats![0].id) {
-						this.chatToggleButton.setActiveChatForUnread(result.chats.chats![0].id);
+					if (this.chatUI && result.chats.chats![0].id) {
+						this.chatUI.setActiveChatForUnread(result.chats.chats![0].id);
 						debugLog('📬 [TrackingPixelSDK] Cargando mensajes no leídos al inicializar con chat existente');
 					}
 				} else {
@@ -1548,7 +1545,8 @@ export class TrackingPixelSDK {
 							const apiRoot = endpoint.endsWith('/api') ? endpoint : `${endpoint}/api`;
 							const url = `${apiRoot}/tracking/events/batch`;
 							const blob = new Blob([JSON.stringify(eventsToSend)], { type: 'application/json' });
-							(navigator as any).sendBeacon(url, blob);
+							// navigator.sendBeacon is not typed in strict TS lib — cast is intentional
+							(navigator as unknown as { sendBeacon(url: string, data: Blob): boolean }).sendBeacon(url, blob);
 							debugLog(`[TrackingPixelSDK] 📤 ${eventsToSend.length} eventos enviados via beacon`);
 						} catch (e) {
 						}
@@ -1864,7 +1862,7 @@ export class TrackingPixelSDK {
 		// Usar EventQueueManager si Tracking V2 está habilitado
 		if (this.trackingV2Enabled && this.eventQueueManager) {
 			// El evento ya fue transformado a TrackingEventDto por el pipeline
-			const trackingEvent = processedEvent.data as any;
+			const trackingEvent = processedEvent.data as unknown as TrackingEventDto;
 
 			// NUEVO: Aplicar throttling
 			if (this.eventThrottler && !this.eventThrottler.shouldAllow(trackingEvent.eventType)) {
@@ -1973,32 +1971,26 @@ export class TrackingPixelSDK {
 			debugLog('[TrackingPixelSDK] 📡 CommercialAvailabilityService limpiado');
 		}
 
-		// Cleanup presence service (incluye detener heartbeat)
-		if (this.presenceService) {
-			this.presenceService.cleanup();
-			this.presenceService = null;
-			debugLog('[TrackingPixelSDK] 💓 PresenceService limpiado (heartbeat detenido)');
-		}
+		// Cleanup presence service (includes stopping heartbeat)
+		this.presenceManager?.cleanup();
 
 		debugLog('[TrackingPixelSDK] Cleanup completed');
 	}
 
 	/**
 	 * Configura los listeners para eventos de participantes (estado online y nuevos participantes)
-	 * @param chat Instancia del ChatUI
-	 * @param chatToggleButton Instancia del ChatToggleButtonUI
+	 * @param chat Instancia del ChatUI (también expone la API de toggle)
 	 */
-	private setupParticipantEventsListener(chat: ChatUI, chatToggleButton: ChatToggleButtonUI): void {
+	private setupParticipantEventsListener(chat: ChatUI): void {
 		debugLog("💬 Eventos de participantes desactivados (sin WebSocket)");
 	}
 
 	/**
 	 * Verifica el estado de los comerciales y actualiza la visibilidad del chat
 	 * @param chatId ID del chat
-	 * @param chat Instancia del ChatUI
-	 * @param chatToggleButton Instancia del ChatToggleButtonUI
+	 * @param chat Instancia del ChatUI (también expone la API de toggle)
 	 */
-	private async checkAndUpdateChatVisibility(chatId: string, chat: ChatUI, chatToggleButton: ChatToggleButtonUI): Promise<void> {
+	private async checkAndUpdateChatVisibility(chatId: string, chat: ChatUI): Promise<void> {
 		try {
 			debugLog(`🔍 checkAndUpdateChatVisibility - Verificando chat ${chatId}`);
 			
@@ -2034,10 +2026,10 @@ export class TrackingPixelSDK {
 			debugLog(`  - Total comerciales: ${commercials.length}`);
 			debugLog(`  - Comerciales online: ${onlineCommercials.length}`);
 			debugLog(`  - ¿Hay al menos un comercial online? ${hasOnlineCommercial}`);
-			debugLog(`  - Estado actual del botón: ${chatToggleButton.isButtonVisible()}`);
+			debugLog(`  - Estado actual del botón: ${chat.isButtonVisible()}`);
 
 			// Mostrar siempre el botón del chat, sin importar la disponibilidad de comerciales
-			chatToggleButton.show();
+			chat.showToggleButton();
 
 		} catch (error) {
 			if (error instanceof Error) {
@@ -2047,10 +2039,9 @@ export class TrackingPixelSDK {
 
 	/**
 	 * Inicializa el servicio de disponibilidad de comerciales (endpoint API v2)
-	 * @param chat Instancia del ChatUI
-	 * @param chatToggleButton Instancia del ChatToggleButtonUI
+	 * @param chat Instancia del ChatUI (también expone la API de toggle)
 	 */
-	private initializeCommercialAvailability(chat: ChatUI, chatToggleButton: ChatToggleButtonUI): void {
+	private initializeCommercialAvailability(chat: ChatUI): void {
 		// Solo inicializar si la configuración está habilitada
 		if (!this.commercialAvailabilityConfig?.enabled) {
 			// El código llamador se encargará de mostrar el botón si es necesario
@@ -2074,13 +2065,13 @@ export class TrackingPixelSDK {
 
 			if (available) {
 				// Hay comerciales disponibles - mostrar chat y botón
-				chatToggleButton.show();
+				chat.showToggleButton();
 
 				// Actualizar badge si está habilitado
 				if (this.commercialAvailabilityConfig?.showBadge && count > 0) {
-					chatToggleButton.updateUnreadCount(count);
+					chat.updateUnreadCount(count);
 				} else {
-					chatToggleButton.hideUnreadBadge();
+					chat.hideUnreadBadge();
 				}
 			} else {
 				// No hay comerciales disponibles - ocultar chat y botón
@@ -2092,7 +2083,7 @@ export class TrackingPixelSDK {
 				}
 
 				// Ocultar el botón de toggle
-				chatToggleButton.hide();
+				chat.hideToggleButton();
 			}
 		});
 
@@ -2103,11 +2094,10 @@ export class TrackingPixelSDK {
 
 	/**
 	 * Verifica la disponibilidad de comerciales y muestra/oculta el botón del chat según corresponda
-	 * @param chat Instancia del ChatUI
-	 * @param chatToggleButton Instancia del ChatToggleButtonUI
+	 * @param chat Instancia del ChatUI (también expone la API de toggle)
 	 * @deprecated Usar initializeCommercialAvailability() que utiliza el endpoint /v2/commercials/availability
 	 */
-	private async checkCommercialAvailability(chat: ChatUI, chatToggleButton: ChatToggleButtonUI): Promise<void> {
+	private async checkCommercialAvailability(chat: ChatUI): Promise<void> {
 		try {
 			// Esperar a que el chat tenga un ID asignado
 			let chatId = chat.getChatId();
@@ -2125,7 +2115,7 @@ export class TrackingPixelSDK {
 		if (!chatId) {
 			// Mostrar el botón de todas formas para permitir al usuario intentar abrir el chat
 			debugLog("🔘 Mostrando botón de chat sin verificación de comerciales");
-			chatToggleButton.show();
+			chat.showToggleButton();
 			return;
 		}			debugLog(`Verificando disponibilidad de comerciales para el chat ${chatId}...`);
 			
@@ -2144,11 +2134,11 @@ export class TrackingPixelSDK {
 			debugLog("¿Hay comerciales online?", hasOnlineCommercial);
 			
 			// Mostrar siempre el botón del chat, sin importar la disponibilidad de comerciales
-			chatToggleButton.show();
+			chat.showToggleButton();
 		} catch (error) {
 			// Mostrar el botón de todas formas para permitir al usuario acceder al chat
 			debugLog("🔘 Mostrando botón de chat a pesar del error en verificación");
-			chatToggleButton.show();
+			chat.showToggleButton();
 		}
 	}
 
@@ -2359,7 +2349,7 @@ export class TrackingPixelSDK {
 	 * @param callback Función que se ejecuta cuando cambia el estado
 	 * @returns Función para cancelar la suscripción
 	 */
-	public subscribeToIdentityChanges(callback: (state: any) => void) {
+	public subscribeToIdentityChanges(callback: (state: SignalState<IdentityWithChatsData>) => void) {
 		return this.identitySignal.subscribe(callback);
 	}
 
@@ -2368,7 +2358,7 @@ export class TrackingPixelSDK {
 	 * @param callback Función que se ejecuta cuando cambian los chats
 	 * @returns Función para cancelar la suscripción
 	 */
-	public subscribeToChatChanges(callback: (state: any) => void) {
+	public subscribeToChatChanges(callback: (state: SignalState<ChatListV2>) => void) {
 		return this.identitySignal.getChatsSignal().subscribe(callback);
 	}
 
@@ -2421,134 +2411,39 @@ export class TrackingPixelSDK {
 	 * @param chat Instancia del ChatUI
 	 * @param force Forzar recarga aunque sea el mismo chat
 	 */
-	private async loadChatMessagesOnOpen(chat: any, force: boolean = false): Promise<void> {
-		// 🔒 PROTECCIÓN CONTRA RACE CONDITION: Establecer bandera de carga
+	private async loadChatMessagesOnOpen(chat: ChatUI, force: boolean = false): Promise<void> {
 		chat.setLoadingInitialMessages(true);
 
 		try {
 			const chatId = chat.getChatId();
 			if (!chatId) {
 				debugLog('[TrackingPixelSDK] 💬 No hay chatId, omitiendo carga de mensajes');
-				// Verificar si mostrar mensaje de bienvenida al no haber chat
 				chat.checkAndAddInitialMessages?.();
 				return;
 			}
 
-			debugLog('[TrackingPixelSDK] 💬 🔒 Iniciando carga de mensajes con protección de race condition para chat:', chatId);
+			debugLog('[TrackingPixelSDK] 💬 Cargando mensajes para chat:', chatId, 'force:', force);
+			await chat.initializeChat(chatId, force);
 
-			// 🔧 UNIFICACIÓN: Delegar completamente a ChatMessagesUI si está disponible
-			if (this.chatMessagesUI) {
-				debugLog('[TrackingPixelSDK] ✅ Usando ChatMessagesUI para carga unificada, force:', force);
-				await this.chatMessagesUI.initializeChat(chatId, force);
-
-				// 📡 CRÍTICO: Unirse a la sala del chat para recibir mensajes en tiempo real
-				// Esto debe hacerse DESPUÉS de que la conexión WebSocket esté lista
-				if (this.wsService.isConnected()) {
-					debugLog('[TrackingPixelSDK] 📡 Uniéndose a sala de chat después de cargar mensajes:', chatId);
-					this.realtimeMessageManager.setCurrentChat(chatId);
-
-					// También actualizar el servicio de mensajes no leídos
-					if (this.chatToggleButton) {
-						this.chatToggleButton.setActiveChatForUnread(chatId);
-					}
-				} else {
-					debugLog('[TrackingPixelSDK] ⚠️ WebSocket no conectado aún, setCurrentChat se llamará en onConnect');
-				}
-
-				// ✅ Después de cargar exitosamente, verificar si mostrar mensaje de bienvenida
-				debugLog('[TrackingPixelSDK] 💬 Carga completa, verificando necesidad de mensaje de bienvenida');
-				if (chat.checkAndAddInitialMessages) {
-					chat.checkAndAddInitialMessages();
-				}
-				return;
-			}
-
-			// 🔧 FALLBACK: Sistema legacy solo si ChatMessagesUI no está disponible
-			debugLog('[TrackingPixelSDK] ⚠️ ChatMessagesUI no disponible, usando sistema legacy');
-
-			// Mostrar indicador de carga
-			chat.showLoadingMessages();
-
-			// Obtener mensajes del chat usando la API V2
-			const messageList = await ChatV2Service.getInstance().getChatMessages(
-				chatId,
-				50, // limit inicial
-				undefined // no cursor (mensajes más recientes)
-			);
-
-			// Limpiar mensajes existentes y cargar los nuevos
-			chat.clearMessages();
-
-			if (messageList.messages && messageList.messages.length > 0) {
-				// Agregar mensajes en orden cronológico (invertir el array ya que vienen DESC)
-				const messagesInOrder = messageList.messages.reverse();
-
-				for (const message of messagesInOrder) {
-					// Extraer el texto del contenido (puede ser string u objeto)
-					let messageText = '';
-					if (typeof message.content === 'string') {
-						messageText = message.content;
-					} else if (message.content && typeof message.content === 'object') {
-						// Si es un objeto, buscar propiedades comunes
-						messageText = message.content.text || message.content.message || message.content.body || JSON.stringify(message.content);
-					} else {
-						messageText = String(message.content || '');
-					}
-
-					chat.renderChatMessage({
-						text: messageText,
-						sender: message.senderId === this.getVisitorId() ? 'user' : 'other',
-						timestamp: new Date(message.createdAt).getTime(),
-						senderId: message.senderId
-					});
-				}
-
-				debugLog(`[TrackingPixelSDK] ✅ Cargados ${messagesInOrder.length} mensajes del chat (sistema legacy)`);
-			} else {
-				debugLog('[TrackingPixelSDK] 📭 No hay mensajes en el chat (sistema legacy)');
-			}
-
-			// Ocultar indicador de carga
-			chat.hideLoadingMessages();
-
-			// 📡 CRÍTICO: Unirse a la sala del chat para recibir mensajes en tiempo real (sistema legacy)
+			// 📡 Unirse a la sala del chat para recibir mensajes en tiempo real
 			if (this.wsService.isConnected()) {
-				debugLog('[TrackingPixelSDK] 📡 Uniéndose a sala de chat después de cargar mensajes (legacy):', chatId);
+				debugLog('[TrackingPixelSDK] 📡 Uniéndose a sala de chat:', chatId);
 				this.realtimeMessageManager.setCurrentChat(chatId);
-
-				if (this.chatToggleButton) {
-					this.chatToggleButton.setActiveChatForUnread(chatId);
+				if (this.chatUI) {
+					this.chatUI.setActiveChatForUnread(chatId);
 				}
+			} else {
+				debugLog('[TrackingPixelSDK] ⚠️ WebSocket no conectado aún, setCurrentChat se llamará en onConnect');
 			}
 
-			// Hacer scroll al final para mostrar los mensajes más recientes
-			setTimeout(() => {
-				if (chat.scrollToBottomV2) {
-					chat.scrollToBottomV2();
-				} else {
-					chat.scrollToBottom(true);
-				}
-			}, 100);
-
-			// ✅ CONSOLIDACIÓN: Después de cargar, verificar si mostrar mensaje de bienvenida
-			// Esto reemplaza la lógica duplicada anterior
-			debugLog('[TrackingPixelSDK] 💬 Carga legacy completa, verificando necesidad de mensaje de bienvenida');
-			if (chat.checkAndAddInitialMessages) {
-				chat.checkAndAddInitialMessages();
-			}
+			// Verificar si mostrar mensaje de bienvenida
+			chat.checkAndAddInitialMessages?.();
 
 		} catch (error) {
-			chat.hideLoadingMessages();
-
-			// En caso de error, también verificar si mostrar mensaje de bienvenida
-			debugLog('[TrackingPixelSDK] ⚠️ Error en carga, verificando mensaje de bienvenida como fallback');
-			if (chat.checkAndAddInitialMessages) {
-				chat.checkAndAddInitialMessages();
-			}
+			debugLog('[TrackingPixelSDK] ⚠️ Error cargando mensajes:', error);
+			chat.checkAndAddInitialMessages?.();
 		} finally {
-			// 🔒 PROTECCIÓN CONTRA RACE CONDITION: Limpiar bandera de carga
 			chat.setLoadingInitialMessages(false);
-			debugLog('[TrackingPixelSDK] 💬 🔒 Bandera de carga limpiada, race condition protection finalizada');
 		}
 	}
 
@@ -2557,7 +2452,7 @@ export class TrackingPixelSDK {
 	 * Se utiliza cuando se identifica al visitante para preparar el historial.
 	 * @param firstChat El primer chat del array de chats
 	 */
-	private async loadInitialMessagesFromFirstChat(firstChat: any): Promise<void> {
+	private async loadInitialMessagesFromFirstChat(firstChat: { id: string }): Promise<void> {
 		try {
 			if (!firstChat?.id) {
 				debugLog('[TrackingPixelSDK] 📭 No hay ID en el primer chat, omitiendo carga inicial');
@@ -2566,46 +2461,20 @@ export class TrackingPixelSDK {
 
 			debugLog('[TrackingPixelSDK] 🔄 Cargando mensajes iniciales del chat:', firstChat.id);
 
-			// Si existe una instancia de ChatMessagesUI, verificar si ya está inicializado
-			if (this.chatMessagesUI) {
-				// Verificar si el chat ya está inicializado o si se está cargando
-				if (this.chatMessagesUI.isChatInitialized(firstChat.id)) {
-					debugLog('[TrackingPixelSDK] ✅ Chat ya inicializado con ChatMessagesUI, omitiendo carga duplicada');
-					return;
-				}
-				
-				if (this.chatMessagesUI.isLoadingMessages()) {
-					debugLog('[TrackingPixelSDK] ⏳ ChatMessagesUI ya está cargando mensajes, omitiendo carga duplicada');
-					return;
-				}
+			if (!this.chatUI) return;
 
-				await this.chatMessagesUI.initializeChat(firstChat.id);
-				debugLog('[TrackingPixelSDK] ✅ Mensajes iniciales cargados con ChatMessagesUI');
+			// Avoid duplicate loads
+			if (this.chatUI.isChatInitialized(firstChat.id)) {
+				debugLog('[TrackingPixelSDK] ✅ Chat ya inicializado, omitiendo carga duplicada');
+				return;
+			}
+			if (this.chatUI.isLoadingMessages()) {
+				debugLog('[TrackingPixelSDK] ⏳ Ya cargando mensajes, omitiendo carga duplicada');
 				return;
 			}
 
-			// Fallback: usar el método tradicional si no hay ChatMessagesUI
-			const messageList = await ChatV2Service.getInstance().getChatMessages(
-				firstChat.id,
-				50, // limit inicial
-				undefined // no cursor (mensajes más recientes)
-			);
-
-			if (messageList.messages && messageList.messages.length > 0) {
-				// Almacenar los mensajes en memoria para cuando se abra el chat
-				const messagesInOrder = messageList.messages.reverse();
-				
-				// Guardar en localStorage temporal para acceso rápido
-				localStorage.setItem('guiders_initial_messages', JSON.stringify({
-					chatId: firstChat.id,
-					messages: messagesInOrder,
-					loadedAt: Date.now()
-				}));
-
-				debugLog(`[TrackingPixelSDK] 💾 ${messagesInOrder.length} mensajes iniciales almacenados en memoria`);
-			} else {
-				debugLog('[TrackingPixelSDK] 📭 No hay mensajes iniciales para cargar');
-			}
+			await this.chatUI.initializeChat(firstChat.id);
+			debugLog('[TrackingPixelSDK] ✅ Mensajes iniciales cargados');
 
 		} catch (error) {
 		}
@@ -2692,18 +2561,18 @@ export class TrackingPixelSDK {
 		}
 
 		const isActive = this.isChatActive();
-		const chatToggleButton = document.querySelector('.chat-toggle-button') as HTMLElement;
+		const toggleButtonEl = document.querySelector('.chat-toggle-button') as HTMLElement;
 
 		if (isActive) {
 			// Chat debe estar disponible
-			if (chatToggleButton) {
-				chatToggleButton.style.display = 'block';
+			if (toggleButtonEl) {
+				toggleButtonEl.style.display = 'block';
 			}
 			debugLog('[TrackingPixelSDK] 🕐 ✅ Chat ahora disponible según horarios');
 		} else {
 			// Chat debe estar oculto
-			if (chatToggleButton) {
-				chatToggleButton.style.display = 'none';
+			if (toggleButtonEl) {
+				toggleButtonEl.style.display = 'none';
 			}
 			
 			// Cerrar chat si está abierto
@@ -2768,8 +2637,8 @@ export class TrackingPixelSDK {
 			}
 
 			// 📬 Actualizar UnreadMessagesService con el chat actual
-			if (this.chatToggleButton && currentChatId) {
-				this.chatToggleButton.setActiveChatForUnread(currentChatId);
+			if (this.chatUI && currentChatId) {
+				this.chatUI.setActiveChatForUnread(currentChatId);
 				debugLog('📬 [TrackingPixelSDK] ✅ UnreadMessagesService actualizado con chat:', currentChatId);
 			}
 
@@ -2823,8 +2692,8 @@ export class TrackingPixelSDK {
 						ChatSessionStore.getInstance().setCurrent(event.chatId);
 
 						// Actualizar servicio de mensajes no leídos
-						if (this.chatToggleButton) {
-							this.chatToggleButton.setActiveChatForUnread(event.chatId);
+						if (this.chatUI) {
+							this.chatUI.setActiveChatForUnread(event.chatId);
 						}
 
 						// Mostrar notificación al usuario
@@ -2848,8 +2717,8 @@ export class TrackingPixelSDK {
 			// para asegurar que el WebSocket esté conectado antes de unirse a la sala
 
 			// Inicializar servicio de mensajes no leídos con badge
-			if (this.chatToggleButton) {
-				this.chatToggleButton.connectUnreadService(
+			if (this.chatUI) {
+				this.chatUI.connectUnreadService(
 					visitorId,
 					() => {
 						// Callback para abrir el chat automáticamente al recibir un mensaje
@@ -2869,7 +2738,7 @@ export class TrackingPixelSDK {
 				// Establecer chat activo si existe
 				const chatId = chat.getChatId();
 				if (chatId) {
-					this.chatToggleButton.setActiveChatForUnread(chatId);
+					this.chatUI.setActiveChatForUnread(chatId);
 				}
 
 				debugLog('📬 [TrackingPixelSDK] ✅ Servicio de mensajes no leídos inicializado');
@@ -2888,93 +2757,22 @@ export class TrackingPixelSDK {
 		debugLog('🟢 [TrackingPixelSDK] setupPresenceService() LLAMADO');
 
 		const visitorId = this.getVisitorId();
+		if (!visitorId) return;
 
-		if (!visitorId) {
+		if (!this.presenceManager) {
+			debugLog('🟢 [TrackingPixelSDK] ⚠️ PresenceManager not initialised yet — skipping');
 			return;
 		}
 
-		// Verificar si el sistema de presencia está habilitado
-		if (!this.presenceConfig.enabled) {
-			debugLog('🟢 [TrackingPixelSDK] ⚠️ Sistema de presencia deshabilitado en configuración');
-			return;
-		}
+		this.presenceManager.setup(
+			visitorId,
+			this.chatUI ? (this.chatUI as unknown as PresenceChatUILike) : undefined
+		);
 
-		if (this.presenceService) {
-			debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService ya configurado');
-			return;
-		}
-
-		debugLog('🟢 [TrackingPixelSDK] 🚀 Configurando PresenceService...', this.presenceConfig);
-
-		try {
-			// Inicializar PresenceService con configuración personalizada
-			this.presenceService = new PresenceService(
-				this.wsService,
-				visitorId,
-				{
-					enabled: this.presenceConfig.enabled,
-					pollingInterval: this.presenceConfig.pollingInterval,
-					showTypingIndicator: this.presenceConfig.showTypingIndicator,
-					typingTimeout: this.presenceConfig.typingTimeout,
-					typingDebounce: this.presenceConfig.typingDebounce,
-					heartbeatInterval: this.presenceConfig.heartbeatInterval
-				}
-			);
-
-			debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService inicializado');
-
-			// Configurar PresenceService en ChatUI si existe
-			if (this.chatUI) {
-				this.chatUI.setPresenceService(this.presenceService);
-				// Configurar si se debe mostrar el banner offline
-				(this.chatUI as any).setShowOfflineBanner?.(this.presenceConfig.showOfflineBanner);
-				debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService configurado en ChatUI');
-			}
-
-			// Configurar PresenceService en ChatInputUI si existe
-			if (this.chatInputUI) {
-				const currentChatId = this.chatUI?.getChatId();
-				if (currentChatId) {
-					this.chatInputUI.setPresenceService(this.presenceService, currentChatId);
-					debugLog('🟢 [TrackingPixelSDK] ✅ PresenceService configurado en ChatInputUI');
-				} else {
-					debugLog('🟢 [TrackingPixelSDK] ⚠️ No hay chatId disponible aún para ChatInputUI');
-				}
-			}
-
-			// Configurar PresenceService en ChatMessagesUI si existe
-			if (this.chatMessagesUI) {
-				// ChatMessagesUI ya maneja typing indicators via callbacks del PresenceService
-				// configurados en ChatUI, no necesita configuración adicional
-				debugLog('🟢 [TrackingPixelSDK] ✅ ChatMessagesUI usa typing indicators via ChatUI');
-			}
-
-			// 📡 Conectar WebSocket automáticamente para habilitar user:activity
-			// Esto permite que el sistema de presencia funcione (AWAY → ONLINE) sin necesidad de abrir el chat
-			if (!this.wsService.isConnected()) {
-				debugLog('📡 [TrackingPixelSDK] 🚀 Conectando WebSocket automáticamente para presencia...');
-				const sessionId = sessionStorage.getItem('guiders_backend_session_id');
-				this.wsService.connect(
-					{
-						sessionId: sessionId || undefined,
-					},
-					{
-						onConnect: () => {
-							debugLog('📡 [TrackingPixelSDK] ✅ WebSocket conectado automáticamente (presencia)');
-							// Unirse a sala de visitante para notificaciones
-							this.wsService.joinVisitorRoom(visitorId);
-						},
-						onDisconnect: (reason) => {
-							debugLog('📡 [TrackingPixelSDK] ⚠️ WebSocket desconectado (presencia):', reason);
-						},
-						onError: (error) => {
-						}
-					}
-				);
-			}
-
-			debugLog('🟢 [TrackingPixelSDK] ✅ Sistema de presencia configurado exitosamente');
-		} catch (error) {
+		// Expose PresenceService instance to ChatUI bridge for usePresence hook
+		const svc = this.presenceManager.getService();
+		if (svc && this.chatUI) {
+			this.chatUI.setPresenceService(svc);
 		}
 	}
 
@@ -2995,7 +2793,7 @@ export class TrackingPixelSDK {
 	 * Muestra una notificación cuando un comercial crea un chat proactivamente
 	 * @param event Evento de chat creado
 	 */
-	private showChatCreatedNotification(event: any): void {
+	private showChatCreatedNotification(event: ChatCreatedEvent): void {
 		try {
 			// Solicitar permiso para notificaciones si es necesario
 			if ('Notification' in window && Notification.permission === 'default') {
@@ -3009,8 +2807,8 @@ export class TrackingPixelSDK {
 			}
 
 			// Animar el botón del chat para llamar la atención
-			if (this.chatToggleButton) {
-				const buttonElement = this.chatToggleButton.getButtonElement();
+			if (this.chatUI) {
+				const buttonElement = this.chatUI.getButtonElement();
 				if (buttonElement) {
 					buttonElement.classList.add('pulse-animation');
 					setTimeout(() => {
@@ -3028,7 +2826,7 @@ export class TrackingPixelSDK {
 	 * Muestra la notificación del navegador
 	 * @param event Evento de chat creado
 	 */
-	private displayChatNotification(event: any): void {
+	private displayChatNotification(event: ChatCreatedEvent): void {
 		try {
 			const notification = new Notification('¡Un comercial ha iniciado un chat!', {
 				body: event.message || 'Tienes un nuevo mensaje esperándote',
@@ -3105,18 +2903,16 @@ export class TrackingPixelSDK {
 			}
 
 			const chat = this.chatUI;
-			this.chatInputUI = new ChatInputUI(chat);
-			const chatInput = this.chatInputUI; // Alias para compatibilidad
-			this.chatToggleButton = new ChatToggleButtonUI(chat);
-			const chatToggleButton = this.chatToggleButton; // Alias para compatibilidad
+			// ChatInputUI removed — onSubmit handled via bridge signal
+			// Toggle button managed by Preact bridge (same ChatUI instance exposes toggle API)
 
 			chat.init();
 			chat.hide();
-			chatInput.init();
-			chatToggleButton.init();
+			
+			chat.initToggleButton();
 
 			// Inicializar servicio de disponibilidad de comerciales (API v2)
-			this.initializeCommercialAvailability(chat, chatToggleButton);
+			this.initializeCommercialAvailability(chat);
 
 			debugLog('[TrackingPixelSDK] ✅ Chat UI inicializado (sin tracking)');
 
@@ -3129,7 +2925,7 @@ export class TrackingPixelSDK {
 				debugLog('[TrackingPixelSDK] 💬 Chat cerrado (sin tracking de eventos)');
 			});
 
-			chatToggleButton.onToggle((visible: boolean) => {
+			chat.onToggle((visible: boolean) => {
 				if (visible) {
 					chat.show();
 				} else {
@@ -3138,7 +2934,7 @@ export class TrackingPixelSDK {
 			});
 
 			// El envío de mensajes requiere consentimiento funcional al menos
-			chatInput.onSubmit(async (message: string) => {
+			chat.onSubmit(async (message: string) => {
 				if (!message) return;
 
 				// Verificar si hay consentimiento funcional
@@ -3209,34 +3005,24 @@ export class TrackingPixelSDK {
 	private initConsentBanner(config: ConsentBannerConfig): void {
 		debugLog('[TrackingPixelSDK] 🎨 Inicializando banner de consentimiento...');
 
-		this.consentBanner = new ConsentBannerUI(config);
+		const cleanup = this.chatUI?.showConsentBanner(config, {
+			onAccept: () => {
+				debugLog('[TrackingPixelSDK] ✅ Usuario aceptó desde banner');
+				this.grantConsent();
+				cleanup?.();
+			},
+			onDeny: () => {
+				debugLog('[TrackingPixelSDK] ❌ Usuario rechazó desde banner');
+				this.denyConsent();
+				cleanup?.();
+			},
+			onPreferences: () => {
+				debugLog('[TrackingPixelSDK] ⚙️ Usuario abrió preferencias desde banner');
+				alert('Modal de preferencias: Próximamente.\n\nPor ahora, puedes:\n- Aceptar Todo = Otorgar consentimiento completo\n- Rechazar = Solo cookies esenciales');
+			},
+		});
 
-		// Conectar callbacks con el ConsentManager
-		this.consentBanner.onAccept = () => {
-			debugLog('[TrackingPixelSDK] ✅ Usuario aceptó desde banner');
-			this.grantConsent();
-			this.consentBanner?.hide();
-		};
-
-		this.consentBanner.onDeny = () => {
-			debugLog('[TrackingPixelSDK] ❌ Usuario rechazó desde banner');
-			this.denyConsent();
-			this.consentBanner?.hide();
-		};
-
-		this.consentBanner.onPreferences = () => {
-			debugLog('[TrackingPixelSDK] ⚙️ Usuario abrió preferencias desde banner');
-			// TODO: Implementar modal de preferencias en el futuro
-			// Por ahora, mostrar alerta informativa
-			alert('Modal de preferencias: Próximamente.\n\nPor ahora, puedes:\n- Aceptar Todo = Otorgar consentimiento completo\n- Rechazar = Solo cookies esenciales');
-		};
-
-		// Renderizar el banner
-		this.consentBanner.render();
-
-		// Si autoShow está habilitado y el consentimiento está pending, mostrar
 		if (config.autoShow && this.consentManager.isPending()) {
-			this.consentBanner.show();
 			debugLog('[TrackingPixelSDK] 👁️ Banner mostrado automáticamente (consent pending)');
 		}
 	}
@@ -3366,7 +3152,7 @@ export class TrackingPixelSDK {
 	/**
 	 * Suscribe un callback para cambios en el consentimiento
 	 */
-	public subscribeToConsentChanges(callback: (state: any) => void) {
+	public subscribeToConsentChanges(callback: (state: ConsentState) => void) {
 		return this.consentManager.subscribe(callback);
 	}
 
@@ -3453,7 +3239,7 @@ export class TrackingPixelSDK {
 
 		const visitorId = this.getVisitorId();
 
-		const data: any = {
+		const data: Record<string, unknown> = {
 			visitorId: visitorId,
 			fingerprint: this.fingerprint,
 			sessionId: this.identitySignal.getSessionId(),

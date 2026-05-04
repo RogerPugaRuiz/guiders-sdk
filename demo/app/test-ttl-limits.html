@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test TTL & Payload Limits - Guiders SDK</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #45a049;
+        }
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #0b7dda;
+        }
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+        .btn-warning:hover {
+            background: #e68900;
+        }
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #da190b;
+        }
+        .stats {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            border-left: 4px solid #4CAF50;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border: 1px solid #ddd;
+        }
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #2196F3;
+        }
+        .warning {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #ff9800;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 120px;
+        }
+        label {
+            font-weight: 600;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test TTL & Payload Limits - Guiders SDK</h1>
+
+    <div class="section">
+        <h2>📊 Estadísticas de Cola</h2>
+        <div id="stats" class="stats">Cargando SDK...</div>
+        <div class="button-group">
+            <button class="btn-secondary" onclick="updateStats()">🔄 Actualizar Estadísticas</button>
+            <button class="btn-secondary" onclick="clearLogs()">🧹 Limpiar Logs</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🎯 Test 1: Generación de Eventos</h2>
+        <div class="info">
+            <strong>Objetivo:</strong> Generar múltiples eventos para llenar la cola y probar límites.
+        </div>
+        <div class="button-group">
+            <button class="btn-primary" onclick="generateEvents(10)">➕ Generar 10 Eventos</button>
+            <button class="btn-primary" onclick="generateEvents(50)">➕ Generar 50 Eventos</button>
+            <button class="btn-primary" onclick="generateEvents(100)">➕ Generar 100 Eventos</button>
+            <button class="btn-warning" onclick="generateEvents(500)">⚠️ Generar 500 Eventos</button>
+            <button class="btn-danger" onclick="generateEvents(1000)">🚨 Generar 1000 Eventos (Test de Límite)</button>
+        </div>
+        <div>
+            <label>Cantidad personalizada:</label>
+            <input type="number" id="customCount" value="25" min="1" max="5000">
+            <button class="btn-primary" onclick="generateEvents(parseInt(document.getElementById('customCount').value))">
+                ➕ Generar
+            </button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>⏰ Test 2: TTL (Time To Live)</h2>
+        <div class="info">
+            <strong>Objetivo:</strong> Simular eventos antiguos modificando el timestamp manualmente.
+        </div>
+        <div class="warning">
+            <strong>⚠️ Nota:</strong> Los eventos con timestamp > 24h serán descartados automáticamente al hacer flush.
+        </div>
+        <div class="button-group">
+            <button class="btn-secondary" onclick="generateOldEvents(10, 1)">⏰ 10 eventos de hace 1 hora</button>
+            <button class="btn-secondary" onclick="generateOldEvents(10, 12)">⏰ 10 eventos de hace 12 horas</button>
+            <button class="btn-warning" onclick="generateOldEvents(10, 23)">⚠️ 10 eventos de hace 23 horas</button>
+            <button class="btn-danger" onclick="generateOldEvents(50, 25)">🚨 50 eventos de hace 25 horas (EXPIRADOS)</button>
+            <button class="btn-danger" onclick="generateOldEvents(100, 48)">🚨 100 eventos de hace 48 horas (EXPIRADOS)</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📦 Test 3: Payload Size Limits</h2>
+        <div class="info">
+            <strong>Objetivo:</strong> Generar eventos con mucho contenido para exceder el límite de 1MB.
+        </div>
+        <div class="warning">
+            <strong>⚠️ Nota:</strong> El SDK automáticamente dividirá payloads grandes en múltiples requests.
+        </div>
+        <div class="button-group">
+            <button class="btn-primary" onclick="generateLargeEvents(10)">📦 10 eventos grandes (~50KB cada uno)</button>
+            <button class="btn-warning" onclick="generateLargeEvents(20)">⚠️ 20 eventos grandes (~1MB total)</button>
+            <button class="btn-danger" onclick="generateLargeEvents(50)">🚨 50 eventos grandes (~2.5MB total)</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🚀 Test 4: Flush & Envío</h2>
+        <div class="info">
+            <strong>Objetivo:</strong> Enviar eventos al backend y observar comportamiento de TTL y límites.
+        </div>
+        <div class="button-group">
+            <button class="btn-primary" onclick="flushEvents()">🚀 Flush Manual</button>
+            <button class="btn-secondary" onclick="startAutoFlush()">▶️ Iniciar Auto-Flush (10s)</button>
+            <button class="btn-secondary" onclick="stopAutoFlush()">⏸️ Detener Auto-Flush</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🗑️ Test 5: Limpieza</h2>
+        <div class="button-group">
+            <button class="btn-danger" onclick="clearQueue()">🗑️ Vaciar Cola</button>
+            <button class="btn-danger" onclick="clearLocalStorage()">🗑️ Limpiar LocalStorage</button>
+            <button class="btn-danger" onclick="resetAll()">🔄 Reset Completo</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📋 Console Logs</h2>
+        <div id="logs" class="log">
+            <div class="log-entry">Esperando eventos...</div>
+        </div>
+    </div>
+
+    <!-- SDK -->
+    <script src="guiders-sdk.js"></script>
+
+    <script>
+        // Configuración del SDK con valores de test
+        const sdk = new TrackingPixelSDK({
+            apiKey: 'gds_test_123',
+            autoFlush: false, // Flush manual para testing
+            requireConsent: false, // Bypass consent para testing
+            trackingV2: {
+                enabled: true,
+                maxQueueSize: 1000,
+                eventTtlMs: 86400000, // 24 horas
+                maxPayloadSizeBytes: 1048576, // 1 MB
+                persistQueue: true,
+                bypassConsent: true // Bypass consent checks
+            }
+        });
+
+        // Exponer SDK globalmente para Playwright
+        window.sdk = sdk;
+
+        // Interceptar console.log para mostrar en la página
+        const originalLog = console.log;
+        const logs = [];
+        
+        // Exponer logs globalmente para Playwright
+        window.logs = logs;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            
+            // Solo capturar logs del SDK
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            if (message.includes('[TrackingPixelSDK]') || 
+                message.includes('[EventQueueManager]') || 
+                message.includes('[TrackingV2Service]')) {
+                
+                logs.push({
+                    timestamp: new Date().toLocaleTimeString(),
+                    message: message
+                });
+                
+                // Mantener solo últimos 50 logs
+                if (logs.length > 50) {
+                    logs.shift();
+                }
+                
+                updateLogDisplay();
+            }
+        };
+
+        function updateLogDisplay() {
+            const logsDiv = document.getElementById('logs');
+            logsDiv.innerHTML = logs.map(log => 
+                `<div class="log-entry">[${log.timestamp}] ${log.message}</div>`
+            ).join('');
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function clearLogs() {
+            logs.length = 0;
+            document.getElementById('logs').innerHTML = '<div class="log-entry">Logs limpiados...</div>';
+        }
+
+        function updateStats() {
+            if (!sdk.eventQueueManager) {
+                document.getElementById('stats').textContent = '❌ EventQueueManager no disponible';
+                return;
+            }
+
+            const stats = sdk.eventQueueManager.getStats();
+            const utilization = ((stats.size / stats.maxSize) * 100).toFixed(1);
+            
+            document.getElementById('stats').innerHTML = `
+📊 <strong>Estadísticas de Cola</strong>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📦 Tamaño actual:        ${stats.size} / ${stats.maxSize} eventos
+📈 Utilización:          ${utilization}%
+💾 Persistencia:         ${stats.persistEnabled ? '✅ Activada' : '❌ Desactivada'}
+⏰ TTL configurado:      ${stats.ttlHours} horas (${stats.ttlMs} ms)
+🕐 Evento más antiguo:   ${stats.oldestEventAgeHours !== null ? stats.oldestEventAgeHours.toFixed(2) + ' horas' : 'N/A'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔍 Para ver logs detallados, abre DevTools Console (F12)
+            `.trim();
+        }
+
+        async function generateEvents(count) {
+            console.log(`🎯 Generando ${count} eventos...`);
+
+            const promises = [];
+            for (let i = 0; i < count; i++) {
+                promises.push(sdk.track({
+                    event: 'test_event',
+                    action: 'generated',
+                    index: i,
+                    timestamp: new Date().toISOString(),
+                    metadata: {
+                        testRun: Date.now(),
+                        randomValue: Math.random()
+                    }
+                }));
+            }
+            await Promise.all(promises);
+
+            // Actualizar stats inmediatamente
+            updateStats();
+            console.log(`✅ ${count} eventos generados`);
+        }
+
+        async function generateOldEvents(count, hoursAgo) {
+            console.log(`⏰ Generando ${count} eventos de hace ${hoursAgo} horas...`);
+
+            const oldTimestamp = Date.now() - (hoursAgo * 60 * 60 * 1000);
+
+            // sdk.track() es async — esperamos a que TODOS los eventos
+            // hayan pasado por el pipeline antes de modificar __queuedAt,
+            // si no la mutación corre antes de que la cola contenga los
+            // eventos generados.
+            const trackPromises = [];
+            for (let i = 0; i < count; i++) {
+                trackPromises.push(sdk.track({
+                    event: 'old_test_event',
+                    action: 'generated_old',
+                    index: i,
+                    hoursAgo: hoursAgo,
+                    timestamp: new Date(oldTimestamp).toISOString()
+                }));
+            }
+            await Promise.all(trackPromises);
+
+            // Modificar manualmente __queuedAt para simular eventos antiguos.
+            // Filtrar a los `old_test_event` para no tocar page_view/session
+            // auto-generados.
+            if (sdk.eventQueueManager) {
+                const queue = sdk.eventQueueManager.queue;
+                let modified = 0;
+                for (let i = 0; i < queue.length; i++) {
+                    if (queue[i] && queue[i].eventType === 'old_test_event' && !queue[i].__oldified) {
+                        queue[i].__queuedAt = oldTimestamp;
+                        queue[i].__oldified = true; // marker para no re-modificar
+                        modified++;
+                    }
+                }
+                console.log(`✅ ${modified} eventos antiguos creados (${hoursAgo}h atrás)`);
+                updateStats();
+            }
+        }
+
+        async function generateLargeEvents(count) {
+            console.log(`📦 Generando ${count} eventos grandes...`);
+
+            // Generar ~50KB de datos por evento
+            const largeData = 'X'.repeat(50000);
+
+            const promises = [];
+            for (let i = 0; i < count; i++) {
+                promises.push(sdk.track({
+                    event: 'large_test_event',
+                    action: 'generated_large',
+                    index: i,
+                    timestamp: new Date().toISOString(),
+                    largePayload: largeData,
+                    metadata: {
+                        size: '~50KB',
+                        testRun: Date.now()
+                    }
+                }));
+            }
+            await Promise.all(promises);
+
+            updateStats();
+            console.log(`✅ ${count} eventos grandes generados (~${(count * 50)}KB total)`);
+        }
+
+        async function flushEvents() {
+            console.log('🚀 Iniciando flush manual...');
+            updateStats();
+            
+            try {
+                await sdk.flush();
+                console.log('✅ Flush completado');
+            } catch (error) {
+                console.error('❌ Error en flush:', error);
+            }
+            
+            setTimeout(updateStats, 1000);
+        }
+
+        function startAutoFlush() {
+            console.log('▶️ Iniciando auto-flush cada 10 segundos...');
+            sdk.startAutoFlush();
+        }
+
+        function stopAutoFlush() {
+            console.log('⏸️ Deteniendo auto-flush...');
+            sdk.stopAutoFlush();
+        }
+
+        function clearQueue() {
+            if (sdk.eventQueueManager) {
+                const size = sdk.eventQueueManager.queue.length;
+                sdk.eventQueueManager.queue = [];
+                sdk.eventQueueManager.saveToStorage();
+                console.log(`🗑️ Cola vaciada (${size} eventos eliminados)`);
+                updateStats();
+            }
+        }
+
+        function clearLocalStorage() {
+            localStorage.clear();
+            console.log('🗑️ LocalStorage limpiado completamente');
+            updateStats();
+        }
+
+        function resetAll() {
+            clearQueue();
+            clearLocalStorage();
+            clearLogs();
+            console.log('🔄 Reset completo ejecutado');
+            setTimeout(() => location.reload(), 1000);
+        }
+
+        // Actualizar stats al cargar (inmediatamente y después de 1 segundo para asegurar)
+        updateStats();
+        setTimeout(updateStats, 1000);
+        
+        // Auto-actualizar cada 5 segundos
+        setInterval(updateStats, 5000);
+
+        console.log('✅ Página de test cargada correctamente');
+        console.log('🔍 SDK configurado con:');
+        console.log('   - maxQueueSize: 1000 eventos');
+        console.log('   - eventTtlMs: 86400000 ms (24 horas)');
+        console.log('   - maxPayloadSizeBytes: 1048576 bytes (1 MB)');
+    </script>
+</body>
+</html>

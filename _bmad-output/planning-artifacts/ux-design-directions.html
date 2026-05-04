@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guiders Concierge — Design Directions</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --slate-50: #f8fafc; --slate-100: #f1f5f9; --slate-200: #e2e8f0;
+    --slate-300: #cbd5e1; --slate-400: #94a3b8; --slate-500: #64748b;
+    --slate-700: #334155; --slate-800: #1e293b; --slate-900: #0f172a;
+    --blue-50: #eff6ff; --blue-100: #dbeafe; --blue-600: #2563eb; --blue-700: #1d4ed8;
+    --violet-50: #f5f3ff; --violet-100: #ede9fe; --violet-600: #7c3aed; --violet-700: #6d28d9;
+    --green-600: #16a34a; --red-600: #dc2626;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #f0f4f8;
+    color: var(--slate-900);
+    min-height: 100vh;
+  }
+
+  /* ─── PAGE HEADER ─── */
+  .page-header {
+    background: white;
+    border-bottom: 1px solid var(--slate-200);
+    padding: 24px 32px;
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .page-header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; color: var(--slate-900); }
+  .page-header p { font-size: 13px; color: var(--slate-500); }
+  .badge { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 999px;
+    background: var(--blue-50); color: var(--blue-600); border: 1px solid var(--blue-100); }
+
+  /* ─── TABS ─── */
+  .tabs { display: flex; gap: 0; padding: 0 32px; background: white;
+    border-bottom: 1px solid var(--slate-200); }
+  .tab { padding: 12px 20px; font-size: 14px; font-weight: 500; color: var(--slate-500);
+    border-bottom: 2px solid transparent; cursor: pointer; transition: all 150ms var(--ease-out);
+    white-space: nowrap; }
+  .tab:hover { color: var(--slate-900); }
+  .tab.active { color: var(--blue-600); border-bottom-color: var(--blue-600); }
+
+  /* ─── LAYOUT ─── */
+  .showcase { padding: 40px 32px; display: none; }
+  .showcase.active { display: block; }
+
+  .direction-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 32px; max-width: 1400px; margin: 0 auto; }
+
+  .direction-card { background: white; border-radius: 16px; border: 1px solid var(--slate-200);
+    overflow: hidden; transition: box-shadow 200ms var(--ease-out); }
+  .direction-card:hover { box-shadow: 0 12px 32px rgba(15,23,42,0.10); }
+
+  .direction-label { padding: 16px 20px; border-bottom: 1px solid var(--slate-100);
+    display: flex; align-items: center; justify-content: space-between; }
+  .direction-name { font-size: 13px; font-weight: 600; color: var(--slate-900); }
+  .direction-desc { font-size: 12px; color: var(--slate-500); margin-top: 2px; }
+  .direction-tag { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 999px; }
+  .tag-a { background: var(--blue-50); color: var(--blue-600); }
+  .tag-b { background: var(--violet-50); color: var(--violet-600); }
+  .tag-c { background: #f0fdf4; color: #15803d; }
+
+  /* ─── WIDGET MOCK ─── */
+  .widget-wrap { padding: 20px; background: var(--slate-50);
+    display: flex; justify-content: center; align-items: flex-start; min-height: 540px; }
+
+  .widget {
+    width: 340px; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 24px 48px rgba(15,23,42,0.18);
+    display: flex; flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+
+  /* ─── DIRECTION A: Concierge Clásico ─── */
+  .dir-a .widget { background: white; height: 520px; }
+  .dir-a .w-header {
+    padding: 14px 16px; display: flex; align-items: center; gap: 10px;
+    background: var(--blue-600);
+    flex-shrink: 0;
+  }
+  .dir-a .w-avatar { width: 36px; height: 36px; border-radius: 999px;
+    background: rgba(255,255,255,0.25); display: flex; align-items: center;
+    justify-content: center; font-size: 15px; font-weight: 600; color: white; flex-shrink: 0; }
+  .dir-a .w-header-info { flex: 1; min-width: 0; }
+  .dir-a .w-header-name { font-size: 14px; font-weight: 600; color: white;
+    letter-spacing: -0.01em; }
+  .dir-a .w-header-sub { font-size: 11px; color: rgba(255,255,255,0.75); margin-top: 1px;
+    display: flex; align-items: center; gap: 4px; }
+  .dir-a .w-header-sub::before { content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: #4ade80; display: inline-block; }
+  .dir-a .w-close { width: 28px; height: 28px; border-radius: 999px;
+    background: rgba(255,255,255,0.15); display: flex; align-items: center;
+    justify-content: center; cursor: pointer; color: white; font-size: 14px; flex-shrink: 0; }
+
+  /* ─── DIRECTION B: Concierge Minimal ─── */
+  .dir-b .widget { background: white; height: 520px; }
+  .dir-b .w-header {
+    padding: 16px 16px 12px; display: flex; align-items: center; gap: 10px;
+    background: white; border-bottom: 1px solid var(--slate-100);
+    flex-shrink: 0;
+  }
+  .dir-b .w-avatar { width: 32px; height: 32px; border-radius: 10px;
+    background: var(--blue-100); display: flex; align-items: center;
+    justify-content: center; font-size: 13px; font-weight: 700;
+    color: var(--blue-600); flex-shrink: 0; }
+  .dir-b .w-header-info { flex: 1; min-width: 0; }
+  .dir-b .w-header-name { font-size: 14px; font-weight: 600; color: var(--slate-900);
+    letter-spacing: -0.01em; }
+  .dir-b .w-header-sub { font-size: 11px; color: var(--slate-400); margin-top: 1px; }
+  .dir-b .w-close { width: 28px; height: 28px; border-radius: 8px;
+    background: var(--slate-100); display: flex; align-items: center;
+    justify-content: center; cursor: pointer; color: var(--slate-500);
+    font-size: 14px; flex-shrink: 0; }
+
+  /* ─── DIRECTION C: Concierge Express ─── */
+  .dir-c .widget { background: white; height: 520px; }
+  .dir-c .w-header {
+    padding: 10px 14px; display: flex; align-items: center; gap: 8px;
+    background: white; border-bottom: 1px solid var(--slate-200);
+    flex-shrink: 0;
+  }
+  .dir-c .w-avatar { width: 28px; height: 28px; border-radius: 999px;
+    background: var(--blue-600); display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 700;
+    color: white; flex-shrink: 0; }
+  .dir-c .w-header-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+  .dir-c .w-header-name { font-size: 13px; font-weight: 600; color: var(--slate-900); }
+  .dir-c .w-header-sub { font-size: 11px; color: var(--slate-400); }
+  .dir-c .w-close { color: var(--slate-400); font-size: 16px; cursor: pointer; }
+
+  /* ─── SHARED MESSAGES ─── */
+  .w-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  .w-messages::-webkit-scrollbar { width: 4px; }
+  .w-messages::-webkit-scrollbar-thumb { background: var(--slate-200); border-radius: 2px; }
+
+  /* Dir A messages */
+  .dir-a .w-messages { padding: 14px 14px 8px; gap: 3px; }
+  .dir-a .msg-group { display: flex; flex-direction: column; margin-bottom: 10px; }
+  .dir-a .msg-group.own { align-items: flex-end; }
+  .dir-a .msg-group.other { align-items: flex-start; }
+  .dir-a .msg-author { font-size: 11px; font-weight: 500; margin-bottom: 3px; padding: 0 2px; }
+  .dir-a .msg-group.ai .msg-author { color: var(--violet-600); }
+  .dir-a .msg-group.human .msg-author { color: var(--blue-600); }
+  .dir-a .bubble { padding: 9px 13px; max-width: 72%; font-size: 14px; line-height: 1.5; }
+  .dir-a .msg-group.own .bubble { background: var(--blue-600); color: white;
+    border-radius: 16px 16px 4px 16px; }
+  .dir-a .msg-group.ai .bubble { background: var(--violet-50); color: var(--slate-900);
+    border-radius: 4px 16px 16px 16px; border: 1px solid var(--violet-100); }
+  .dir-a .msg-group.human .bubble { background: var(--blue-50); color: var(--slate-900);
+    border-radius: 4px 16px 16px 16px; border: 1px solid var(--blue-100); }
+  .dir-a .msg-group.system .bubble { background: var(--slate-50); color: var(--slate-500);
+    border-radius: 8px; border: 1px solid var(--slate-100); font-size: 12px;
+    text-align: center; align-self: center; max-width: 90%; }
+  .dir-a .ts { font-size: 10px; color: var(--slate-400); margin-top: 3px; padding: 0 2px; }
+  .dir-a .own .ts { text-align: right; }
+  .dir-a .quick-replies { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; margin-left: 2px; }
+  .dir-a .qr-chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--violet-600);
+    color: var(--violet-600); font-size: 12px; font-weight: 500; cursor: pointer;
+    background: white; transition: background 150ms; }
+  .dir-a .qr-chip:hover { background: var(--violet-50); }
+
+  /* Dir B messages */
+  .dir-b .w-messages { padding: 20px 16px 12px; gap: 4px; }
+  .dir-b .msg-group { display: flex; flex-direction: column; margin-bottom: 14px; }
+  .dir-b .msg-group.own { align-items: flex-end; }
+  .dir-b .msg-group.other { align-items: flex-start; }
+  .dir-b .msg-author { font-size: 11px; font-weight: 500; margin-bottom: 4px; padding: 0 4px; }
+  .dir-b .msg-group.ai .msg-author { color: var(--violet-600); }
+  .dir-b .msg-group.human .msg-author { color: var(--blue-600); }
+  .dir-b .bubble { padding: 11px 15px; max-width: 70%; font-size: 14px; line-height: 1.6; }
+  .dir-b .msg-group.own .bubble { background: var(--blue-600); color: white;
+    border-radius: 18px 18px 4px 18px; }
+  .dir-b .msg-group.ai .bubble { background: var(--violet-50); color: var(--slate-800);
+    border-radius: 4px 18px 18px 18px; }
+  .dir-b .msg-group.human .bubble { background: var(--slate-100); color: var(--slate-800);
+    border-radius: 4px 18px 18px 18px; }
+  .dir-b .msg-group.system .bubble { background: transparent; color: var(--slate-400);
+    font-size: 12px; text-align: center; align-self: center; max-width: 90%;
+    border-radius: 0; padding: 8px 0; border-top: 1px solid var(--slate-100);
+    border-bottom: 1px solid var(--slate-100); width: 100%; }
+  .dir-b .ts { font-size: 10px; color: var(--slate-300); margin-top: 4px; padding: 0 4px; }
+  .dir-b .own .ts { text-align: right; }
+  .dir-b .quick-replies { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; margin-left: 4px; }
+  .dir-b .qr-chip { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--slate-200);
+    color: var(--slate-700); font-size: 12px; font-weight: 500; cursor: pointer;
+    background: white; transition: all 150ms; }
+  .dir-b .qr-chip:hover { border-color: var(--violet-600); color: var(--violet-600); }
+  .dir-b .qr-chip.primary { border-color: var(--violet-600); color: var(--violet-600); }
+
+  /* Dir C messages */
+  .dir-c .w-messages { padding: 8px 12px 6px; gap: 2px; }
+  .dir-c .msg-group { display: flex; flex-direction: column; margin-bottom: 6px; }
+  .dir-c .msg-group.own { align-items: flex-end; }
+  .dir-c .msg-group.other { align-items: flex-start; }
+  .dir-c .msg-row { display: flex; align-items: flex-end; gap: 6px; }
+  .dir-c .msg-group.own .msg-row { flex-direction: row-reverse; }
+  .dir-c .mini-avatar { width: 20px; height: 20px; border-radius: 999px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; }
+  .dir-c .msg-group.ai .mini-avatar { background: var(--violet-100); color: var(--violet-600); }
+  .dir-c .msg-group.human .mini-avatar { background: var(--blue-100); color: var(--blue-600); }
+  .dir-c .bubble { padding: 7px 11px; max-width: 75%; font-size: 13px; line-height: 1.45; }
+  .dir-c .msg-group.own .bubble { background: var(--blue-600); color: white;
+    border-radius: 14px 14px 3px 14px; }
+  .dir-c .msg-group.ai .bubble { background: var(--violet-50); color: var(--slate-900);
+    border-radius: 3px 14px 14px 14px; }
+  .dir-c .msg-group.human .bubble { background: var(--slate-100); color: var(--slate-900);
+    border-radius: 3px 14px 14px 14px; }
+  .dir-c .msg-group.system .bubble { background: transparent; color: var(--slate-400);
+    font-size: 11px; text-align: center; align-self: center; padding: 4px 0; }
+  .dir-c .quick-replies { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; margin-left: 26px; }
+  .dir-c .qr-chip { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--slate-200);
+    color: var(--slate-600); font-size: 11px; font-weight: 500; cursor: pointer; background: white; }
+
+  /* ─── TYPING INDICATOR ─── */
+  .typing { display: flex; align-items: center; gap: 4px; padding: 8px 13px;
+    border-radius: 16px; width: fit-content; margin: 2px 0; }
+  .dir-a .typing { background: var(--violet-50); border: 1px solid var(--violet-100); margin-left: 0; }
+  .dir-b .typing { background: var(--violet-50); margin-left: 0; }
+  .dir-c .typing { background: var(--violet-50); margin-left: 26px; }
+  .typing-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--violet-600);
+    animation: bounce 1.2s infinite; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; } }
+
+  /* ─── AI DISCLAIMER ─── */
+  .w-disclaimer { padding: 6px 14px; font-size: 11px; color: var(--slate-400);
+    text-align: center; background: var(--slate-50); border-top: 1px solid var(--slate-100);
+    flex-shrink: 0; }
+
+  /* ─── COMPOSER ─── */
+  .w-composer { padding: 10px 12px; border-top: 1px solid var(--slate-100);
+    display: flex; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+  .dir-b .w-composer { padding: 14px 14px; border-top: 1px solid var(--slate-100); gap: 10px; }
+  .dir-c .w-composer { padding: 8px 10px; gap: 6px; }
+
+  .composer-input { flex: 1; border: 1px solid var(--slate-200); border-radius: 10px;
+    padding: 8px 12px; font-size: 14px; font-family: inherit; resize: none;
+    line-height: 1.5; color: var(--slate-900); background: white; outline: none;
+    min-height: 36px; max-height: 100px; }
+  .dir-b .composer-input { border-radius: 12px; padding: 10px 14px; font-size: 15px; }
+  .dir-c .composer-input { border-radius: 8px; padding: 7px 10px; font-size: 13px; }
+  .composer-input::placeholder { color: var(--slate-400); }
+  .composer-input:focus { border-color: var(--blue-600);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+  .send-btn { width: 36px; height: 36px; border-radius: 10px; border: none;
+    background: var(--blue-600); color: white; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+    transition: background 150ms; }
+  .dir-b .send-btn { width: 40px; height: 40px; border-radius: 12px; font-size: 17px; }
+  .dir-c .send-btn { width: 32px; height: 32px; border-radius: 8px; font-size: 14px; }
+  .send-btn:hover { background: var(--blue-700); }
+
+  /* ─── COMPARISON VIEW ─── */
+  .comparison-grid { display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px; max-width: 1200px; margin: 0 auto; }
+
+  .comparison-section { background: white; border-radius: 12px; border: 1px solid var(--slate-200);
+    overflow: hidden; }
+  .comparison-section h3 { padding: 12px 16px; font-size: 13px; font-weight: 600;
+    border-bottom: 1px solid var(--slate-100); display: flex; align-items: center; gap: 8px; }
+  .comparison-table { width: 100%; border-collapse: collapse; }
+  .comparison-table td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--slate-50); }
+  .comparison-table td:first-child { color: var(--slate-500); font-weight: 500; width: 40%; }
+  .comparison-table td:last-child { color: var(--slate-900); }
+  .comparison-table tr:last-child td { border-bottom: none; }
+
+  .verdict { padding: 16px; background: var(--slate-50); border-top: 1px solid var(--slate-100); }
+  .verdict-label { font-size: 11px; font-weight: 600; color: var(--slate-500);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .verdict-text { font-size: 13px; color: var(--slate-700); line-height: 1.5; }
+
+  /* ─── TOKENS VIEW ─── */
+  .tokens-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px; max-width: 1200px; margin: 0 auto; }
+  .tokens-card { background: white; border-radius: 12px; border: 1px solid var(--slate-200);
+    overflow: hidden; }
+  .tokens-card h3 { padding: 12px 16px; font-size: 13px; font-weight: 600;
+    border-bottom: 1px solid var(--slate-100); }
+  .token-row { display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+    border-bottom: 1px solid var(--slate-50); font-size: 13px; }
+  .token-row:last-child { border-bottom: none; }
+  .token-swatch { width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.06); }
+  .token-name { flex: 1; font-family: ui-monospace, monospace; font-size: 11px; color: var(--slate-600); }
+  .token-value { font-size: 11px; color: var(--slate-400); }
+
+  /* ─── INTRO ─── */
+  .intro { max-width: 680px; margin: 0 auto 32px; text-align: center; }
+  .intro h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .intro p { font-size: 14px; color: var(--slate-500); line-height: 1.6; }
+
+  @media (max-width: 800px) {
+    .direction-grid, .comparison-grid { grid-template-columns: 1fr; }
+    .page-header { padding: 16px; }
+    .showcase { padding: 24px 16px; }
+    .tabs { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <h1>Guiders Concierge System — Design Directions</h1>
+    <p>Paso 9 del proceso UX · 3 direcciones visuales sobre la misma base de tokens</p>
+  </div>
+  <span class="badge">Steps 1–8 completados</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="show('mockups')">Mockups</div>
+  <div class="tab" onclick="show('comparison')">Comparación</div>
+  <div class="tab" onclick="show('tokens')">Tokens</div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     TAB: MOCKUPS
+═══════════════════════════════════════════ -->
+<div id="tab-mockups" class="showcase active">
+  <div class="intro">
+    <h2>Tres direcciones visuales</h2>
+    <p>Mismos tokens de color, misma tipografía. Lo que varía: densidad, tratamiento del header y peso visual de los elementos. Elige una dirección o indica elementos a combinar.</p>
+  </div>
+
+  <div class="direction-grid">
+
+    <!-- ── DIRECCIÓN A ── -->
+    <div class="direction-card">
+      <div class="direction-label">
+        <div>
+          <div class="direction-name">A · Concierge Clásico</div>
+          <div class="direction-desc">Header color sólido, densidad media, estilo Intercom</div>
+        </div>
+        <span class="direction-tag tag-a">B2B / Servicios</span>
+      </div>
+      <div class="widget-wrap dir-a">
+        <div class="widget">
+          <!-- Header A -->
+          <div class="w-header">
+            <div class="w-avatar">T</div>
+            <div class="w-header-info">
+              <div class="w-header-name">TechStore Soporte</div>
+              <div class="w-header-sub">En línea · respondemos en ~2 min</div>
+            </div>
+            <div class="w-close">✕</div>
+          </div>
+          <!-- Messages A -->
+          <div class="w-messages">
+            <div class="msg-group ai">
+              <div class="msg-author">✦ Asistente IA</div>
+              <div class="bubble">¡Hola! ¿En qué puedo ayudarte hoy?</div>
+              <div class="quick-replies">
+                <div class="qr-chip">Hablar con persona</div>
+                <div class="qr-chip">Ver mi pedido</div>
+              </div>
+              <div class="ts">10:23</div>
+            </div>
+            <div class="msg-group own">
+              <div class="bubble">Mi pedido #4821 no ha llegado</div>
+              <div class="ts">✓✓ 10:24</div>
+            </div>
+            <div class="msg-group ai">
+              <div class="msg-author">✦ Asistente IA</div>
+              <div class="bubble">Entiendo la preocupación. He localizado tu pedido #4821. Según el tracking está en reparto desde esta mañana y llegará hoy antes de las 20h.</div>
+              <div class="quick-replies">
+                <div class="qr-chip">Hablar con persona</div>
+              </div>
+              <div class="ts">10:24</div>
+            </div>
+            <div class="msg-group system">
+              <div class="bubble">Sara se ha unido a la conversación</div>
+            </div>
+            <div class="msg-group human">
+              <div class="msg-author">Sara · agente</div>
+              <div class="bubble">Hola, soy Sara. Vi que tienes dudas con el envío. Confirmo que sale en el reparto de tarde.</div>
+              <div class="ts">10:25</div>
+            </div>
+            <div class="typing">
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+            </div>
+          </div>
+          <!-- Disclaimer A -->
+          <div class="w-disclaimer">✦ Asistente IA · las respuestas pueden contener errores</div>
+          <!-- Composer A -->
+          <div class="w-composer">
+            <textarea class="composer-input" placeholder="Escribe tu mensaje…" rows="1"></textarea>
+            <button class="send-btn">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DIRECCIÓN B ── -->
+    <div class="direction-card">
+      <div class="direction-label">
+        <div>
+          <div class="direction-name">B · Concierge Minimal</div>
+          <div class="direction-desc">Header blanco, mucho aire, Linear-inspired</div>
+        </div>
+        <span class="direction-tag tag-b">Premium / Lifestyle</span>
+      </div>
+      <div class="widget-wrap dir-b">
+        <div class="widget">
+          <!-- Header B -->
+          <div class="w-header">
+            <div class="w-avatar">T</div>
+            <div class="w-header-info">
+              <div class="w-header-name">TechStore</div>
+              <div class="w-header-sub">En línea ahora</div>
+            </div>
+            <div class="w-close">✕</div>
+          </div>
+          <!-- Messages B -->
+          <div class="w-messages">
+            <div class="msg-group ai">
+              <div class="msg-author">✦ IA</div>
+              <div class="bubble">¡Hola! ¿En qué puedo ayudarte?</div>
+              <div class="quick-replies">
+                <div class="qr-chip primary">Hablar con persona</div>
+                <div class="qr-chip">Ver mi pedido</div>
+              </div>
+              <div class="ts">10:23</div>
+            </div>
+            <div class="msg-group own">
+              <div class="bubble">Mi pedido #4821 no ha llegado</div>
+              <div class="ts">✓✓ 10:24</div>
+            </div>
+            <div class="msg-group ai">
+              <div class="msg-author">✦ IA</div>
+              <div class="bubble">He localizado tu pedido. Está en reparto desde esta mañana y llegará hoy antes de las 20h.</div>
+              <div class="quick-replies">
+                <div class="qr-chip primary">Hablar con persona</div>
+              </div>
+              <div class="ts">10:24</div>
+            </div>
+            <div class="msg-group system">
+              <div class="bubble">Sara se ha unido · agente humano</div>
+            </div>
+            <div class="msg-group human">
+              <div class="msg-author">Sara</div>
+              <div class="bubble">Hola, confirmo que el pedido sale esta tarde.</div>
+              <div class="ts">10:25</div>
+            </div>
+            <div class="typing">
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+            </div>
+          </div>
+          <!-- Disclaimer B -->
+          <div class="w-disclaimer">✦ Asistente IA · respuestas pueden contener errores</div>
+          <!-- Composer B -->
+          <div class="w-composer">
+            <textarea class="composer-input" placeholder="Escribe tu mensaje…" rows="1"></textarea>
+            <button class="send-btn">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DIRECCIÓN C ── -->
+    <div class="direction-card">
+      <div class="direction-label">
+        <div>
+          <div class="direction-name">C · Concierge Express</div>
+          <div class="direction-desc">Densidad alta, compacto, rápido de escanear</div>
+        </div>
+        <span class="direction-tag tag-c">E-commerce / Soporte</span>
+      </div>
+      <div class="widget-wrap dir-c">
+        <div class="widget">
+          <!-- Header C -->
+          <div class="w-header">
+            <div class="w-avatar">T</div>
+            <div class="w-header-info">
+              <div class="w-header-name">TechStore</div>
+              <div class="w-header-sub">En línea</div>
+            </div>
+            <div class="w-close">✕</div>
+          </div>
+          <!-- Messages C -->
+          <div class="w-messages">
+            <div class="msg-group ai">
+              <div class="msg-row">
+                <div class="mini-avatar">IA</div>
+                <div class="bubble">¡Hola! ¿En qué puedo ayudarte?</div>
+              </div>
+              <div class="quick-replies">
+                <div class="qr-chip">Hablar con persona</div>
+                <div class="qr-chip">Mi pedido</div>
+              </div>
+            </div>
+            <div class="msg-group own">
+              <div class="msg-row">
+                <div class="bubble">Mi pedido #4821 no ha llegado</div>
+              </div>
+            </div>
+            <div class="msg-group ai">
+              <div class="msg-row">
+                <div class="mini-avatar">IA</div>
+                <div class="bubble">Pedido #4821 en reparto. Entrega estimada hoy antes de las 20h.</div>
+              </div>
+              <div class="quick-replies">
+                <div class="qr-chip">Hablar con persona</div>
+              </div>
+            </div>
+            <div class="msg-group system">
+              <div class="bubble">Sara se ha unido</div>
+            </div>
+            <div class="msg-group human">
+              <div class="msg-row">
+                <div class="mini-avatar">S</div>
+                <div class="bubble">Confirmo, sale esta tarde.</div>
+              </div>
+            </div>
+            <div class="typing">
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+            </div>
+          </div>
+          <!-- Disclaimer C -->
+          <div class="w-disclaimer">✦ IA · puede contener errores</div>
+          <!-- Composer C -->
+          <div class="w-composer">
+            <textarea class="composer-input" placeholder="Escribe…" rows="1"></textarea>
+            <button class="send-btn">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /direction-grid -->
+</div>
+
+<!-- ═══════════════════════════════════════════
+     TAB: COMPARISON
+═══════════════════════════════════════════ -->
+<div id="tab-comparison" class="showcase">
+  <div class="intro">
+    <h2>Comparación detallada</h2>
+    <p>Analiza cada dirección según los criterios de decisión más relevantes para el cliente SDK.</p>
+  </div>
+
+  <div class="comparison-grid">
+    <div class="comparison-section">
+      <h3><span class="direction-tag tag-a" style="margin:0">A</span> Concierge Clásico</h3>
+      <table class="comparison-table">
+        <tr><td>Header</td><td>Color sólido primary (#2563eb)</td></tr>
+        <tr><td>Densidad</td><td>Media — padding 14px</td></tr>
+        <tr><td>Burbujas</td><td>Radius 16px + border visible</td></tr>
+        <tr><td>Nombre IA</td><td>"✦ Asistente IA" (texto completo)</td></tr>
+        <tr><td>Handoff</td><td>Separador mensaje sistema gris</td></tr>
+        <tr><td>Quick replies</td><td>Chips outline violeta</td></tr>
+        <tr><td>Disclaimer</td><td>Footer slate-50, visible</td></tr>
+        <tr><td>Personalización</td><td>Header cambia con --guiders-primary</td></tr>
+        <tr><td>Tono percibido</td><td>Profesional, corporativo</td></tr>
+      </table>
+      <div class="verdict">
+        <div class="verdict-label">Ideal para</div>
+        <div class="verdict-text">SaaS B2B, servicios financieros, salud, educación. Clientes que priorizan confianza sobre estética.</div>
+      </div>
+    </div>
+
+    <div class="comparison-section">
+      <h3><span class="direction-tag tag-b" style="margin:0">B</span> Concierge Minimal</h3>
+      <table class="comparison-table">
+        <tr><td>Header</td><td>Blanco con border sutil</td></tr>
+        <tr><td>Densidad</td><td>Baja — padding 20px, gaps amplios</td></tr>
+        <tr><td>Burbujas</td><td>Radius 18px, sin border, colores soft</td></tr>
+        <tr><td>Nombre IA</td><td>"✦ IA" (minimal)</td></tr>
+        <tr><td>Handoff</td><td>Separador con líneas finas, texto narrativo</td></tr>
+        <tr><td>Quick replies</td><td>Chips borde neutro, hover violeta</td></tr>
+        <tr><td>Disclaimer</td><td>Footer muy sutil, casi invisible</td></tr>
+        <tr><td>Personalización</td><td>Avatar usa --guiders-primary, header neutro</td></tr>
+        <tr><td>Tono percibido</td><td>Premium, moderno, calmo (Linear-style)</td></tr>
+      </table>
+      <div class="verdict">
+        <div class="verdict-label">Ideal para</div>
+        <div class="verdict-text">E-commerce premium, lifestyle, tecnología de consumo, startups. Clientes que priorizan marca y experiencia visual.</div>
+      </div>
+    </div>
+
+    <div class="comparison-section">
+      <h3><span class="direction-tag tag-c" style="margin:0">C</span> Concierge Express</h3>
+      <table class="comparison-table">
+        <tr><td>Header</td><td>Compacto, sin color (10px padding)</td></tr>
+        <tr><td>Densidad</td><td>Alta — padding 8px, gap 2px</td></tr>
+        <tr><td>Burbujas</td><td>Radius 14px, mini-avatars inline</td></tr>
+        <tr><td>Nombre IA</td><td>Mini-avatar "IA" (2 letras)</td></tr>
+        <tr><td>Handoff</td><td>Texto inline sin separador visual</td></tr>
+        <tr><td>Quick replies</td><td>Chips pequeños, border neutro</td></tr>
+        <tr><td>Disclaimer</td><td>Footer muy corto "✦ IA · puede contener errores"</td></tr>
+        <tr><td>Personalización</td><td>Avatar usa --guiders-primary</td></tr>
+        <tr><td>Tono percibido</td><td>Funcional, eficiente, técnico</td></tr>
+      </table>
+      <div class="verdict">
+        <div class="verdict-label">Ideal para</div>
+        <div class="verdict-text">E-commerce de alto volumen, soporte técnico, plataformas con muchos mensajes. Clientes que priorizan velocidad.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:1200px;margin:32px auto 0;background:white;border-radius:12px;border:1px solid var(--slate-200);padding:24px;">
+    <h3 style="font-size:14px;font-weight:600;margin-bottom:16px;">Criterios de decisión según principios del proyecto</h3>
+    <table class="comparison-table" style="width:100%">
+      <tr>
+        <td style="width:30%;font-weight:600;color:var(--slate-900)">Criterio</td>
+        <td style="font-weight:600;color:var(--blue-600)">A · Clásico</td>
+        <td style="font-weight:600;color:var(--violet-600)">B · Minimal</td>
+        <td style="font-weight:600;color:#15803d">C · Express</td>
+      </tr>
+      <tr><td>EP1 — Presencia humana inequívoca</td><td>✅ Muy fuerte</td><td>✅ Fuerte</td><td>⚠️ Más implícita</td></tr>
+      <tr><td>EP3 — Calma (Linear-style)</td><td>⚠️ Header activo</td><td>✅ Máxima calma</td><td>⚠️ Puede saturar</td></tr>
+      <tr><td>P7 — Transparencia IA</td><td>✅ Texto completo</td><td>✅ Claro</td><td>⚠️ Mini-avatar solo</td></tr>
+      <tr><td>Personalización --guiders-primary</td><td>✅ Header impacta</td><td>✅ Sutil pero visible</td><td>✅ Avatar impacta</td></tr>
+      <tr><td>Versatilidad de sector</td><td>✅ B2B/enterprise</td><td>✅ Consumer/premium</td><td>✅ High-volume</td></tr>
+      <tr><td>WCAG AA (disclaimer visible)</td><td>✅ Muy visible</td><td>⚠️ Muy sutil</td><td>⚠️ Muy abreviado</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     TAB: TOKENS
+═══════════════════════════════════════════ -->
+<div id="tab-tokens" class="showcase">
+  <div class="intro">
+    <h2>Tokens GCS definidos</h2>
+    <p>Los tokens primitivos <code>--gds-*</code> son compartidos por las 3 direcciones. Solo cambian los valores de densidad aplicados.</p>
+  </div>
+
+  <div class="tokens-grid">
+    <div class="tokens-card">
+      <h3>Color — Identidad de autor (fijos, no configurables)</h3>
+      <div class="token-row"><div class="token-swatch" style="background:#2563eb"></div><div class="token-name">--gds-color-author-human</div><div class="token-value">#2563eb</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:#eff6ff;border-color:#bfdbfe"></div><div class="token-name">--gds-color-author-human-soft</div><div class="token-value">#eff6ff</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:#7c3aed"></div><div class="token-name">--gds-color-author-ai</div><div class="token-value">#7c3aed</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:#f5f3ff;border-color:#ddd6fe"></div><div class="token-name">--gds-color-author-ai-soft</div><div class="token-value">#f5f3ff</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:#94a3b8"></div><div class="token-name">--gds-color-author-system</div><div class="token-value">#94a3b8</div></div>
+    </div>
+
+    <div class="tokens-card">
+      <h3>Color — Base neutral (light mode)</h3>
+      <div class="token-row"><div class="token-swatch" style="background:#ffffff;border-color:#e2e8f0"></div><div class="token-name">--gds-color-bg</div><div class="token-value">#ffffff</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:#f8fafc;border-color:#e2e8f0"></div><div class="token-name">--gds-color-bg-elevated</div><div class="token-value">#f8fafc</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:#0f172a"></div><div class="token-name">--gds-color-text</div><div class="token-value">#0f172a</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:#475569"></div><div class="token-name">--gds-color-text-secondary</div><div class="token-value">#475569</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:#94a3b8"></div><div class="token-name">--gds-color-text-tertiary</div><div class="token-value">#94a3b8</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:#e2e8f0"></div><div class="token-name">--gds-color-border</div><div class="token-value">#e2e8f0</div></div>
+    </div>
+
+    <div class="tokens-card">
+      <h3>Tokens públicos --guiders-* (configurables SDK)</h3>
+      <div class="token-row"><div class="token-swatch" style="background:#2563eb"></div><div class="token-name">--guiders-primary</div><div class="token-value">#2563eb (default)</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:transparent;border-style:dashed"></div><div class="token-name">--guiders-font</div><div class="token-value">system-ui (default)</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:transparent;border-style:dashed"></div><div class="token-name">--guiders-radius</div><div class="token-value">16px (default)</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:transparent;border-style:dashed"></div><div class="token-name">--guiders-spacing</div><div class="token-value">1 (multiplicador)</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:transparent;border-style:dashed"></div><div class="token-name">--guiders-position</div><div class="token-value">bottom-right</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:transparent;border-style:dashed"></div><div class="token-name">--guiders-color-scheme</div><div class="token-value">auto</div></div>
+    </div>
+
+    <div class="tokens-card">
+      <h3>Motion (compartidos todas las direcciones)</h3>
+      <div class="token-row"><div class="token-swatch" style="background:var(--blue-50)"></div><div class="token-name">--gds-duration-instant</div><div class="token-value">100ms</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:var(--blue-100)"></div><div class="token-name">--gds-duration-fast</div><div class="token-value">150ms</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:var(--blue-600)"></div><div class="token-name">--gds-duration-base</div><div class="token-value">200ms</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:var(--blue-700)"></div><div class="token-name">--gds-duration-slow</div><div class="token-value">300ms</div></div>
+      <div class="token-row"><div class="token-swatch" style="background:var(--slate-100)"></div><div class="token-name">--gds-ease-out</div><div class="token-value">cubic-bezier(0.16,1,0.3,1)</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function show(tab) {
+  document.querySelectorAll('.showcase').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+// MessageBubble.styles.ts — GCS token-based styles for MessageBubble (Story 6.3).
+// Zero hardcoded color values — all colors use --gds-* tokens from tokens.styles.ts.
+// Direction: C · Concierge Express — density alta, radius 14px, font 13px.
+
+import type { h } from 'preact';
+
+type CSS = h.JSX.CSSProperties;
+
+// ---------------------------------------------------------------------------
+// System message
+// ---------------------------------------------------------------------------
+
+export const systemWrapperStyle: CSS = {
+    alignSelf: 'center',
+    maxWidth: '90%',
+    marginBottom: '12px',
+};
+
+export const systemMessageStyle: CSS = {
+    background: 'var(--gds-color-bg-elevated)',
+    border: '1px solid var(--gds-color-border)',
+    borderRadius: 'var(--gds-radius-bubble, 14px)',
+    padding: '6px 12px',
+    fontSize: 'var(--gds-font-size-xs, 11px)',
+    color: 'var(--gds-color-text-tertiary)',
+    textAlign: 'center',
+};
+
+// ---------------------------------------------------------------------------
+// Consent message
+// ---------------------------------------------------------------------------
+
+export const consentWrapperStyle: CSS = {
+    alignSelf: 'center',
+    maxWidth: '92%',
+    marginBottom: '12px',
+};
+
+export const consentMessageStyle: CSS = {
+    background: 'var(--gds-color-bg-elevated)',
+    border: '1px solid var(--gds-color-border-accent)',
+    borderRadius: 'var(--gds-radius-bubble, 14px)',
+    padding: '10px 14px',
+    fontSize: 'var(--gds-font-size-xs, 11px)',
+    color: 'var(--gds-color-text-secondary)',
+    textAlign: 'center',
+    lineHeight: 1.5,
+};
+
+// ---------------------------------------------------------------------------
+// Row wrapper (aligns bubble + optional avatar)
+// ---------------------------------------------------------------------------
+
+export function wrapperStyle(isUser: boolean, isLastInGroup: boolean): CSS {
+    return {
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: '6px',
+        marginBottom: isLastInGroup ? '6px' : '2px',
+        flexDirection: isUser ? 'row-reverse' : 'row',
+        marginLeft: isUser ? '10%' : '0',
+        marginRight: isUser ? '0' : '10%',
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Content column (holds header + bubble)
+// ---------------------------------------------------------------------------
+
+export function contentColumnStyle(isUser: boolean): CSS {
+    return {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: isUser ? 'flex-end' : 'flex-start',
+        maxWidth: '100%',
+        minWidth: 0,
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Bubble
+// ---------------------------------------------------------------------------
+
+type AuthorType = 'own' | 'human' | 'ai' | 'system' | 'consent';
+
+function bubbleBg(type: AuthorType): string {
+    switch (type) {
+        case 'own':     return 'var(--gds-color-primary)';
+        case 'human':   return 'var(--gds-color-author-human-soft)';
+        case 'ai':      return 'var(--gds-color-author-ai-soft)';
+        default:        return 'var(--gds-color-bg-elevated)';
+    }
+}
+
+function bubbleColor(type: AuthorType): string {
+    return type === 'own' ? 'var(--gds-color-text-on-primary, #ffffff)' : 'var(--gds-color-text)';
+}
+
+function tailRadius(type: AuthorType, isLastInGroup: boolean): Partial<CSS> {
+    if (!isLastInGroup) return {};
+    if (type === 'own')                   return { borderBottomRightRadius: '4px' };
+    if (type === 'human' || type === 'ai') return { borderBottomLeftRadius: '4px' };
+    return {};
+}
+
+export function messageStyle(type: AuthorType, isLastInGroup: boolean): CSS {
+    return {
+        padding: '7px 11px',
+        borderRadius: 'var(--gds-radius-bubble, 14px)',
+        display: 'inline-block',
+        maxWidth: '72%',
+        overflowWrap: 'break-word',
+        position: 'relative',
+        background: bubbleBg(type),
+        color: bubbleColor(type),
+        ...tailRadius(type, isLastInGroup),
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Message text
+// ---------------------------------------------------------------------------
+
+export const messageTextStyle: CSS = {
+    fontSize: 'var(--gds-font-size-sm, 13px)',
+    lineHeight: 'var(--gds-line-height-normal)',
+    whiteSpace: 'pre-wrap',
+    overflowWrap: 'break-word',
+};
+
+// ---------------------------------------------------------------------------
+// Timestamp
+// ---------------------------------------------------------------------------
+
+export const timeSpacerStyle: CSS = {
+    visibility: 'hidden',
+    fontSize: '10px',
+    paddingLeft: '6px',
+    whiteSpace: 'nowrap',
+};
+
+export const timeStyle: CSS = {
+    position: 'absolute',
+    bottom: '5px',
+    right: '9px',
+    fontSize: '10px',
+    color: 'var(--gds-color-text-tertiary)',
+    whiteSpace: 'nowrap',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '3px',
+};
+
+// ---------------------------------------------------------------------------
+// Mini-avatar (AuthorAvatar) 20×20px
+// ---------------------------------------------------------------------------
+
+export function avatarStyle(type: 'human' | 'ai'): CSS {
+    const isAI = type === 'ai';
+    return {
+        width: '20px',
+        height: '20px',
+        borderRadius: '50%',
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '9px',
+        fontWeight: 600,
+        lineHeight: '1',
+        background: isAI ? 'var(--gds-color-author-ai-soft)' : 'var(--gds-color-author-human)',
+        color: isAI ? 'var(--gds-color-author-ai)' : 'var(--gds-color-text-on-primary, #ffffff)',
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Microstate icons
+// ---------------------------------------------------------------------------
+
+export const microstateStyle: CSS = {
+    fontSize: '10px',
+    lineHeight: '1',
+};
+
+export const retryStyle: CSS = {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '10px',
+    color: 'var(--gds-color-primary)',
+    padding: '0 0 0 4px',
+    textDecoration: 'underline',
+};

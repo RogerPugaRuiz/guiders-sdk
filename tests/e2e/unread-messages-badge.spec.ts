@@ -31,6 +31,14 @@ test.describe('Unread Messages Badge Flow', () => {
     // Esperar a que el DOM esté completamente cargado
     await page.waitForLoadState('domcontentloaded');
 
+    // BotDetector mitigation: in headless Playwright `navigator.webdriver`
+    // + sub-100ms load + no interaction pushes the bot score above 0.6
+    // and the SDK refuses to assign `window.guiders`. A single mouse
+    // move flips the behavior check and unblocks initialization.
+    // See src/core/bot-detector.ts and tests/e2e/preact-components.spec.ts.
+    await page.mouse.move(200, 200);
+    await page.mouse.move(220, 220);
+
     // Verificar que el script del SDK se haya cargado
     await page.waitForFunction(() => {
       const scripts = Array.from(document.scripts);

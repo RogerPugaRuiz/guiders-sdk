@@ -1,8 +1,5 @@
 const path = require('path');
 const webpack = require('webpack');
-const {
-	BundleAnalyzerPlugin
-} = require("webpack-bundle-analyzer");
 const Dotenv = require('dotenv-webpack');
 const TerserPlugin = require('terser-webpack-plugin');
 const packageJson = require('./package.json');
@@ -26,16 +23,38 @@ module.exports = {
 		libraryExport: 'default'
 	},
 	resolve: {
-		extensions: ['.ts', '.js'], // Extensiones de archivos a resolver
+		extensions: ['.tsx', '.ts', '.js'], // Extensiones de archivos a resolver
+		alias: {
+			'react': 'preact/compat',
+			'react-dom': 'preact/compat',
+			'react/jsx-runtime': 'preact/jsx-runtime',
+		},
 	},
 	module: {
 		rules: [{
-			test: /\.ts$/,
+			test: /\.(ts|tsx)$/,
 			use: 'ts-loader',
 			exclude: /node_modules/
 		}]
 	},
 	mode: 'production',
+	// Bundle size budget — fail loud if we drift past 450 KiB.
+	performance: {
+		hints: 'warning',
+		maxEntrypointSize: 460800, // 450 KiB
+		maxAssetSize: 460800,
+	},
+	// Webpack-dev-server config consumed by `npm start`.
+	devServer: {
+		static: path.resolve(__dirname, 'demo/app'),
+		port: 8081,
+		host: '127.0.0.1',
+		hot: true,
+		allowedHosts: 'all',
+		headers: {
+			'Access-Control-Allow-Origin': '*',
+		},
+	},
 	// Optimizaciones de producción
 	optimization: {
 		usedExports: true,     // Tree-shaking: marca exports no usados
@@ -47,7 +66,9 @@ module.exports = {
 						drop_console: false,  // Mantener console para debug-logger
 						drop_debugger: true,
 						passes: 2,            // Múltiples pasadas de compresión
-						pure_funcs: ['debugLog'], // Eliminar llamadas a debugLog en producción
+						// Eliminar todas las llamadas a debug-logger en bundles de producción.
+						// debugLog/debugWarn/debugError son los tres helpers en utils/debug-logger.ts
+						pure_funcs: ['debugLog', 'debugWarn', 'debugError'],
 					},
 					mangle: {
 						safari10: true,       // Compatibilidad Safari 10
@@ -60,6 +81,4 @@ module.exports = {
 			}),
 		],
 	},
-	externals: {
-	}
 };

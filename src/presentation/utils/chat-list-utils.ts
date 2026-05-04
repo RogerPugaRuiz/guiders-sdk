@@ -120,20 +120,21 @@ export function chatV2ListToSelectorItems(
 	includePreview: boolean = false
 ): ChatSelectorItem[] {
 	return chats.map(chat => {
+		// Patch #21 (Chunk 2): ChatSelectorItem fields are now readonly. Build
+		// the object as a single literal instead of post-mutation so the
+		// readonly contract is honoured.
 		const item: ChatSelectorItem = {
 			id: chat.id,
 			title: generateChatTitle(chat, includePreview ? 'short' : 'full'),
 			lastMessageDate: chat.lastMessageDate ? new Date(chat.lastMessageDate) : undefined,
 			unreadCount: chat.unreadMessagesCount || 0,
 			status: chat.status as ChatSelectorItem['status'],
-			isSelected: chat.id === selectedChatId
+			isSelected: chat.id === selectedChatId,
+			...(includePreview ? {
+				lastMessagePreview: chat.lastMessagePreview,
+				avatarUrl: chat.assignedCommercial?.avatarUrl,
+			} : {}),
 		};
-
-		// Añadir campos opcionales para vista lista (Intercom style)
-		if (includePreview) {
-			item.lastMessagePreview = chat.lastMessagePreview;
-			item.avatarUrl = chat.assignedCommercial?.avatarUrl;
-		}
 
 		return item;
 	});

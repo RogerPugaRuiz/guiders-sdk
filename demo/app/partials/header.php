@@ -130,14 +130,27 @@
     })();
   </script>
 
-  <!-- Guiders SDK Script -->
-  <!-- Archivo estático (comentado): -->
-  <!-- <script src="/guiders-sdk.js?dev=true&v=<?php echo time(); ?>" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script> -->
+  <!--
+    Guiders SDK Script — auto-fallback strategy:
+      1. If webpack-dev-server is reachable at 127.0.0.1:8081 (developer ran
+         `npm start`), load the live bundle for hot reload.
+      2. Otherwise, fall back to the static `guiders-sdk.js` copied into
+         demo/app/ by `npm run build && cp dist/index.js demo/app/...`.
+    This keeps the dev workflow snappy AND lets E2E tests run without
+    requiring webpack-dev-server to be up.
+  -->
+  <?php
+    $guidersDevSrc  = 'http://127.0.0.1:8081/index.js?dev=true';
+    $guidersStaticSrc = '/guiders-sdk.js?v=' . time();
+    $guidersApiKey  = '12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0';
+    // Probe webpack-dev-server with a 250ms timeout so the page never stalls.
+    $ctx = stream_context_create(['http' => ['timeout' => 0.25, 'method' => 'HEAD']]);
+    $devUp = @file_get_contents('http://127.0.0.1:8081/index.js', false, $ctx);
+    $guidersSrc = ($devUp !== false) ? $guidersDevSrc : $guidersStaticSrc;
+  ?>
+  <script src="<?php echo $guidersSrc; ?>" data-api-key="<?php echo $guidersApiKey; ?>"></script>
 
-  <!-- ✅ Desarrollo (servidor webpack con hot reload): -->
-  <script src="http://127.0.0.1:8081/index.js?dev=true" data-api-key="12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0"></script>
-
-  <!-- Producción: -->
+  <!-- Producción (S3): -->
   <!-- <script src="https://guiders-sdk.s3.eu-north-1.amazonaws.com/0.0.1/index.js" data-api-key="ea0cb2d33e9a186906747071e88a1a1eb1c219a0189f0344c7d87e2c497bf626"></script> -->
 </head>
 <body>

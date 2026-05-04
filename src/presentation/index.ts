@@ -1,25 +1,17 @@
-// index.ts - Exports principales del módulo presentation
+// presentation/index.ts — public barrel
 
-// Re-exportar desde chat.ts para mantener compatibilidad
-export * from './chat';
+// ChatUIBridge is the canonical ChatUI implementation
+export { ChatUIBridge as ChatUI } from './bridge/ChatUIBridge';
 
-// También permitir importaciones directas de componentes específicos
-export { ChatUI } from './components/chat-ui';
-export { ChatInputUI } from './components/chat-input-ui';
+// Types
+export type { Sender, ChatUIOptions, ChatMessageParams, ActiveInterval } from './types/chat-types';
+export type { ConsentBannerConfig } from './types/consent-types';
 
-// Re-exportar tipos
-export type { 
-	Sender, 
-	ChatUIOptions, 
-	ChatMessageParams, 
-	ActiveInterval 
-} from './types/chat-types';
-
-// Re-exportar utilidades
-export { 
-	formatTime, 
-	formatDate, 
-	isBot, 
-	generateInitials, 
-	createDateSeparator 
+// Utilities
+export {
+    formatTime,
+    formatDate,
+    isBot,
+    generateInitials,
+    createDateSeparator,
 } from './utils/chat-utils';

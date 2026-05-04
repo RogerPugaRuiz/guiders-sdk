@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test TTL & Payload Limits - WordPress</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #0073aa;
+            border-bottom: 3px solid #0073aa;
+            padding-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .btn-primary { background: #0073aa; color: white; }
+        .btn-success { background: #46b450; color: white; }
+        .btn-warning { background: #ffb900; color: white; }
+        .btn-danger { background: #dc3232; color: white; }
+        button:hover { opacity: 0.9; }
+        #stats {
+            background: #f0f0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            border-left: 4px solid #0073aa;
+        }
+        #logs {
+            background: #23282d;
+            color: #50fa7b;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid #333;
+        }
+        .alert {
+            padding: 12px 20px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .alert-info { background: #e5f5fa; border-left: 4px solid #00a0d2; }
+        .alert-success { background: #ecf7ed; border-left: 4px solid #46b450; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Verificación TTL & Payload Limits - WordPress</h1>
+
+    <div class="card">
+        <div class="alert alert-success">
+            ✅ <strong>SDK Actualizado!</strong> Versión con TTL y límites de payload cargada correctamente.
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📊 Estadísticas de Cola</h2>
+        <div id="stats">Cargando SDK...</div>
+        <button class="btn-primary" onclick="updateStats()">🔄 Actualizar</button>
+    </div>
+
+    <div class="card">
+        <h2>🎯 Pruebas Rápidas</h2>
+        <div class="alert alert-info">
+            <strong>Nota:</strong> Estas pruebas verifican que el SDK esté funcionando correctamente con los nuevos límites.
+        </div>
+        <div>
+            <button class="btn-success" onclick="generateEvents(10)">➕ Generar 10 Eventos</button>
+            <button class="btn-success" onclick="generateEvents(50)">➕ Generar 50 Eventos</button>
+            <button class="btn-warning" onclick="generateEvents(100)">➕ Generar 100 Eventos</button>
+            <button class="btn-danger" onclick="generateOldEvents(20, 25)">⏰ 20 Eventos Expirados (25h)</button>
+        </div>
+        <div style="margin-top: 10px;">
+            <button class="btn-primary" onclick="flushEvents()">🚀 Flush Manual</button>
+            <button class="btn-danger" onclick="clearQueue()">🗑️ Limpiar Cola</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📋 Console Logs</h2>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        // Obtener instancia del SDK desde window (inyectado por WordPress)
+        let sdk = window.guiders?.trackingPixelSDK;
+        let logs = [];
+
+        // Esperar a que el SDK esté disponible
+        function waitForSDK() {
+            if (window.guiders && window.guiders.trackingPixelSDK) {
+                sdk = window.guiders.trackingPixelSDK;
+                console.log('✅ SDK cargado:', sdk);
+                updateStats();
+                
+                // Interceptar console.log
+                const originalLog = console.log;
+                console.log = function(...args) {
+                    originalLog.apply(console, args);
+                    const message = args.map(arg => 
+                        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                    ).join(' ');
+                    
+                    if (message.includes('[TrackingPixelSDK]') || 
+                        message.includes('[EventQueueManager]') || 
+                        message.includes('[TrackingV2Service]')) {
+                        logs.push({
+                            timestamp: new Date().toLocaleTimeString(),
+                            message: message
+                        });
+                        if (logs.length > 30) logs.shift();
+                        updateLogDisplay();
+                    }
+                };
+            } else {
+                setTimeout(waitForSDK, 500);
+            }
+        }
+
+        waitForSDK();
+
+        function updateStats() {
+            if (!sdk || !sdk.eventQueueManager) {
+                document.getElementById('stats').textContent = '⚠️ SDK no disponible aún...';
+                return;
+            }
+
+            const stats = sdk.eventQueueManager.getStats();
+            const utilization = ((stats.size / stats.maxSize) * 100).toFixed(1);
+            
+            document.getElementById('stats').innerHTML = `
+📊 <strong>Estadísticas de Cola</strong>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📦 Tamaño actual:        ${stats.size} / ${stats.maxSize} eventos
+📈 Utilización:          ${utilization}%
+💾 Persistencia:         ${stats.persistEnabled ? '✅ Activada' : '❌ Desactivada'}
+⏰ TTL configurado:      ${stats.ttlHours} horas (${stats.ttlMs} ms)
+🕐 Evento más antiguo:   ${stats.oldestEventAgeHours !== null ? stats.oldestEventAgeHours.toFixed(2) + ' horas' : 'N/A'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ <strong>Nuevas características activas:</strong>
+   • TTL de 24 horas implementado
+   • Límite de payload de 1 MB
+   • Multi-request fallback automático
+   • Queue size reducida a 1,000 eventos
+            `.trim();
+        }
+
+        function updateLogDisplay() {
+            const logsDiv = document.getElementById('logs');
+            logsDiv.innerHTML = logs.map(log => 
+                `<div class="log-entry">[${log.timestamp}] ${log.message}</div>`
+            ).join('') || '<div class="log-entry">Esperando logs...</div>';
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function generateEvents(count) {
+            if (!sdk) {
+                alert('SDK no disponible');
+                return;
+            }
+            
+            console.log(`🎯 Generando ${count} eventos...`);
+            for (let i = 0; i < count; i++) {
+                sdk.track({
+                    type: 'test_event_wp',
+                    action: 'generated',
+                    index: i,
+                    source: 'wordpress',
+                    timestamp: new Date().toISOString()
+                });
+            }
+            setTimeout(updateStats, 500);
+            console.log(`✅ ${count} eventos generados`);
+        }
+
+        function generateOldEvents(count, hoursAgo) {
+            if (!sdk || !sdk.eventQueueManager) {
+                alert('SDK no disponible');
+                return;
+            }
+            
+            console.log(`⏰ Generando ${count} eventos de hace ${hoursAgo} horas...`);
+            const oldTimestamp = Date.now() - (hoursAgo * 60 * 60 * 1000);
+            
+            for (let i = 0; i < count; i++) {
+                sdk.track({
+                    type: 'old_test_event_wp',
+                    action: 'generated_old',
+                    index: i,
+                    hoursAgo: hoursAgo,
+                    source: 'wordpress'
+                });
+            }
+
+            // Modificar timestamps manualmente
+            setTimeout(() => {
+                const queue = sdk.eventQueueManager.queue;
+                const startIndex = Math.max(0, queue.length - count);
+                for (let i = startIndex; i < queue.length; i++) {
+                    if (queue[i]) {
+                        queue[i].__queuedAt = oldTimestamp;
+                    }
+                }
+                console.log(`✅ ${count} eventos antiguos creados`);
+                updateStats();
+            }, 300);
+        }
+
+        async function flushEvents() {
+            if (!sdk) {
+                alert('SDK no disponible');
+                return;
+            }
+            
+            console.log('🚀 Iniciando flush...');
+            try {
+                await sdk.flush();
+                console.log('✅ Flush completado');
+            } catch (error) {
+                console.error('❌ Error:', error);
+            }
+            setTimeout(updateStats, 1000);
+        }
+
+        function clearQueue() {
+            if (!sdk || !sdk.eventQueueManager) {
+                alert('SDK no disponible');
+                return;
+            }
+            
+            const size = sdk.eventQueueManager.queue.length;
+            sdk.eventQueueManager.queue = [];
+            sdk.eventQueueManager.saveToStorage();
+            console.log(`🗑️ Cola vaciada (${size} eventos)`);
+            updateStats();
+        }
+
+        // Auto-actualizar cada 5 segundos
+        setInterval(updateStats, 5000);
+    </script>
+</body>
+</html>

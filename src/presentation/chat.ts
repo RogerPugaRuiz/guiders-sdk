@@ -1,23 +1,12 @@
-// chat.ts - Archivo de compatibilidad que re-exporta desde las nuevas ubicaciones
-
-// Re-exportar tipos
-export type { Sender, ChatUIOptions, ChatMessageParams, ActiveInterval } from './types/chat-types';
-
-// Re-exportar utilidades
-export { 
-	formatTime, 
-	formatDate, 
-	isBot, 
-	generateInitials, 
-	createDateSeparator 
-} from './utils/chat-utils';
-
-// Re-exportar componentes principales - usando export * para incluir TODOS los métodos
-export { ChatUI } from './components/chat-ui';
-export { ChatInputUI } from './components/chat-input-ui';
-
-// Asegurar compatibilidad completa importando y re-exportando todo
-export * from './components/chat-ui';
-export * from './components/chat-input-ui';
-export * from './types/chat-types';
-export * from './utils/chat-utils';
+// presentation/chat.ts — compatibility shim
+// ChatUI is now ChatUIBridge. All consumers (SDK, tests) import from here unchanged.
+// Patch #18: re-export from the canonical barrel to avoid drift between the two files.
+export { ChatUI } from './index';
+export type { Sender, ChatUIOptions, ChatMessageParams, ActiveInterval } from './index';
+export {
+    formatTime,
+    formatDate,
+    isBot,
+    generateInitials,
+    createDateSeparator,
+} from './index';

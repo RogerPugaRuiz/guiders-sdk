@@ -21,6 +21,14 @@ test.describe('Guiders SDK Chat UI Tests - Post Refactoring Validation', () => {
     
     // Esperar a que el DOM esté completamente cargado
     await page.waitForLoadState('domcontentloaded');
+
+    // BotDetector mitigation: in headless Playwright `navigator.webdriver`
+    // + sub-100ms load + no interaction pushes the bot score above 0.6
+    // and the SDK refuses to assign `window.guiders`. A single mouse
+    // move flips the behavior check and unblocks initialization.
+    // See src/core/bot-detector.ts and tests/e2e/preact-components.spec.ts.
+    await page.mouse.move(200, 200);
+    await page.mouse.move(220, 220);
     
     // Añadir logging de consola para debug
     page.on('console', msg => {

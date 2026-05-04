@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test V1 Cleanup - Guiders SDK</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1 { color: #f48771; }
+        h2 { color: #dcdcaa; margin-top: 30px; }
+        .section {
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        button:hover { background: #1177bb; }
+        button.danger { background: #d83030; }
+        button.danger:hover { background: #e64545; }
+        button.success { background: #4ec9b0; color: #1e1e1e; }
+        button.success:hover { background: #6edcc8; }
+        pre {
+            background: #1e1e1e;
+            border: 1px solid #3c3c3c;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid;
+        }
+        .result.success { background: #1e3a1e; border-color: #4ec9b0; color: #4ec9b0; }
+        .result.error { background: #3a1e1e; border-color: #f48771; color: #f48771; }
+        .result.warning { background: #3a361e; border-color: #d7ba7d; color: #d7ba7d; }
+        .code {
+            background: #2d2d30;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 3px solid #4ec9b0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test: Limpieza de Eventos V1 (pageUrl/pagePath)</h1>
+    
+    <div class="section">
+        <h2>📋 Problema Detectado</h2>
+        <p>Los eventos generados por <strong>EventAggregator</strong> contenían campos V1 deprecados:</p>
+        <div class="code">
+            ❌ <strong>Formato V1 (rechazado):</strong><br>
+            {<br>
+            &nbsp;&nbsp;"eventType": "VISITOR_CHAT_ACTIVE",<br>
+            &nbsp;&nbsp;<span style="color: #f48771;">"pageUrl": "http://localhost:8090/",</span> ❌<br>
+            &nbsp;&nbsp;<span style="color: #f48771;">"pagePath": "/",</span> ❌<br>
+            &nbsp;&nbsp;"metadata": { "page": {...} }<br>
+            }
+        </div>
+        <p>Estos eventos eran <strong>rechazados silenciosamente</strong> pero <strong>nunca eliminados de la cola</strong> → loop infinito.</p>
+    </div>
+
+    <div class="section">
+        <h2>✅ Soluciones Implementadas</h2>
+        <ol>
+            <li><strong>EventAggregator limpia campos V1</strong>: Ya no copia <code>pageUrl</code> ni <code>pagePath</code></li>
+            <li><strong>TrackingV2Service retorna success=true</strong>: Cuando descarta eventos inválidos, permite eliminarlos de la cola</li>
+            <li><strong>TTL migra eventos legacy</strong>: Eventos sin <code>__queuedAt</code> reciben timestamp actual</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>🎬 Test Automático</h2>
+        <button onclick="runTest()" class="success">▶️ EJECUTAR TEST</button>
+        <button onclick="clearTest()" class="danger">🗑️ Limpiar</button>
+    </div>
+
+    <div class="section">
+        <h2>📊 Resultados</h2>
+        <div id="results"></div>
+    </div>
+
+    <div class="section">
+        <h2>🔍 Logs</h2>
+        <pre id="logs"></pre>
+    </div>
+
+    <script src="http://localhost:8090/wp-content/plugins/guiders-wp-plugin/assets/js/guiders-sdk.js"></script>
+    <script>
+        let logs = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const emoji = type === 'error' ? '❌' : type === 'warning' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
+            
+            logs.push(`[${timestamp}] ${emoji} ${message}`);
+            
+            const logsEl = document.getElementById('logs');
+            logsEl.textContent = logs.join('\n');
+            logsEl.scrollTop = logsEl.scrollHeight;
+            
+            console.log(`[TEST] ${message}`);
+        }
+
+        function showResult(message, type = 'success') {
+            const resultsEl = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${type === 'error' ? '❌' : type === 'warning' ? '⚠️' : '✅'}</strong> ${message}`;
+            resultsEl.appendChild(div);
+        }
+
+        function clearTest() {
+            localStorage.removeItem('guiders_tracking_v2_queue');
+            document.getElementById('results').innerHTML = '';
+            logs = [];
+            document.getElementById('logs').textContent = '';
+            log('🧹 Test limpiado', 'success');
+        }
+
+        async function runTest() {
+            document.getElementById('results').innerHTML = '';
+            logs = [];
+            document.getElementById('logs').textContent = '';
+            
+            log('▶️ Iniciando test de limpieza V1...', 'info');
+            
+            try {
+                const sdk = window.guiders?.trackingPixelSDK;
+                if (!sdk) {
+                    showResult('SDK no encontrado', 'error');
+                    log('❌ SDK no está disponible', 'error');
+                    return;
+                }
+
+                // Paso 1: Limpiar cola
+                log('🧹 Paso 1: Limpiando cola...', 'info');
+                sdk.eventQueueManager.clear();
+                
+                // Paso 2: Inyectar eventos V1 (con pageUrl/pagePath)
+                log('💉 Paso 2: Inyectando 10 eventos V1 con campos deprecados...', 'warning');
+                
+                for (let i = 0; i < 10; i++) {
+                    const v1Event = {
+                        visitorId: sdk.visitorId,
+                        sessionId: sdk.sessionId,
+                        eventType: 'VISITOR_CHAT_ACTIVE',
+                        occurredAt: new Date().toISOString(),
+                        pageUrl: 'http://localhost:8090/', // ❌ Campo V1
+                        pagePath: '/', // ❌ Campo V1
+                        metadata: {
+                            chatId: 'test-chat-123',
+                            page: {
+                                url: 'http://localhost:8090/',
+                                path: '/',
+                                host: 'localhost:8090'
+                            }
+                        }
+                    };
+                    
+                    sdk.eventQueueManager.enqueue(v1Event);
+                }
+                
+                log(`✅ 10 eventos V1 inyectados`, 'success');
+                showResult('10 eventos V1 (con pageUrl/pagePath) inyectados en la cola', 'warning');
+                
+                // Paso 3: Intentar enviar
+                log('📤 Paso 3: Intentando enviar eventos V1 al backend...', 'info');
+                
+                const queueSizeBefore = sdk.eventQueueManager.size();
+                log(`   Cola antes del flush: ${queueSizeBefore} eventos`, 'info');
+                
+                // Ejecutar flush
+                await sdk.flush();
+                
+                // Esperar un momento para que se procese
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Paso 4: Verificar que se eliminaron
+                log('🔍 Paso 4: Verificando que los eventos V1 fueron eliminados...', 'info');
+                
+                const queueSizeAfter = sdk.eventQueueManager.size();
+                log(`   Cola después del flush: ${queueSizeAfter} eventos`, 'info');
+                
+                // Verificar localStorage
+                const stored = localStorage.getItem('guiders_tracking_v2_queue');
+                const storedEvents = stored ? JSON.parse(stored) : [];
+                
+                log(`   Eventos en localStorage: ${storedEvents.length}`, 'info');
+                
+                // Verificar si hay eventos V1 restantes
+                const v1EventsRemaining = storedEvents.filter(e => 
+                    e.pageUrl || e.pagePath
+                ).length;
+                
+                log(`   Eventos V1 restantes: ${v1EventsRemaining}`, v1EventsRemaining > 0 ? 'error' : 'success');
+                
+                // RESULTADOS
+                if (queueSizeAfter === 0 && v1EventsRemaining === 0) {
+                    showResult('✅ TEST EXITOSO: Todos los eventos V1 fueron eliminados', 'success');
+                    log('🎉 TEST COMPLETADO EXITOSAMENTE', 'success');
+                    log('   Los eventos con pageUrl/pagePath fueron rechazados y eliminados correctamente', 'success');
+                } else if (v1EventsRemaining === 0 && queueSizeAfter > 0) {
+                    showResult(`⚠️ TEST PARCIAL: Cola no vacía (${queueSizeAfter} eventos) pero no son V1`, 'warning');
+                    log('⚠️ Hay eventos nuevos en la cola (puede ser normal)', 'warning');
+                } else {
+                    showResult(`❌ TEST FALLIDO: ${v1EventsRemaining} eventos V1 permanecen en la cola`, 'error');
+                    log('❌ Los eventos V1 no fueron eliminados', 'error');
+                    
+                    // Mostrar un evento V1 de ejemplo
+                    const sampleV1 = storedEvents.find(e => e.pageUrl || e.pagePath);
+                    if (sampleV1) {
+                        log(`   Ejemplo de evento V1 restante: ${JSON.stringify(sampleV1, null, 2)}`, 'error');
+                    }
+                }
+                
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+                log(`❌ Error durante el test: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // Auto-start después de 2 segundos
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (window.guiders?.trackingPixelSDK) {
+                    log('✅ SDK detectado, listo para testing', 'success');
+                    showResult('SDK cargado correctamente. Haz clic en "EJECUTAR TEST" para comenzar.', 'success');
+                } else {
+                    log('❌ SDK no detectado', 'error');
+                    showResult('SDK no se pudo cargar', 'error');
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

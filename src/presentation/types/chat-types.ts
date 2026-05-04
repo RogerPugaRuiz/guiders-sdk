@@ -2,17 +2,46 @@
 
 import { ChatPositionConfig, MobileDetectionConfig, AIConfig } from "../../types";
 import { AIMetadata } from "../../types/websocket-types";
-import { QuickActionsConfig } from "./quick-actions-types";
-import { ChatSelectorConfig } from "./chat-selector-types";
-
-// Re-exportar tipos de Quick Actions y Chat Selector
-export * from "./quick-actions-types";
-export * from "./chat-selector-types";
+import type { QuickActionsConfig } from "./quick-actions-types";
+import type { ChatSelectorConfig } from "./chat-selector-types";
 
 /**
- * Tipo para identificar el remitente de un mensaje
+ * Patch #23 (Chunk 2): replaced `export *` with explicit named re-exports so
+ * adding a new symbol to a sub-module is an intentional publication. Same
+ * rationale as Patch #8 for the signals barrel. `QuickActionsConfig` and
+ * `ChatSelectorConfig` are imported at the top of this file as `type`-only
+ * (used in interface bodies below) and re-exported here under the same name.
  */
-export type Sender = 'user' | 'other';
+
+// Re-export Quick Actions types
+export type {
+	QuickActionPayload,
+	QuickAction,
+	QuickActionType,
+	QuickActionsConfig,
+	QuickActionButton,
+	InternalQuickActionsConfig,
+	QuickActionSendPayload, // moved here by Patch #29
+} from './quick-actions-types';
+
+// Re-export Chat Selector types
+export type {
+	ChatSelectorItem,
+	ChatSelectorStatus,
+	ChatSelectorConfig,
+	InternalChatSelectorConfig,
+	ChatSelectorState,
+	ChatSelectorCallbacks,
+} from './chat-selector-types';
+export { DEFAULT_CHAT_SELECTOR_CONFIG } from './chat-selector-types';
+
+/**
+ * Tipo para identificar el remitente de un mensaje.
+ * - `'user'` / `'other'` / `'ai'` / `'agent'`: mensajes reales en la conversación.
+ * - `'system'`: mensajes informativos generados por el SDK (estado, errores).
+ * - `'consent'`: mensaje GDPR de consentimiento (renderizado inline por `MessageBubble`).
+ */
+export type Sender = 'user' | 'other' | 'system' | 'ai' | 'agent' | 'consent';
 
 /**
  * Opciones de configuración del chat UI
@@ -34,6 +63,8 @@ export interface ChatUIOptions {
 	textColor?: string;
 	/** Ancho máximo de los mensajes */
 	maxWidthMessage?: string;
+	/** Título mostrado en el header del chat cuando no hay comercial asignado (default: "Chat"). Patch #9. */
+	title?: string;
 	/** Configuración de posicionamiento del chat widget */
 	position?: ChatPositionConfig;
 	/** Configuración de detección de dispositivo móvil */
@@ -46,6 +77,16 @@ export interface ChatUIOptions {
 	ai?: Partial<AIConfig>;
 	/** Configuración del selector de chats (múltiples conversaciones) */
 	chatSelector?: Partial<ChatSelectorConfig>;
+	/** Configuración del banner mostrado cuando el comercial está offline. Patch #13. */
+	offlineBanner?: {
+		/** Texto del banner offline (default: "Agente desconectado — te responderemos en cuanto vuelva"). */
+		text?: string;
+	};
+	/** Configuración del input de mensajes. Patch #13. */
+	chatInput?: {
+		/** Placeholder mostrado en el textarea (default: "Escribe un mensaje..."). */
+		placeholder?: string;
+	};
 }
 
 /**
@@ -69,14 +110,18 @@ export interface ChatMessageParams {
 
 /**
  * Configuración para intervalos activos del chat
+ *
+ * Patch #22 (Chunk 2): `id` typed as `ReturnType<typeof setInterval> | null`
+ * instead of `number | null` so the type stays correct under both `dom` and
+ * `@types/node` lib configurations (the latter returns `NodeJS.Timeout`).
  */
 export interface ActiveInterval {
-	/** ID del intervalo */
-	id: number | null;
+	/** Handle returned by setInterval. */
+	readonly id: ReturnType<typeof setInterval> | null;
 	/** Función callback a ejecutar */
-	callback: () => void;
+	readonly callback: () => void;
 	/** Intervalo en milisegundos */
-	intervalMs: number;
+	readonly intervalMs: number;
 }
 
 /**

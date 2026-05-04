@@ -14,12 +14,29 @@ import { WebSocketService } from './websocket-service';
 import { ChatV2Service } from './chat-v2-service';
 import { RealtimeMessage, ChatStatusUpdate, TypingIndicator, AIMetadata, CommercialAssignedEvent } from '../types/websocket-types';
 import { AIConfig } from '../types';
-import { ChatUI } from '../presentation/components/chat-ui';
 import { MessageRenderer } from '../presentation/utils/message-renderer';
+import { ChatMessageParams } from '../presentation/types/chat-types';
+import { AssignedCommercialInfo } from '../types/websocket-types';
+
+/**
+ * Minimal interface that any chat UI implementation must satisfy.
+ * Using a structural interface instead of the concrete ChatUI class
+ * keeps services/ decoupled from presentation/.
+ */
+export interface ChatUILike {
+	setChatId(chatId: string): void;
+	renderChatMessage(params: ChatMessageParams): void;
+	scrollToBottom(smooth: boolean): void;
+	getLastKnownChatStatus(): string | null;
+	hasAssignedCommercial(): boolean;
+	addSystemMessage(text: string): void;
+	updateHeaderWithCommercial(commercial: AssignedCommercialInfo, status?: string): void;
+	refreshChatDetailsForced(): Promise<void>;
+}
 
 export interface RealtimeMessageManagerOptions {
-	/** Instancia de ChatUI para renderizar mensajes */
-	chatUI: ChatUI;
+	/** Instancia de ChatUI (o compatible) para renderizar mensajes */
+	chatUI: ChatUILike;
 	/** ID del visitante actual */
 	visitorId: string;
 	/** Habilitar typing indicators */
@@ -34,7 +51,7 @@ export class RealtimeMessageManager {
 	private static instance: RealtimeMessageManager | null = null;
 	private wsService: WebSocketService;
 	private chatService: ChatV2Service;
-	private chatUI: ChatUI | null = null;
+	private chatUI: ChatUILike | null = null;
 	private visitorId: string = '';
 	private currentChatId: string | null = null;
 	
@@ -106,7 +123,7 @@ export class RealtimeMessageManager {
 	 * Actualiza la referencia de ChatUI
 	 * IMPORTANTE: Debe llamarse cuando se recrea el ChatUI para evitar referencias desactualizadas
 	 */
-	public setChatUI(chatUI: ChatUI): void {
+	public setChatUI(chatUI: ChatUILike): void {
 		if (this.chatUI !== chatUI) {
 			debugLog('💬 [RealtimeMessageManager] 🔄 Actualizando referencia de ChatUI');
 			this.chatUI = chatUI;
