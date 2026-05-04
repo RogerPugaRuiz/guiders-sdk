@@ -375,16 +375,20 @@ export function getChatStyles(position: ResolvedPosition): string {
             flex-shrink: 0;
             background: var(--gds-color-bg-elevated);
             margin: 0 12px 12px 12px;
-            display: -webkit-flex;
             display: flex;
-            -webkit-align-items: flex-end;
-            align-items: flex-end;
-            gap: 8px;
+            flex-direction: column;
             border-radius: 28px;
-            box-shadow: none;
             border: 1px solid var(--gds-color-border);
             padding: 6px 6px 6px 16px;
             box-sizing: border-box;
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-end;
+            gap: 8px;
+            width: 100%;
         }
 
         @media (max-width: 768px) {
