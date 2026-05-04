@@ -215,8 +215,8 @@ export function ChatWidget({ options }: ChatWidgetProps) {
                             {quickActionsConfig.enabled && quickActionsConfig.buttons.length > 0 && (
                                 <QuickActions config={quickActionsConfig} />
                             )}
-                            <AIDisclaimer visible={disclaimerVisible} />
                             <ChatInput />
+                            <AIDisclaimer visible={disclaimerVisible} />
                         </>
                     )
                 }
