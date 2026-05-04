@@ -375,8 +375,6 @@ export function getChatStyles(position: ResolvedPosition): string {
             flex-shrink: 0;
             background: var(--gds-color-bg-elevated);
             margin: 0 12px 12px 12px;
-            display: flex;
-            flex-direction: column;
             border-radius: 28px;
             border: 1px solid var(--gds-color-border);
             padding: 6px 6px 6px 16px;

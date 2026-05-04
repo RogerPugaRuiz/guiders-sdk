@@ -95,33 +95,35 @@ export function ChatInput() {
     const typingAuthorType = isHumanAssigned ? 'human' : 'ai';
 
     return (
-        <div class="chat-input-container" ref={composerRef}>
+        <>
             <TypingIndicator authorType={typingAuthorType} />
-            <div class="chat-input-wrapper">
-                <textarea
-                    ref={textareaRef}
-                    class="chat-input-field"
-                    placeholder={placeholder}
-                    rows={1}
-                    onInput={handleInput}
-                    onKeyDown={handleKeyDown}
-                    aria-label="Mensaje"
-                />
-                <button
-                    class="chat-send-btn"
-                    type="button"
-                    aria-label="Enviar mensaje"
-                    aria-disabled={hasContent ? undefined : 'true'}
-                    onClick={hasContent ? handleSend : undefined}
-                    style={{
-                        opacity: hasContent ? 1 : 0.35,
-                        transition: `opacity var(--gds-duration-normal, 150ms)`,
-                        cursor: hasContent ? 'pointer' : 'default',
-                    }}
-                >
-                    {/* Icon rendered via ::before pseudo-element in ChatWidget.styles.ts */}
-                </button>
+            <div class="chat-input-container" ref={composerRef}>
+                <div class="chat-input-wrapper">
+                    <textarea
+                        ref={textareaRef}
+                        class="chat-input-field"
+                        placeholder={placeholder}
+                        rows={1}
+                        onInput={handleInput}
+                        onKeyDown={handleKeyDown}
+                        aria-label="Mensaje"
+                    />
+                    <button
+                        class="chat-send-btn"
+                        type="button"
+                        aria-label="Enviar mensaje"
+                        aria-disabled={hasContent ? undefined : 'true'}
+                        onClick={hasContent ? handleSend : undefined}
+                        style={{
+                            opacity: hasContent ? 1 : 0.35,
+                            transition: `opacity var(--gds-duration-normal, 150ms)`,
+                            cursor: hasContent ? 'pointer' : 'default',
+                        }}
+                    >
+                        {/* Icon rendered via ::before pseudo-element in ChatWidget.styles.ts */}
+                    </button>
+                </div>
             </div>
-        </div>
+        </>
     );
 }
