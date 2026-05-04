@@ -101,17 +101,46 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .chat-header {
-            background: var(--gds-color-bg);
-            color: var(--gds-color-text);
+            position: relative;
+            overflow: hidden;
+            color: #ffffff;
             padding: 10px 14px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-top-left-radius: var(--gds-radius-lg, 16px);
             border-top-right-radius: var(--gds-radius-lg, 16px);
-            border-bottom: 1px solid var(--gds-color-border);
-            min-height: 44px;
+            min-height: 64px;
             flex-shrink: 0;
+        }
+
+        /* Animated aurora background */
+        .chat-header::before {
+            content: '';
+            position: absolute;
+            inset: -50%;
+            background: conic-gradient(
+                from var(--deg, 0deg),
+                #7c3aed, #4f46e5, #2563eb, #0891b2, #059669, #2563eb, #4f46e5, #7c3aed
+            );
+            animation: rotate-gradient 8s linear infinite;
+            z-index: 0;
+        }
+
+        /* Frosted glass overlay — softens the raw gradient */
+        .chat-header::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(0px);
+            z-index: 1;
+        }
+
+        /* All direct children above the gradient layers */
+        .chat-header > * {
+            position: relative;
+            z-index: 2;
         }
 
         @media (max-width: 640px) {
@@ -144,8 +173,7 @@ export function getChatStyles(position: ResolvedPosition): string {
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.5);
         }
 
         .chat-header-avatar svg {
@@ -197,12 +225,14 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .chat-header-title {
-            font-weight: 600;
+            font-weight: 700;
             font-size: 16px;
             letter-spacing: -0.01em;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            color: #ffffff;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
         }
 
         .chat-header-actions {
@@ -213,9 +243,9 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .chat-close-btn {
-            background: transparent;
+            background: rgba(255, 255, 255, 0.15);
             border: none;
-            color: var(--gds-color-text-secondary);
+            color: #ffffff;
             cursor: pointer;
             width: 32px;
             height: 32px;
@@ -223,20 +253,17 @@ export function getChatStyles(position: ResolvedPosition): string {
             align-items: center;
             justify-content: center;
             padding: 0;
-            opacity: 0.9;
             transition: all var(--gds-duration-normal, 150ms) ease;
             border-radius: 50%;
         }
 
         .chat-close-btn:hover {
-            opacity: 1;
-            background: var(--gds-color-bg-elevated);
-            color: var(--gds-color-text);
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .chat-close-btn:active {
             transform: scale(0.95);
-            background: var(--gds-color-border);
+            background: rgba(255, 255, 255, 0.4);
         }
 
         .chat-close-btn svg {
@@ -248,11 +275,6 @@ export function getChatStyles(position: ResolvedPosition): string {
             .chat-close-btn {
                 width: 36px;
                 height: 36px;
-                background: var(--gds-color-bg-elevated);
-            }
-
-            .chat-close-btn:hover {
-                background: var(--gds-color-border);
             }
 
             .chat-close-btn svg {
@@ -262,9 +284,9 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .chat-back-btn {
-            background: transparent;
+            background: rgba(255, 255, 255, 0.15);
             border: none;
-            color: var(--gds-color-text);
+            color: #ffffff;
             cursor: pointer;
             width: 32px;
             height: 32px;
@@ -272,20 +294,18 @@ export function getChatStyles(position: ResolvedPosition): string {
             align-items: center;
             justify-content: center;
             padding: 0;
-            opacity: 0.9;
             transition: all var(--gds-duration-normal, 150ms) ease;
             border-radius: 50%;
             flex-shrink: 0;
         }
 
         .chat-back-btn:hover {
-            opacity: 1;
-            background: var(--gds-color-bg-elevated);
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .chat-back-btn:active {
             transform: scale(0.95);
-            background: var(--gds-color-border);
+            background: rgba(255, 255, 255, 0.4);
         }
 
         .chat-back-btn svg {
