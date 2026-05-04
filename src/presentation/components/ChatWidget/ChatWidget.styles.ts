@@ -100,6 +100,12 @@ export function getChatStyles(position: ResolvedPosition): string {
             z-index: 2147483646;
         }
 
+        @keyframes aurora-shift {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
         .chat-header {
             position: relative;
             overflow: hidden;
@@ -112,29 +118,12 @@ export function getChatStyles(position: ResolvedPosition): string {
             border-top-right-radius: var(--gds-radius-lg, 16px);
             min-height: 64px;
             flex-shrink: 0;
-        }
-
-        /* Animated aurora background */
-        .chat-header::before {
-            content: '';
-            position: absolute;
-            inset: -50%;
-            background: conic-gradient(
-                from var(--deg, 0deg),
-                #7c3aed, #4f46e5, #2563eb, #0891b2, #059669, #2563eb, #4f46e5, #7c3aed
+            background: linear-gradient(
+                135deg,
+                #7c3aed, #4f46e5, #2563eb, #0891b2, #059669, #4f46e5, #7c3aed
             );
-            animation: rotate-gradient 8s linear infinite;
-            z-index: 0;
-        }
-
-        /* Frosted glass overlay — softens the raw gradient */
-        .chat-header::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.15);
-            backdrop-filter: blur(0px);
-            z-index: 1;
+            background-size: 300% 300%;
+            animation: aurora-shift 8s ease infinite;
         }
 
         /* All direct children above the gradient layers */
