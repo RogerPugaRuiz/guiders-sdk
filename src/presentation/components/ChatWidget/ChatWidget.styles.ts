@@ -378,9 +378,9 @@ export function getChatStyles(position: ResolvedPosition): string {
             border-radius: 28px;
             padding: 2px;
             box-sizing: border-box;
-            /* Animated aurora border via pseudo-element */
         }
 
+        /* Idle aurora — always visible, rotates slowly */
         .chat-input-container::before {
             content: '';
             position: absolute;
@@ -391,15 +391,35 @@ export function getChatStyles(position: ResolvedPosition): string {
                 #a78bfa, #818cf8, #60a5fa, #34d399, #60a5fa, #818cf8, #a78bfa
             );
             filter: blur(3px);
-            opacity: 0.7;
+            opacity: 0.6;
             z-index: 0;
             animation: rotate-gradient 6s linear infinite;
-            transition: opacity 0.3s ease, filter 0.3s ease;
+            transition: opacity 1s ease;
+        }
+
+        /* Focus aurora — warm burst: pink, orange, yellow, cyan */
+        .chat-input-container::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 28px;
+            background: conic-gradient(
+                from var(--deg, 0deg),
+                #f472b6, #fb923c, #facc15, #34d399, #22d3ee, #818cf8, #f472b6
+            );
+            filter: blur(5px);
+            opacity: 0;
+            z-index: 0;
+            animation: rotate-gradient 3s linear infinite;
+            transition: opacity 1s ease;
         }
 
         .chat-input-container:focus-within::before {
+            opacity: 0;
+        }
+
+        .chat-input-container:focus-within::after {
             opacity: 1;
-            filter: blur(4px);
         }
 
         .chat-input-inner {
