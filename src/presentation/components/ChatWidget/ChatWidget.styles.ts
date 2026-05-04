@@ -15,6 +15,17 @@ export function getChatStyles(position: ResolvedPosition): string {
     `.trim();
 
     return `
+        @property --deg {
+            syntax: '<angle>';
+            inherits: false;
+            initial-value: 0deg;
+        }
+
+        @keyframes rotate-gradient {
+            from { --deg: 0deg; }
+            to   { --deg: 360deg; }
+        }
+
         :host { all: initial; font-family: var(--gds-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif); }
 
         .guiders-chat-widget-root {
