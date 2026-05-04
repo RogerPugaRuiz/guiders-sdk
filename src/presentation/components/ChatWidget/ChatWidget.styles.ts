@@ -301,13 +301,12 @@ export function getChatStyles(position: ResolvedPosition): string {
             width: 100%;
         }
 
-        .chat-messages {
+         .chat-messages {
             display: flex;
             flex-direction: column;
             flex: 1;
             overflow-y: auto;
-            padding: 18px 16px 80px 16px;
-            margin-bottom: 25px;
+            padding: 18px 16px 8px 16px;
             background: var(--gds-color-bg);
             scroll-behavior: smooth;
         }
@@ -373,11 +372,9 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .chat-input-container {
-            position: absolute;
+            flex-shrink: 0;
             background: var(--gds-color-bg-elevated);
-            bottom: 12px;
-            left: 12px;
-            right: 12px;
+            margin: 0 12px 12px 12px;
             display: -webkit-flex;
             display: flex;
             -webkit-align-items: flex-end;
@@ -392,9 +389,7 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         @media (max-width: 768px) {
             .chat-input-container {
-                bottom: 8px;
-                left: 8px;
-                right: 8px;
+                margin: 0 8px 8px 8px;
             }
         }
 
