@@ -261,57 +261,6 @@ export class ConsentBackendService {
   }
 
   /**
-   * Otorga consentimientos en el backend
-   *
-   * Nota: El endpoint de grant ya existe implícitamente cuando el visitante
-   * se identifica por primera vez. Este método es para sincronizar cambios.
-   */
-  public async grantConsents(
-    visitorId: string,
-    preferences: {
-      analytics?: boolean;
-      functional?: boolean;
-      personalization?: boolean;
-    }
-  ): Promise<BackendConsentResponse[]> {
-    debugLog('[ConsentBackendService] ✅ Otorgando consentimientos:', preferences);
-
-    const grantedConsents: BackendConsentResponse[] = [];
-
-    // Por cada categoría otorgada, hacer una petición al backend
-    for (const [category, granted] of Object.entries(preferences)) {
-      if (!granted) continue;
-
-      const backendType = this.sdkCategoryToBackendType(category);
-
-      try {
-        // El backend crea consentimientos automáticamente al identificar el visitante
-        // Este endpoint es para sincronización explícita si es necesario
-        const response = await this.makeRequest<BackendConsentResponse>(
-          `/grant`,
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              visitorId,
-              type: backendType,
-              metadata: {
-                source: 'sdk',
-                category: category
-              }
-            })
-          }
-        );
-
-        grantedConsents.push(response);
-      } catch (error) {
-        // Continuar con las demás categorías aunque una falle
-      }
-    }
-
-    return grantedConsents;
-  }
-
-  /**
    * Revoca un consentimiento en el backend
    */
   public async revokeConsent(

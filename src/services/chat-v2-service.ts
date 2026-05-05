@@ -1,6 +1,6 @@
 import { EndpointManager } from '../core/endpoint-manager';
 import { debugLog, debugWarn, debugError } from '../utils/debug-logger';
-import { ChatV2, ChatListV2 } from '../types';
+import { ChatV2, ChatListV2, CreateChatResponse } from '../types';
 import { getCommonHeaders, getCommonFetchOptions } from '../utils/http-headers';
 
 /**
@@ -185,7 +185,9 @@ export class ChatV2Service {
 		if (cursor) params.append('cursor', cursor);
 		params.append('limit', limit.toString());
 
-		const url = `${this.getBaseUrl()}/visitor/${visitorId}?${params.toString()}`;
+		const baseEndpoint = (localStorage.getItem('pixelEndpoint') || EndpointManager.getInstance().getEndpoint());
+		const apiRoot = baseEndpoint.endsWith('/api') ? baseEndpoint : `${baseEndpoint}/api`;
+		const url = `${apiRoot}/v2/visitors/${visitorId}/chats?${params.toString()}`;
 
 		const response = await this.fetchWithReauth(url, this.getFetchOptions('GET'));
 
@@ -207,12 +209,13 @@ export class ChatV2Service {
 
 	/**
 	 * Obtiene el chat más reciente de un visitante.
-	 * Internamente solicita hasta 20 para permitir caching de historial inmediato,
-	 * pero solo devuelve el primero (más reciente) para la UI actual.
+	 * Nota: El endpoint GET /api/v2/chats/visitor/{visitorId}/my-chat requiere autenticación de comercial
+	 * y no es accesible desde el contexto de visitante (x-guiders-sid). Se usa getVisitorChats con limit=1
+	 * que sí acepta sesión de visitante (GET /api/v2/visitors/{visitorId}/chats).
 	 */
 	async getLatestVisitorChat(visitorId: string): Promise<ChatV2 | null> {
 		try {
-			const list = await this.getVisitorChats(visitorId, undefined, 20);
+			const list = await this.getVisitorChats(visitorId, undefined, 1);
 			if (list.chats && list.chats.length > 0) return list.chats[0];
 			return null;
 		} catch (e) {
@@ -250,7 +253,9 @@ export class ChatV2Service {
 			});
 		}
 
-		const url = `${this.getBaseUrl()}/commercial/${commercialId}?${params.toString()}`;
+		const baseEndpoint = (localStorage.getItem('pixelEndpoint') || EndpointManager.getInstance().getEndpoint());
+		const apiRoot = baseEndpoint.endsWith('/api') ? baseEndpoint : `${baseEndpoint}/api`;
+		const url = `${apiRoot}/v2/commercials/${commercialId}/chats?${params.toString()}`;
 
 		const response = await fetch(url, this.getFetchOptions('GET'));
 
@@ -480,9 +485,9 @@ export class ChatV2Service {
 	/**
 	 * Crea un chat V2 usando el endpoint mejorado POST /v2/chats (ID generado por el backend)
 	 * @param payload Datos del chat
-	 * @returns Promise con el chat creado
+	 * @returns Promise con { chatId, position } — ID del chat creado y posición en la cola de espera
 	 */
-	async createChatAuto(payload: any): Promise<ChatV2> {
+	async createChatAuto(payload: any): Promise<CreateChatResponse> {
 		debugLog('[ChatV2Service] 🆕 Creando chat V2 por POST (auto-id)');
 		const response = await this.fetchWithReauth(`${this.getBaseUrl()}`, this.getFetchOptions('POST', JSON.stringify(payload)));
 		if (!response.ok) {
@@ -490,9 +495,9 @@ export class ChatV2Service {
 			debugError('[ChatV2Service] ❌ Error al crear chat V2 (POST):', errorText);
 			throw new Error(`Error al crear chat V2 (POST) (${response.status}): ${errorText}`);
 		}
-		const chat = await response.json() as ChatV2;
-		debugLog('[ChatV2Service] ✅ Chat V2 creado (POST):', chat.id);
-		return chat;
+		const result = await response.json() as CreateChatResponse;
+		debugLog('[ChatV2Service] ✅ Chat V2 creado (POST):', result.chatId, '— posición en cola:', result.position);
+		return result;
 	}
 
 	/**

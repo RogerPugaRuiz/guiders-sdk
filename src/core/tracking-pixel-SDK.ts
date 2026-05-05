@@ -2049,17 +2049,19 @@ export class TrackingPixelSDK {
 		}
 
 		const domain = window.location.hostname;
+		// tenantId may already be stored from a previous identify/session
+		const storedTenantId = localStorage.getItem('tenantId') || undefined;
 
-		// Crear el servicio de disponibilidad
+		// Create availability service (REST + WebSocket, no polling)
 		this.commercialAvailabilityService = new CommercialAvailabilityService({
 			domain,
 			apiKey: this.apiKey,
 			apiBaseUrl: this.endpoint,
-			pollingInterval: this.commercialAvailabilityConfig.pollingInterval || 30,
-			debug: this.commercialAvailabilityConfig.debug || false
+			debug: this.commercialAvailabilityConfig.debug || false,
+			tenantId: storedTenantId
 		});
 
-		// Registrar callback para cambios de disponibilidad
+		// Register callback for availability changes
 		this.commercialAvailabilityService.onAvailabilityChanged((available, count) => {
 			debugLog(`📡 [CommercialAvailability] Estado cambió: ${available} (${count} online)`);
 
@@ -2087,9 +2089,12 @@ export class TrackingPixelSDK {
 			}
 		});
 
-		// Iniciar polling
-		this.commercialAvailabilityService.startPolling();
-		debugLog('📡 [CommercialAvailability] Polling iniciado');
+		// Start: REST initial check + WebSocket subscription
+		this.commercialAvailabilityService.start().then(() => {
+			debugLog('📡 [CommercialAvailability] Servicio iniciado (REST + WS)');
+		}).catch((err) => {
+			debugLog('📡 [CommercialAvailability] ⚠️ Error al iniciar servicio:', err);
+		});
 	}
 
 	/**

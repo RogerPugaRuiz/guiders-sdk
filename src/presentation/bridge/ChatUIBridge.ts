@@ -318,17 +318,46 @@ export class ChatUIBridge {
     /**
      * Registers the send-message handler (same as ChatInputUI.onSubmit).
      * Patch #23: wrap to reject empty / whitespace-only messages before invoking the SDK.
+     *
+     * Optimistic UI: the message is appended to messagesSignal immediately with
+     * a temporary id. If the async callback rejects, the optimistic message is
+     * removed so the user sees the failure without a ghost bubble.
      */
-    onSubmit(callback: (message: string) => void): void {
+    onSubmit(callback: (message: string) => void | Promise<void>): void {
         sendMessageCallbackSignal.value = (message: string) => {
             if (typeof message !== 'string' || message.trim().length === 0) {
                 debugWarn('[ChatUIBridge] onSubmit invoked with empty message — ignored');
                 return;
             }
+
+            // ── Optimistic append ─────────────────────────────────────────────
+            const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            const optimisticMsg = {
+                text: message,
+                sender: 'user' as const,
+                timestamp: Date.now(),
+                id: optimisticId,
+            } satisfies ChatMessageParams & { id: string };
+            this.appendMessage(optimisticMsg);
+
+            // ── Invoke SDK callback ───────────────────────────────────────────
             try {
-                callback(message);
+                const result = callback(message);
+                if (result && typeof result.then === 'function') {
+                    result.then(undefined, (err: unknown) => {
+                        // Send failed — remove the optimistic bubble
+                        debugError('[ChatUIBridge] onSubmit async callback failed, removing optimistic message:', err);
+                        messagesSignal.value = messagesSignal.value.filter(
+                            (m) => (m as ChatMessageParams & { id?: string }).id !== optimisticId
+                        );
+                    });
+                }
             } catch (err) {
-                debugError('[ChatUIBridge] onSubmit callback threw:', err);
+                // Sync throw — remove the optimistic bubble immediately
+                debugError('[ChatUIBridge] onSubmit callback threw, removing optimistic message:', err);
+                messagesSignal.value = messagesSignal.value.filter(
+                    (m) => (m as ChatMessageParams & { id?: string }).id !== optimisticId
+                );
             }
         };
     }
@@ -356,6 +385,28 @@ export class ChatUIBridge {
     }
 
     renderChatMessage(params: ChatMessageParams): void {
+        // Dedup: if an optimistic bubble with the same text from the same sender
+        // already exists (added < 10 s ago), skip this call to avoid a duplicate.
+        // This covers SDK paths that call renderChatMessage after the HTTP response
+        // when optimistic UI has already displayed the message.
+        if (params.sender === 'user') {
+            const DEDUP_WINDOW_MS = 10_000;
+            const now = Date.now();
+            const duplicate = messagesSignal.value.some((m) => {
+                const withId = m as ChatMessageParams & { id?: string };
+                return (
+                    withId.id?.startsWith('optimistic-') &&
+                    m.sender === 'user' &&
+                    m.text === params.text &&
+                    m.timestamp != null &&
+                    now - m.timestamp < DEDUP_WINDOW_MS
+                );
+            });
+            if (duplicate) {
+                debugLog('[ChatUIBridge] renderChatMessage: skipping duplicate of optimistic user bubble');
+                return;
+            }
+        }
         this.appendMessage(params);
     }
 
@@ -502,6 +553,11 @@ export class ChatUIBridge {
         chatIdSignal.value = chatId;
         // Increment trigger — usePagination hook will pick this up and load messages
         loadChatTriggerSignal.value = (loadChatTriggerSignal.value || 0) + 1;
+        // Always refresh chat details so avatar, name and presence status reflect
+        // the current state — even on first open when no prior detail is cached.
+        this.refreshChatDetails(force).catch((err) => {
+            debugError('[ChatUIBridge] initializeChat: refreshChatDetails failed:', err);
+        });
     }
 
     /**
