@@ -11,6 +11,7 @@ import {
     messageTextStyle,
     timeSpacerStyle,
     timeStyle,
+    authorNameStyle,
     avatarStyle,
     microstateStyle,
     retryStyle,
@@ -197,6 +198,10 @@ export function MessageBubble({
             )}
 
             <div style={contentColumnStyle(isOwn)}>
+                {/* Author name label — shown for human/ai on first-in-group */}
+                {!isOwn && isLastInGroup && (resolved === 'human' || resolved === 'ai') && (
+                    <span style={authorNameStyle(resolved)}>{displayName}</span>
+                )}
                 <div class={messageClass} style={messageStyle(resolved, isLastInGroup)}>
                     <span style={messageTextStyle}>{cleaned}</span>
                     {timeText && (
@@ -206,7 +211,7 @@ export function MessageBubble({
                                 {` ${timeText}`}
                                 {microstate && ' ·'}
                             </span>
-                            <span class="chat-message-time" style={timeStyle}>
+                            <span class="chat-message-time" style={timeStyle(isOwn)}>
                                 {timeText}
                                 <MicrostateIcon state={microstate} onRetry={onRetry} />
                             </span>

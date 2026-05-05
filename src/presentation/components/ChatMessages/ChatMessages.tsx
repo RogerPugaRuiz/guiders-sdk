@@ -1,5 +1,5 @@
 import { Fragment, VNode } from 'preact';
-import { useRef, useEffect, useState } from 'preact/hooks';
+import { useRef, useEffect } from 'preact/hooks';
 import {
     messagesSignal,
     isLoadingInitialMessagesSignal,
@@ -109,9 +109,6 @@ export function ChatMessages() {
     const prevScrollHeightRef = useRef<number>(0);
     const wasPaginatingRef = useRef<boolean>(false);
 
-    // Story 6.6: "↓ Nuevo mensaje" hint when user is scrolled up
-    const [showNewMsgHint, setShowNewMsgHint] = useState(false);
-
     // Activate pagination logic (watches loadChatTriggerSignal)
     const { loadOlderMessages } = usePagination();
 
@@ -137,30 +134,6 @@ export function ChatMessages() {
         }
         wasPaginatingRef.current = isPaginating;
     }, [isPaginating, messages]);
-
-    // Story 6.6: Smart scroll — show hint when new messages arrive while scrolled up
-    const isNearBottom = (): boolean => {
-        const el = containerRef.current;
-        if (!el) return true;
-        return el.scrollHeight - el.scrollTop - el.clientHeight < 100;
-    };
-
-    const scrollToBottom = (smooth = true): void => {
-        const el = containerRef.current;
-        if (!el) return;
-        el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'instant' as ScrollBehavior });
-    };
-
-    useEffect(() => {
-        if (!isPaginating) {
-            if (isNearBottom()) {
-                setShowNewMsgHint(false);
-            } else {
-                setShowNewMsgHint(true);
-            }
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [messages.length]);
 
     // Patch #1: IntersectionObserver must re-attach when `hasMore` flips
     // (sentinel is conditionally rendered). Including hasMore in deps fixes
@@ -215,35 +188,6 @@ export function ChatMessages() {
             )}
 
             {renderMessagesWithDateSeparators(messages)}
-
-            {/* Story 6.6: New message hint when scrolled up */}
-            {showNewMsgHint && (
-                <button
-                    class="chat-new-msg-hint"
-                    aria-label="Ir al nuevo mensaje"
-                    onClick={() => { scrollToBottom(true); setShowNewMsgHint(false); }}
-                    style={{
-                        position: 'sticky',
-                        bottom: '8px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        background: 'var(--gds-color-primary)',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: 'var(--gds-radius-pill)',
-                        padding: '6px 14px',
-                        fontSize: 'var(--gds-font-size-sm, 13px)',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                        zIndex: 10,
-                    }}
-                >
-                    ↓ Nuevo mensaje
-                </button>
-            )}
         </div>
     );
 }

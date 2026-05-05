@@ -92,6 +92,14 @@ function bubbleBg(type: AuthorType): string {
     }
 }
 
+function bubbleBorder(type: AuthorType): string {
+    switch (type) {
+        case 'human':   return '1px solid var(--gds-color-author-human)';
+        case 'ai':      return '1px solid var(--gds-color-author-ai)';
+        default:        return 'none';
+    }
+}
+
 function bubbleColor(type: AuthorType): string {
     return type === 'own' ? 'var(--gds-color-text-on-primary, #ffffff)' : 'var(--gds-color-text)';
 }
@@ -113,7 +121,25 @@ export function messageStyle(type: AuthorType, isLastInGroup: boolean): CSS {
         position: 'relative',
         background: bubbleBg(type),
         color: bubbleColor(type),
+        border: bubbleBorder(type),
         ...tailRadius(type, isLastInGroup),
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Author name label (shown above bubble for human/ai, not for own)
+// ---------------------------------------------------------------------------
+
+export function authorNameStyle(type: AuthorType): CSS {
+    const color = type === 'ai'
+        ? 'var(--gds-color-author-ai)'
+        : 'var(--gds-color-author-human)';
+    return {
+        fontSize: 'var(--gds-font-size-xs, 11px)',
+        fontWeight: 'var(--gds-font-weight-semibold, 600)' as unknown as number,
+        color,
+        marginBottom: '2px',
+        paddingLeft: '2px',
     };
 }
 
@@ -139,17 +165,20 @@ export const timeSpacerStyle: CSS = {
     whiteSpace: 'nowrap',
 };
 
-export const timeStyle: CSS = {
-    position: 'absolute',
-    bottom: '5px',
-    right: '9px',
-    fontSize: '10px',
-    color: 'var(--gds-color-text-tertiary)',
-    whiteSpace: 'nowrap',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '3px',
-};
+export function timeStyle(isOwn: boolean): CSS {
+    return {
+        position: 'absolute',
+        bottom: '5px',
+        right: '9px',
+        fontSize: '10px',
+        // Own bubbles: white at 70% opacity over primary bg; others: standard tertiary
+        color: isOwn ? 'rgba(255, 255, 255, 0.70)' : 'var(--gds-color-text-tertiary)',
+        whiteSpace: 'nowrap',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '3px',
+    };
+}
 
 // ---------------------------------------------------------------------------
 // Mini-avatar (AuthorAvatar) 20×20px
@@ -168,8 +197,9 @@ export function avatarStyle(type: 'human' | 'ai'): CSS {
         fontSize: '9px',
         fontWeight: 600,
         lineHeight: '1',
-        background: isAI ? 'var(--gds-color-author-ai-soft)' : 'var(--gds-color-author-human)',
-        color: isAI ? 'var(--gds-color-author-ai)' : 'var(--gds-color-text-on-primary, #ffffff)',
+        // Both human and ai use soft bg + identity color for initial (consistent pattern)
+        background: isAI ? 'var(--gds-color-author-ai-soft)' : 'var(--gds-color-author-human-soft)',
+        color: isAI ? 'var(--gds-color-author-ai)' : 'var(--gds-color-author-human)',
     };
 }
 

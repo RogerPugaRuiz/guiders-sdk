@@ -10,6 +10,7 @@ import {
     trackQuickActionSignal,
 } from '../../signals/actionState';
 import { chatIdSignal, hasAssignedCommercialSignal } from '../../signals/chatState';
+import { messagesSignal } from '../../signals/messagesState';
 import { debugLog } from '../../../utils/debug-logger';
 
 // ---------------------------------------------------------------------------
@@ -85,8 +86,17 @@ export function QuickActions({ config }: QuickActionsProps) {
 
     if (hidden || !config.enabled || config.buttons.length === 0) return null;
 
-    // AC 7: show persistent human CTA when AI is active and not yet clicked
-    const showHumanCTA = !isHumanAssigned && !humanCtaHidden;
+    // Hide quick actions (welcome message + buttons) when there are already real
+    // messages in the conversation. System and consent messages don't count.
+    const hasRealMessages = messagesSignal.value.some(
+        (m) => m.sender !== 'system' && m.sender !== 'consent'
+    );
+    if (hasRealMessages) return null;
+
+    // AC 7: show persistent human CTA when AI is active, not yet clicked,
+    // and no explicit request_agent button already exists in the config list
+    const hasRequestAgentButton = config.buttons.some(b => b.action.type === 'request_agent');
+    const showHumanCTA = !isHumanAssigned && !humanCtaHidden && !hasRequestAgentButton;
 
     const handleClick = (button: QuickActionButton) => {
         // Track first, before hiding
@@ -153,7 +163,7 @@ export function QuickActions({ config }: QuickActionsProps) {
                 {config.buttons.map((button) => (
                     <button
                         key={button.id}
-                        class="guiders-quick-action-btn"
+                        class={`guiders-quick-action-btn${button.action.type === 'request_agent' ? ' guiders-quick-action-btn--agent' : ''}`}
                         type="button"
                         onClick={() => handleClick(button)}
                     >

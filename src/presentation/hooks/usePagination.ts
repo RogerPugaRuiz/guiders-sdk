@@ -67,9 +67,10 @@ export interface UsePaginationResult {
 export function usePagination(): UsePaginationResult {
     const service = useRef(MessagePaginationService.getInstance());
     // Track the trigger value we last acted on so we do not double-fire.
-    // Initialise from `loadedChatIdSignal` rather than the trigger pulse so a
-    // remount on the same chat doesn't reload (Patch #1 hardening).
-    const lastTrigger = useRef(loadChatTriggerSignal.peek());
+    // Initialise to -1 so that on mount the hook always processes the current
+    // trigger value. This ensures that navigating back to the chat list and
+    // re-selecting a chat (even the same one) always reloads messages.
+    const lastTrigger = useRef(-1);
     // Patch #3: monotonic request token. Each load bumps this; only the
     // matching token is allowed to commit signal writes.
     const requestTokenRef = useRef(0);
