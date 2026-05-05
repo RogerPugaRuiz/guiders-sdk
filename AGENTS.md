@@ -116,6 +116,25 @@ console.log(stats);
 // }
 ```
 
+## Presence Systems (TWO Independent Systems)
+
+The SDK exposes **two distinct presence systems** that answer different
+business questions. **Do NOT confuse them**:
+
+| System | Question Answered | Scope | Service |
+|--------|-------------------|-------|---------|
+| **Commercial Availability** | "Are there ANY agents online for this site?" | Tenant-wide | `CommercialAvailabilityService` |
+| **Chat Presence** | "What is the status of the agent assigned to THIS chat?" | Per-conversation | `PresenceService` |
+
+**Key rule for Chat Presence**: Always filter by `userType === 'commercial'`
+when consuming `presence:changed` events or aggregating `participants` from
+`GET /presence/chat/{chatId}`. Otherwise the indicator will reflect the
+visitor's own state instead of the agent's.
+
+📖 **Full reference**: [`docs/PRESENCE_SYSTEMS.md`](docs/PRESENCE_SYSTEMS.md) —
+covers REST endpoints, WebSocket events, state mapping, SDK wiring, and common
+pitfalls for both systems.
+
 ## Code Style Guidelines
 
 ### File Naming Conventions
