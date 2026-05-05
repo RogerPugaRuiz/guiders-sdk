@@ -1,33 +1,39 @@
 /**
  * 📡 Commercial Availability Service
  *
- * Consulta la disponibilidad de comerciales en tiempo real
- * para mostrar/ocultar el chat widget dinámicamente
+ * Checks commercial availability via REST on init, then subscribes to
+ * real-time updates via WebSocket (commercial:availability-changed).
+ *
+ * Flow:
+ *   1. POST /v2/commercials/availability → initial state + siteId
+ *   2. WebSocketService.joinTenantRoom(tenantId) → subscribe to live updates
+ *   3. Listen commercial:availability-changed → update UI
  */
 
-import { debugLog } from '../utils/debug-logger';
+import { debugLog, debugWarn, debugError } from '../utils/debug-logger';
+import { WebSocketService } from './websocket-service';
 
 export interface CommercialAvailabilityConfig {
-	/** Dominio del sitio web */
+	/** Domain of the website */
 	domain: string;
-	/** API Key del sitio */
+	/** API Key for the site */
 	apiKey: string;
-	/** Base URL del API (default: desde endpoint manager) */
+	/** Base URL of the API */
 	apiBaseUrl?: string;
-	/** Intervalo de polling en segundos (default: 30) */
-	pollingInterval?: number;
-	/** Habilitar logging de debug */
+	/** Enable debug logging */
 	debug?: boolean;
+	/** tenantId (companyId) — if known, skips REST lookup for WS join */
+	tenantId?: string;
 }
 
 export interface AvailabilityResponse {
-	/** Si hay comerciales disponibles */
+	/** Whether any commercial is available */
 	available: boolean;
-	/** Número de comerciales online */
+	/** Number of online commercials */
 	onlineCount: number;
-	/** Timestamp de la respuesta */
+	/** Timestamp of the response */
 	timestamp: string;
-	/** ID del sitio */
+	/** UUID of the resolved site */
 	siteId: string;
 }
 
@@ -38,31 +44,56 @@ export interface AvailabilityError {
 }
 
 /**
- * Servicio para verificar disponibilidad de comerciales
+ * Service to check and track commercial availability.
+ * Uses REST for the initial check and WebSocket for real-time updates.
  */
 export class CommercialAvailabilityService {
 	private config: CommercialAvailabilityConfig;
-	private pollingInterval: NodeJS.Timeout | null = null;
 	private onAvailabilityChangeCallback: ((available: boolean, count: number) => void) | null = null;
 	private lastAvailability: boolean | null = null;
 	private lastOnlineCount: number = 0;
-	private isPolling: boolean = false;
-	private errorCount: number = 0;
+	private tenantId: string | null = null;
+	private wsListenerRegistered: boolean = false;
 
 	constructor(config: CommercialAvailabilityConfig) {
 		this.config = {
-			pollingInterval: 30,
 			debug: false,
 			...config
 		};
 
-		this.log('📡 [CommercialAvailability] Servicio inicializado', this.config);
+		if (config.tenantId) {
+			this.tenantId = config.tenantId;
+		}
+
+		this.log('📡 [CommercialAvailability] Servicio inicializado', {
+			domain: this.config.domain,
+			hasTenantId: !!this.tenantId
+		});
 	}
 
 	/**
-	 * Verifica si hay comerciales disponibles
+	 * Registers callback invoked on every availability change.
 	 */
-	async checkAvailability(): Promise<AvailabilityResponse> {
+	onAvailabilityChanged(callback: (available: boolean, count: number) => void): void {
+		this.onAvailabilityChangeCallback = callback;
+		this.log('📡 [CommercialAvailability] Callback registrado');
+	}
+
+	/**
+	 * Performs the initial REST check and registers the WebSocket listener.
+	 * Safe to call multiple times — only acts once per instance.
+	 */
+	async start(): Promise<AvailabilityResponse | null> {
+		const result = await this.checkAvailability();
+		this.registerWebSocketListener();
+		return result;
+	}
+
+	/**
+	 * Performs a single REST availability check.
+	 * Notifies the callback if the state changed.
+	 */
+	async checkAvailability(): Promise<AvailabilityResponse | null> {
 		const endpoint = `${this.config.apiBaseUrl || ''}/v2/commercials/availability`;
 
 		try {
@@ -70,9 +101,7 @@ export class CommercialAvailabilityService {
 
 			const response = await fetch(endpoint, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					domain: this.config.domain,
 					apiKey: this.config.apiKey
@@ -87,94 +116,59 @@ export class CommercialAvailabilityService {
 			const data: AvailabilityResponse = await response.json();
 			this.log('📡 [CommercialAvailability] Respuesta recibida:', data);
 
-			// Resetear contador de errores en caso de éxito
-			this.errorCount = 0;
-
-			// Notificar si cambió el estado
-			if (data.available !== this.lastAvailability || data.onlineCount !== this.lastOnlineCount) {
-				this.log(`📡 [CommercialAvailability] 🔄 Estado cambió: ${data.available} (${data.onlineCount} online)`);
-				this.lastAvailability = data.available;
-				this.lastOnlineCount = data.onlineCount;
-				this.onAvailabilityChangeCallback?.(data.available, data.onlineCount);
+			// Store siteId as tenantId fallback if not already known
+			if (!this.tenantId && data.siteId) {
+				this.log('📡 [CommercialAvailability] ⚠️ tenantId no disponible; usando siteId como fallback para WS join:', data.siteId);
+				this.tenantId = data.siteId;
 			}
 
+			this.notify(data.available, data.onlineCount);
 			return data;
 		} catch (error) {
-			this.errorCount++;
+			debugError('📡 [CommercialAvailability] ❌ Error al consultar disponibilidad:', error);
+			return null;
+		}
+	}
 
-			// Si hay muchos errores consecutivos, pausar polling temporalmente
-			if (this.errorCount >= 3) {
+	/**
+	 * Registers the WebSocket listener for commercial:availability-changed.
+	 * Also joins the tenant room and re-joins on reconnection.
+	 * Idempotent — only registers once per instance.
+	 */
+	registerWebSocketListener(): void {
+		if (this.wsListenerRegistered) return;
+		this.wsListenerRegistered = true;
+
+		const ws = WebSocketService.getInstance();
+
+		// Register the real-time callback
+		ws.updateCallbacks({
+			onCommercialAvailabilityChanged: (event) => {
+				this.log('📡 [CommercialAvailability] WS event recibido:', event);
+				this.notify(event.available, event.onlineCount);
+			},
+			// Re-join tenant room after reconnection (the WebSocketService also does it
+			// internally via currentTenantId, but this ensures the join happens when
+			// the service starts before the socket is connected)
+			onConnect: () => {
+				if (this.tenantId) {
+					this.log('📡 [CommercialAvailability] 🔄 Re-uniéndose al tenant room tras reconexión:', this.tenantId);
+					ws.joinTenantRoom(this.tenantId);
+				}
 			}
-
-			throw error;
-		}
-	}
-
-	/**
-	 * Registra callback para cambios de disponibilidad
-	 */
-	onAvailabilityChanged(callback: (available: boolean, count: number) => void): void {
-		this.onAvailabilityChangeCallback = callback;
-		this.log('📡 [CommercialAvailability] Callback registrado para cambios de disponibilidad');
-	}
-
-	/**
-	 * Inicia polling de disponibilidad
-	 */
-	startPolling(): void {
-		if (this.isPolling) {
-			this.log('📡 [CommercialAvailability] Polling ya está activo');
-			return;
-		}
-
-		this.isPolling = true;
-		this.errorCount = 0;
-
-		// Consultar inmediatamente
-		this.checkAvailability().catch(err => {
 		});
 
-		// Configurar polling
-		const intervalMs = (this.config.pollingInterval || 30) * 1000;
-		this.pollingInterval = setInterval(async () => {
-			// Si hay demasiados errores, usar backoff
-			if (this.errorCount >= 3) {
-				const backoffMs = Math.min(60000, intervalMs * Math.pow(2, this.errorCount - 3));
-				this.log(`📡 [CommercialAvailability] Usando backoff de ${backoffMs}ms debido a errores`);
-				return;
-			}
-
-			try {
-				await this.checkAvailability();
-			} catch (error) {
-				// Error ya logueado en checkAvailability
-			}
-		}, intervalMs);
-
-		this.log(`⏰ [CommercialAvailability] Polling iniciado (cada ${this.config.pollingInterval}s)`);
-	}
-
-	/**
-	 * Detiene el polling
-	 */
-	stopPolling(): void {
-		if (this.pollingInterval) {
-			clearInterval(this.pollingInterval);
-			this.pollingInterval = null;
-			this.isPolling = false;
-			this.log('⏹️ [CommercialAvailability] Polling detenido');
+		// Join tenant room now if already connected
+		if (this.tenantId) {
+			this.log('📡 [CommercialAvailability] 🏢 Uniéndose al tenant room:', this.tenantId);
+			ws.joinTenantRoom(this.tenantId);
+		} else {
+			debugWarn('📡 [CommercialAvailability] ⚠️ tenantId no disponible todavía; WS join diferido hasta que se obtenga el siteId del REST');
 		}
 	}
 
 	/**
-	 * Verifica si el polling está activo
-	 */
-	isPollingActive(): boolean {
-		return this.isPolling;
-	}
-
-	/**
-	 * Obtiene el último estado conocido
+	 * Returns the last known availability state.
 	 */
 	getLastKnownState(): { available: boolean | null; onlineCount: number } {
 		return {
@@ -184,21 +178,29 @@ export class CommercialAvailabilityService {
 	}
 
 	/**
-	 * Limpia el servicio y detiene polling
+	 * Cleans up the service.
 	 */
 	cleanup(): void {
-		this.stopPolling();
 		this.onAvailabilityChangeCallback = null;
 		this.lastAvailability = null;
 		this.lastOnlineCount = 0;
-		this.errorCount = 0;
+		this.wsListenerRegistered = false;
+		this.tenantId = null;
 		this.log('🧹 [CommercialAvailability] Servicio limpiado');
 	}
 
-	/**
-	 * Logger interno
-	 */
-	private log(message: string, ...args: any[]): void {
+	// ─── Private ────────────────────────────────────────────────────────────────
+
+	private notify(available: boolean, onlineCount: number): void {
+		if (available !== this.lastAvailability || onlineCount !== this.lastOnlineCount) {
+			this.log(`📡 [CommercialAvailability] 🔄 Estado cambió: ${available} (${onlineCount} online)`);
+			this.lastAvailability = available;
+			this.lastOnlineCount = onlineCount;
+			this.onAvailabilityChangeCallback?.(available, onlineCount);
+		}
+	}
+
+	private log(message: string, ...args: unknown[]): void {
 		if (this.config.debug) {
 			debugLog(message, ...args);
 		}

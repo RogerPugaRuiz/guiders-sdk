@@ -160,6 +160,12 @@ export interface ChatListV2 {
 	nextCursor?: string | null;
 }
 
+/** Response from POST /api/v2/chats — returns chatId and queue position, not a full ChatV2 */
+export interface CreateChatResponse {
+	chatId: string;
+	position: number;
+}
+
 // --- WebSocket Protocolo v1 (envelope unificado) ---
 export interface WSBaseEnvelope<T = any> {
 	v: 1;               // versión de protocolo (fijo 1 por ahora)
@@ -246,7 +252,7 @@ export interface MobileDetectionConfig {
 export interface CommercialAvailabilityConfig {
 	/** Habilitar verificación de disponibilidad (default: false) */
 	enabled?: boolean;
-	/** Intervalo de polling en segundos (default: 30) */
+	/** @deprecated Polling replaced by WebSocket real-time updates. This field is ignored. */
 	pollingInterval?: number;
 	/** Mostrar contador de comerciales disponibles (default: false) */
 	showBadge?: boolean;

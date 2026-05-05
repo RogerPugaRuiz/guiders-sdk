@@ -145,6 +145,8 @@ export interface WebSocketCallbacks {
 	onAITypingStart?: (data: { chatId: string }) => void;
 	/** Callback cuando la IA termina de generar una respuesta */
 	onAITypingStop?: (data: { chatId: string }) => void;
+	/** Callback cuando cambia la disponibilidad de comerciales en tiempo real */
+	onCommercialAvailabilityChanged?: (event: CommercialAvailabilityChangedEvent) => void;
 }
 
 /**
@@ -235,4 +237,18 @@ export interface CommercialAssignedEvent {
 	assignedAt: string;       // timestamp ISO
 	assignmentReason: string; // 'auto' | 'manual'
 	commercial?: AssignedCommercialInfo; // información del comercial
+}
+
+/**
+ * Evento de cambio de disponibilidad de comerciales (commercial:availability-changed)
+ */
+export interface CommercialAvailabilityChangedEvent {
+	/** true si al menos un comercial está online para este tenant */
+	available: boolean;
+	/** Número de comerciales online */
+	onlineCount: number;
+	/** UUID de la empresa (para verificación) */
+	tenantId: string;
+	/** ISO 8601 timestamp del evento */
+	timestamp: string;
 }

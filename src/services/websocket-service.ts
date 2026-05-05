@@ -28,7 +28,8 @@ import {
 	JoinVisitorRoomPayload,
 	LeaveVisitorRoomPayload,
 	ChatCreatedEvent,
-	CommercialAssignedEvent
+	CommercialAssignedEvent,
+	CommercialAvailabilityChangedEvent
 } from '../types/websocket-types';
 import { EndpointManager } from '../core/endpoint-manager';
 import { debugLog, debugWarn, debugError } from '../utils/debug-logger';
@@ -51,6 +52,9 @@ export class WebSocketService {
 	// Manual reconnection tracking
 	private manualReconnectAttempt: number = 0;
 	private manualReconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	// Tenant room tracking for commercial availability
+	private currentTenantId: string | null = null;
 
 	private constructor() {
 		debugLog('📡 [WebSocketService] Instancia creada');
@@ -291,6 +295,12 @@ export class WebSocketService {
 				});
 			}
 
+			// Re-unirse al tenant room para availability de comerciales
+			if (this.currentTenantId) {
+				debugLog('📡 [WebSocketService] 🔄 Re-uniéndose a tenant room:', this.currentTenantId);
+				this.joinTenantRoom(this.currentTenantId);
+			}
+
 			// Limpiar handlers anteriores antes de configurar nuevos (evita duplicados)
 			this.cleanupActivityListeners();
 			this.cleanupVisibilityHandler();
@@ -518,6 +528,27 @@ export class WebSocketService {
 				this.callbacks.onAITypingStop(data);
 			}
 		});
+
+		// 📡 Evento de disponibilidad de comerciales en tiempo real
+		this.socket.on('commercial:availability-changed', (event: CommercialAvailabilityChangedEvent) => {
+			debugLog('📡 [WebSocketService] 📡 commercial:availability-changed recibido:', {
+				available: event.available,
+				onlineCount: event.onlineCount,
+				tenantId: event.tenantId
+			});
+
+			if (this.callbacks.onCommercialAvailabilityChanged) {
+				this.callbacks.onCommercialAvailabilityChanged(event);
+			}
+		});
+
+		// Confirmación de unión al tenant room
+		this.socket.on('tenant:joined', (data: any) => {
+			debugLog('📡 [WebSocketService] ✅ tenant:joined confirmado:', {
+				companyId: data.companyId,
+				roomName: data.roomName
+			});
+		});
 	}
 
 	/**
@@ -648,6 +679,23 @@ export class WebSocketService {
 				this.currentVisitorId = null;
 			}
 		});
+	}
+
+	/**
+	 * Une el cliente al tenant room para recibir eventos de disponibilidad de comerciales
+	 * @param tenantId UUID del tenant (companyId de la empresa)
+	 */
+	public joinTenantRoom(tenantId: string): void {
+		if (!this.socket || !this.socket.connected) {
+			debugWarn('📡 [WebSocketService] ⚠️ No conectado, no se puede unir al tenant room:', tenantId);
+			// Guardar el tenantId para re-unirse tras reconexión
+			this.currentTenantId = tenantId;
+			return;
+		}
+
+		debugLog('📡 [WebSocketService] 🏢 Uniéndose al tenant room:', tenantId);
+		this.currentTenantId = tenantId;
+		this.socket.emit('tenant:join', { tenantId });
 	}
 
 	/**
@@ -902,6 +950,15 @@ export class WebSocketService {
 			mergedCallbacks.onAITypingStop = (data) => {
 				if (oldOnAITypingStop) oldOnAITypingStop(data);
 				if (callbacks.onAITypingStop) callbacks.onAITypingStop(data);
+			};
+		}
+
+		// 📡 Merge onCommercialAvailabilityChanged callbacks
+		const oldOnCommercialAvailabilityChanged = this.callbacks.onCommercialAvailabilityChanged;
+		if (oldOnCommercialAvailabilityChanged || callbacks.onCommercialAvailabilityChanged) {
+			mergedCallbacks.onCommercialAvailabilityChanged = (event) => {
+				if (oldOnCommercialAvailabilityChanged) oldOnCommercialAvailabilityChanged(event);
+				if (callbacks.onCommercialAvailabilityChanged) callbacks.onCommercialAvailabilityChanged(event);
 			};
 		}
 
