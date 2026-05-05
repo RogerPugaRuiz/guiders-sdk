@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.10.14
+Stable tag: 2.11.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,32 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.11.0 =
+* **✨ Sistema de presencia ampliado a 4 estados**: Indicador en tiempo real del estado del comercial asignado al chat
+  * **Estados visibles**: 🟢 En línea, 🟡 Ausente, 🔴 Ocupado, ⚫ Desconectado (animación pulse para "En línea")
+  * **Texto descriptivo bajo el nombre del comercial** en la cabecera del chat (patrón WhatsApp/Slack)
+  * **Indicador en lista de chats**: cada conversación muestra un punto de color sobre el avatar reflejando el estado del comercial asignado, actualizado en tiempo real vía WebSocket
+* **✨ Disponibilidad comercial vía WebSocket (sin polling)**: El widget detecta agentes online instantáneamente
+  * **Eliminado polling REST cada 30s**: ahora suscripción WebSocket al canal del tenant para notificaciones push
+  * **Re-conexión automática**: re-suscripción transparente tras pérdida de red
+  * **Snapshot inicial REST + actualizaciones WS**: lo mejor de ambos modelos
+* **🐛 Bug crítico de presencia corregido**: el indicador mostraba el estado del visitante en lugar del comercial
+  * Filtrado obligatorio por `userType === 'commercial'` en eventos WebSocket y respuestas REST
+  * Default `'offline'` cuando no hay comercial asignado al chat
+* **🐛 Mejoras de UX en mensajes**:
+  * **UI optimista** para mensajes propios (aparecen instantáneamente sin esperar al servidor) con dedup de 10s para evitar duplicados al llegar el evento WebSocket
+  * **Avatar y nombre del comercial visibles desde el primer mensaje** (antes requería recargar)
+  * **Quick actions con historial**: solo muestra el saludo de bienvenida en la primera apertura
+  * Eliminado botón flotante "↓ Nuevo mensaje" obsoleto
+* **🔧 Refinamiento visual del header del chat**:
+  * Cabecera compacta de 56px con layout `[← back][avatar+título+badge][× close]`
+  * Avatar 32px con dot de presencia superpuesto en esquina inferior derecha
+  * Modo oscuro 100% via tokens CSS (sin JavaScript)
+* **📚 Documentación nueva para desarrolladores**:
+  * `docs/PRESENCE_SYSTEMS.md`: referencia completa de los 2 sistemas de presencia (Disponibilidad tenant-wide vs Presencia per-chat)
+  * `docs/sdk-commercial-availability.md`: guía REST + WebSocket de disponibilidad comercial
+  * `docs/api/openapi.yaml`: especificación OpenAPI completa del backend
 
 = 2.10.14 =
 * 🐛 **Fix 413 Payload Too Large**: Resueltos errores de payloads HTTP gigantes causados por acumulación de eventos antiguos
