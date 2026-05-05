@@ -3,6 +3,7 @@ import { chatSwitchRequestSignal, newChatRequestSignal } from '../../signals/act
 import { LoadingIndicator } from '../ChatMessages/LoadingIndicator';
 import { ChatListItem } from './ChatListItem';
 import { useChatList } from '../../hooks/useChatList';
+import { useCommercialPresenceSeed } from '../../hooks/useCommercialPresenceMap';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -13,6 +14,12 @@ export function ChatListView() {
     const activeChatId = chatIdSignal.value;
     // Patch #27: prevent double-create while a previous request is in flight.
     const isCreating = isCreatingChatSignal.value;
+
+    // Seed the commercial presence map via REST for any chat in the list whose
+    // commercial isn't yet known. The WebSocket subscription that keeps the
+    // map fresh in real-time is mounted at the ChatWidget root so it survives
+    // navigations between list/chat views.
+    useCommercialPresenceSeed({ chatIds: chats.map((c) => c.id) });
 
     const handleChatSwitch = (chatId: string) => {
         chatSwitchRequestSignal.value = chatId;

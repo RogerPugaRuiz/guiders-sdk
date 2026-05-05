@@ -11,7 +11,20 @@
  */
 
 import { signal } from '@preact/signals';
-import type { PresenceLike } from '../types/presence-types';
+import type { PresenceLike, PresenceUiStatus } from '../types/presence-types';
 
 /** @writer bridge — injected after auth completes via `setPresenceService()`. */
 export const presenceServiceSignal = signal<PresenceLike | null>(null);
+
+/**
+ * Map of `commercialId → PresenceUiStatus` used by the chat list to render
+ * a presence dot per item. Updated by `useCommercialPresenceMap` from:
+ *   - WebSocket `presence:changed` events (real-time)
+ *   - Lazy REST `getChatPresence(chatId)` calls (initial snapshot per chat)
+ *
+ * Stored as a plain object (not a `Map`) so that signal equality treats each
+ * mutation as a new reference — the hook always replaces the whole object.
+ *
+ * @writer hooks/useCommercialPresenceMap
+ */
+export const commercialPresenceMapSignal = signal<Readonly<Record<string, PresenceUiStatus>>>({});

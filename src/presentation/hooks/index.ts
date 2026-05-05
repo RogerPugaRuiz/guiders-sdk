@@ -13,3 +13,5 @@ export { usePagination } from './usePagination';
 export type { UsePaginationResult } from './usePagination';
 export { usePresence } from './usePresence';
 export { useTypingIndicator } from './useTypingIndicator';
+export { useCommercialPresenceMap, useCommercialPresenceWebSocket, useCommercialPresenceSeed } from './useCommercialPresenceMap';
+export type { UseCommercialPresenceMapOptions, UseCommercialPresenceSeedOptions } from './useCommercialPresenceMap';

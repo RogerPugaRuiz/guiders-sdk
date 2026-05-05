@@ -1,5 +1,7 @@
 import { ChatSelectorItem } from '../../types/chat-types';
 import { formatRelativeTime } from '../../utils/chat-list-utils';
+import { commercialPresenceMapSignal } from '../../signals';
+import { PRESENCE_LABEL } from '../PresenceIndicator';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -20,6 +22,12 @@ export function ChatListItem({ chat, isSelected, onClick }: ChatListItemProps) {
         ? formatRelativeTime(chat.lastMessageDate)
         : '';
     const hasUnread = chat.unreadCount > 0;
+    // Read commercial presence reactively. Falls back to undefined when the
+    // chat has no assigned commercial OR when the map hasn't been seeded yet.
+    const presenceMap = commercialPresenceMapSignal.value;
+    const presence = chat.assignedCommercialId
+        ? presenceMap[chat.assignedCommercialId]
+        : undefined;
 
     return (
         <button
@@ -40,6 +48,13 @@ export function ChatListItem({ chat, isSelected, onClick }: ChatListItemProps) {
                         </svg>
                     )
                 }
+                {presence && (
+                    <span
+                        class={`guiders-chat-list-presence guiders-chat-list-presence--${presence}`}
+                        aria-label={PRESENCE_LABEL[presence]}
+                        title={PRESENCE_LABEL[presence]}
+                    />
+                )}
             </div>
 
             <div class="guiders-chat-list-content">

@@ -47,7 +47,7 @@ export {
 export type { SendMessageCallback } from './messagesState';
 
 // --- presenceState ---
-export { presenceServiceSignal } from './presenceState';
+export { presenceServiceSignal, commercialPresenceMapSignal } from './presenceState';
 
 // --- actionState ---
 export {

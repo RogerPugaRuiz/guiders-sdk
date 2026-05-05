@@ -130,6 +130,7 @@ export function chatV2ListToSelectorItems(
 			unreadCount: chat.unreadMessagesCount || 0,
 			status: chat.status as ChatSelectorItem['status'],
 			isSelected: chat.id === selectedChatId,
+			assignedCommercialId: chat.assignedCommercialId ?? chat.assignedCommercial?.id,
 			...(includePreview ? {
 				lastMessagePreview: chat.lastMessagePreview,
 				avatarUrl: chat.assignedCommercial?.avatarUrl,

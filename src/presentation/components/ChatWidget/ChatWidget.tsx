@@ -20,6 +20,7 @@ import { QuickActions } from '../QuickActions';
 import { ChatListView } from '../ChatListView';
 import { ToggleButton } from '../ToggleButton';
 import { usePresence } from '../../hooks/usePresence';
+import { useCommercialPresenceWebSocket } from '../../hooks/useCommercialPresenceMap';
 import { hasAssignedCommercialSignal } from '../../signals/chatState';
 
 // ---------------------------------------------------------------------------
@@ -68,6 +69,12 @@ export function ChatWidget({ options }: ChatWidgetProps) {
 
     // Subscribe to PresenceService updates
     usePresence();
+
+    // Subscribe to commercial presence WS updates at the WIDGET ROOT so events
+    // are not lost while the chat list view is hidden. Mounting this in
+    // ChatListView would lose updates received while the user is in a chat
+    // (or with the widget closed).
+    useCommercialPresenceWebSocket();
 
     // Patch #23: when the widget is hidden, mark its subtree as `inert` so
     // screen readers and Tab navigation skip it entirely.

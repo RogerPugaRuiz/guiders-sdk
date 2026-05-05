@@ -48,6 +48,8 @@ export interface ChatSelectorItem {
     readonly isSelected?: boolean;
     /** URL del avatar del comercial asignado */
     readonly avatarUrl?: string;
+    /** ID del comercial asignado al chat (para lookup de presencia) */
+    readonly assignedCommercialId?: string;
 }
 
 /**
