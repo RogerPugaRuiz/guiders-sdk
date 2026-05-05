@@ -1,4 +1,5 @@
-import { PresenceIndicator } from '../PresenceIndicator';
+import { presenceStatusSignal } from '../../signals/chatState';
+import { PresenceIndicator, PRESENCE_LABEL } from '../PresenceIndicator';
 
 // ---------------------------------------------------------------------------
 // CommercialAvatar
@@ -11,6 +12,9 @@ interface CommercialAvatarProps {
 }
 
 export function CommercialAvatar({ name, avatarUrl, initials }: CommercialAvatarProps) {
+    const status = presenceStatusSignal.value;
+    const statusLabel = PRESENCE_LABEL[status];
+
     return (
         <div class="chat-header-main">
             <div class="chat-header-avatar-container">
@@ -23,11 +27,14 @@ export function CommercialAvatar({ name, avatarUrl, initials }: CommercialAvatar
                         : <span style="font-weight:600;font-size:16px;" aria-hidden="true">{initials}</span>
                     }
                 </div>
-                {/* Presence dot — positioned absolute via avatar-status-dot CSS */}
+                {/* Presence dot — positioned absolute via CSS */}
                 <PresenceIndicator />
             </div>
             <div class="chat-header-title-container">
                 <span class="chat-header-title">{name}</span>
+                <span class={`chat-header-presence-text chat-header-presence-text--${status}`} aria-live="polite">
+                    {statusLabel}
+                </span>
             </div>
         </div>
     );

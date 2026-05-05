@@ -65,6 +65,7 @@ export function getTokensCSS(): string {
             /* Toggle button */
             --gds-color-toggle-icon: #111827;   /* icon color on toggle button */
             --gds-color-toggle-bg: #ffffff;     /* inner panel bg behind gradient */
+            --gds-color-header-bg: #334155;     /* chat header background — slate-700 */
 
             /* Primary — inherits public token */
             --gds-color-primary: var(--guiders-primary, #2563eb);
@@ -80,6 +81,7 @@ export function getTokensCSS(): string {
             --gds-color-author-ai: #7c3aed;       /* FIXED — EU AI Act Art. 50 */
             --gds-color-author-ai-soft: #f5f3ff;  /* FIXED — EU AI Act Art. 50 */
             --gds-color-author-system: #94a3b8;
+            --gds-color-agent-btn-border: #7c3aed; /* light: intense violet border */
 
             /* Semantic state colors */
             --gds-color-success: #16a34a;
@@ -183,11 +185,13 @@ export function getTokensCSS(): string {
                 --gds-color-primary-soft: #1e3a8a;
                 --gds-color-toggle-icon: #f1f5f9;   /* light icon on dark toggle */
                 --gds-color-toggle-bg: #1e293b;     /* dark panel bg behind gradient */
+                --gds-color-header-bg: #1e293b;     /* chat header background dark */
                 --gds-color-author-human: #3b82f6;
                 --gds-color-author-human-soft: #1e3a8a;
                 --gds-color-author-ai: #8b5cf6;       /* FIXED — EU AI Act Art. 50 */
                 --gds-color-author-ai-soft: #2e1065;  /* FIXED — EU AI Act Art. 50 */
                 --gds-color-author-system: #64748b;
+                --gds-color-agent-btn-border: #6d28d9; /* dark: deeper violet border */
             }
         }
 

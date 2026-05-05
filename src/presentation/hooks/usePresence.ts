@@ -24,11 +24,26 @@ import {
     presenceStatusSignal,
     showOfflineBannerSignal,
     offlineBannerEnabledSignal,
+    chatIdSignal,
 } from '../signals/chatState';
 import { presenceServiceSignal } from '../signals/presenceState';
 import type { PresenceUiStatus } from '../types/presence-types';
 import type { PresenceChangedEvent } from '../../types/presence-types';
-import { debugError } from '../../utils/debug-logger';
+import { debugError, debugLog } from '../../utils/debug-logger';
+
+/**
+ * Maps a raw server-side presence status to the UI-facing PresenceUiStatus.
+ * 'chatting' is treated as 'busy' — agent is occupied in another conversation.
+ */
+function toUiStatus(raw: string): PresenceUiStatus {
+    switch (raw) {
+        case 'online': return 'online';
+        case 'away': return 'away';
+        case 'busy':
+        case 'chatting': return 'busy';
+        default: return 'offline';
+    }
+}
 
 export function usePresence(): void {
     useSignalEffect(() => {
@@ -38,10 +53,18 @@ export function usePresence(): void {
         let unsubscribe: () => void = () => {};
         try {
             const result = service.onPresenceChanged((event: PresenceChangedEvent) => {
-                // Patch #19 (Chunk 2): collapse the richer server-side status
-                // enum into the binary UI representation via PresenceUiStatus.
-                const next: PresenceUiStatus =
-                    event.status === 'online' ? 'online' : 'offline';
+                // Only react to commercial (agent) presence changes — never to
+                // the visitor's own presence. Otherwise the indicator would
+                // mirror MY status instead of the agent's.
+                if (event.userType !== 'commercial') {
+                    return;
+                }
+                const next: PresenceUiStatus = toUiStatus(event.status);
+                debugLog('[usePresence] Commercial presence changed:', {
+                    userId: event.userId.substring(0, 8) + '...',
+                    status: event.status,
+                    next,
+                });
                 presenceStatusSignal.value = next;
                 if (offlineBannerEnabledSignal.value) {
                     showOfflineBannerSignal.value = next === 'offline';
@@ -56,6 +79,44 @@ export function usePresence(): void {
             }
         } catch (err) {
             debugError('[usePresence] Failed to subscribe to PresenceService:', err);
+        }
+
+        // Fetch initial presence state via REST so the indicator is correct
+        // immediately — WebSocket only fires on *changes*, not on connect.
+        if (service.getChatPresence) {
+            const chatId = chatIdSignal.peek();
+            if (chatId) {
+                service.getChatPresence(chatId).then((presence) => {
+                    if (!presence) return;
+                    // Only consider commercial participants — the visitor's own
+                    // presence must NOT drive the indicator.
+                    const commercials = presence.participants?.filter(
+                        (p) => p.userType === 'commercial'
+                    ) ?? [];
+                    if (commercials.length === 0) {
+                        debugLog('[usePresence] No commercial participants in chat — defaulting to offline');
+                        presenceStatusSignal.value = 'offline';
+                        if (offlineBannerEnabledSignal.value) {
+                            showOfflineBannerSignal.value = true;
+                        }
+                        return;
+                    }
+                    const anyOnline = commercials.some(
+                        (p) => p.connectionStatus === 'online'
+                    );
+                    const bestRaw = commercials.find(
+                        (p) => p.connectionStatus !== 'offline'
+                    )?.connectionStatus ?? 'offline';
+                    const next: PresenceUiStatus = anyOnline ? 'online' : toUiStatus(bestRaw);
+                    debugLog('[usePresence] Initial commercial presence from REST:', next);
+                    presenceStatusSignal.value = next;
+                    if (offlineBannerEnabledSignal.value) {
+                        showOfflineBannerSignal.value = next === 'offline';
+                    }
+                }).catch((err: unknown) => {
+                    debugError('[usePresence] getChatPresence initial fetch failed:', err);
+                });
+            }
         }
 
         return () => {

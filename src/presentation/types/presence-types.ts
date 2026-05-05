@@ -18,8 +18,15 @@
 
 import type { PresenceChangedEvent } from '../../types/presence-types';
 
-/** UI-facing presence status (collapsed from the richer server-side enum). */
-export type PresenceUiStatus = 'online' | 'offline';
+/**
+ * UI-facing presence status.
+ * Maps from the server-side enum (online | offline | away | busy | chatting):
+ *   'online'   → green  — agent is connected and available
+ *   'away'     → amber  — agent connected but inactive / away
+ *   'busy'     → red    — agent connected but occupied (do not disturb)
+ *   'offline'  → grey   — agent disconnected (covers chatting → treated as occupied)
+ */
+export type PresenceUiStatus = 'online' | 'offline' | 'away' | 'busy';
 
 /**
  * Minimum surface the presentation layer consumes from a presence provider.
@@ -29,4 +36,12 @@ export interface PresenceLike {
     onPresenceChanged(handler: (event: PresenceChangedEvent) => void): () => void;
     startTyping(chatId: string): void;
     stopTyping(chatId: string): void;
+    /** Optional: fetch the current presence state for a chat (REST call). */
+    getChatPresence?(chatId: string): Promise<{
+        participants?: Array<{
+            userId: string;
+            userType: 'commercial' | 'visitor';
+            connectionStatus: string;
+        }>;
+    } | null>;
 }

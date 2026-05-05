@@ -1,5 +1,6 @@
 import { ResolvedPosition } from '../../../utils/position-resolver';
 import { TOGGLE_BUTTON_CSS } from '../ToggleButton/ToggleButton.styles';
+import { getPresenceIndicatorStyles } from '../PresenceIndicator/PresenceIndicator.styles';
 
 /**
  * Generates the full CSS string for the ChatWidget Shadow DOM.
@@ -107,45 +108,41 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .chat-header {
-            position: relative;
-            overflow: hidden;
             color: #ffffff;
-            padding: 10px 14px;
+            padding: 0 8px 0 14px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 8px;
             border-top-left-radius: var(--gds-radius-lg, 16px);
             border-top-right-radius: var(--gds-radius-lg, 16px);
-            min-height: 64px;
+            height: 56px;
             flex-shrink: 0;
-            background: linear-gradient(
-                135deg,
-                #7c3aed, #4f46e5, #2563eb, #0891b2, #059669, #4f46e5, #7c3aed
-            );
-            background-size: 300% 300%;
-            animation: aurora-shift 8s ease infinite;
-        }
-
-        /* All direct children above the gradient layers */
-        .chat-header > * {
-            position: relative;
-            z-index: 2;
+            background: var(--gds-color-header-bg, #111827);
         }
 
         @media (max-width: 640px) {
             .chat-header {
                 border-top-left-radius: 20px;
                 border-top-right-radius: 20px;
-                padding: 12px 14px;
             }
         }
 
+        /* back btn + identity (avatar+title+badge) fill available space */
         .chat-header-main {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             flex: 1;
             min-width: 0;
+        }
+
+        /* identity = avatar + title/badge side by side */
+        .chat-header-identity {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            flex: 1;
         }
 
         .chat-header-avatar-container {
@@ -154,20 +151,20 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .chat-header-avatar {
-            width: 44px;
-            height: 44px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.08);
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 2px solid rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .chat-header-avatar svg {
-            width: 24px;
-            height: 24px;
+            width: 18px;
+            height: 18px;
+            color: rgba(255, 255, 255, 0.9);
         }
 
         .avatar-status-dot {
@@ -208,36 +205,35 @@ export function getChatStyles(position: ResolvedPosition): string {
         .chat-header-title-container {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
             flex: 1;
             min-width: 0;
         }
 
         .chat-header-title {
-            font-weight: 700;
-            font-size: 16px;
+            font-weight: 600;
+            font-size: 15px;
             letter-spacing: -0.01em;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             color: #ffffff;
-            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+            line-height: 1.2;
         }
 
         .chat-header-actions {
             display: flex;
             align-items: center;
-            gap: 8px;
             flex-shrink: 0;
         }
 
         .chat-close-btn {
-            background: rgba(255, 255, 255, 0.15);
+            background: transparent;
             border: none;
-            color: #ffffff;
+            color: rgba(255, 255, 255, 0.8);
             cursor: pointer;
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -247,17 +243,29 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .chat-close-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
         }
 
         .chat-close-btn:active {
             transform: scale(0.95);
-            background: rgba(255, 255, 255, 0.4);
         }
 
         .chat-close-btn svg {
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
+        }
+
+        /* AuthorBadge inside header — vivid violet pill, targets only the badge span */
+        .chat-header .chat-header-title-container span[aria-label='Asistente IA'],
+        .chat-header .chat-header-title-container span[aria-label='Agente humano'] {
+            background: rgba(124, 58, 237, 0.35) !important;
+            color: #c4b5fd !important;
+            border: 1px solid rgba(124, 58, 237, 0.6) !important;
+            font-size: 11px;
+            font-weight: 700 !important;
+            width: fit-content;
+            align-self: flex-start;
         }
 
         @media (max-width: 768px) {
@@ -782,6 +790,23 @@ export function getChatStyles(position: ResolvedPosition): string {
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
 
+        /* request_agent button — violet border only, neutral text */
+        .guiders-quick-action-btn--agent {
+            border-color: var(--gds-color-agent-btn-border);
+        }
+
+        .guiders-quick-action-btn--agent:hover {
+            background: var(--gds-color-author-ai-soft);
+            border-color: var(--gds-color-agent-btn-border);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+        }
+
+        .guiders-quick-action-btn--agent:active {
+            transform: translateY(0);
+            background: var(--gds-color-author-ai-soft);
+        }
+
         @media (max-width: 768px) {
             .guiders-quick-actions {
                 margin: 0;
@@ -1135,6 +1160,7 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .guiders-chat-list-avatar {
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1144,7 +1170,6 @@ export function getChatStyles(position: ResolvedPosition): string {
             background: var(--gds-color-bg-elevated);
             color: var(--gds-color-text-secondary);
             flex-shrink: 0;
-            overflow: hidden;
         }
 
         .guiders-chat-list-avatar-img {
@@ -1152,6 +1177,28 @@ export function getChatStyles(position: ResolvedPosition): string {
             height: 100%;
             object-fit: cover;
             border-radius: 50%;
+        }
+
+        /* Presence dot overlaid on the chat-list avatar (commercial status) */
+        .guiders-chat-list-presence {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            border: 2px solid var(--gds-color-bg-elevated, #ffffff);
+            box-sizing: content-box;
+            pointer-events: none;
+        }
+        .guiders-chat-list-presence--online  { background: #10b981; }
+        .guiders-chat-list-presence--away    { background: #f59e0b; }
+        .guiders-chat-list-presence--busy    { background: #ef4444; }
+        .guiders-chat-list-presence--offline { background: #9ca3af; }
+
+        /* Subtle pulse for online state */
+        .guiders-chat-list-presence--online {
+            animation: gds-presence-pulse 2.5s ease-in-out infinite;
         }
 
         .guiders-chat-list-content {
@@ -1210,5 +1257,45 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         ${TOGGLE_BUTTON_CSS(position)}
+
+        /* ── Presence dot (injected from PresenceIndicator.styles.ts) ── */
+        ${getPresenceIndicatorStyles()}
+
+        /* ── Presence dot: pulse animation when online ── */
+        @keyframes gds-presence-pulse {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25); }
+            50%       { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.10); }
+        }
+        .guiders-presence--online {
+            animation: gds-presence-pulse 2.5s ease-in-out infinite;
+        }
+
+        /* ── Presence dot positioning inside avatar container ── */
+        .chat-header-avatar-container {
+            position: relative;
+        }
+        .guiders-presence {
+            position: absolute;
+            bottom: 1px;
+            right: 1px;
+            width: 10px;
+            height: 10px;
+            border: 2px solid var(--gds-color-header-bg, #5b21b6);
+            border-radius: 50%;
+        }
+
+        /* ── Presence status text below the agent name ── */
+        .chat-header-presence-text {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            line-height: 1.2;
+            opacity: 0.85;
+            transition: color 0.3s ease;
+        }
+        .chat-header-presence-text--online  { color: #6ee7b7; }
+        .chat-header-presence-text--away    { color: #fcd34d; }
+        .chat-header-presence-text--busy    { color: #fca5a5; }
+        .chat-header-presence-text--offline { color: rgba(255,255,255,0.55); }
     `;
 }

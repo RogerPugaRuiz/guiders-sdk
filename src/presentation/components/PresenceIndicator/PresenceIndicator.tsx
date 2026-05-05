@@ -1,10 +1,10 @@
+import type { PresenceUiStatus } from '../../types/presence-types';
 import { presenceStatusSignal } from '../../signals/chatState';
 
-// Patch #41: aria-label was exposing the raw English status ("online"/
-// "offline") to screen readers. We localise to Spanish (the default UI
-// locale) here. A future i18n epic should externalise these strings.
-const PRESENCE_LABEL: Record<'online' | 'offline', string> = {
+export const PRESENCE_LABEL: Record<PresenceUiStatus, string> = {
     online: 'En línea',
+    away: 'Ausente',
+    busy: 'Ocupado',
     offline: 'Desconectado',
 };
 
