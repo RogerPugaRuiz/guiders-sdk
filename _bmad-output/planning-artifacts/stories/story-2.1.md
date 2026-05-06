@@ -1,7 +1,7 @@
 # Story 2.1: Crear estructura de componentes y ChatWidget
 
 **Epic:** Epic 2 — Widget principal funcional con Preact  
-**Status:** Ready for Development  
+**Status:** Done  
 **Depends on:** Story 1.3  
 **Implements:** FR10, FR11, NFR7
 

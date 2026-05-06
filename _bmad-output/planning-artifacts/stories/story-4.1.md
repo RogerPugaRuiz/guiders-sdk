@@ -1,7 +1,7 @@
 # Story 4.1: Implementar QuickActions con Preact
 
 **Epic:** Epic 4 — Features secundarias — Quick Actions y Chat List View  
-**Status:** Ready for Development  
+**Status:** Done  
 **Depends on:** Story 3.3  
 **Implements:** FR5, FR11
 

@@ -1,7 +1,7 @@
 # Story 2.4: Implementar ConsentBanner con Preact
 
 **Epic:** Epic 2 — Widget principal funcional con Preact  
-**Status:** Ready for Development  
+**Status:** Done  
 **Depends on:** Story 2.3  
 **Implements:** FR7, FR11
 

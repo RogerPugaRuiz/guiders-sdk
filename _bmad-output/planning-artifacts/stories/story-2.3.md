@@ -1,7 +1,7 @@
 # Story 2.3: Conectar ChatUIBridge al widget Preact
 
 **Epic:** Epic 2 — Widget principal funcional con Preact  
-**Status:** Ready for Development  
+**Status:** Done  
 **Depends on:** Story 2.2  
 **Implements:** FR2 (completo — apertura, cierre, mensajes), FR11
 
