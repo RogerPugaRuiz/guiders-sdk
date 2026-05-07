@@ -1,5 +1,7 @@
 import { chatIdSignal, isShowingChatListSignal, isCreatingChatSignal } from '../../signals';
 import { chatSwitchRequestSignal, newChatRequestSignal } from '../../signals/actionState';
+import { messagesSignal } from '../../signals/messagesState';
+import { chatDetailSignal, presenceStatusSignal, lastKnownChatStatusSignal } from '../../signals/chatState';
 import { LoadingIndicator } from '../ChatMessages/LoadingIndicator';
 import { ChatListItem } from './ChatListItem';
 import { useChatList } from '../../hooks/useChatList';
@@ -28,6 +30,16 @@ export function ChatListView() {
 
     const handleNewChat = () => {
         if (isCreating) return;
+        // Reset messages and header synchronously BEFORE switching view so
+        // the chat area never flashes stale content from the previous chat.
+        messagesSignal.value = messagesSignal.value.filter(
+            (m) => m.sender === 'system' || m.sender === 'consent',
+        );
+        if (chatDetailSignal.value) {
+            chatDetailSignal.value = { ...chatDetailSignal.value, assignedCommercial: undefined };
+        }
+        presenceStatusSignal.value = 'offline';
+        lastKnownChatStatusSignal.value = null;
         newChatRequestSignal.value = newChatRequestSignal.peek() + 1;
         isShowingChatListSignal.value = false;
     };

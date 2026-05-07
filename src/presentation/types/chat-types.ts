@@ -47,6 +47,20 @@ export type Sender = 'user' | 'other' | 'system' | 'ai' | 'agent' | 'consent';
  * Opciones de configuración del chat UI
  */
 export interface ChatUIOptions {
+	/**
+	 * Theme identifier for the chat widget.
+	 * Built-in options: 'default' (slate/white, classic Guiders) | 'carbon' (Vercel-style true blacks).
+	 * Defaults to 'default' when omitted.
+	 * @example theme: 'carbon'
+	 */
+	theme?: string;
+	/**
+	 * Color-scheme override for the chat widget.
+	 * - 'dark'   — force dark mode regardless of OS preference
+	 * - 'light'  — force light mode regardless of OS preference
+	 * - 'system' — follow the OS preference (default, no attribute set)
+	 */
+	colorScheme?: 'dark' | 'light' | 'system';
 	/** ID de un contenedor existente donde renderizar el chat */
 	containerId?: string;
 	/** Indica si se debe crear un widget nuevo en el body */

@@ -116,6 +116,19 @@ interface SDKOptions {
 	ai?: Partial<AIConfig>;
 	// Chat Selector Configuration (manage multiple conversations)
 	chatSelector?: Partial<ChatSelectorConfig>;
+	/**
+	 * Theme for the chat widget UI.
+	 * Built-in: 'default' (slate/white) | 'carbon' (Vercel-style true blacks).
+	 * Defaults to 'default'.
+	 */
+	theme?: string;
+	/**
+	 * Color-scheme override for the chat widget.
+	 * - 'dark'   — force dark mode regardless of OS preference
+	 * - 'light'  — force light mode regardless of OS preference
+	 * - 'system' — follow the OS preference via prefers-color-scheme (default)
+	 */
+	colorScheme?: 'dark' | 'light' | 'system';
 	// Tracking V2 Configuration
 	trackingV2?: {
 		enabled?: boolean;        // Enable tracking V2 (default: true)
@@ -188,6 +201,8 @@ export class TrackingPixelSDK {
 	private quickActionsConfig?: Partial<QuickActionsConfig>;
 	private aiConfig?: Partial<AIConfig>;
 	private chatSelectorConfig?: Partial<ChatSelectorConfig>;
+	private themeId?: string;
+	private colorSchemeOverride?: 'dark' | 'light' | 'system';
 	// Flag para indicar que el usuario quiere crear un nuevo chat
 	// Se establece en true cuando se pulsa "Nueva conversación"
 	// Se usa para forzar la creación de chat nuevo en Quick Actions
@@ -250,6 +265,12 @@ export class TrackingPixelSDK {
 		if (this.chatSelectorConfig?.enabled) {
 			debugLog('[TrackingPixelSDK] 📋 Configuración de Chat Selector:', this.chatSelectorConfig);
 		}
+
+		// 🎨 Theme
+		this.themeId = options.theme;
+
+		// 🌓 Color-scheme override (dark / light / system)
+		this.colorSchemeOverride = options.colorScheme;
 
 		// Configurar validador de horarios activos si se proporciona
 		if (options.activeHours && options.activeHours.enabled) {
@@ -545,6 +566,10 @@ export class TrackingPixelSDK {
 			ai: this.aiConfig,
 			// 📋 Configuración del selector de chats
 			chatSelector: this.chatSelectorConfig,
+			// 🎨 Theme
+			theme: this.themeId,
+			// 🌓 Color-scheme override
+			colorScheme: this.colorSchemeOverride,
 		});
 
 		// Configurar callbacks de Quick Actions
@@ -1123,6 +1148,10 @@ export class TrackingPixelSDK {
 			this.chatUI.setChatId('');
 			this.chatUI.updateSelectedChat(null);
 			this.chatUI.setCreatingChat(false);
+			// Clear messages and header so the previous chat's history and agent
+			// info are not shown while the visitor composes the first message.
+			this.chatUI.clearMessages();
+			this.chatUI.resetHeaderToDefault();
 		}
 
 		// Trackear el evento

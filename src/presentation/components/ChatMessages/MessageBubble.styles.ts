@@ -85,7 +85,7 @@ type AuthorType = 'own' | 'human' | 'ai' | 'system' | 'consent';
 
 function bubbleBg(type: AuthorType): string {
     switch (type) {
-        case 'own':     return 'var(--gds-color-primary)';
+        case 'own':     return 'var(--gds-color-bubble-own)';
         case 'human':   return 'var(--gds-color-author-human-soft)';
         case 'ai':      return 'var(--gds-color-author-ai-soft)';
         default:        return 'var(--gds-color-bg-elevated)';
@@ -101,7 +101,7 @@ function bubbleBorder(type: AuthorType): string {
 }
 
 function bubbleColor(type: AuthorType): string {
-    return type === 'own' ? 'var(--gds-color-text-on-primary, #ffffff)' : 'var(--gds-color-text)';
+    return type === 'own' ? 'var(--gds-color-text-on-bubble-own, #ffffff)' : 'var(--gds-color-text)';
 }
 
 function tailRadius(type: AuthorType, isLastInGroup: boolean): Partial<CSS> {
