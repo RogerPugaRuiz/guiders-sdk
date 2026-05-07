@@ -24,6 +24,7 @@
       autoFlush: true,        // ✅ IMPORTANTE: Habilitar envío automático de eventos
       flushInterval: 5000,    // Enviar eventos cada 5 segundos
       autoOpenChatOnMessage: true, // ✅ Auto-abrir chat cuando comercial envía mensaje
+      // theme: 'carbon',            // 🎨 Theme: 'default' | 'carbon'
       chatConsentMessage: {
         enabled: false,  // ✅ DESACTIVADO para desarrollo
         message: 'Al unirte al chat, confirmas que has leído y entiendes nuestra',

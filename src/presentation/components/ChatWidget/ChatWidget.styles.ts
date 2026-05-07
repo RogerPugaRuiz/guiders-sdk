@@ -39,6 +39,7 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .chat-widget {
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--gds-widget-border-color, transparent);
             border-radius: var(--widget-radius, var(--gds-radius-lg, 16px));
             overflow: hidden;
             background: var(--gds-color-bg);
@@ -108,7 +109,7 @@ export function getChatStyles(position: ResolvedPosition): string {
         }
 
         .chat-header {
-            color: #ffffff;
+            color: var(--gds-color-header-text, #ffffff);
             padding: 0 8px 0 14px;
             display: flex;
             align-items: center;
@@ -118,6 +119,7 @@ export function getChatStyles(position: ResolvedPosition): string {
             height: 56px;
             flex-shrink: 0;
             background: var(--gds-color-header-bg, #111827);
+            border-bottom: 1px solid var(--gds-header-border-color, transparent);
         }
 
         @media (max-width: 640px) {
@@ -155,16 +157,19 @@ export function getChatStyles(position: ResolvedPosition): string {
             height: 32px;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.08);
+            background: color-mix(in srgb, var(--gds-color-header-text, #ffffff) 8%, transparent);
             display: flex;
             align-items: center;
             justify-content: center;
             border: 1px solid rgba(255, 255, 255, 0.15);
+            border: 1px solid color-mix(in srgb, var(--gds-color-header-text, #ffffff) 15%, transparent);
         }
 
         .chat-header-avatar svg {
             width: 18px;
             height: 18px;
             color: rgba(255, 255, 255, 0.9);
+            color: color-mix(in srgb, var(--gds-color-header-text, #ffffff) 90%, transparent);
         }
 
         .avatar-status-dot {
@@ -217,7 +222,7 @@ export function getChatStyles(position: ResolvedPosition): string {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            color: #ffffff;
+            color: var(--gds-color-header-text, #ffffff);
             line-height: 1.2;
         }
 
@@ -231,6 +236,7 @@ export function getChatStyles(position: ResolvedPosition): string {
             background: transparent;
             border: none;
             color: rgba(255, 255, 255, 0.8);
+            color: color-mix(in srgb, var(--gds-color-header-text, #ffffff) 80%, transparent);
             cursor: pointer;
             width: 36px;
             height: 36px;
@@ -244,7 +250,8 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .chat-close-btn:hover {
             background: rgba(255, 255, 255, 0.15);
-            color: #ffffff;
+            background: color-mix(in srgb, var(--gds-color-header-text, #ffffff) 15%, transparent);
+            color: var(--gds-color-header-text, #ffffff);
         }
 
         .chat-close-btn:active {
@@ -256,7 +263,7 @@ export function getChatStyles(position: ResolvedPosition): string {
             height: 18px;
         }
 
-        /* AuthorBadge inside header — vivid violet pill, targets only the badge span */
+        /* AuthorBadge inside header — default: high contrast for dark headers */
         .chat-header .chat-header-title-container span[aria-label='Asistente IA'],
         .chat-header .chat-header-title-container span[aria-label='Agente humano'] {
             background: rgba(124, 58, 237, 0.35) !important;
@@ -266,6 +273,31 @@ export function getChatStyles(position: ResolvedPosition): string {
             font-weight: 700 !important;
             width: fit-content;
             align-self: flex-start;
+        }
+
+        /* Light header (e.g. carbon light): swap to legible dark-on-light variant */
+        :host([data-header-light]) .chat-header .chat-header-title-container span[aria-label='Asistente IA'],
+        :host([data-header-light]) .chat-header .chat-header-title-container span[aria-label='Agente humano'] {
+            background: rgba(124, 58, 237, 0.10) !important;
+            color: #6d28d9 !important;
+            border: 1px solid rgba(124, 58, 237, 0.35) !important;
+        }
+
+        /* Forced dark mode: always use high-contrast variant regardless of header-light */
+        :host([data-color-scheme="dark"]) .chat-header .chat-header-title-container span[aria-label='Asistente IA'],
+        :host([data-color-scheme="dark"]) .chat-header .chat-header-title-container span[aria-label='Agente humano'] {
+            background: rgba(124, 58, 237, 0.35) !important;
+            color: #c4b5fd !important;
+            border: 1px solid rgba(124, 58, 237, 0.6) !important;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :host(:not([data-color-scheme="light"]):not([data-header-light])) .chat-header .chat-header-title-container span[aria-label='Asistente IA'],
+            :host(:not([data-color-scheme="light"]):not([data-header-light])) .chat-header .chat-header-title-container span[aria-label='Agente humano'] {
+                background: rgba(124, 58, 237, 0.35) !important;
+                color: #c4b5fd !important;
+                border: 1px solid rgba(124, 58, 237, 0.6) !important;
+            }
         }
 
         @media (max-width: 768px) {
@@ -282,8 +314,9 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .chat-back-btn {
             background: rgba(255, 255, 255, 0.15);
+            background: color-mix(in srgb, var(--gds-color-header-text, #ffffff) 15%, transparent);
             border: none;
-            color: #ffffff;
+            color: var(--gds-color-header-text, #ffffff);
             cursor: pointer;
             width: 32px;
             height: 32px;
@@ -1001,7 +1034,8 @@ export function getChatStyles(position: ResolvedPosition): string {
         .guiders-chat-list-view {
             display: flex;
             flex-direction: column;
-            height: 100%;
+            flex: 1;
+            min-height: 0;
             width: 100%;
             background: var(--gds-color-bg);
             font-family: var(--gds-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif);

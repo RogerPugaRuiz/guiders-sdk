@@ -11,6 +11,7 @@ import {
 } from '../../signals/toggleState';
 import { getChatStyles } from './ChatWidget.styles';
 import { getTokensCSS } from '../../styles/tokens.styles';
+import { resolveTheme } from '../../styles/themes/index';
 import { ChatHeader } from '../ChatHeader';
 import { ChatMessages } from '../ChatMessages';
 import { ChatInput } from '../ChatInput';
@@ -253,6 +254,30 @@ export interface MountedChatWidget {
  * Patch #5 — returns a `{ host, dispose }` pair so callers can clean up
  * the style-update effect (previously leaked) and the rendered tree.
  */
+/**
+ * Returns true when a CSS hex color is light (luminance > 50%).
+ * Used to decide whether to mark the shadow host with data-header-light.
+ * Only handles hex colors (#rgb, #rrggbb); unknown formats return false.
+ */
+function isLightColor(hex: string): boolean {
+    const clean = hex.trim().replace('#', '');
+    let r: number, g: number, b: number;
+    if (clean.length === 3) {
+        r = parseInt(clean[0] + clean[0], 16);
+        g = parseInt(clean[1] + clean[1], 16);
+        b = parseInt(clean[2] + clean[2], 16);
+    } else if (clean.length === 6) {
+        r = parseInt(clean.slice(0, 2), 16);
+        g = parseInt(clean.slice(2, 4), 16);
+        b = parseInt(clean.slice(4, 6), 16);
+    } else {
+        return false;
+    }
+    // Perceived luminance formula (sRGB)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5;
+}
+
 export function mountChatWidget(
     options: ChatWidgetOptions,
     position: ResolvedPosition
@@ -269,18 +294,37 @@ export function mountChatWidget(
 
     const shadowHost = document.createElement('div');
     shadowHost.id = 'guiders-chat-widget';
+
+    const resolvedTheme = resolveTheme(options.theme);
+
+    // Apply color-scheme override if explicitly set (not 'system' / undefined).
+    // The CSS in tokens.styles.ts uses :host([data-color-scheme="dark|light"]) to
+    // force the active color palette regardless of OS prefers-color-scheme.
+    if (options.colorScheme && options.colorScheme !== 'system') {
+        shadowHost.setAttribute('data-color-scheme', options.colorScheme);
+    }
+
+    // Mark the host when the light-mode header background is a light/white color.
+    // Used by badge selectors in ChatWidget.styles.ts to avoid applying dark-badge
+    // styles over a light header when the OS is dark but no color-scheme is forced
+    // (e.g. carbon theme light header + OS dark mode).
+    const lightHeaderBg = resolvedTheme?.light?.colorHeaderBg ?? '';
+    if (isLightColor(lightHeaderBg)) {
+        shadowHost.setAttribute('data-header-light', '');
+    }
+
     document.body.appendChild(shadowHost);
 
     const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
 
     const styleEl = document.createElement('style');
-    styleEl.textContent = getTokensCSS() + getChatStyles(position);
+    styleEl.textContent = getTokensCSS(resolvedTheme) + getChatStyles(position);
     shadowRoot.appendChild(styleEl);
 
     // Re-generate styles when toggle position changes (e.g. after bridge updates position)
     const disposeStyleEffect = effect(() => {
         const updatedPosition = toggleResolvedPositionSignal.value ?? position;
-        styleEl.textContent = getTokensCSS() + getChatStyles(updatedPosition);
+        styleEl.textContent = getTokensCSS(resolvedTheme) + getChatStyles(updatedPosition);
     });
 
     const mountPoint = document.createElement('div');

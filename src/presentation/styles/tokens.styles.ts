@@ -13,7 +13,89 @@
  *   public --guiders-* tokens would allow clients to disguise AI as human,
  *   violating the transparency requirement (vigent August 2026).
  */
-export function getTokensCSS(): string {
+import { ThemeDefinition } from './themes/theme-types';
+
+/** Generate the :host color block for a given ThemeColorSet */
+function themeColorBlock(t: ThemeDefinition['light']): string {
+    return `
+            --gds-color-bg:               ${t.colorBg};
+            --gds-color-bg-elevated:      ${t.colorBgElevated};
+            --gds-color-text:             ${t.colorText};
+            --gds-color-text-secondary:   ${t.colorTextSecondary};
+            --gds-color-text-tertiary:    ${t.colorTextTertiary};
+            --gds-color-border:           ${t.colorBorder};
+            --gds-color-border-strong:    ${t.colorBorderStrong};
+            --gds-color-border-accent:    ${t.colorBorderAccent};
+            --gds-color-primary-soft:     ${t.colorPrimarySoft};
+            --gds-color-toggle-icon:      ${t.colorToggleIcon};
+            --gds-color-toggle-bg:        ${t.colorToggleBg};
+            --gds-color-header-bg:        ${t.colorHeaderBg};
+            --gds-color-header-text:      ${t.colorHeaderText ?? '#ffffff'};
+            --gds-color-author-human:     ${t.colorAuthorHuman};
+            --gds-color-author-human-soft:${t.colorAuthorHumanSoft};
+            --gds-color-author-system:    ${t.colorAuthorSystem};
+            --gds-color-agent-btn-border: ${t.colorAgentBtnBorder};
+            --gds-color-bubble-own:       ${t.colorBubbleOwn ?? 'var(--gds-color-primary)'};
+            --gds-color-text-on-bubble-own: ${t.colorTextOnBubbleOwn ?? 'var(--gds-color-text-on-primary)'};`;
+}
+
+/**
+ * Generate the full CSS tokens string for injection into the Shadow DOM :host.
+ *
+ * @param theme - Optional ThemeDefinition. Defaults to the built-in 'default' theme
+ *                (slate/white palette). Pass a ThemeDefinition from the theme registry
+ *                to override the semantic color tokens.
+ */
+export function getTokensCSS(theme?: ThemeDefinition): string {
+    // Derive the effective radius: theme override → CSS public token → 14px default
+    const radiusValue = theme?.radius ?? '14px';
+    const shadowWidget = theme?.shadowWidget
+        ?? '0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)';
+    const toggleGradient = theme?.toggleGradient
+        ?? 'linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%)';
+
+    // Light-mode colors: from theme or hardcoded defaults (= defaultTheme.light)
+    const light = theme?.light ?? {
+        colorBg:              '#ffffff',
+        colorBgElevated:      '#f8fafc',
+        colorText:            '#0f172a',
+        colorTextSecondary:   '#475569',
+        colorTextTertiary:    '#94a3b8',
+        colorBorder:          '#e2e8f0',
+        colorBorderStrong:    '#cbd5e1',
+        colorBorderAccent:    '#bfdbfe',
+        colorPrimarySoft:     '#dbeafe',
+        colorToggleIcon:      '#111827',
+        colorToggleBg:        '#ffffff',
+        colorHeaderBg:        '#334155',
+        colorAuthorHuman:     '#2563eb',
+        colorAuthorHumanSoft: '#eff6ff',
+        colorAuthorSystem:    '#94a3b8',
+        colorAgentBtnBorder:  '#7c3aed',
+    };
+
+    // Dark-mode colors: from theme or hardcoded defaults (= defaultTheme.dark)
+    const dark = theme?.dark ?? {
+        colorBg:              '#0f172a',
+        colorBgElevated:      '#1e293b',
+        colorText:            '#f1f5f9',
+        colorTextSecondary:   '#cbd5e1',
+        colorTextTertiary:    '#64748b',
+        colorBorder:          '#334155',
+        colorBorderStrong:    '#475569',
+        colorBorderAccent:    '#1e3a8a',
+        colorPrimarySoft:     '#1e3a8a',
+        colorToggleIcon:      '#f1f5f9',
+        colorToggleBg:        '#1e293b',
+        colorHeaderBg:        '#1e293b',
+        colorAuthorHuman:     '#3b82f6',
+        colorAuthorHumanSoft: '#1e3a8a',
+        colorAuthorSystem:    '#64748b',
+        colorAgentBtnBorder:  '#6d28d9',
+        colorBubbleOwn:       '#2563eb',
+        colorTextOnBubbleOwn: '#ffffff',
+    };
+
     return `
         :host {
             /* ================================================================
@@ -21,9 +103,12 @@ export function getTokensCSS(): string {
              * ================================================================ */
             --guiders-primary: #2563eb;
             --guiders-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            --guiders-radius: 14px;
+            --guiders-radius: ${radiusValue};
             --guiders-spacing: 4px;
             --guiders-color-scheme: auto;
+
+            /* Theme identifier — readable by devtools */
+            --gds-theme: '${theme?.id ?? 'default'}';
 
             /* ================================================================
              * COLOR PRIMITIVES — Slate palette
@@ -51,43 +136,26 @@ export function getTokensCSS(): string {
             --gds-violet-700: #6d28d9;
 
             /* ================================================================
-             * SEMANTIC COLOR TOKENS — light mode (default)
-             * ================================================================ */
-            --gds-color-bg: #ffffff;
-            --gds-color-bg-elevated: #f8fafc;
-            --gds-color-text: #0f172a;
-            --gds-color-text-secondary: #475569;
-            --gds-color-text-tertiary: #94a3b8;
-            --gds-color-border: #e2e8f0;
-            --gds-color-border-strong: #cbd5e1;
-            --gds-color-border-accent: #bfdbfe;  /* blue-200 — accent border for consent/info */
+             * SEMANTIC COLOR TOKENS — light mode (theme-driven)
+             * ================================================================ */${themeColorBlock(light)}
 
-            /* Toggle button */
-            --gds-color-toggle-icon: #111827;   /* icon color on toggle button */
-            --gds-color-toggle-bg: #ffffff;     /* inner panel bg behind gradient */
-            --gds-color-header-bg: #334155;     /* chat header background — slate-700 */
-
-            /* Primary — inherits public token */
+            /* Primary — theme override or client-configurable public token */
+            --guiders-primary: ${theme?.primaryColor ?? '#2563eb'};
             --gds-color-primary: var(--guiders-primary, #2563eb);
-            --gds-color-primary-soft: #dbeafe;
-            --gds-color-text-on-primary: #ffffff;  /* text on primary bg (own bubble) */
+            --gds-color-text-on-primary: ${theme?.light?.colorTextOnPrimary ?? '#ffffff'};  /* text on primary bg (own bubble) */
 
-            /* Author identity tokens
-             * human: configurable (inherits from --guiders-primary)
-             * ai: FIXED by EU AI Act P7 — violet MUST identify AI unambiguously
-             * system: neutral slate */
-            --gds-color-author-human: #2563eb;
-            --gds-color-author-human-soft: #eff6ff;
+            /* Author AI tokens — FIXED by EU AI Act Art. 50 */
             --gds-color-author-ai: #7c3aed;       /* FIXED — EU AI Act Art. 50 */
             --gds-color-author-ai-soft: #f5f3ff;  /* FIXED — EU AI Act Art. 50 */
-            --gds-color-author-system: #94a3b8;
-            --gds-color-agent-btn-border: #7c3aed; /* light: intense violet border */
 
             /* Semantic state colors */
             --gds-color-success: #16a34a;
             --gds-color-warning: #d97706;
             --gds-color-error: #dc2626;
             --gds-color-info: #64748b;
+
+            /* Toggle gradient (theme-driven) */
+            --gds-toggle-gradient: ${toggleGradient};
 
             /* ================================================================
              * TYPOGRAPHY TOKENS
@@ -139,7 +207,7 @@ export function getTokensCSS(): string {
             --gds-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
             --gds-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.10);
             --gds-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-            --gds-shadow-widget: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+            --gds-shadow-widget: ${shadowWidget};
 
             /* ================================================================
              * MOTION TOKENS — Linear-style easing
@@ -166,32 +234,48 @@ export function getTokensCSS(): string {
             --gds-widget-width:  400px;
             --gds-widget-height: 600px;
             --gds-widget-offset: 24px;
+
+            /* Widget border — transparent in light mode, visible in dark mode */
+            --gds-widget-border-color: transparent;
+            /* Header border-bottom — hidden in light (header already contrasts), visible in dark */
+            --gds-header-border-color: transparent;
         }
 
         /* ====================================================================
-         * DARK MODE — auto-detected via prefers-color-scheme
-         * No JS required — pure CSS media query on :host
+         * DARK MODE — three strategies (all use the same color block):
+         *
+         * 1. :host([data-color-scheme="dark"])
+         *    Forced by SDKOptions.colorScheme = 'dark' (WP Admin override).
+         *    Applies regardless of OS preference.
+         *
+         * 2. @media (prefers-color-scheme: dark) :host(:not([data-color-scheme="light"]))
+         *    Automatic: OS is dark AND admin has NOT forced light mode.
+         *    Covers both 'system' (no attribute) and the defensive case where
+         *    data-color-scheme="dark" is present (rule 1 already applies).
+         *
+         * No JS required — pure CSS on :host.
          * ==================================================================== */
-        @media (prefers-color-scheme: dark) {
-            :host {
-                --gds-color-bg: #0f172a;
-                --gds-color-bg-elevated: #1e293b;
-                --gds-color-text: #f1f5f9;
-                --gds-color-text-secondary: #cbd5e1;
-                --gds-color-text-tertiary: #64748b;
-                --gds-color-border: #334155;
-                --gds-color-border-strong: #475569;
-                --gds-color-border-accent: #1e3a8a;  /* blue-900 dark — accent border */
-                --gds-color-primary-soft: #1e3a8a;
-                --gds-color-toggle-icon: #f1f5f9;   /* light icon on dark toggle */
-                --gds-color-toggle-bg: #1e293b;     /* dark panel bg behind gradient */
-                --gds-color-header-bg: #1e293b;     /* chat header background dark */
-                --gds-color-author-human: #3b82f6;
-                --gds-color-author-human-soft: #1e3a8a;
+        :host([data-color-scheme="dark"]) {
+                ${themeColorBlock(dark)}
+                --gds-color-text-on-primary: ${theme?.dark?.colorTextOnPrimary ?? theme?.light?.colorTextOnPrimary ?? '#ffffff'};
                 --gds-color-author-ai: #8b5cf6;       /* FIXED — EU AI Act Art. 50 */
                 --gds-color-author-ai-soft: #2e1065;  /* FIXED — EU AI Act Art. 50 */
-                --gds-color-author-system: #64748b;
-                --gds-color-agent-btn-border: #6d28d9; /* dark: deeper violet border */
+                --gds-widget-border-color: var(--gds-color-border-strong);
+                --gds-header-border-color: var(--gds-color-border);
+                /* Header: ensure readable slate bg regardless of client primary */
+                --gds-color-header-bg: ${theme?.dark?.colorHeaderBg ?? '#1e293b'};
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :host(:not([data-color-scheme="light"])) {
+                ${themeColorBlock(dark)}
+                --gds-color-text-on-primary: ${theme?.dark?.colorTextOnPrimary ?? theme?.light?.colorTextOnPrimary ?? '#ffffff'};
+                --gds-color-author-ai: #8b5cf6;       /* FIXED — EU AI Act Art. 50 */
+                --gds-color-author-ai-soft: #2e1065;  /* FIXED — EU AI Act Art. 50 */
+                --gds-widget-border-color: var(--gds-color-border-strong);
+                --gds-header-border-color: var(--gds-color-border);
+                /* Header: ensure readable slate bg regardless of client primary */
+                --gds-color-header-bg: ${theme?.dark?.colorHeaderBg ?? '#1e293b'};
             }
         }
 
