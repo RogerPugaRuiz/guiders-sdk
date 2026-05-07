@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.11.0
+Stable tag: 2.12.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,14 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.12.0 =
+* **✨ Sistema de temas y colores centralizado**: Soporte multi-tema con adaptación automática a modo claro/oscuro
+  * **Nuevo tema "carbon"**: Header blanco con texto oscuro en modo claro, fondo negro elevado en modo oscuro
+  * **Tokens de color configurables**: colorBubbleOwn, colorTextOnBubbleOwn, colorHeaderText por tema y scheme
+  * **Badge IA adaptativo**: El indicador "+ IA" ajusta automáticamente sus colores según la luminancia del header (legible en headers claros y oscuros)
+  * **Compatibilidad ampliada**: Fallbacks rgba() para navegadores anteriores a Chrome 111 / Firefox 113 / Safari 16.2
+  * **Corrección burbuja propia**: Colores de burbuja propias correctos en modo oscuro (azul #2563eb, no gris claro)
 
 = 2.11.0 =
 * **✨ Sistema de presencia ampliado a 4 estados**: Indicador en tiempo real del estado del comercial asignado al chat
