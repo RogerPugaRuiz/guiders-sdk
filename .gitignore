@@ -13,3 +13,10 @@ wp-content/cache/
 
 # macOS
 .DS_Store
+
+# Playwright MCP session artifacts
+.playwright-mcp/
+
+# Verification screenshots (ad-hoc, in root dir)
+/*.png
+opencode.json
