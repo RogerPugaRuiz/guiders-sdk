@@ -1,7 +1,7 @@
 # Story 2.2: Implementar ChatMessages y MessageBubble
 
 **Epic:** Epic 2 — Widget principal funcional con Preact  
-**Status:** Ready for Development  
+**Status:** Done  
 **Depends on:** Story 2.1  
 **Implements:** FR2 (parcial — mensajes), FR11, NFR6, NFR7, NFR8
 

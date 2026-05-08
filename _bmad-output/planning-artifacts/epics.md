@@ -4,7 +4,7 @@ inputDocuments:
   - "_bmad-output/planning-artifacts/prd.md"
   - "_bmad-output/planning-artifacts/architecture.md"
 storiesLocation: "_bmad-output/planning-artifacts/stories/"
-status: "Ready for Development"
+status: "Done"
 ---
 
 # guiders-sdk - Epic Breakdown
@@ -86,6 +86,7 @@ No aplica. Este es un SDK técnico embebido. La interfaz de usuario final no cam
 - **Epic 3**: Header, presencia y typing indicator (Fase 4)
 - **Epic 4**: Features secundarias — Quick Actions y Chat List View (Fase 5)
 - **Epic 5**: Limpieza y eliminación del código legado (Fase 6)
+- **Epic 7**: Customización y configuración administrativa (Post-migración)
 
 ---
 
@@ -608,6 +609,48 @@ para que el codebase no tenga código muerto y la arquitectura sea coherente.
 - Actualizar `src/presentation/index.ts` para eliminar exports de archivos borrados
 - Ejecutar el servidor PHP demo y verificar manualmente el widget completo antes de marcar como completado
 - Documentar el bundle size pre y post migración en el commit de cierre
+
+---
+
+## Epic 7: Customización y configuración administrativa
+
+**Objetivo:** Habilitar a los administradores de sitio para personalizar el comportamiento visual del widget desde el panel de WordPress, empezando por el tema (claro/oscuro/automático), sin requerir conocimientos técnicos ni edición de código.
+
+---
+
+### Story 7.1: Configuración de tema del widget desde WP Admin
+
+Como administrador del sitio WordPress,
+quiero forzar un tema concreto del widget de chat (claro / oscuro / automático) desde el panel de configuración del plugin,
+para que la apariencia del widget coincida con la identidad visual de mi sitio independientemente de la preferencia del sistema operativo del visitante.
+
+**Source:** BL-001 (`docs/BACKLOG.md`)
+
+**Acceptance Criteria (resumen):**
+
+**Given** que `chat_theme` no está definido
+**When** se renderiza el widget
+**Then** sigue `prefers-color-scheme` (sin regresión)
+
+**Given** que el admin selecciona "Oscuro"
+**When** un visitante carga la página
+**Then** el host del Shadow DOM tiene `data-theme="dark"` y el widget aplica tokens oscuros independientemente del SO
+
+**Given** que el admin selecciona "Claro"
+**When** un visitante con SO oscuro carga la página
+**Then** el widget se renderiza con tokens claros (la media query queda neutralizada)
+
+**Given** cualquier valor de tema activo
+**When** se inspecciona el DOM
+**Then** los tokens fijos `--gds-color-author-ai` y `--gds-color-author-ai-soft` siguen flipando correctamente y NO son customizables (cumplimiento P7 / EU AI Act Art. 50)
+
+**Notas técnicas:**
+- Refactor de `tokens.styles.ts`: extraer overrides dark a constante reutilizable; emitir bajo `:host([data-theme="dark"])` y `@media (prefers-color-scheme: dark) :host(:not([data-theme="light"]))`
+- Validación PHP con whitelist `in_array(['system','light','dark'], true)`, fallback `'system'`
+- Edge case: cambio de tema requiere recarga (consistente con resto de settings WP)
+- Bundle delta ≤ 0.5 KB gzip
+
+Detalle completo: `_bmad-output/planning-artifacts/stories/story-7.1.md`
 
 ---
 

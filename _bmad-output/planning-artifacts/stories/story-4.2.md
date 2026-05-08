@@ -1,7 +1,7 @@
 # Story 4.2: Implementar ChatListView con Preact
 
 **Epic:** Epic 4 — Features secundarias — Quick Actions y Chat List View  
-**Status:** Ready for Development  
+**Status:** Done  
 **Depends on:** Story 4.1  
 **Implements:** FR6, FR11
 

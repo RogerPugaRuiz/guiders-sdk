@@ -34,6 +34,7 @@ SDK para la integración del sistema de guías y chat en sitios web.
 1. [Características](#características)
 1. [🔐 Control de Consentimiento GDPR/LOPDGDD](#-control-de-consentimiento-gdprlopdgdd)
 1. [🎯 Detección Heurística Inteligente](#-detección-heurística-inteligente-nuevo)
+1. [Temas visuales y modo de color](#temas-visuales-y-modo-de-color)
 1. [Chat en vivo](#chat-en-vivo)
    - [Quick Actions (Acciones Rápidas)](#quick-actions-acciones-rápidas)
 1. [API Chat V2](#api-chat-v2-nuevo)
@@ -482,6 +483,57 @@ sdk.updateHeuristicConfig({
 ### Demo en vivo
 
 Visita la página `/heuristic-demo` en la aplicación demo para ver la detección heurística en acción con ejemplos interactivos.
+
+## Temas visuales y modo de color
+
+El SDK expone dos dimensiones ortogonales de apariencia del widget de chat:
+
+| Dimensión | Opción | Valores | Descripción |
+|-----------|--------|---------|-------------|
+| **Tema de diseño** | `theme` | `'default'`, `'carbon'` | Paleta de colores, radios y sombras |
+| **Modo de color** | `colorScheme` | `'light'`, `'dark'`, `'system'` | Fuerza o sigue la preferencia del sistema operativo |
+
+Ambas dimensiones son independientes y se aplican simultáneamente.
+
+### Uso básico
+
+```javascript
+const sdk = new TrackingPixelSDK({
+  apiKey: 'YOUR_API_KEY',
+  theme: 'carbon',          // Tema de diseño (default: 'default')
+  colorScheme: 'dark'       // Modo de color   (default: 'system')
+});
+```
+
+### Temas disponibles
+
+| Tema | `primaryColor` (light) | `primaryColor` (dark) | Descripción |
+|------|------------------------|-----------------------|-------------|
+| `default` | `#1e293b` (slate) | `#f1f5f9` | Tema neutro de alto contraste |
+| `carbon` | `#fafafa` | `#fafafa` | Tema oscuro-mineral con acento blanco |
+
+### Modo de color
+
+| Valor | Comportamiento |
+|-------|---------------|
+| `'system'` | Sigue `prefers-color-scheme` del SO (por defecto) |
+| `'light'` | Fuerza modo claro independientemente del SO |
+| `'dark'` | Fuerza modo oscuro independientemente del SO |
+
+### Configuración desde el plugin WordPress
+
+En **WP Admin → Ajustes → Guiders SDK → Chat** se encuentran los campos:
+
+- **Tema visual del widget** — selector `Default` / `Carbon`
+- **Modo de color del widget** — selector `Automático` / `Claro` / `Oscuro`
+
+Los valores se propagan automáticamente como `window.GUIDERS_CONFIG.theme` y `window.GUIDERS_CONFIG.colorScheme`.
+
+### Nota: tokens de color reservados (EU AI Act Art. 50)
+
+Los tokens `--gds-color-author-ai` y `--gds-color-author-ai-soft` (identidad visual del agente AI) son **fijos** y no están expuestos como opciones de tema. Su valor no debe alterarse para garantizar que los usuarios puedan distinguir claramente los mensajes generados por IA.
+
+---
 
 ## Chat en vivo
 

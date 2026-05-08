@@ -1,7 +1,7 @@
 # Story 3.3: Implementar ChatInput con typing indicator
 
 **Epic:** Epic 3 — Header, presencia y typing indicator  
-**Status:** Ready for Development  
+**Status:** Done  
 **Depends on:** Story 3.2  
 **Implements:** FR4, FR11, NFR7
 

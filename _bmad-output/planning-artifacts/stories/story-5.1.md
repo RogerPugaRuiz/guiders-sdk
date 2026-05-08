@@ -1,7 +1,7 @@
 # Story 5.1: Eliminar archivos legados y finalizar migración
 
 **Epic:** Epic 5 — Limpieza y eliminación del código legado  
-**Status:** Ready for Development  
+**Status:** Done  
 **Depends on:** Story 4.2  
 **Implements:** FR12, NFR1, NFR5
 

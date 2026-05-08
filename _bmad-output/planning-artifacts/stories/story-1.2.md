@@ -1,7 +1,7 @@
 # Story 1.2: Crear infraestructura de Signals
 
 **Epic:** Epic 1 — Preparación del toolchain y fundamentos  
-**Status:** Ready for Development  
+**Status:** Done  
 **Depends on:** Story 1.1  
 **Implements:** FR9
 

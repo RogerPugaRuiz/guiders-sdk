@@ -1,7 +1,7 @@
 # Story 1.3: Implementar ChatUIBridge delegante
 
 **Epic:** Epic 1 — Preparación del toolchain y fundamentos  
-**Status:** Ready for Development  
+**Status:** Done  
 **Depends on:** Story 1.2  
 **Implements:** FR1, FR11
 

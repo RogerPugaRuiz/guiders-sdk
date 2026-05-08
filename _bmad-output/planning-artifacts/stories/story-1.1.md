@@ -1,7 +1,7 @@
 # Story 1.1: Configurar toolchain para Preact y TSX
 
 **Epic:** Epic 1 — Preparación del toolchain y fundamentos  
-**Status:** Ready for Development  
+**Status:** Done  
 **Implements:** NFR2, NFR3, NFR4
 
 ---

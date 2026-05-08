@@ -1,7 +1,7 @@
 # Story 3.2: Implementar PresenceIndicator y OfflineBanner
 
 **Epic:** Epic 3 — Header, presencia y typing indicator  
-**Status:** Ready for Development  
+**Status:** Done  
 **Depends on:** Story 3.1  
 **Implements:** FR3 (presencia), FR8, FR11
 

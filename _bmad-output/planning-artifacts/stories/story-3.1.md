@@ -1,7 +1,7 @@
 # Story 3.1: Implementar ChatHeader reactivo
 
 **Epic:** Epic 3 — Header, presencia y typing indicator  
-**Status:** Ready for Development  
+**Status:** Done  
 **Depends on:** Story 2.4  
 **Implements:** FR3 (parcial — header y comercial), FR11
 
