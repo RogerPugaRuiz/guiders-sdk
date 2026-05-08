@@ -2,16 +2,40 @@ const path = require('path');
 const webpack = require('webpack');
 const Dotenv = require('dotenv-webpack');
 const TerserPlugin = require('terser-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
 const packageJson = require('./package.json');
 
-module.exports = {
+module.exports = (env, argv) => {
+const isDev = argv?.mode === 'development';
+
+return {
 	plugins: [
 		new Dotenv(),
 		// Inyectar versión del SDK y modo de producción en tiempo de compilación
 		new webpack.DefinePlugin({
 			__SDK_VERSION__: JSON.stringify(packageJson.version),
-			__PRODUCTION__: process.env.NODE_ENV === 'production',
+			__PRODUCTION__: !isDev,
 		}),
+		// In development, automatically copy the built bundle to both test
+		// environments after every compilation (mirrors the manual `cp` step).
+		...(isDev ? [
+			new CopyPlugin({
+				patterns: [
+					{
+						from: path.resolve(__dirname, 'dist/index.js'),
+						to: path.resolve(__dirname, 'wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js'),
+					},
+					{
+						from: path.resolve(__dirname, 'dist/index.js'),
+						to: path.resolve(__dirname, 'wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.min.js'),
+					},
+					{
+						from: path.resolve(__dirname, 'dist/index.js'),
+						to: path.resolve(__dirname, 'demo/app/guiders-sdk.js'),
+					},
+				],
+			}),
+		] : []),
 	],
 	entry: './src/index.ts', // Archivo principal del SDK
 	output: {
@@ -38,8 +62,9 @@ module.exports = {
 		}]
 	},
 	mode: 'production',
-	// Bundle size budget — fail loud if we drift past 450 KiB.
-	performance: {
+	// Bundle size budget — only enforce in production to avoid noisy warnings
+	// from the unminified development build (which is intentionally larger).
+	performance: isDev ? { hints: false } : {
 		hints: 'warning',
 		maxEntrypointSize: 460800, // 450 KiB
 		maxAssetSize: 460800,
@@ -53,6 +78,11 @@ module.exports = {
 		allowedHosts: 'all',
 		headers: {
 			'Access-Control-Allow-Origin': '*',
+		},
+		// Write bundle to disk so CopyPlugin can pick it up and copy it to
+		// WordPress and demo environments on every recompile.
+		devMiddleware: {
+			writeToDisk: true,
 		},
 	},
 	// Optimizaciones de producción
@@ -77,8 +107,9 @@ module.exports = {
 						comments: false,      // Eliminar comentarios
 					},
 				},
-				extractComments: false,
-			}),
-		],
-	},
+			extractComments: false,
+		}),
+	],
+},
+};
 };

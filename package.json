@@ -45,6 +45,7 @@
     "@types/clientjs": "^0.2.2",
     "@types/jest": "^30.0.0",
     "@types/uuid": "^10.0.0",
+    "copy-webpack-plugin": "^14.0.0",
     "dotenv-webpack": "^8.1.0",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
