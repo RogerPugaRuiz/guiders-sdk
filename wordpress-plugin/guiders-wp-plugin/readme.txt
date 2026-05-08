@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.12.0
+Stable tag: 2.13.0
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,14 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.13.0 =
+* **✨ Ajustes de tema y modo de color desde el panel de WordPress**: Selecciona el tema visual y el modo de color del widget directamente desde los ajustes del plugin, sin tocar código.
+  * **Tema visual configurable**: Elige entre Default (slate/blanco, clásico Guiders) o Carbon (negro carbono, estilo Vercel) desde el panel de administración.
+  * **Modo de color configurable**: Fuerza el widget en modo Claro u Oscuro, o déjalo en Automático para seguir la preferencia del sistema operativo del visitante.
+  * **Toggle de previsualización en frontend**: Botón flotante (solo visible en preview/dev) para alternar fondo oscuro/claro sin cambiar el tema de WordPress.
+* **🔧 Copia automática del bundle en desarrollo**: En modo desarrollo (`npm start`), el bundle compilado se copia automáticamente a la demo y al plugin tras cada compilación.
+* **🧪 Tests E2E ampliados**: Nuevos specs para verificar la anulación de modo de color independiente de la preferencia del sistema, y el reseteo correcto de mensajes al iniciar una nueva conversación.
 
 = 2.12.0 =
 * **✨ Sistema de temas y colores centralizado**: Soporte multi-tema con adaptación automática a modo claro/oscuro
