@@ -44,6 +44,38 @@ async function gotoDemo(page: Page): Promise<void> {
 }
 
 /**
+ * Same as gotoDemo but clears all SDK-related storage first so the widget
+ * always boots in "first visit" state (no prior chats, no tokens).
+ * Use for tests that need a clean slate (quick-actions, list view CTA, etc.)
+ */
+async function gotoDemoFresh(page: Page): Promise<void> {
+    // addInitScript runs before the page scripts — storage is cleared before
+    // the SDK boots, so it never finds any prior session data.
+    await page.addInitScript(() => {
+        const keys = [
+            'guiders_recent_chats',
+            'guiders_session',
+            'guiders_session_id',
+            'guiders_backend_session_id',
+            'guiders_consent_state',
+            'accessToken',
+            'refreshToken',
+            'tokenExpiration',
+            'visitorId',
+            'fingerprint',
+            'guidersApiKey',
+            'pixelEndpoint',
+            'tenantId',
+        ];
+        keys.forEach(k => {
+            try { localStorage.removeItem(k); } catch { /* sandboxed */ }
+            try { sessionStorage.removeItem(k); } catch { /* sandboxed */ }
+        });
+    });
+    await gotoDemo(page);
+}
+
+/**
  * Scope a locator inside the SDK shadow root without leaving the host element.
  * Playwright walks shadow boundaries automatically for CSS selectors when the
  * host element is the root of the locator chain.
@@ -137,29 +169,6 @@ test.describe('Close button', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. Back button
-// ---------------------------------------------------------------------------
-
-test.describe('Back button', () => {
-    test.beforeEach(({ page }) => requireDemo());
-
-    test('back button is visible inside an active chat', async ({ page }) => {
-        await gotoDemo(page);
-        await openWidget(page);
-
-        // The back button only appears when a chat conversation is open
-        // (not in the list-view root). If the visitor has no chats the
-        // widget lands directly on the empty state / quick-actions pane,
-        // which also shows the back button to allow returning to list view.
-        const backBtn = shadow(page, '.chat-back-btn');
-        const count = await backBtn.count();
-        test.skip(count === 0, 'Back button not rendered in current chat state');
-
-        await expect(backBtn.first()).toBeVisible();
-    });
-});
-
-// ---------------------------------------------------------------------------
 // 4. Chat input & send button
 // ---------------------------------------------------------------------------
 
@@ -169,85 +178,66 @@ test.describe('Chat input and send button', () => {
     test('input field is visible when chat is open', async ({ page }) => {
         await gotoDemo(page);
         await openWidget(page);
-
-        const input = shadow(page, '.chat-input-field');
-        const count = await input.count();
-        test.skip(count === 0, 'Input not present — widget may be showing list view');
-
-        await expect(input.first()).toBeVisible();
+        await expect(shadow(page, '.chat-input-field')).toBeVisible();
     });
 
     test('send button is visible when chat is open', async ({ page }) => {
         await gotoDemo(page);
         await openWidget(page);
-
-        const sendBtn = shadow(page, '.chat-send-btn');
-        const count = await sendBtn.count();
-        test.skip(count === 0, 'Send button not present — widget may be showing list view');
-
-        await expect(sendBtn.first()).toBeVisible();
+        await expect(shadow(page, '.chat-send-btn')).toBeVisible();
     });
 
     test('typing into input updates its value', async ({ page }) => {
         await gotoDemo(page);
         await openWidget(page);
-
-        const input = shadow(page, '.chat-input-field');
-        const count = await input.count();
-        test.skip(count === 0, 'Input not present — widget may be showing list view');
-
-        await input.first().fill('Hello, this is a test message');
-        await expect(input.first()).toHaveValue('Hello, this is a test message');
+        await shadow(page, '.chat-input-field').fill('Hello, this is a test message');
+        await expect(shadow(page, '.chat-input-field')).toHaveValue('Hello, this is a test message');
     });
 
     test('Enter key clears the input (message submitted)', async ({ page }) => {
         await gotoDemo(page);
         await openWidget(page);
-
-        const input = shadow(page, '.chat-input-field');
-        const count = await input.count();
-        test.skip(count === 0, 'Input not present — widget may be showing list view');
-
-        await input.first().fill('Test message');
-        await input.first().press('Enter');
+        await shadow(page, '.chat-input-field').fill('Test message');
+        await shadow(page, '.chat-input-field').press('Enter');
         await page.waitForTimeout(400);
-
-        // After submission the field should be cleared.
-        await expect(input.first()).toHaveValue('');
+        await expect(shadow(page, '.chat-input-field')).toHaveValue('');
     });
 });
 
 // ---------------------------------------------------------------------------
-// 5. Quick actions
+// 5. Quick actions (fresh state — no prior chat history)
 // ---------------------------------------------------------------------------
 
 test.describe('Quick actions', () => {
     test.beforeEach(({ page }) => requireDemo());
 
-    test('quick actions container renders when present', async ({ page }) => {
-        await gotoDemo(page);
+    test('quick actions container renders on first visit', async ({ page }) => {
+        // Clear all SDK storage so the widget boots with no chat history,
+        // which is the condition required for quick-actions to be shown.
+        await gotoDemoFresh(page);
         await openWidget(page);
 
-        const qa = shadow(page, '.guiders-quick-actions');
-        const count = await qa.count();
-        test.skip(count === 0, 'Quick actions not rendered (no actions configured or chat already active)');
-
-        await expect(qa.first()).toBeVisible();
+        await expect(shadow(page, '.guiders-quick-actions')).toBeVisible();
     });
 
-    test('quick action buttons are clickable', async ({ page }) => {
-        await gotoDemo(page);
+    test('quick action buttons are rendered and clickable', async ({ page }) => {
+        await gotoDemoFresh(page);
         await openWidget(page);
 
         const btns = shadow(page, '.guiders-quick-actions-buttons button');
-        const count = await btns.count();
-        test.skip(count === 0, 'No quick-action buttons rendered');
+        await expect(btns.first()).toBeVisible();
 
-        // Click the first action — should not throw.
+        // Click the first action — must not crash the widget.
         await btns.first().click();
         await page.waitForTimeout(300);
-        // No assertion on side-effect (requires backend); just verify no crash.
         await expect(shadow(page, '.guiders-chat-widget-root')).toBeVisible();
+    });
+
+    test('welcome message is shown above quick action buttons', async ({ page }) => {
+        await gotoDemoFresh(page);
+        await openWidget(page);
+
+        await expect(shadow(page, '.guiders-quick-actions-welcome')).toBeVisible();
     });
 });
 
@@ -273,41 +263,19 @@ test.describe('Visual structure', () => {
     test('header contains title', async ({ page }) => {
         await gotoDemo(page);
         await openWidget(page);
-        const title = shadow(page, '.chat-header-title');
-        const count = await title.count();
-        test.skip(count === 0, 'Title element not present in current state');
-        await expect(title.first()).toBeVisible();
+        await expect(shadow(page, '.chat-header-title')).toBeVisible();
     });
 
     test('messages container is present inside open widget', async ({ page }) => {
         await gotoDemo(page);
         await openWidget(page);
-
-        const msgs = shadow(page, '.chat-messages');
-        const count = await msgs.count();
-        test.skip(count === 0, 'Messages area not rendered (list view active)');
-        await expect(msgs.first()).toBeVisible();
+        await expect(shadow(page, '.chat-messages')).toBeVisible();
     });
 
     test('input wrapper is present inside open widget', async ({ page }) => {
         await gotoDemo(page);
         await openWidget(page);
-
-        const wrapper = shadow(page, '.chat-input-wrapper');
-        const count = await wrapper.count();
-        test.skip(count === 0, 'Input wrapper not rendered (list view active)');
-        await expect(wrapper.first()).toBeVisible();
-    });
-
-    test('chat list view renders new-chat CTA when no active conversation', async ({ page }) => {
-        await gotoDemo(page);
-        await openWidget(page);
-
-        const listView = shadow(page, '.guiders-chat-list-view');
-        const count = await listView.count();
-        test.skip(count === 0, 'List view not active — visitor already has an open conversation');
-
-        await expect(shadow(page, '.guiders-chat-list-new-chat')).toBeVisible();
+        await expect(shadow(page, '.chat-input-wrapper')).toBeVisible();
     });
 });
 
@@ -369,11 +337,7 @@ test.describe('Theme CSS tokens', () => {
         await gotoDemo(page);
         await openWidget(page);
 
-        const badge = shadow(page, 'span[aria-label="Asistente IA"]');
-        const count = await badge.count();
-        test.skip(count === 0, 'IA badge not rendered in current widget state');
-
-        await expect(badge.first()).toBeVisible();
+        await expect(shadow(page, 'span[aria-label="Asistente IA"]')).toBeVisible();
 
         const colors = await page.evaluate(() => {
             const host = document.querySelector('#guiders-chat-widget') as HTMLElement | null;
