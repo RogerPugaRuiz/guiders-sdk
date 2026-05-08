@@ -130,6 +130,24 @@ class GuidersAdmin {
             'guiders_chat_features_section'
         );
 
+        // Color-scheme override field
+        add_settings_field(
+            'chat_color_scheme',
+            __('Modo de color del widget', 'guiders-wp-plugin'),
+            array($this, 'chatColorSchemeFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_chat_features_section'
+        );
+
+        // Design theme field
+        add_settings_field(
+            'chat_theme',
+            __('Tema visual del widget', 'guiders-wp-plugin'),
+            array($this, 'chatThemeFieldCallback'),
+            'guiders-settings-chat',
+            'guiders_chat_features_section'
+        );
+
         // ==================== TRACKING TAB ====================
         // Tracking Features section
         add_settings_section(
@@ -761,6 +779,20 @@ class GuidersAdmin {
             $validated['environment'] = 'production';
         }
 
+        // Validate chat color-scheme override
+        if (isset($input['chat_color_scheme']) && in_array($input['chat_color_scheme'], array('system', 'light', 'dark'), true)) {
+            $validated['chat_color_scheme'] = sanitize_text_field($input['chat_color_scheme']);
+        } else {
+            $validated['chat_color_scheme'] = 'system';
+        }
+
+        // Validate design theme
+        if (isset($input['chat_theme']) && in_array($input['chat_theme'], array('default', 'carbon'), true)) {
+            $validated['chat_theme'] = sanitize_text_field($input['chat_theme']);
+        } else {
+            $validated['chat_theme'] = 'default';
+        }
+
         // Validate chat enabled
         $validated['chat_enabled'] = isset($input['chat_enabled']) ? $validateCheckbox($input['chat_enabled']) : false;
 
@@ -1268,6 +1300,43 @@ class GuidersAdmin {
         $confidence_threshold = isset($settings['confidence_threshold']) ? $settings['confidence_threshold'] : 0.7;
         echo '<input type="number" id="confidence_threshold" name="guiders_wp_plugin_settings[confidence_threshold]" value="' . esc_attr($confidence_threshold) . '" min="0" max="1" step="0.1" class="small-text" />';
         echo '<p class="description">' . __('Nivel de confianza mínimo para la detección heurística (0.0 - 1.0). Mayor valor = más estricto.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Chat color-scheme override field callback
+     */
+    public function chatColorSchemeFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $scheme = isset($settings['chat_color_scheme']) ? $settings['chat_color_scheme'] : 'system';
+        $options = array(
+            'system' => __('Automático (preferencia del sistema operativo)', 'guiders-wp-plugin'),
+            'light'  => __('Claro', 'guiders-wp-plugin'),
+            'dark'   => __('Oscuro', 'guiders-wp-plugin'),
+        );
+        echo '<select id="chat_color_scheme" name="guiders_wp_plugin_settings[chat_color_scheme]">';
+        foreach ($options as $val => $label) {
+            echo '<option value="' . esc_attr($val) . '" ' . selected($val, $scheme, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . __('Fuerza el modo claro u oscuro del widget independientemente de la preferencia del sistema del visitante. Los cambios se aplican en la próxima carga de página.', 'guiders-wp-plugin') . '</p>';
+    }
+
+    /**
+     * Design theme field callback
+     */
+    public function chatThemeFieldCallback() {
+        $settings = get_option('guiders_wp_plugin_settings', array());
+        $theme = isset($settings['chat_theme']) ? $settings['chat_theme'] : 'default';
+        $options = array(
+            'default' => __('Default (slate/blanco — clásico Guiders)', 'guiders-wp-plugin'),
+            'carbon'  => __('Carbon (negro carbono — estilo Vercel)', 'guiders-wp-plugin'),
+        );
+        echo '<select id="chat_theme" name="guiders_wp_plugin_settings[chat_theme]">';
+        foreach ($options as $val => $label) {
+            echo '<option value="' . esc_attr($val) . '" ' . selected($val, $theme, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . __('Selecciona la paleta visual del widget. Carbon usa negros puros y grises zinc (inspirado en Vercel). Los cambios se aplican en la próxima carga de página.', 'guiders-wp-plugin') . '</p>';
     }
 
     /**

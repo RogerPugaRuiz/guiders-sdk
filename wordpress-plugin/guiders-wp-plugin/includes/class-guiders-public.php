@@ -49,6 +49,9 @@ class GuidersPublic {
 
             // Add preconnect headers for performance
             add_action('wp_head', array($this, 'addPreconnectHeaders'), 1);
+
+            // Dark/light mode preview toggle (dev/preview helper)
+            add_action('wp_footer', array($this, 'addDarkModeToggle'), 99);
         }
     }
 
@@ -154,7 +157,19 @@ class GuidersPublic {
             'autoOpenChatOnMessage' => isset($this->settings['auto_open_chat_on_message']) ? (bool)$this->settings['auto_open_chat_on_message'] : true,
             'quickActions' => $this->getQuickActionsConfig(),
             'aiConfig' => $this->getAIConfig(),
-            'chatSelector' => $this->getChatSelectorConfig()
+            'chatSelector' => $this->getChatSelectorConfig(),
+            // Color-scheme override (dark / light / system).
+            // 'system' means "follow OS prefers-color-scheme" — omit the key to avoid
+            // sending a redundant value; the SDK treats missing as 'system'.
+            'colorScheme' => isset($this->settings['chat_color_scheme']) && in_array($this->settings['chat_color_scheme'], array('system', 'light', 'dark'), true)
+                ? $this->settings['chat_color_scheme']
+                : 'system',
+            // Design theme (default / carbon).
+            // Note: 'theme' top-level is the design-theme ThemeId — distinct from
+            // 'wordpress.theme' (get_template()) in the sub-array above.
+            'theme' => isset($this->settings['chat_theme']) && in_array($this->settings['chat_theme'], array('default', 'carbon'), true)
+                ? $this->settings['chat_theme']
+                : 'default',
         );
 
         // Add environment-specific endpoints
@@ -727,6 +742,16 @@ class GuidersPublic {
                     // Add Chat Selector configuration if available
                     if (config.chatSelector) {
                         sdkOptions.chatSelector = config.chatSelector;
+                    }
+
+                    // Add design theme (default / carbon)
+                    if (config.theme) {
+                        sdkOptions.theme = config.theme;
+                    }
+
+                    // Add color-scheme override (dark / light / system)
+                    if (config.colorScheme) {
+                        sdkOptions.colorScheme = config.colorScheme;
                     }
 
                     // Asignar siempre endpoints explícitos (evita fallback a localhost y doble init)
@@ -1317,5 +1342,181 @@ class GuidersPublic {
                 : 'No hay conversaciones anteriores',
             'showUnreadBadge' => true
         );
+    }
+
+    /**
+     * Inject a floating dark/light mode preview toggle in the frontend.
+     *
+     * This is a developer/preview utility that lets you quickly switch the page
+     * background between light and dark so you can see how the chat SDK looks
+     * against each color scheme without changing the active WordPress theme.
+     *
+     * It reads and persists the preference in localStorage under the key
+     * "guiders_preview_dark_mode" and applies/removes the class
+     * "guiders-dark-preview" on <html>.  A small pill button fixed to the
+     * bottom-left corner triggers the toggle (offset from the chat FAB on the
+     * bottom-right).
+     *
+     * CSS variables used by the dark overlay are scoped under
+     * html.guiders-dark-preview so they never bleed outside this feature.
+     */
+    public function addDarkModeToggle() {
+        ?>
+        <style id="guiders-dm-toggle-styles">
+        /* ── Guiders dark-mode preview ─────────────────────────────────── */
+        html.guiders-dark-preview,
+        html.guiders-dark-preview body {
+            background-color: #111 !important;
+            color: #f5f5f5 !important;
+        }
+        html.guiders-dark-preview a { color: #93c5fd !important; }
+        html.guiders-dark-preview h1,
+        html.guiders-dark-preview h2,
+        html.guiders-dark-preview h3,
+        html.guiders-dark-preview h4,
+        html.guiders-dark-preview h5,
+        html.guiders-dark-preview h6 { color: #f9fafb !important; }
+        html.guiders-dark-preview p,
+        html.guiders-dark-preview li,
+        html.guiders-dark-preview span { color: #e5e7eb !important; }
+        /* darken typical WP content wrappers */
+        html.guiders-dark-preview .site,
+        html.guiders-dark-preview .site-header,
+        html.guiders-dark-preview .site-footer,
+        html.guiders-dark-preview #masthead,
+        html.guiders-dark-preview #colophon,
+        html.guiders-dark-preview #page,
+        html.guiders-dark-preview .wp-site-blocks,
+        html.guiders-dark-preview header,
+        html.guiders-dark-preview footer,
+        html.guiders-dark-preview nav,
+        html.guiders-dark-preview main,
+        html.guiders-dark-preview article,
+        html.guiders-dark-preview section,
+        html.guiders-dark-preview aside,
+        html.guiders-dark-preview .entry-content,
+        html.guiders-dark-preview .widget {
+            background-color: #111 !important;
+            color: inherit !important;
+            border-color: #333 !important;
+        }
+        html.guiders-dark-preview input,
+        html.guiders-dark-preview textarea,
+        html.guiders-dark-preview select {
+            background-color: #1f1f1f !important;
+            color: #f5f5f5 !important;
+            border-color: #444 !important;
+        }
+        html.guiders-dark-preview .has-white-background-color,
+        html.guiders-dark-preview .wp-block-cover {
+            background-color: #1a1a1a !important;
+        }
+
+        /* ── Toggle button ─────────────────────────────────────────────── */
+        #guiders-dm-toggle {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            z-index: 2147483640;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 9999px;
+            border: none;
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+            user-select: none;
+            /* Light default */
+            background: #1e293b;
+            color: #f8fafc;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+        }
+        #guiders-dm-toggle:hover {
+            box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+            transform: translateY(-1px);
+        }
+        html.guiders-dark-preview #guiders-dm-toggle {
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+        #guiders-dm-toggle .gdm-icon { font-size: 15px; line-height: 1; }
+        #guiders-dm-toggle .gdm-label { white-space: nowrap; }
+
+        /* small badge to signal "preview mode" */
+        #guiders-dm-badge {
+            position: fixed;
+            bottom: 60px;
+            left: 24px;
+            z-index: 2147483640;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 4px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        html.guiders-dark-preview #guiders-dm-badge {
+            opacity: 1;
+            background: #334155;
+            color: #94a3b8;
+        }
+        </style>
+
+        <button id="guiders-dm-toggle" title="Toggle dark/light preview" aria-pressed="false">
+            <span class="gdm-icon" aria-hidden="true">🌙</span>
+            <span class="gdm-label">Dark preview</span>
+        </button>
+        <span id="guiders-dm-badge">Preview mode</span>
+
+        <script id="guiders-dm-toggle-script">
+        (function () {
+            var STORAGE_KEY = 'guiders_preview_dark_mode';
+            var html = document.documentElement;
+            var btn  = document.getElementById('guiders-dm-toggle');
+            var icon = btn.querySelector('.gdm-icon');
+            var lbl  = btn.querySelector('.gdm-label');
+
+            function isDark() {
+                return html.classList.contains('guiders-dark-preview');
+            }
+
+            function applyState(dark, save) {
+                if (dark) {
+                    html.classList.add('guiders-dark-preview');
+                    btn.setAttribute('aria-pressed', 'true');
+                    icon.textContent = '☀️';
+                    lbl.textContent  = 'Light preview';
+                } else {
+                    html.classList.remove('guiders-dark-preview');
+                    btn.setAttribute('aria-pressed', 'false');
+                    icon.textContent = '🌙';
+                    lbl.textContent  = 'Dark preview';
+                }
+                if (save) {
+                    try { localStorage.setItem(STORAGE_KEY, dark ? '1' : '0'); } catch(e) {}
+                }
+            }
+
+            // Restore persisted preference
+            try {
+                var stored = localStorage.getItem(STORAGE_KEY);
+                if (stored === '1') { applyState(true, false); }
+            } catch(e) {}
+
+            btn.addEventListener('click', function () {
+                applyState(!isDark(), true);
+            });
+        })();
+        </script>
+        <?php
     }
 }
