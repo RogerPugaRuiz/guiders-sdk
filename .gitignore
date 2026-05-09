@@ -20,3 +20,4 @@ wp-content/cache/
 # Verification screenshots (ad-hoc, in root dir)
 /*.png
 opencode.json
+wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js

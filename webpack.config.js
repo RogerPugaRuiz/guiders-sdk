@@ -23,10 +23,6 @@ return {
 				patterns: [
 					{
 						from: path.resolve(__dirname, 'dist/index.js'),
-						to: path.resolve(__dirname, 'wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.js'),
-					},
-					{
-						from: path.resolve(__dirname, 'dist/index.js'),
 						to: path.resolve(__dirname, 'wordpress-plugin/guiders-wp-plugin/assets/js/guiders-sdk.min.js'),
 					},
 					{

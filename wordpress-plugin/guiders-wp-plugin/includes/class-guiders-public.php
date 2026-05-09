@@ -50,8 +50,13 @@ class GuidersPublic {
             // Add preconnect headers for performance
             add_action('wp_head', array($this, 'addPreconnectHeaders'), 1);
 
-            // Dark/light mode preview toggle (dev/preview helper)
-            add_action('wp_footer', array($this, 'addDarkModeToggle'), 99);
+            // Dark/light mode preview toggle (development only — never injected
+            // in production because it overrides the host site's background and
+            // would break the customer's design).
+            $environment = isset($this->settings['environment']) ? $this->settings['environment'] : 'production';
+            if ($environment === 'development' && current_user_can('manage_options')) {
+                add_action('wp_footer', array($this, 'addDarkModeToggle'), 99);
+            }
         }
     }
 

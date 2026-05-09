@@ -46,6 +46,8 @@ export function getChatStyles(position: ResolvedPosition): string {
             font-family: var(--gds-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif);
             display: flex;
             flex-direction: column;
+            /* Positioning context for the floating composer (.chat-input-container). */
+            position: relative;
             transition: box-shadow var(--gds-duration-slow, 200ms) var(--gds-ease-out, cubic-bezier(0.16,1,0.3,1));
         }
 
@@ -367,9 +369,26 @@ export function getChatStyles(position: ResolvedPosition): string {
             flex-direction: column;
             flex: 1;
             overflow-y: auto;
-            padding: 18px 16px 8px 16px;
+            /* Bottom padding leaves clear space for the floating composer +
+               AI disclaimer so the last message stays fully visible when
+               scrolled to the end. */
+            padding: 18px 16px 120px 16px;
             background: var(--gds-color-bg);
             scroll-behavior: smooth;
+            /* Fade messages out as they approach the floating composer so they
+               dissolve at the mid-point of the input instead of hard-clipping.
+               The transparent zone covers ~56px from the bottom (≈ half the
+               composer height), then fades over 32px into the visible area. */
+            -webkit-mask-image: linear-gradient(
+                to bottom,
+                black calc(100% - 88px),
+                transparent calc(100% - 32px)
+            );
+            mask-image: linear-gradient(
+                to bottom,
+                black calc(100% - 88px),
+                transparent calc(100% - 32px)
+            );
         }
 
         .chat-message-wrapper {
@@ -434,11 +453,20 @@ export function getChatStyles(position: ResolvedPosition): string {
 
         .chat-input-container {
             flex-shrink: 0;
-            position: relative;
-            margin: 0 12px 12px 12px;
+            /* Floating composer — overlays the message list so messages can
+               scroll smoothly underneath instead of being clipped at the top
+               edge of a fixed footer bar. The disclaimer (rendered after this
+               element in the JSX flow) sits below the composer; we leave a
+               small gap so it stays visible and never gets covered. */
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: var(--gds-composer-bottom-offset, 28px);
+            margin: 0 12px 0 12px;
             border-radius: 28px;
             padding: 2px;
             box-sizing: border-box;
+            z-index: 2;
         }
 
         /* Idle aurora — always visible, rotates slowly */
