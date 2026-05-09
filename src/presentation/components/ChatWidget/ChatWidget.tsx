@@ -87,9 +87,11 @@ export function ChatWidget({ options }: ChatWidgetProps) {
     // Initialize to !visible so that opening on mount always triggers the focus-save branch
     const wasVisibleRef = useRef<boolean>(!visible);
 
-    // Story 6.7: drag-to-close (mobile)
+    // Story 6.7: drag-to-close (mobile) — real-time panel follow with snap-back/close
+    const dragHandleRef = useRef<HTMLDivElement>(null);
     const dragStartYRef = useRef<number>(0);
     const dragStartXRef = useRef<number>(0);
+    const isDraggingRef = useRef<boolean>(false);
 
     const handleClose = () => {
         if (toggleChatOpenSignal.peek()) {
@@ -97,22 +99,67 @@ export function ChatWidget({ options }: ChatWidgetProps) {
         }
     };
 
-    const handleTouchStart = (e: TouchEvent) => {
-        dragStartYRef.current = e.touches[0].clientY;
-        dragStartXRef.current = e.touches[0].clientX;
-    };
+    // Use imperative addEventListener so we can pass { passive: false } on
+    // touchmove — required to call e.preventDefault() and prevent the browser
+    // from hijacking the gesture for page scroll.
+    useEffect(() => {
+        const handle = dragHandleRef.current;
+        const panel  = panelRef.current;
+        if (!handle || !panel) return;
 
-    const handleTouchEnd = (e: TouchEvent) => {
-        const touch = e.changedTouches[0];
-        const deltaY = touch.clientY - dragStartYRef.current;
-        const deltaX = Math.abs(touch.clientX - dragStartXRef.current);
-        // Ignore upward swipes and horizontal-dominant gestures (scroll, side-swipe)
-        if (deltaY <= 0 || deltaX > deltaY) return;
-        const panelHeight = panelRef.current?.offsetHeight ?? 600;
-        if (deltaY > panelHeight * 0.3) {
-            handleClose();
-        }
-    };
+        const onStart = (e: TouchEvent) => {
+            dragStartYRef.current  = e.touches[0].clientY;
+            dragStartXRef.current  = e.touches[0].clientX;
+            isDraggingRef.current  = true;
+            panel.style.transition = 'none';
+        };
+
+        const onMove = (e: TouchEvent) => {
+            if (!isDraggingRef.current) return;
+            const deltaY = e.touches[0].clientY - dragStartYRef.current;
+            const deltaX = Math.abs(e.touches[0].clientX - dragStartXRef.current);
+            if (deltaY <= 0 || deltaX > deltaY) return;
+            e.preventDefault(); // prevent page scroll while dragging the handle
+            panel.style.transform = `translateY(${deltaY}px)`;
+        };
+
+        const onEnd = (e: TouchEvent) => {
+            if (!isDraggingRef.current) return;
+            isDraggingRef.current = false;
+            const touch    = e.changedTouches[0];
+            const deltaY   = touch.clientY - dragStartYRef.current;
+            const deltaX   = Math.abs(touch.clientX - dragStartXRef.current);
+            const panelH   = panel.offsetHeight || 600;
+            const shouldClose = deltaY > panelH * 0.3 && deltaX <= deltaY;
+
+            if (shouldClose) {
+                // Slide out cleanly downward — no opacity change.
+                panel.style.transition = 'transform 300ms cubic-bezier(0.4,0,1,1)';
+                panel.style.transform  = `translateY(${panelH}px)`;
+                setTimeout(() => {
+                    panel.style.transition = '';
+                    panel.style.transform  = '';
+                    handleClose();
+                }, 300);
+            } else {
+                // Spring snap back.
+                panel.style.transition = 'transform 420ms cubic-bezier(0.16,1,0.3,1)';
+                panel.style.transform  = '';
+                setTimeout(() => { panel.style.transition = ''; }, 420);
+            }
+        };
+
+        handle.addEventListener('touchstart', onStart, { passive: true });
+        handle.addEventListener('touchmove',  onMove,  { passive: false });
+        handle.addEventListener('touchend',   onEnd,   { passive: true });
+
+        return () => {
+            handle.removeEventListener('touchstart', onStart);
+            handle.removeEventListener('touchmove',  onMove);
+            handle.removeEventListener('touchend',   onEnd);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // useLayoutEffect ensures `inert` is set before the browser paints,
     // preventing the "dialog announced before inert" race (patch F-M4).
@@ -208,11 +255,15 @@ export function ChatWidget({ options }: ChatWidgetProps) {
                 role="dialog"
                 aria-modal="true"
                 aria-label="Chat de soporte"
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
             >
-                {/* Drag handle (visible on mobile only via CSS display:none/block) */}
-                <div class="chat-drag-handle" aria-hidden="true" />
+                {/* Drag handle — listeners attached imperatively in useEffect
+                    with { passive: false } so touchmove can call preventDefault
+                    and prevent browser scroll hijack during the drag gesture. */}
+                <div
+                    ref={dragHandleRef}
+                    class="chat-drag-handle"
+                    aria-hidden="true"
+                />
                 <ChatHeader options={options} />
                 <OfflineBanner />
                 {isShowingList

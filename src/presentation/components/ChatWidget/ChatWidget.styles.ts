@@ -84,12 +84,36 @@ export function getChatStyles(position: ResolvedPosition): string {
         /* Drag handle (mobile only) */
         .chat-drag-handle {
             display: none;
-            width: 36px;
-            height: 4px;
-            background: var(--gds-color-border);
-            border-radius: 2px;
-            margin: 8px auto 4px;
+            /* Transparent hit area — tall enough to grab easily */
+            width: 100%;
+            height: 20px;
+            margin: 4px 0 0 0;
             flex-shrink: 0;
+            cursor: grab;
+            touch-action: none;
+            position: relative;
+        }
+        /* Subtle pill rendered via pseudo-element so the background
+           of the parent stays transparent (no ugly grey rectangle). */
+        .chat-drag-handle::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 32px;
+            height: 3px;
+            border-radius: 999px;
+            background: var(--gds-color-border);
+            opacity: 0.6;
+            transition: opacity 150ms ease, width 150ms ease;
+        }
+        .chat-drag-handle:active {
+            cursor: grabbing;
+        }
+        .chat-drag-handle:active::before {
+            opacity: 1;
+            width: 40px;
         }
         @media (max-width: 640px) {
             .chat-drag-handle { display: block; }
