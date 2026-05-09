@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.13.1
+Stable tag: 2.13.2
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,9 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.13.2 =
+* **🔧 Mejora del gesto de cierre en móvil**: El arrastre hacia abajo para cerrar el chat ahora sigue el dedo en tiempo real, con animación spring-back al soltar antes del umbral y deslizamiento fluido al cerrar. La pastilla indicadora es más sutil y discreta.
 
 = 2.13.1 =
 * **🐛 Bug Fixes**:
