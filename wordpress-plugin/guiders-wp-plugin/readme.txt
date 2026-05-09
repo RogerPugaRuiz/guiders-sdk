@@ -4,7 +4,7 @@ Tags: analytics, chat, tracking, ecommerce, woocommerce, live-chat, heuristic-de
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.13.0
+Stable tag: 2.13.1
 License: ISC
 License URI: https://opensource.org/licenses/ISC
 
@@ -149,6 +149,12 @@ El plugin respeta las configuraciones de privacidad. Consulta la documentación 
 5. Dashboard de analytics en Guiders
 
 == Changelog ==
+
+= 2.13.1 =
+* **🐛 Bug Fixes**:
+  * **Compositor flotante**: El input de texto ahora flota sobre los mensajes en lugar de empujarlos hacia arriba, evitando que el último mensaje quede cortado detrás del campo de escritura.
+  * **Fade de mensajes**: Los mensajes se desvanecen suavemente al acercarse al input, en lugar de cortarse de forma brusca al llegar al borde del compositor.
+  * **Toggle de previsualización oscura solo en desarrollo**: El botón flotante para alternar entre fondo oscuro y claro ya no se inyecta en sitios de producción ni para visitantes anónimos; solo aparece en entorno de desarrollo para administradores del sitio.
 
 = 2.13.0 =
 * **✨ Ajustes de tema y modo de color desde el panel de WordPress**: Selecciona el tema visual y el modo de color del widget directamente desde los ajustes del plugin, sin tocar código.
